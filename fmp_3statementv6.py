@@ -1,8 +1,10 @@
 import os
+import datetime
 import requests
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 # Output files always save next to this script, regardless of working directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -2616,6 +2618,476 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SCORECARD
+# ═══════════════════════════════════════════════════════════════════════════════
+def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
+    """
+    JS Scorecard tab — auto-scores 6 quantitative criteria from FMP data.
+    Qualitative criteria left blank for user input.
+    Scoring engine follows Master Prompt v2 thresholds.
+    """
+    ws = wb.create_sheet("Scorecard")
+    NC = 8   # columns A–H
+
+    # ── Column widths ─────────────────────────────────────────────────────────
+    for col, w in zip("ABCDEFGH", [44, 7, 9, 26, 13, 8, 12, 52]):
+        ws.column_dimensions[col].width = w
+
+    # ── Pre-calculate quantitative metrics ───────────────────────────────────
+
+    # 1. Revenue 3yr CAGR
+    rev_cagr = None
+    if len(is_data) >= 4:
+        r_now = is_data[-1].get("revenue") or 0
+        r_3ya = is_data[-4].get("revenue") or 0
+        if r_now and r_3ya > 0:
+            rev_cagr = (r_now / r_3ya) ** (1 / 3) - 1
+
+    # 2. FCF/NI series
+    def _fcf(cf):
+        v = cf.get("freeCashFlow")
+        if v:
+            return v
+        ocf = cf.get("operatingCashFlow") or 0
+        cap = abs(cf.get("capitalExpenditure") or 0)
+        return ocf - cap
+
+    fcf_ni_series = []
+    for i in range(min(len(is_data), len(cf_data))):
+        ni = is_data[i].get("netIncome") or 0
+        fcf_ni_series.append(_fcf(cf_data[i]) / ni if ni else None)
+
+    fcf_ni_latest = fcf_ni_series[-1] if fcf_ni_series else None
+    fcf_ni_3ya    = fcf_ni_series[-4] if len(fcf_ni_series) >= 4 else None
+    fcf_ni_trend  = (fcf_ni_latest is not None and fcf_ni_3ya is not None
+                     and (fcf_ni_3ya - fcf_ni_latest) > 0.15)
+
+    # 3. ROIC series
+    def _roic(is_, bs_):
+        ebit    = abs(is_.get("operatingIncome") or 0)
+        tax_e   = abs(is_.get("incomeTaxExpense") or 0)
+        pretax  = abs(is_.get("incomeBeforeTax") or 1e-9)
+        nopat   = ebit * (1 - min(tax_e / pretax, 0.50))
+        equity  = bs_.get("totalStockholdersEquity") or 0
+        debt    = (bs_.get("shortTermDebt") or 0) + (bs_.get("longTermDebt") or 0)
+        cash    = bs_.get("cashAndCashEquivalents") or 0
+        ic      = equity + debt - cash
+        return (nopat / ic) if ic > 1 else None
+
+    roic_series = [_roic(is_data[i], bs_data[i])
+                   for i in range(min(len(is_data), len(bs_data)))]
+    roic_latest = roic_series[-1] if roic_series else None
+    roic_3ya    = roic_series[-4] if len(roic_series) >= 4 else None
+    roic_trend  = (roic_latest is not None and roic_3ya is not None
+                   and (roic_3ya - roic_latest) > 0.05)
+
+    # 4. D/EBITDA and EBIT/Interest
+    bs0 = bs_data[-1]; is0 = is_data[-1]; cf0 = cf_data[-1]
+    total_debt  = (bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)
+    cash0       = bs0.get("cashAndCashEquivalents") or 0
+    net_cash_v  = cash0 - total_debt
+
+    ebitda0 = is0.get("ebitda") or 0
+    if not ebitda0:
+        da = abs(is0.get("depreciationAndAmortization") or
+                 cf0.get("depreciationAndAmortization") or 0)
+        ebitda0 = (is0.get("operatingIncome") or 0) + da
+    d_ebitda = total_debt / ebitda0 if ebitda0 > 0 else None
+
+    ebit0   = abs(is0.get("operatingIncome") or 0)
+    int_exp = abs(is0.get("interestExpense") or 0)
+    ebit_int = ebit0 / int_exp if int_exp > 0 else None
+
+    # 5. Capital Returns
+    def _ret(cf):
+        return (abs(cf.get("commonStockRepurchased") or
+                    cf.get("stockRepurchase") or 0) +
+                abs(cf.get("dividendsPaid") or 0))
+
+    tot_ret       = _ret(cf0)
+    ret_yrs_cnt   = sum(1 for cf_ in cf_data if _ret(cf_) > 0)
+    debt_prior    = ((bs_data[-2].get("shortTermDebt") or 0) +
+                     (bs_data[-2].get("longTermDebt") or 0)) if len(bs_data) >= 2 else total_debt
+    debt_funded   = total_debt > debt_prior * 1.05 and tot_ret > 0
+
+    # ── Scoring helpers ───────────────────────────────────────────────────────
+    TIER_ORDER = ["LOW", "MOD-LOW", "MOD-HIGH", "HIGH"]
+    TIER_SCORE = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
+
+    def down_tier(t):
+        i = TIER_ORDER.index(t)
+        return TIER_ORDER[max(i - 1, 0)]
+
+    def _t_rev(v):
+        if v is None:
+            return None, "N/A — insufficient data"
+        t = ("HIGH"     if v > 0.12 else
+             "MOD-HIGH" if v > 0.08 else
+             "MOD-LOW"  if v > 0.05 else "LOW")
+        return t, f"{v:.1%}"
+
+    def _t_fcf(v, pen):
+        if v is None:
+            return None, "N/A — insufficient data"
+        v2 = abs(v)
+        t  = ("HIGH"     if v2 > 0.85 else
+              "MOD-HIGH" if v2 > 0.65 else
+              "MOD-LOW"  if v2 > 0.50 else "LOW")
+        s  = f"{v:.0%}"
+        if pen:
+            t = down_tier(t)
+            s += "  [trend penalty: declined >15pp vs 3yr ago]"
+        return t, s
+
+    def _t_ret(tot, yrs, df):
+        if tot == 0:
+            return "LOW", "No capital returns in latest year"
+        s = f"${tot / 1e6:,.0f}mm latest FY"
+        if yrs < 3 or df:
+            r = "debt-funded" if df else f"only {yrs}/{len(cf_data)}yr history"
+            return "MOD-LOW", f"{s} — {r}"
+        if yrs < 5:
+            return "MOD-HIGH", f"{s} — {yrs}yr equity-funded"
+        return "HIGH", f"{s} — {yrs}yr+ consistent equity-funded"
+
+    def _t_roic(v, pen):
+        if v is None:
+            return None, "N/A — insufficient data"
+        t = ("HIGH"     if v > 0.25 else
+             "MOD-HIGH" if v > 0.15 else
+             "MOD-LOW"  if v > 0.08 else "LOW")
+        s = f"{v:.1%}"
+        if pen:
+            t = down_tier(t)
+            s += "  [trend penalty: declined >5pp vs 3yr ago]"
+        return t, s
+
+    def _t_de(de, nc):
+        if nc > 0:
+            return "HIGH", f"Net cash ${nc / 1e6:,.0f}mm — no net leverage"
+        if de is None:
+            return None, "N/A"
+        t = ("LOW"      if de > 4.0 else
+             "MOD-LOW"  if de > 2.5 else
+             "MOD-HIGH" if de > 1.0 else "HIGH")
+        return t, f"{de:.1f}x"
+
+    def _t_ei(v):
+        if v is None:
+            return "HIGH", "No interest expense — debt-free"
+        t = ("HIGH"     if v > 10.0 else
+             "MOD-HIGH" if v > 4.0  else
+             "MOD-LOW"  if v > 2.0  else "LOW")
+        return t, f"{v:.1f}x"
+
+    tier_rev_cagr,  note_rev_cagr  = _t_rev(rev_cagr)
+    tier_fcf_ni,    note_fcf_ni    = _t_fcf(fcf_ni_latest, fcf_ni_trend)
+    tier_cap_ret,   note_cap_ret   = _t_ret(tot_ret, ret_yrs_cnt, debt_funded)
+    tier_roic,      note_roic      = _t_roic(roic_latest, roic_trend)
+    tier_d_ebitda,  note_d_ebitda  = _t_de(d_ebitda, net_cash_v)
+    tier_ebit_int,  note_ebit_int  = _t_ei(ebit_int)
+
+    # ── Hard floor gates ──────────────────────────────────────────────────────
+    gate1 = d_ebitda is not None and d_ebitda > 4.0 and net_cash_v <= 0
+    gate2 = ebit_int is not None and ebit_int < 2.0
+    floor_cap = (59 if gate1 and gate2 else
+                 64 if gate1 or gate2 else None)
+
+    # ── Criteria table definition ─────────────────────────────────────────────
+    # (part, label, weight, auto_tier, note, is_auto)
+    CRITERIA = [
+        ("P1", "Business Clarity",                  2.5,  None,          "",             False),
+        ("P1", "Moat Profile",                       10.0, None,          "",             False),
+        ("P1", "Long-Term Potential",                10.0, None,          "",             False),
+        ("P1", "Management",                          7.5, None,          "",             False),
+        ("P2", "Revenue 3yr CAGR",                  10.0, tier_rev_cagr, note_rev_cagr,  True),
+        ("P2", "Cash Quality  (FCF / Net Income)",  10.0, tier_fcf_ni,   note_fcf_ni,    True),
+        ("P2", "Capital Returns",                    5.0,  tier_cap_ret,  note_cap_ret,   True),
+        ("P2", "ROIC",                               7.5,  tier_roic,     note_roic,      True),
+        ("P3", "Credit Risk  (D / EBITDA)",          5.0,  tier_d_ebitda, note_d_ebitda,  True),
+        ("P3", "Interest Cover  (EBIT / Interest)",  7.5,  tier_ebit_int, note_ebit_int,  True),
+        ("P3", "Execution Risk",                     5.0,  None,          "",             False),
+        ("P4", "Valuation vs Median  (P/E)",        10.0, None,          "",             False),
+        ("P4", "Valuation vs Median  (P/FCF)",      10.0, None,          "",             False),
+    ]
+
+    # ── Cell writing helpers ──────────────────────────────────────────────────
+    def wcell(r, col, val="", bold=False, color=C_BLACK, bg=C_WHITE,
+              halign="left", indent=0, italic=False, fmt=None, wrap=False):
+        c = ws.cell(row=r, column=col, value=val)
+        c.font      = fnt(bold=bold, color=color, italic=italic)
+        c.fill      = fll(bg)
+        c.border    = brd()
+        c.alignment = Alignment(horizontal=halign, vertical="center",
+                                indent=indent, wrap_text=wrap)
+        if fmt:
+            c.number_format = fmt
+        return c
+
+    def merge_row(r, val, bold=False, color=C_WHITE, bg=C_SECTION,
+                  halign="left", size=10, indent=1):
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=NC)
+        c = ws.cell(row=r, column=1, value=val)
+        c.font      = Font(name="Arial", bold=bold, color=color, size=size)
+        c.fill      = fll(bg)
+        c.alignment = Alignment(horizontal=halign, vertical="center",
+                                indent=indent, wrap_text=True)
+        ws.row_dimensions[r].height = 18
+        return r + 1
+
+    def blank_row(r):
+        for col in range(1, NC + 1):
+            ws.cell(row=r, column=col).fill = fll(C_WHITE)
+            ws.cell(row=r, column=col).border = brd()
+        return r + 1
+
+    def tier_bg(t):
+        return {"HIGH": "C8E6C9", "MOD-HIGH": "BBDEFB",
+                "MOD-LOW": "FFE0B2", "LOW": "FFCDD2"}.get(t, C_WHITE)
+
+    def tier_fg(t):
+        return {"HIGH": "1B5E20", "MOD-HIGH": "1565C0",
+                "MOD-LOW": "E65100", "LOW": "B71C1C"}.get(t, C_BLACK)
+
+    SCORE_FORMULA = (
+        '=IF({e}="HIGH",10,'
+        'IF({e}="MOD-HIGH",7,'
+        'IF({e}="MOD-LOW",3,'
+        'IF({e}="LOW",0,""))))'
+    )
+
+    # ── Dropdown validation for column E ─────────────────────────────────────
+    dv = DataValidation(type="list",
+                        formula1='"HIGH,MOD-HIGH,MOD-LOW,LOW"',
+                        allow_blank=True,
+                        showDropDown=False)
+    dv.sqref = "E9:E50"
+    ws.add_data_validation(dv)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # WRITE SHEET
+    # ════════════════════════════════════════════════════════════════════════
+    row = 1
+
+    # Title
+    ws.row_dimensions[row].height = 24
+    row = merge_row(row,
+                    f"JS SCORECARD — {ticker}  |  Master Prompt v2  |  "
+                    f"{datetime.date.today():%d %b %Y}",
+                    bold=True, size=12, bg=C_TITLE)
+
+    # Subtitle / instructions
+    ws.row_dimensions[row].height = 28
+    row = merge_row(
+        row,
+        "Blue rows = auto-scored from FMP data.  "
+        "Yellow rows = qualitative — user must select tier from dropdown.  "
+        "Score: HIGH=10 | MOD-HIGH=7 | MOD-LOW=3 | LOW=0",
+        bold=False, color=C_BLACK, bg="EAF2FB", size=9
+    )
+
+    row = blank_row(row)
+
+    # Gate status
+    if gate1 or gate2:
+        msgs = []
+        if gate1:
+            msgs.append(f"LEVERAGE GATE: D/EBITDA {d_ebitda:.1f}x > 4.0x")
+        if gate2:
+            msgs.append(f"COVERAGE GATE: EBIT/Interest {ebit_int:.1f}x < 2.0x")
+        ws.row_dimensions[row].height = 20
+        row = merge_row(
+            row,
+            "⚠  HARD FLOOR GATE(S) TRIGGERED — " + "  |  ".join(msgs) +
+            f"  →  Overall score capped at {floor_cap}",
+            bold=True, color=C_WHITE, bg="B71C1C", size=10
+        )
+    else:
+        ws.row_dimensions[row].height = 16
+        row = merge_row(
+            row,
+            "✓  No hard floor gates triggered  (D/EBITDA and EBIT/Interest within safe thresholds)",
+            bold=False, color="1B5E20", bg="C8E6C9", size=9
+        )
+
+    row = blank_row(row)
+
+    # Column headers
+    ws.row_dimensions[row].height = 20
+    for col, (txt, halign) in enumerate([
+        ("CRITERION",        "left"),
+        ("PART",             "center"),
+        ("WEIGHT %",         "center"),
+        ("CALCULATED VALUE", "center"),
+        ("TIER  ▼",          "center"),
+        ("SCORE",            "center"),
+        ("WTD SCORE",        "center"),
+        ("NOTES / COMMENTARY (editable)", "left"),
+    ], start=1):
+        c = ws.cell(row=row, column=col, value=txt)
+        c.font      = fnt(bold=True, color=C_WHITE, size=9)
+        c.fill      = fll(C_DETAIL_HD)
+        c.border    = brd()
+        c.alignment = Alignment(horizontal=halign, vertical="center", indent=1)
+    row += 1
+
+    hdr_row = row  # first criteria row index
+    crit_rows = []  # track for SUM formula
+
+    current_part = None
+    for part, label, weight, auto_tier, note, is_auto in CRITERIA:
+        # Part separator header
+        if part != current_part:
+            current_part = part
+            part_labels = {
+                "P1": "PART 1 — BUSINESS QUALITY  (qualitative)",
+                "P2": "PART 2 — FINANCIAL PERFORMANCE  (quantitative)",
+                "P3": "PART 3 — RISK PROFILE  (quantitative / qualitative)",
+                "P4": "PART 4 — VALUATION  (qualitative / user-supplied market data)",
+            }
+            ws.row_dimensions[row].height = 16
+            row = write_section_hdr(ws, row, part_labels[part], NC, C_SECTION)
+
+        # Row background
+        row_bg = C_ASSM if is_auto else C_AI_BG   # blue=auto, yellow=qualitative
+
+        ws.row_dimensions[row].height = 18
+
+        # A: Criterion name
+        wcell(row, 1, f"  {label}", bold=is_auto, bg=row_bg, halign="left")
+
+        # B: Part
+        wcell(row, 2, part, bold=False, bg=row_bg, halign="center", color="555555")
+
+        # C: Weight
+        c_wt = wcell(row, 3, weight / 100, bold=False, bg=row_bg, halign="center")
+        c_wt.number_format = "0.0%"
+
+        # D: Calculated value
+        if is_auto and note:
+            wcell(row, 4, note, bold=False, bg=row_bg, halign="left", italic=True,
+                  color="1A3A5C")
+        else:
+            wcell(row, 4, "— user input required", italic=True,
+                  color="999999", bg=row_bg)
+
+        # E: Tier (pre-filled for auto; blank for qualitative)
+        e_addr = f"E{row}"
+        if auto_tier:
+            c_tier = ws.cell(row=row, column=5, value=auto_tier)
+            c_tier.font      = Font(name="Arial", bold=True, size=10,
+                                    color=tier_fg(auto_tier))
+            c_tier.fill      = fll(tier_bg(auto_tier))
+        else:
+            c_tier = ws.cell(row=row, column=5, value=None)
+            c_tier.fill = fll(C_WHITE)
+        c_tier.border    = brd()
+        c_tier.alignment = Alignment(horizontal="center", vertical="center")
+
+        # F: Score (formula)
+        score_f = SCORE_FORMULA.replace("{e}", e_addr)
+        c_score = wcell(row, 6, score_f, bold=True, bg=row_bg,
+                        halign="center", fmt='0;(0);"-"')
+        c_score.font = fnt(bold=True, color=C_BLACK)
+
+        # G: Weighted score (formula)
+        wt_col   = get_column_letter(3)
+        scr_col  = get_column_letter(6)
+        c_wscore = wcell(row, 7,
+                         f'=IF({scr_col}{row}="","",{wt_col}{row}*{scr_col}{row})',
+                         bold=False, bg=row_bg, halign="center", fmt='0.00;(0.00);"-"')
+
+        # H: Notes
+        wcell(row, 8, note if is_auto else "", italic=True, color="555555",
+              bg=row_bg, halign="left", wrap=True)
+
+        crit_rows.append(row)
+        row += 1
+
+    # ── Total section ─────────────────────────────────────────────────────────
+    row = blank_row(row)
+
+    ws.row_dimensions[row].height = 20
+    # Total row
+    for col in range(1, NC + 1):
+        ws.cell(row=row, column=col).fill = fll(C_SUBTOTAL)
+        ws.cell(row=row, column=col).border = brd()
+    c_tot_lbl = ws.cell(row=row, column=1, value="TOTAL SCORE  (max = 100.0)")
+    c_tot_lbl.font      = fnt(bold=True, color=C_BLACK, size=11)
+    c_tot_lbl.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+    # Weighted total formula — sum of all G cells in crit_rows
+    g_refs = "+".join(f"G{r}" for r in crit_rows)
+    c_tot = ws.cell(row=row, column=7, value=f"={g_refs}")
+    c_tot.font         = fnt(bold=True, size=11)
+    c_tot.number_format = "0.00"
+    c_tot.alignment    = Alignment(horizontal="center", vertical="center")
+    c_tot.border        = brd()
+
+    # Note in H
+    cap_txt = f"Floor cap {floor_cap} applies — see gate warning above." if floor_cap else "No floor cap."
+    c_cap   = ws.cell(row=row, column=8, value=cap_txt)
+    c_cap.font      = fnt(bold=(floor_cap is not None), color=("B71C1C" if floor_cap else "1B5E20"))
+    c_cap.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    c_cap.border    = brd()
+    tot_row = row; row += 1
+
+    # Floor-adjusted row (only shown when cap applies)
+    if floor_cap is not None:
+        ws.row_dimensions[row].height = 18
+        for col in range(1, NC + 1):
+            ws.cell(row=row, column=col).fill = fll(C_FLAG_BG)
+            ws.cell(row=row, column=col).border = brd()
+        c_fl = ws.cell(row=row, column=1,
+                       value=f"FLOOR-ADJUSTED SCORE  (capped at {floor_cap})")
+        c_fl.font      = fnt(bold=True, color="B71C1C", size=11)
+        c_fl.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        c_adj = ws.cell(row=row, column=7,
+                        value=f"=MIN(G{tot_row},{floor_cap})")
+        c_adj.font         = fnt(bold=True, color="B71C1C", size=11)
+        c_adj.number_format = "0.00"
+        c_adj.alignment    = Alignment(horizontal="center", vertical="center")
+        c_adj.border        = brd()
+        adj_row = row; row += 1
+    else:
+        adj_row = tot_row
+
+    # ── Verdict row ───────────────────────────────────────────────────────────
+    row = blank_row(row)
+
+    ws.row_dimensions[row].height = 20
+    # Verdict uses an Excel formula referencing the appropriate total cell
+    score_ref = f"G{adj_row}"
+    verdict_f = (
+        f'=IF({score_ref}="","Score incomplete — fill qualitative tiers above",'
+        f'IF({score_ref}>=80,"STRONG BUY",'
+        f'IF({score_ref}>=65,"BUY",'
+        f'IF({score_ref}>=50,"HOLD",'
+        f'IF({score_ref}>=35,"REDUCE","SELL")))))'
+    )
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NC)
+    c_v = ws.cell(row=row, column=1, value=verdict_f)
+    c_v.font      = Font(name="Arial", bold=True, size=12, color=C_WHITE)
+    c_v.fill      = fll(C_SUMMARY_HD)
+    c_v.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[row].height = 24
+    row += 1
+
+    # Scoring legend
+    row = blank_row(row)
+    ws.row_dimensions[row].height = 14
+    row = merge_row(
+        row,
+        "SCORING GUIDE:  ≥80 STRONG BUY  |  65–79 BUY  |  50–64 HOLD  |  35–49 REDUCE  |  <35 SELL  "
+        "  ||  Floor gates: D/EBITDA >4x OR EBIT/Int <2x → cap 64;  both → cap 59",
+        bold=False, color="444444", bg="F4F8FB", size=8, indent=2
+    )
+
+    print("  Scorecard tab built.")
+    return ws
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════════
 def main():
@@ -2658,6 +3130,7 @@ def main():
     build_segments(wb, ticker, years)
     wacc_refs = build_wacc(wb, ticker, is_data, bs_data, manual_rating)
     dcf_refs  = build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs)
+    build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
 
     base  = f"{ticker}_FinancialModel_{years[-1]}"
     fname = f"{base}.xlsx"
@@ -2669,7 +3142,7 @@ def main():
         counter += 1
     wb.save(fpath)
     print(f"\n  Saved: {fpath}")
-    print("  Tabs: Cover | P&L | Balance Sheet | Cash Flow | Ratios & FCF | Segments | WACC | DCF")
+    print("  Tabs: Cover | P&L | Balance Sheet | Cash Flow | Ratios & FCF | Segments | WACC | DCF | Scorecard")
     input("\nPress Enter to exit...")
 
 if __name__ == "__main__":

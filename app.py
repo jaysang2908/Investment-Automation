@@ -109,6 +109,7 @@ if run and ticker:
         wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating)
         mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs,
                       current_price=current_price)
+        mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
 
         # Save to memory buffer instead of disk
         buf = io.BytesIO()
