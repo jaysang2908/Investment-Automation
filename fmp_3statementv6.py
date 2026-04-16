@@ -10,7 +10,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION — update API_KEY before running
 # ═══════════════════════════════════════════════════════════════════════════════
-API_KEY      = "YOUR_FMP_API_KEY"   # replace before running locally
+API_KEY      = "tOPLCq7cEELfef0FA6AKNuVoO549gAS1"
 YEARS        = 5    # historical years to fetch
 YEARS_PROJ   = 5    # minimum projection years in DCF (auto-extended if FMP has more)
 
@@ -1902,7 +1902,7 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 # DCF TAB
 # ═══════════════════════════════════════════════════════════════════════════════
-def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs):
+def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, current_price=None):
     """Build DCF sheet — consensus years auto-populated from FMP, remainder user input."""
 
     last_hist_year = years[-1]
@@ -2565,15 +2565,18 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     sh_row = row; row += 1
     row = blank(row)
 
-    price = float(is_data[-1].get("price") or 0)
-    try:
-        prof = requests.get(
-            f"https://financialmodelingprep.com/stable/profile"
-            f"?symbol={ticker}&apikey={API_KEY}", timeout=8
-        ).json()
-        price = float((prof[0] if isinstance(prof, list) else prof).get("price") or price)
-    except Exception:
-        pass
+    if current_price:
+        price = float(current_price)
+    else:
+        price = float(is_data[-1].get("price") or 0)
+        try:
+            prof = requests.get(
+                f"https://financialmodelingprep.com/stable/profile"
+                f"?symbol={ticker}&apikey={API_KEY}", timeout=8
+            ).json()
+            price = float((prof[0] if isinstance(prof, list) else prof).get("price") or price)
+        except Exception:
+            pass
 
     for label in ["Gordon Growth", "Exit Multiple"]:
         ev_r = ev_rows[label]

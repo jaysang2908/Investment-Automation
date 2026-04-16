@@ -79,6 +79,20 @@ if run and ticker:
             st.error("No data returned — check the ticker symbol.")
             st.stop()
 
+        # Fetch current price explicitly so DCF equity bridge always has it
+        import requests as _req
+        current_price = None
+        try:
+            _prof = _req.get(
+                f"https://financialmodelingprep.com/stable/profile"
+                f"?symbol={ticker}&apikey={mdl.API_KEY}", timeout=8
+            ).json()
+            _rec = _prof[0] if isinstance(_prof, list) else _prof
+            current_price = float(_rec.get("price") or 0) or None
+            log_print(f"  Current price: ${current_price}")
+        except Exception:
+            log_print("  Warning: could not fetch current price.")
+
         years = [
             d.get("fiscalYear") or d.get("calendarYear") or d["date"][:4]
             for d in is_data
@@ -93,7 +107,8 @@ if run and ticker:
         mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs)
         mdl.build_segments(wb, ticker, years)
         wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating)
-        mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs)
+        mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs,
+                      current_price=current_price)
 
         # Save to memory buffer instead of disk
         buf = io.BytesIO()
