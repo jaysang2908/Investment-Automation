@@ -2622,8 +2622,10 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     """
-    JS Scorecard tab — auto-scores 6 quantitative criteria from FMP data.
-    Qualitative criteria left blank for user input.
+    JS Scorecard tab — auto-scores 11 of 13 criteria.
+    Quantitative: Revenue CAGR, FCF/NI, Capital Returns, ROIC, D/EBITDA, EBIT/Int
+    Proxy-based:  Moat Profile, Management, Execution Risk, P/E vs Median, P/FCF vs Median
+    Manual only:  Business Clarity (needs segment data), Long-Term Potential
     Scoring engine follows Master Prompt v2 thresholds.
     """
     ws = wb.create_sheet("Scorecard")
@@ -2710,6 +2712,130 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
                      (bs_data[-2].get("longTermDebt") or 0)) if len(bs_data) >= 2 else total_debt
     debt_funded   = total_debt > debt_prior * 1.05 and tot_ret > 0
 
+    # 6. Gross / operating margin series (used for moat + management proxies)
+    rev_series = [is_.get("revenue") or 0 for is_ in is_data]
+    gm_series  = [((is_.get("grossProfit") or 0) / rev if rev else None)
+                  for is_, rev in zip(is_data, rev_series)]
+    om_series  = [(abs(is_.get("operatingIncome") or 0) / rev if rev else None)
+                  for is_, rev in zip(is_data, rev_series)]
+
+    gm_latest    = gm_series[-1]
+    gm_3yr_delta = ((gm_series[-1] - gm_series[-4])
+                    if len(gm_series) >= 4 and gm_series[-1] and gm_series[-4]
+                    else None)
+    om_latest    = om_series[-1]
+    om_3yr_delta = ((om_series[-1] - om_series[-4])
+                    if len(om_series) >= 4 and om_series[-1] and om_series[-4]
+                    else None)
+
+    # Revenue growth std dev (for moat consistency + execution risk)
+    rev_growths = [(rev_series[i] / rev_series[i - 1] - 1)
+                   for i in range(1, len(rev_series))
+                   if rev_series[i - 1] and rev_series[i]]
+    if len(rev_growths) > 1:
+        mu_rg  = sum(rev_growths) / len(rev_growths)
+        rev_std = (sum((g - mu_rg) ** 2 for g in rev_growths) / len(rev_growths)) ** 0.5
+    else:
+        rev_std = 0.0
+
+    # Op margin std dev (for execution risk)
+    om_valid = [o for o in om_series if o is not None]
+    if len(om_valid) > 1:
+        mu_om  = sum(om_valid) / len(om_valid)
+        om_std = (sum((o - mu_om) ** 2 for o in om_valid) / len(om_valid)) ** 0.5
+    else:
+        om_std = 0.0
+
+    # ── yfinance: P/E, P/FCF, sector medians ─────────────────────────────────
+    yf_info          = {}
+    trailing_pe      = None
+    forward_pe       = None
+    trailing_pfcf    = None
+    pe_5yr_avg       = None
+    pfcf_5yr_avg     = None
+    sector_pe_med    = None
+    sector_pfcf_med  = None
+
+    try:
+        import yfinance as yf
+        yft     = yf.Ticker(ticker)
+        yf_info = yft.info or {}
+        trailing_pe   = yf_info.get("trailingPE")
+        forward_pe    = yf_info.get("forwardPE")
+        trailing_pfcf = yf_info.get("priceToFreeCashflows")
+        print(f"  yfinance: trailingPE={trailing_pe}  forwardPE={forward_pe}  "
+              f"P/FCF={trailing_pfcf}")
+
+        # 5yr historical P/E and P/FCF from income_stmt + price history
+        try:
+            income   = yft.income_stmt
+            cashflow = yft.cash_flow
+            shares   = (yf_info.get("sharesOutstanding") or
+                        yf_info.get("impliedSharesOutstanding") or 0)
+            hist_px  = yft.history(period="5y")
+
+            pe_vals = []; pfcf_vals = []
+            for dt in income.columns:
+                try:
+                    ni = (income.loc["Net Income", dt]
+                          if "Net Income" in income.index else None)
+                    if "Free Cash Flow" in cashflow.index:
+                        fcf_v = cashflow.loc["Free Cash Flow", dt]
+                    else:
+                        ocf = (cashflow.loc["Operating Cash Flow", dt]
+                               if "Operating Cash Flow" in cashflow.index else 0)
+                        cap = abs(cashflow.loc["Capital Expenditure", dt]
+                                  if "Capital Expenditure" in cashflow.index else 0)
+                        fcf_v = ocf - cap
+                    dt_str  = str(dt.date()) if hasattr(dt, "date") else str(dt)[:10]
+                    p_slice = hist_px.loc[:dt_str]["Close"]
+                    price_at = float(p_slice.iloc[-1]) if len(p_slice) > 0 else None
+                    if ni and shares and price_at:
+                        eps = ni / shares
+                        if eps > 0:
+                            pe_vals.append(price_at / eps)
+                    if fcf_v and shares and price_at:
+                        fcf_ps = fcf_v / shares
+                        if fcf_ps > 0:
+                            pfcf_vals.append(price_at / fcf_ps)
+                except Exception:
+                    pass
+            pe_5yr_avg   = round(sum(pe_vals)   / len(pe_vals),   1) if pe_vals   else None
+            pfcf_5yr_avg = round(sum(pfcf_vals) / len(pfcf_vals), 1) if pfcf_vals else None
+            print(f"  yfinance: 5yr avg P/E={pe_5yr_avg}  P/FCF={pfcf_5yr_avg}")
+        except Exception as e_hist:
+            print(f"  yfinance hist averages failed: {e_hist}")
+
+        # Sector peer medians
+        try:
+            sector_str = yf_info.get("sector") or yf_info.get("industry") or ""
+            peer_list_yf = []
+            for key, peers in SECTOR_PEERS.items():
+                if key.lower() in sector_str.lower() or sector_str.lower() in key.lower():
+                    peer_list_yf = [p for p in peers if p != ticker]
+                    break
+            peer_pes = []; peer_pfcfs = []
+            for peer in peer_list_yf[:5]:
+                try:
+                    pi = yf.Ticker(peer).info
+                    pe = pi.get("trailingPE")
+                    pf = pi.get("priceToFreeCashflows")
+                    if pe and 0 < pe < 300: peer_pes.append(pe)
+                    if pf and 0 < pf < 300: peer_pfcfs.append(pf)
+                except Exception:
+                    pass
+            if peer_pes:
+                sector_pe_med   = sorted(peer_pes)[len(peer_pes) // 2]
+            if peer_pfcfs:
+                sector_pfcf_med = sorted(peer_pfcfs)[len(peer_pfcfs) // 2]
+            print(f"  yfinance: sector P/E median={sector_pe_med}  "
+                  f"P/FCF median={sector_pfcf_med}")
+        except Exception as e_peers:
+            print(f"  yfinance sector peers failed: {e_peers}")
+
+    except Exception as e_yf:
+        print(f"  Warning: yfinance unavailable — {e_yf}")
+
     # ── Scoring helpers ───────────────────────────────────────────────────────
     TIER_ORDER = ["LOW", "MOD-LOW", "MOD-HIGH", "HIGH"]
     TIER_SCORE = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
@@ -2787,6 +2913,112 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     tier_d_ebitda,  note_d_ebitda  = _t_de(d_ebitda, net_cash_v)
     tier_ebit_int,  note_ebit_int  = _t_ei(ebit_int)
 
+    # ── Moat proxy (4 indicators → tier) ─────────────────────────────────────
+    # Rough WACC for ROIC spread (no external API needed)
+    beta_yf   = yf_info.get("beta") or 1.0
+    avg_erp   = (DAMODARAN_ERP_IMPLIED + DAMODARAN_ERP_HIST_AVG) / 2
+    rough_re  = 0.043 + beta_yf * avg_erp
+    avg_debt  = (total_debt + debt_prior) / 2 if debt_prior else total_debt
+    tax_r_sc  = min(abs(is0.get("incomeTaxExpense") or 0) /
+                    abs(is0.get("incomeBeforeTax") or 1), 0.50)
+    rough_rd  = int_exp / avg_debt if avg_debt > 0 else 0.05
+    mktcap_sc = yf_info.get("marketCap") or 0
+    E_sc = mktcap_sc / 1e6; D_sc = total_debt / 1e6; V_sc = E_sc + D_sc
+    w_e_sc = E_sc / V_sc if V_sc > 0 else 0.8
+    w_d_sc = D_sc / V_sc if V_sc > 0 else 0.2
+    rough_wacc = w_e_sc * rough_re + w_d_sc * rough_rd * (1 - tax_r_sc)
+
+    moat_ind = []; moat_parts = []
+    if gm_latest is not None:
+        ok = gm_latest > 0.40
+        if ok: moat_ind.append(True)
+        moat_parts.append(f"GM {gm_latest:.1%} {'✓' if ok else '✗'} (>40%)")
+    if gm_3yr_delta is not None:
+        ok = gm_3yr_delta > 0.01
+        if ok: moat_ind.append(True)
+        moat_parts.append(f"GM trend {gm_3yr_delta:+.1%} {'✓' if ok else '✗'} (>+1pp)")
+    if roic_latest is not None:
+        spread = roic_latest - rough_wacc
+        ok = spread > 0.05
+        if ok: moat_ind.append(True)
+        moat_parts.append(f"ROIC-WACC {spread:+.1%} {'✓' if ok else '✗'} (>+5pp)")
+    ok_std = rev_std < 0.08
+    if ok_std: moat_ind.append(True)
+    moat_parts.append(f"Rev consistency σ={rev_std:.1%} {'✓' if ok_std else '✗'} (<8%)")
+    n_moat = len(moat_ind)
+    tier_moat = ("HIGH" if n_moat >= 4 else "MOD-HIGH" if n_moat == 3
+                 else "MOD-LOW" if n_moat == 2 else "LOW")
+    note_moat = "  |  ".join(moat_parts) + f"  [{n_moat}/4 indicators positive — proxy score]"
+
+    # ── Management proxy (4 indicators → tier) ───────────────────────────────
+    mgmt_ind = []; mgmt_parts = []
+    if roic_latest is not None and roic_3ya is not None:
+        chg = roic_latest - roic_3ya
+        ok  = chg >= -0.02
+        if ok: mgmt_ind.append(True)
+        mgmt_parts.append(f"ROIC trend {chg:+.1%} {'✓' if ok else '✗'} (≥-2pp)")
+    elif roic_latest is not None:
+        mgmt_parts.append(f"ROIC {roic_latest:.1%} (no trend data)")
+    if gm_3yr_delta is not None:
+        ok = gm_3yr_delta >= -0.01
+        if ok: mgmt_ind.append(True)
+        mgmt_parts.append(f"GM maintained {gm_3yr_delta:+.1%} {'✓' if ok else '✗'}")
+    if om_3yr_delta is not None:
+        ok = om_3yr_delta >= -0.02
+        if ok: mgmt_ind.append(True)
+        mgmt_parts.append(f"Op margin {om_3yr_delta:+.1%} {'✓' if ok else '✗'} (≥-2pp)")
+    ok_ret = tier_cap_ret in ("HIGH", "MOD-HIGH")
+    if ok_ret: mgmt_ind.append(True)
+    mgmt_parts.append(f"Capital returns {tier_cap_ret or 'N/A'} {'✓' if ok_ret else '✗'}")
+    n_mgmt = len(mgmt_ind)
+    tier_mgmt = ("HIGH" if n_mgmt >= 4 else "MOD-HIGH" if n_mgmt == 3
+                 else "MOD-LOW" if n_mgmt == 2 else "LOW")
+    note_mgmt = "  |  ".join(mgmt_parts) + f"  [{n_mgmt}/4 indicators positive — proxy score]"
+
+    # ── Execution Risk proxy (rev + margin volatility → tier) ────────────────
+    rev_risk_idx = (3 if rev_std < 0.05 else 2 if rev_std < 0.10
+                    else 1 if rev_std < 0.18 else 0)
+    om_risk_idx  = (3 if om_std < 0.02 else 2 if om_std < 0.04
+                    else 1 if om_std < 0.08 else 0)
+    exec_idx  = (rev_risk_idx + om_risk_idx) // 2
+    tier_exec = TIER_ORDER[exec_idx]
+    note_exec = (f"Rev growth σ={rev_std:.1%}  |  Op margin σ={om_std:.1%}"
+                 f"  [proxy — lower σ = lower risk = higher score]")
+
+    # ── Valuation: P/E and P/FCF vs 5yr historical average ───────────────────
+    def _t_val(current, hist_avg, sect_med, label, roic_v, cagr_v):
+        if not current:
+            return None, f"N/A — {label} not available from yfinance"
+        premium_ok = (roic_v is not None and roic_v > 0.25 and
+                      cagr_v is not None and cagr_v > 0.15)
+        benchmark  = hist_avg or sect_med
+        parts_v    = [f"Current {current:.1f}x"]
+        if hist_avg:   parts_v.append(f"5yr avg {hist_avg:.1f}x")
+        if sect_med:   parts_v.append(f"Sector median {sect_med:.1f}x")
+        note_v = "  |  ".join(parts_v)
+        if not benchmark:
+            return None, note_v + "  [no benchmark — review manually]"
+        delta = (current - benchmark) / benchmark
+        note_v += f"  [{delta:+.0%} vs benchmark"
+        if delta > 0.25:
+            tier_v = "MOD-LOW" if premium_ok else "LOW"
+            if premium_ok:
+                note_v += " — premium partly justified (ROIC>25% & fwd CAGR>15%)"
+        elif delta > 0.10:
+            tier_v = "MOD-LOW"
+        elif delta >= -0.10:
+            tier_v = "MOD-HIGH"
+        else:
+            tier_v = "HIGH"
+        note_v += "]"
+        return tier_v, note_v
+
+    pe_current    = forward_pe or trailing_pe
+    tier_pe,   note_pe   = _t_val(pe_current,    pe_5yr_avg,   sector_pe_med,
+                                   "P/E",   roic_latest, rev_cagr)
+    tier_pfcf, note_pfcf = _t_val(trailing_pfcf, pfcf_5yr_avg, sector_pfcf_med,
+                                   "P/FCF", roic_latest, rev_cagr)
+
     # ── Hard floor gates ──────────────────────────────────────────────────────
     gate1 = d_ebitda is not None and d_ebitda > 4.0 and net_cash_v <= 0
     gate2 = ebit_int is not None and ebit_int < 2.0
@@ -2795,20 +3027,21 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
 
     # ── Criteria table definition ─────────────────────────────────────────────
     # (part, label, weight, auto_tier, note, is_auto)
+    # Business Clarity and Long-Term Potential remain manual (needs segment data / narrative)
     CRITERIA = [
-        ("P1", "Business Clarity",                  2.5,  None,          "",             False),
-        ("P1", "Moat Profile",                       10.0, None,          "",             False),
-        ("P1", "Long-Term Potential",                10.0, None,          "",             False),
-        ("P1", "Management",                          7.5, None,          "",             False),
+        ("P1", "Business Clarity",                  2.5,  None,          "Segment data not on current FMP plan — assign manually after reviewing 10-K", False),
+        ("P1", "Moat Profile",                       10.0, tier_moat,     note_moat,      True),
+        ("P1", "Long-Term Potential",                10.0, None,          "Structural/TAM outlook — assign manually (genuinely qualitative)",            False),
+        ("P1", "Management",                          7.5, tier_mgmt,     note_mgmt,      True),
         ("P2", "Revenue 3yr CAGR",                  10.0, tier_rev_cagr, note_rev_cagr,  True),
         ("P2", "Cash Quality  (FCF / Net Income)",  10.0, tier_fcf_ni,   note_fcf_ni,    True),
         ("P2", "Capital Returns",                    5.0,  tier_cap_ret,  note_cap_ret,   True),
         ("P2", "ROIC",                               7.5,  tier_roic,     note_roic,      True),
         ("P3", "Credit Risk  (D / EBITDA)",          5.0,  tier_d_ebitda, note_d_ebitda,  True),
         ("P3", "Interest Cover  (EBIT / Interest)",  7.5,  tier_ebit_int, note_ebit_int,  True),
-        ("P3", "Execution Risk",                     5.0,  None,          "",             False),
-        ("P4", "Valuation vs Median  (P/E)",        10.0, None,          "",             False),
-        ("P4", "Valuation vs Median  (P/FCF)",      10.0, None,          "",             False),
+        ("P3", "Execution Risk",                     5.0,  tier_exec,     note_exec,      True),
+        ("P4", "Valuation vs Median  (P/E)",        10.0, tier_pe,       note_pe,        tier_pe   is not None),
+        ("P4", "Valuation vs Median  (P/FCF)",      10.0, tier_pfcf,     note_pfcf,      tier_pfcf is not None),
     ]
 
     # ── Cell writing helpers ──────────────────────────────────────────────────
@@ -2880,8 +3113,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     ws.row_dimensions[row].height = 28
     row = merge_row(
         row,
-        "Blue rows = auto-scored from FMP data.  "
-        "Yellow rows = qualitative — user must select tier from dropdown.  "
+        "Blue rows = auto-scored (FMP data + yfinance proxies).  "
+        "Yellow rows = manual — select tier from dropdown in column E.  "
+        "Only 2 criteria require manual input: Business Clarity + Long-Term Potential.  "
         "Score: HIGH=10 | MOD-HIGH=7 | MOD-LOW=3 | LOW=0",
         bold=False, color=C_BLACK, bg="EAF2FB", size=9
     )
