@@ -2746,8 +2746,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     else:
         om_std = 0.0
 
-    # ── yfinance: P/E, P/FCF, sector medians ─────────────────────────────────
-    yf_info          = {}
+    # ── FMP ratios: P/E, P/FCF — current + 5yr historical average ───────────
+    yf_info          = {}   # kept for beta fallback in moat section
     trailing_pe      = None
     forward_pe       = None
     trailing_pfcf    = None
@@ -2757,84 +2757,70 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     sector_pfcf_med  = None
 
     try:
-        import yfinance as yf
-        yft     = yf.Ticker(ticker)
-        yf_info = yft.info or {}
-        trailing_pe   = yf_info.get("trailingPE")
-        forward_pe    = yf_info.get("forwardPE")
-        trailing_pfcf = yf_info.get("priceToFreeCashflows")
-        print(f"  yfinance: trailingPE={trailing_pe}  forwardPE={forward_pe}  "
-              f"P/FCF={trailing_pfcf}")
+        rat_url = (f"https://financialmodelingprep.com/stable/ratios"
+                   f"?symbol={ticker}&limit=5&apikey={API_KEY}")
+        rat_data = requests.get(rat_url, timeout=10).json()
+        if isinstance(rat_data, list) and rat_data:
+            pe_vals   = [r["priceToEarningsRatio"]    for r in rat_data
+                         if r.get("priceToEarningsRatio")    and r["priceToEarningsRatio"]    > 0]
+            pfcf_vals = [r["priceToFreeCashFlowRatio"] for r in rat_data
+                         if r.get("priceToFreeCashFlowRatio") and r["priceToFreeCashFlowRatio"] > 0]
+            trailing_pe   = round(rat_data[0].get("priceToEarningsRatio")    or 0, 1) or None
+            trailing_pfcf = round(rat_data[0].get("priceToFreeCashFlowRatio") or 0, 1) or None
+            pe_5yr_avg    = round(sum(pe_vals)   / len(pe_vals),   1) if len(pe_vals)   > 1 else None
+            pfcf_5yr_avg  = round(sum(pfcf_vals) / len(pfcf_vals), 1) if len(pfcf_vals) > 1 else None
+            print(f"  FMP ratios: P/E={trailing_pe}  5yr avg={pe_5yr_avg}  "
+                  f"P/FCF={trailing_pfcf}  5yr avg={pfcf_5yr_avg}")
+    except Exception as e_rat:
+        print(f"  FMP ratios fetch failed: {e_rat}")
 
-        # 5yr historical P/E and P/FCF from income_stmt + price history
+    # Sector peer P/E and P/FCF medians (FMP ratios, latest year only)
+    try:
+        # Get sector from FMP profile (1 call — also used for beta below)
+        prof_sc = {}
         try:
-            income   = yft.income_stmt
-            cashflow = yft.cash_flow
-            shares   = (yf_info.get("sharesOutstanding") or
-                        yf_info.get("impliedSharesOutstanding") or 0)
-            hist_px  = yft.history(period="5y")
-
-            pe_vals = []; pfcf_vals = []
-            for dt in income.columns:
-                try:
-                    ni = (income.loc["Net Income", dt]
-                          if "Net Income" in income.index else None)
-                    if "Free Cash Flow" in cashflow.index:
-                        fcf_v = cashflow.loc["Free Cash Flow", dt]
-                    else:
-                        ocf = (cashflow.loc["Operating Cash Flow", dt]
-                               if "Operating Cash Flow" in cashflow.index else 0)
-                        cap = abs(cashflow.loc["Capital Expenditure", dt]
-                                  if "Capital Expenditure" in cashflow.index else 0)
-                        fcf_v = ocf - cap
-                    dt_str  = str(dt.date()) if hasattr(dt, "date") else str(dt)[:10]
-                    p_slice = hist_px.loc[:dt_str]["Close"]
-                    price_at = float(p_slice.iloc[-1]) if len(p_slice) > 0 else None
-                    if ni and shares and price_at:
-                        eps = ni / shares
-                        if eps > 0:
-                            pe_vals.append(price_at / eps)
-                    if fcf_v and shares and price_at:
-                        fcf_ps = fcf_v / shares
-                        if fcf_ps > 0:
-                            pfcf_vals.append(price_at / fcf_ps)
-                except Exception:
-                    pass
-            pe_5yr_avg   = round(sum(pe_vals)   / len(pe_vals),   1) if pe_vals   else None
-            pfcf_5yr_avg = round(sum(pfcf_vals) / len(pfcf_vals), 1) if pfcf_vals else None
-            print(f"  yfinance: 5yr avg P/E={pe_5yr_avg}  P/FCF={pfcf_5yr_avg}")
-        except Exception as e_hist:
-            print(f"  yfinance hist averages failed: {e_hist}")
-
-        # Sector peer medians
-        try:
-            sector_str = yf_info.get("sector") or yf_info.get("industry") or ""
-            peer_list_yf = []
-            for key, peers in SECTOR_PEERS.items():
-                if key.lower() in sector_str.lower() or sector_str.lower() in key.lower():
-                    peer_list_yf = [p for p in peers if p != ticker]
-                    break
-            peer_pes = []; peer_pfcfs = []
-            for peer in peer_list_yf[:5]:
-                try:
-                    pi = yf.Ticker(peer).info
-                    pe = pi.get("trailingPE")
-                    pf = pi.get("priceToFreeCashflows")
+            p_sc = requests.get(
+                f"https://financialmodelingprep.com/stable/profile"
+                f"?symbol={ticker}&apikey={API_KEY}", timeout=8
+            ).json()
+            prof_sc = (p_sc[0] if isinstance(p_sc, list) and p_sc
+                       else p_sc if isinstance(p_sc, dict) else {})
+        except Exception:
+            pass
+        sector_str   = prof_sc.get("industry") or prof_sc.get("sector") or ""
+        peer_list_sc = []
+        for key, peers in SECTOR_PEERS.items():
+            if key.lower() in sector_str.lower() or sector_str.lower() in key.lower():
+                peer_list_sc = [p for p in peers if p != ticker]
+                break
+        peer_pes = []; peer_pfcfs = []
+        for peer in peer_list_sc[:4]:
+            try:
+                pr = requests.get(
+                    f"https://financialmodelingprep.com/stable/ratios"
+                    f"?symbol={peer}&limit=1&apikey={API_KEY}", timeout=8
+                ).json()
+                if isinstance(pr, list) and pr:
+                    pe = pr[0].get("priceToEarningsRatio")
+                    pf = pr[0].get("priceToFreeCashFlowRatio")
                     if pe and 0 < pe < 300: peer_pes.append(pe)
                     if pf and 0 < pf < 300: peer_pfcfs.append(pf)
-                except Exception:
-                    pass
-            if peer_pes:
-                sector_pe_med   = sorted(peer_pes)[len(peer_pes) // 2]
-            if peer_pfcfs:
-                sector_pfcf_med = sorted(peer_pfcfs)[len(peer_pfcfs) // 2]
-            print(f"  yfinance: sector P/E median={sector_pe_med}  "
-                  f"P/FCF median={sector_pfcf_med}")
-        except Exception as e_peers:
-            print(f"  yfinance sector peers failed: {e_peers}")
+            except Exception:
+                pass
+        if peer_pes:
+            sector_pe_med   = round(sorted(peer_pes)[len(peer_pes) // 2], 1)
+        if peer_pfcfs:
+            sector_pfcf_med = round(sorted(peer_pfcfs)[len(peer_pfcfs) // 2], 1)
+        print(f"  Sector peer P/E median={sector_pe_med}  P/FCF median={sector_pfcf_med}")
+    except Exception as e_peers:
+        print(f"  Sector peer fetch failed: {e_peers}")
 
-    except Exception as e_yf:
-        print(f"  Warning: yfinance unavailable — {e_yf}")
+    # yfinance: beta only (for rough WACC in moat proxy) — graceful fallback
+    try:
+        import yfinance as yf
+        yf_info = yf.Ticker(ticker).info or {}
+    except Exception:
+        yf_info = {}
 
     # ── Scoring helpers ───────────────────────────────────────────────────────
     TIER_ORDER = ["LOW", "MOD-LOW", "MOD-HIGH", "HIGH"]
@@ -2914,8 +2900,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     tier_ebit_int,  note_ebit_int  = _t_ei(ebit_int)
 
     # ── Moat proxy (4 indicators → tier) ─────────────────────────────────────
-    # Rough WACC for ROIC spread (no external API needed)
-    beta_yf   = yf_info.get("beta") or 1.0
+    # Rough WACC for ROIC spread — use FMP profile beta (already fetched above)
+    beta_yf   = float(prof_sc.get("beta") or 1.0) or 1.0
     avg_erp   = (DAMODARAN_ERP_IMPLIED + DAMODARAN_ERP_HIST_AVG) / 2
     rough_re  = 0.043 + beta_yf * avg_erp
     avg_debt  = (total_debt + debt_prior) / 2 if debt_prior else total_debt
