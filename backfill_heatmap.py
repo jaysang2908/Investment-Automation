@@ -1,34 +1,30 @@
 """
 backfill_heatmap.py
 -------------------
-One-shot script to populate outputs.csv from all previously run tickers.
-Run locally: python backfill_heatmap.py
+Reads existing local Excel models and writes rows to outputs.csv on GitHub.
+No FMP API calls — uses only the already-generated .xlsx files.
+
+Run: python backfill_heatmap.py
 
 Requires:
-  - FMP_API_KEY  set as environment variable  (or hardcode below)
-  - GITHUB_TOKEN set as environment variable  (personal access token, repo scope)
-  - pip install requests openpyxl yfinance
+  - GITHUB_TOKEN env variable (or paste directly below)
+  - pip install openpyxl requests
 """
 
 import base64
 import datetime
+import glob
 import os
+import re
 import sys
 import requests
+import openpyxl
 
-# ── Config — edit if needed ───────────────────────────────────────────────────
-FMP_API_KEY   = os.environ.get("FMP_API_KEY",   "")   # or paste key directly
-GITHUB_TOKEN  = os.environ.get("GITHUB_TOKEN",  "")   # or paste token directly
+# ── Config ────────────────────────────────────────────────────────────────────
+GITHUB_TOKEN  = os.environ.get("GITHUB_TOKEN", "")   # or paste token here
 GITHUB_REPO   = "jaysang2908/Investment-Automation"
 GITHUB_BRANCH = "main"
-
-TICKERS = [
-    "AAPL", "ABBV", "ADBE", "AMD", "BAC",
-    "COST", "CSCO", "C",    "F",   "INTC",
-    "JNJ",  "JPM",  "KO",   "META","MSFT",
-    "NVDA", "SOFI", "TSLA", "TSM", "V",
-    "WMT",
-]
+FOLDER        = os.path.dirname(os.path.abspath(__file__))
 
 CSV_HEADER = (
     "Ticker,Price,MktCap_B,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
@@ -36,10 +32,21 @@ CSV_HEADER = (
     "Auto_Score,Floor_Cap,Date\n"
 )
 
-# ── Load model module ─────────────────────────────────────────────────────────
-sys.path.insert(0, os.path.dirname(__file__))
-import fmp_3statementv6 as mdl
-mdl.API_KEY = FMP_API_KEY
+# Scorecard criteria: (label_substring, weight)
+CRITERIA_WEIGHTS = {
+    "Moat Profile":              10.0,
+    "Management":                 7.5,
+    "Revenue 3yr CAGR":          10.0,
+    "Cash Quality":              10.0,
+    "Capital Returns":            5.0,
+    "ROIC":                       7.5,
+    "Credit Risk":                5.0,
+    "Interest Cover":             7.5,
+    "Execution Risk":             5.0,
+    "Valuation vs Median  (P/E)":10.0,
+    "Valuation vs Median  (P/FCF)":10.0,
+}
+TIER_VAL = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
 
 # ── GitHub helpers ────────────────────────────────────────────────────────────
 GH_HEADERS = {
@@ -49,7 +56,7 @@ GH_HEADERS = {
 GH_API = f"https://api.github.com/repos/{GITHUB_REPO}/contents/outputs.csv"
 
 
-def _read_csv_from_github():
+def _read_csv():
     r = requests.get(GH_API, headers=GH_HEADERS, params={"ref": GITHUB_BRANCH}, timeout=8)
     if r.status_code == 200:
         info = r.json()
@@ -57,9 +64,9 @@ def _read_csv_from_github():
     return None, CSV_HEADER
 
 
-def _write_csv_to_github(sha, content):
+def _write_csv(sha, content):
     payload = {
-        "message": "Backfill heatmap from existing models",
+        "message": "Backfill heatmap from local Excel models",
         "branch":  GITHUB_BRANCH,
         "content": base64.b64encode(content.encode()).decode(),
     }
@@ -67,98 +74,192 @@ def _write_csv_to_github(sha, content):
         payload["sha"] = sha
     r = requests.put(GH_API, headers=GH_HEADERS, json=payload, timeout=15)
     if r.status_code not in (200, 201):
-        print(f"  ERROR writing CSV: {r.status_code} — {r.json().get('message','')}")
+        print(f"  ERROR: {r.status_code} — {r.json().get('message','')}")
     else:
-        print("  CSV written to GitHub.")
+        print("  Written to GitHub.")
+
+
+# ── Excel parsing helpers ─────────────────────────────────────────────────────
+def _pct(s):
+    """Parse '37.5%' → 0.375, or None."""
+    if not s:
+        return None
+    m = re.search(r"([\d.]+)%", str(s))
+    return round(float(m.group(1)) / 100, 4) if m else None
+
+
+def _num(s):
+    """Parse first float from a string, or None."""
+    if not s:
+        return None
+    m = re.search(r"([\d.]+)", str(s))
+    return float(m.group(1)) if m else None
+
+
+def _parse_de(s):
+    """Parse D/EBITDA note: '2.1x' → 2.1, 'Net cash ...' → 0.0"""
+    s = str(s or "")
+    if "net cash" in s.lower():
+        return 0.0
+    m = re.search(r"([\d.]+)x", s)
+    return float(m.group(1)) if m else None
+
+
+def _parse_val(s):
+    """Parse 'Current 51.7x  |  5yr avg 44.9x ...' → (51.7, 44.9)"""
+    s = str(s or "")
+    cur  = re.search(r"[Cc]urrent\s+([\d.]+)x", s)
+    avg  = re.search(r"5yr\s+avg\s+([\d.]+)x", s)
+    return (
+        float(cur.group(1)) if cur else None,
+        float(avg.group(1)) if avg else None,
+    )
+
+
+def _parse_fcf_ni(s):
+    """Parse FCF/NI note: '97%' or 'FCF/NI 97% ...' → 0.97"""
+    return _pct(s)
+
+
+def parse_excel(path):
+    """Extract all heatmap fields from one Excel workbook."""
+    wb = openpyxl.load_workbook(path, data_only=True)
+    result = {}
+
+    # ── Scorecard tab ─────────────────────────────────────────────────────────
+    if "Scorecard" not in wb.sheetnames:
+        return None
+    sc = wb["Scorecard"]
+
+    # Scan rows: build {stripped_label: (col_D_value, col_E_tier)}
+    label_map = {}
+    floor_cap = None
+    for row in sc.iter_rows(min_col=1, max_col=5, values_only=True):
+        a = str(row[0] or "").strip()
+        d = str(row[3] or "").strip()
+        e = str(row[4] or "").strip() if row[4] else None
+        if a:
+            label_map[a] = (d, e)
+        # Detect floor gate row
+        if "HARD FLOOR GATE" in a.upper() and "CAPPED AT" in a.upper():
+            m = re.search(r"capped at\s+(\d+)", a, re.IGNORECASE)
+            if m:
+                floor_cap = int(m.group(1))
+
+    def _get(label_substr):
+        for k, v in label_map.items():
+            if label_substr.lower() in k.lower():
+                return v
+        return ("", None)
+
+    # Parse KPIs
+    result["roic"]     = _pct(_get("ROIC")[0])
+    result["rev_cagr"] = _pct(_get("Revenue 3yr CAGR")[0])
+    result["fcf_ni"]   = _parse_fcf_ni(_get("Cash Quality")[0])
+    result["d_ebitda"] = _parse_de(_get("Credit Risk")[0])
+
+    pe_note   = _get("Valuation vs Median  (P/E)")[0]
+    pfcf_note = _get("Valuation vs Median  (P/FCF)")[0]
+    result["pe_current"],   result["pe_5yr_avg"]   = _parse_val(pe_note)
+    result["pfcf_current"], result["pfcf_5yr_avg"] = _parse_val(pfcf_note)
+
+    # Compute auto_score
+    scored = []
+    for label_substr, weight in CRITERIA_WEIGHTS.items():
+        _, tier = _get(label_substr)
+        if tier and tier.upper() in TIER_VAL:
+            scored.append((TIER_VAL[tier.upper()], weight))
+
+    if scored:
+        auto_score = round(sum((s / 10) * w for s, w in scored), 1)
+        if floor_cap is not None:
+            auto_score = min(auto_score, floor_cap)
+        result["auto_score"] = auto_score
+    else:
+        result["auto_score"] = None
+
+    result["floor_cap"] = floor_cap
+
+    # ── DCF tab — price and shares ────────────────────────────────────────────
+    price  = None
+    shares = None
+    if "DCF" in wb.sheetnames:
+        dcf = wb["DCF"]
+        for row in dcf.iter_rows(min_col=1, max_col=2, values_only=True):
+            a = str(row[0] or "").strip()
+            b = row[1]
+            if "current market price" in a.lower() and b is not None:
+                try:
+                    price = float(b)
+                except (TypeError, ValueError):
+                    pass
+            if "shares outstanding" in a.lower() and "diluted" in a.lower() and b is not None:
+                try:
+                    shares = float(b)   # in millions
+                except (TypeError, ValueError):
+                    pass
+
+    result["price"]   = round(price, 2) if price else None
+    mkt_cap_b = round(price * shares / 1000, 2) if price and shares else None
+    result["mkt_cap_b"] = mkt_cap_b
+
+    return result
 
 
 def _f(v, dp=4):
     return "" if v is None else f"{v:.{dp}f}"
 
 
-# ── Main loop ─────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────
 def run():
-    if not FMP_API_KEY:
-        sys.exit("ERROR: FMP_API_KEY not set.")
     if not GITHUB_TOKEN:
         sys.exit("ERROR: GITHUB_TOKEN not set.")
 
-    print(f"Reading existing outputs.csv from GitHub...")
-    sha, content = _read_csv_from_github()
+    # Find all model files
+    files = sorted(glob.glob(os.path.join(FOLDER, "*_FinancialModel_*.xlsx")))
+    if not files:
+        sys.exit("No *_FinancialModel_*.xlsx files found.")
 
-    # Find tickers already in the CSV so we don't duplicate
+    print(f"Found {len(files)} Excel files.")
+    print("Reading outputs.csv from GitHub...")
+    sha, content = _read_csv()
+
     existing = set()
     for line in content.splitlines()[1:]:
         if line.strip():
             existing.add(line.split(",")[0].strip())
-    print(f"  Already present: {sorted(existing) or 'none'}")
+    print(f"Already present: {sorted(existing) or 'none'}\n")
 
-    today = datetime.date.today().isoformat()
+    today      = datetime.date.today().isoformat()
     rows_added = 0
 
-    for ticker in TICKERS:
+    for path in files:
+        fname  = os.path.basename(path)
+        ticker = fname.split("_")[0]
+
         if ticker in existing:
             print(f"  Skipping {ticker} — already in CSV")
             continue
 
-        print(f"\nProcessing {ticker}...")
+        print(f"Processing {ticker} ({fname})...")
         try:
-            is_data = mdl.fetch("income-statement",        ticker)[:mdl.YEARS][::-1]
-            bs_data = mdl.fetch("balance-sheet-statement", ticker)[:mdl.YEARS][::-1]
-            cf_data = mdl.fetch("cash-flow-statement",     ticker)[:mdl.YEARS][::-1]
-
-            if not is_data:
-                print(f"  No data — skipping.")
+            m = parse_excel(path)
+            if m is None:
+                print(f"  No Scorecard tab — skipping.")
                 continue
-
-            years = [
-                d.get("fiscalYear") or d.get("calendarYear") or d["date"][:4]
-                for d in is_data
-            ]
-
-            # Fetch price + market cap
-            price = None
-            mkt_cap = None
-            try:
-                prof = requests.get(
-                    f"https://financialmodelingprep.com/stable/profile"
-                    f"?symbol={ticker}&apikey={FMP_API_KEY}", timeout=8
-                ).json()
-                rec     = prof[0] if isinstance(prof, list) else prof
-                price   = float(rec.get("price")     or 0) or None
-                mkt_cap = float(rec.get("mktCap") or rec.get("marketCap") or 0) or None
-            except Exception as e:
-                print(f"  Warning: could not fetch profile — {e}")
-
-            # Build scorecard (we don't need the full workbook, but build_scorecard
-            # requires wb to create a sheet — use a throwaway workbook)
-            from openpyxl import Workbook
-            wb = Workbook()
-            mdl.build_cover(wb, ticker, years, is_data)
-            pl_refs   = mdl.build_pl(wb, is_data, years, ticker)
-            bs_refs   = mdl.build_bs(wb, bs_data, years, ticker)
-            cf_refs   = mdl.build_cf(wb, cf_data, years, ticker)
-            mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs)
-            mdl.build_segments(wb, ticker, years)
-            wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, None)
-            mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs,
-                          current_price=price)
-            _, m = mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
-
-            mkt_cap_b = (mkt_cap / 1e9) if mkt_cap else None
 
             row = ",".join([
                 ticker,
-                _f(price,   2),
-                _f(mkt_cap_b, 2),
+                _f(m.get("price"),       2),
+                _f(m.get("mkt_cap_b"),   2),
                 _f(m.get("roic")),
                 _f(m.get("rev_cagr")),
                 _f(m.get("fcf_ni")),
-                _f(m.get("d_ebitda"), 2),
-                _f(m.get("pe_current"),   1),
-                _f(m.get("pe_5yr_avg"),   1),
-                _f(m.get("pfcf_current"), 1),
-                _f(m.get("pfcf_5yr_avg"), 1),
+                _f(m.get("d_ebitda"),    2),
+                _f(m.get("pe_current"),  1),
+                _f(m.get("pe_5yr_avg"),  1),
+                _f(m.get("pfcf_current"),1),
+                _f(m.get("pfcf_5yr_avg"),1),
                 "" if m.get("auto_score") is None else str(m["auto_score"]),
                 "" if m.get("floor_cap")  is None else str(m["floor_cap"]),
                 today,
@@ -166,11 +267,12 @@ def run():
 
             content += row
             rows_added += 1
-            print(f"  Done — auto_score={m.get('auto_score')}  price={price}")
+            print(f"  auto_score={m.get('auto_score')}  price={m.get('price')}  "
+                  f"mkt_cap={m.get('mkt_cap_b')}B  roic={m.get('roic')}")
 
         except Exception as e:
             import traceback
-            print(f"  ERROR for {ticker}: {e}")
+            print(f"  ERROR: {e}")
             traceback.print_exc()
 
     if rows_added == 0:
@@ -178,7 +280,7 @@ def run():
         return
 
     print(f"\nWriting {rows_added} new row(s) to GitHub...")
-    _write_csv_to_github(sha, content)
+    _write_csv(sha, content)
     print("Done.")
 
 
