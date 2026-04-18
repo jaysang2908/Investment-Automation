@@ -3303,8 +3303,42 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         bold=False, color="444444", bg="F4F8FB", size=8, indent=2
     )
 
+    # ── Metrics dict for portfolio heatmap ────────────────────────────────────
+    _TIER_VAL = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
+    _auto_criteria = [
+        (tier_moat,     10.0),
+        (tier_mgmt,      7.5),
+        (tier_rev_cagr, 10.0),
+        (tier_fcf_ni,   10.0),
+        (tier_cap_ret,   5.0),
+        (tier_roic,      7.5),
+        (tier_d_ebitda,  5.0),
+        (tier_ebit_int,  7.5),
+        (tier_exec,      5.0),
+        (tier_pe,       10.0),
+        (tier_pfcf,     10.0),
+    ]
+    _scored = [(t, w) for t, w in _auto_criteria if t in _TIER_VAL]
+    if _scored:
+        _auto_score = (sum(_TIER_VAL[t] * w for t, w in _scored)
+                       / sum(w for _, w in _scored) * 10)
+        if floor_cap is not None:
+            _auto_score = min(_auto_score, floor_cap)
+        _auto_score = round(_auto_score, 1)
+    else:
+        _auto_score = None
+
+    metrics = {
+        "roic":       roic_latest,
+        "rev_cagr":   rev_cagr,
+        "fcf_ni":     fcf_ni_latest,
+        "d_ebitda":   d_ebitda,
+        "auto_score": _auto_score,
+        "floor_cap":  floor_cap,
+    }
+
     print("  Scorecard tab built.")
-    return ws
+    return ws, metrics
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

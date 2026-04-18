@@ -3,6 +3,8 @@ Investment Automation — Streamlit Web App
 Wraps fmp_3statementv6.py and serves the Excel model as a download.
 """
 
+import base64
+import datetime
 import io
 import sys
 import streamlit as st
@@ -50,6 +52,54 @@ if manual_rating_raw:
         st.warning(f"'{manual_rating_raw}' not recognised as a valid rating — will be ignored.")
 
 run = st.button("Generate Model", type="primary", disabled=not ticker)
+
+
+def _write_outputs_row(ticker, metrics):
+    """Append one row to outputs.csv in the GitHub repo (silent on failure)."""
+    try:
+        token = st.secrets.get("GITHUB_TOKEN")
+        repo  = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
+        if not token:
+            return
+        import requests as _req
+        api     = f"https://api.github.com/repos/{repo}/contents/outputs.csv"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept":        "application/vnd.github.v3+json",
+        }
+        r = _req.get(api, headers=headers, timeout=8)
+        if r.status_code == 200:
+            info    = r.json()
+            sha     = info["sha"]
+            content = base64.b64decode(info["content"]).decode()
+        else:
+            sha     = None
+            content = "Ticker,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,Auto_Score,Floor_Cap,Date\n"
+
+        def _f(v):
+            return "" if v is None else f"{v:.4f}"
+
+        row = ",".join([
+            ticker,
+            _f(metrics.get("roic")),
+            _f(metrics.get("rev_cagr")),
+            _f(metrics.get("fcf_ni")),
+            _f(metrics.get("d_ebitda")),
+            "" if metrics.get("auto_score") is None else str(metrics["auto_score"]),
+            "" if metrics.get("floor_cap")  is None else str(metrics["floor_cap"]),
+            datetime.date.today().isoformat(),
+        ]) + "\n"
+        content += row
+
+        payload = {
+            "message": f"Add {ticker} scorecard results",
+            "content": base64.b64encode(content.encode()).decode(),
+        }
+        if sha:
+            payload["sha"] = sha
+        _req.put(api, headers=headers, json=payload, timeout=10)
+    except Exception:
+        pass  # never block model generation for CSV write failures
 
 if run and ticker:
     log = st.empty()
@@ -109,7 +159,7 @@ if run and ticker:
         wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating)
         mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs,
                       current_price=current_price)
-        mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
+        _, scorecard_metrics = mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
 
         # Save to memory buffer instead of disk
         buf = io.BytesIO()
@@ -119,6 +169,7 @@ if run and ticker:
         log_print("Done.")
 
         st.success("Model generated successfully.")
+        _write_outputs_row(ticker, scorecard_metrics)
         st.download_button(
             label="⬇️ Download Excel Model",
             data=buf,
