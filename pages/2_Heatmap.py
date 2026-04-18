@@ -119,10 +119,10 @@ if "Auto_Score" in display.columns: fmt["Auto_Score"] = "{:.1f}"
 
 styled = display.style
 
-if "Verdict"    in display.columns: styled = styled.applymap(_style_verdict,  subset=["Verdict"])
-if "Auto_Score" in display.columns: styled = styled.applymap(_style_score,    subset=["Auto_Score"])
-if "ROIC"       in display.columns: styled = styled.applymap(_style_roic,     subset=["ROIC"])
-if "D_EBITDA"   in display.columns: styled = styled.applymap(_style_de,       subset=["D_EBITDA"])
+if "Verdict"    in display.columns: styled = styled.map(_style_verdict,  subset=["Verdict"])
+if "Auto_Score" in display.columns: styled = styled.map(_style_score,    subset=["Auto_Score"])
+if "ROIC"       in display.columns: styled = styled.map(_style_roic,     subset=["ROIC"])
+if "D_EBITDA"   in display.columns: styled = styled.map(_style_de,       subset=["D_EBITDA"])
 
 styled = styled.format(fmt, na_rep="N/A")
 
