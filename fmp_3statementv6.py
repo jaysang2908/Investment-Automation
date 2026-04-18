@@ -3304,6 +3304,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     )
 
     # ── Metrics dict for portfolio heatmap ────────────────────────────────────
+    # auto_score = raw points out of 100 earned from the 11 auto-scored criteria.
+    # Max = 87.5  (Business Clarity 2.5 + Long-Term Potential 10.0 = 12.5 manual)
     _TIER_VAL = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
     _auto_criteria = [
         (tier_moat,     10.0),
@@ -3320,21 +3322,23 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     ]
     _scored = [(t, w) for t, w in _auto_criteria if t in _TIER_VAL]
     if _scored:
-        _auto_score = (sum(_TIER_VAL[t] * w for t, w in _scored)
-                       / sum(w for _, w in _scored) * 10)
+        _auto_score = round(sum((_TIER_VAL[t] / 10) * w for t, w in _scored), 1)
         if floor_cap is not None:
             _auto_score = min(_auto_score, floor_cap)
-        _auto_score = round(_auto_score, 1)
     else:
         _auto_score = None
 
     metrics = {
-        "roic":       roic_latest,
-        "rev_cagr":   rev_cagr,
-        "fcf_ni":     fcf_ni_latest,
-        "d_ebitda":   d_ebitda,
-        "auto_score": _auto_score,
-        "floor_cap":  floor_cap,
+        "roic":         roic_latest,
+        "rev_cagr":     rev_cagr,
+        "fcf_ni":       fcf_ni_latest,
+        "d_ebitda":     d_ebitda,
+        "auto_score":   _auto_score,
+        "floor_cap":    floor_cap,
+        "pe_current":   pe_current,
+        "pe_5yr_avg":   pe_5yr_avg,
+        "pfcf_current": trailing_pfcf,
+        "pfcf_5yr_avg": pfcf_5yr_avg,
     }
 
     print("  Scorecard tab built.")

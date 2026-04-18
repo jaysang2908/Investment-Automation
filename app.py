@@ -54,10 +54,10 @@ if manual_rating_raw:
 run = st.button("Generate Model", type="primary", disabled=not ticker)
 
 
-def _write_outputs_row(ticker, metrics):
+def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None):
     """Append one row to outputs.csv in the GitHub repo."""
-    token = st.secrets.get("GITHUB_TOKEN")
-    repo  = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
+    token  = st.secrets.get("GITHUB_TOKEN")
+    repo   = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
     branch = st.secrets.get("GITHUB_BRANCH", "main")
     if not token:
         st.warning("GITHUB_TOKEN secret not found — heatmap row not saved.")
@@ -76,17 +76,29 @@ def _write_outputs_row(ticker, metrics):
             content = base64.b64decode(info["content"]).decode()
         else:
             sha     = None
-            content = "Ticker,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,Auto_Score,Floor_Cap,Date\n"
+            content = (
+                "Ticker,Price,MktCap_B,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
+                "PE_Current,PE_5yr,PFCF_Current,PFCF_5yr,"
+                "Auto_Score,Floor_Cap,Date\n"
+            )
 
-        def _f(v):
-            return "" if v is None else f"{v:.4f}"
+        def _f(v, dp=4):
+            return "" if v is None else f"{v:.{dp}f}"
+
+        mkt_cap_b = (mkt_cap / 1e9) if mkt_cap else None
 
         row = ",".join([
             ticker,
+            _f(price,   2),
+            _f(mkt_cap_b, 2),
             _f(metrics.get("roic")),
             _f(metrics.get("rev_cagr")),
             _f(metrics.get("fcf_ni")),
-            _f(metrics.get("d_ebitda")),
+            _f(metrics.get("d_ebitda"), 2),
+            _f(metrics.get("pe_current"),   1),
+            _f(metrics.get("pe_5yr_avg"),   1),
+            _f(metrics.get("pfcf_current"), 1),
+            _f(metrics.get("pfcf_5yr_avg"), 1),
             "" if metrics.get("auto_score") is None else str(metrics["auto_score"]),
             "" if metrics.get("floor_cap")  is None else str(metrics["floor_cap"]),
             datetime.date.today().isoformat(),
@@ -137,6 +149,7 @@ if run and ticker:
         # Fetch current price explicitly so DCF equity bridge always has it
         import requests as _req
         current_price = None
+        market_cap    = None
         try:
             _prof = _req.get(
                 f"https://financialmodelingprep.com/stable/profile"
@@ -144,6 +157,7 @@ if run and ticker:
             ).json()
             _rec = _prof[0] if isinstance(_prof, list) else _prof
             current_price = float(_rec.get("price") or 0) or None
+            market_cap    = float(_rec.get("mktCap") or _rec.get("marketCap") or 0) or None
             log_print(f"  Current price: ${current_price}")
         except Exception:
             log_print("  Warning: could not fetch current price.")
@@ -174,7 +188,8 @@ if run and ticker:
         log_print("Done.")
 
         st.success("Model generated successfully.")
-        _write_outputs_row(ticker, scorecard_metrics)
+        _write_outputs_row(ticker, scorecard_metrics,
+                           price=current_price, mkt_cap=market_cap)
         st.download_button(
             label="⬇️ Download Excel Model",
             data=buf,
