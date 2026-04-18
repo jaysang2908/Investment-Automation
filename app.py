@@ -55,19 +55,21 @@ run = st.button("Generate Model", type="primary", disabled=not ticker)
 
 
 def _write_outputs_row(ticker, metrics):
-    """Append one row to outputs.csv in the GitHub repo (silent on failure)."""
+    """Append one row to outputs.csv in the GitHub repo."""
+    token = st.secrets.get("GITHUB_TOKEN")
+    repo  = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
+    branch = st.secrets.get("GITHUB_BRANCH", "main")
+    if not token:
+        st.warning("GITHUB_TOKEN secret not found — heatmap row not saved.")
+        return
     try:
-        token = st.secrets.get("GITHUB_TOKEN")
-        repo  = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
-        if not token:
-            return
         import requests as _req
         api     = f"https://api.github.com/repos/{repo}/contents/outputs.csv"
         headers = {
             "Authorization": f"token {token}",
             "Accept":        "application/vnd.github.v3+json",
         }
-        r = _req.get(api, headers=headers, timeout=8)
+        r = _req.get(api, headers=headers, params={"ref": branch}, timeout=8)
         if r.status_code == 200:
             info    = r.json()
             sha     = info["sha"]
@@ -93,13 +95,16 @@ def _write_outputs_row(ticker, metrics):
 
         payload = {
             "message": f"Add {ticker} scorecard results",
+            "branch":  branch,
             "content": base64.b64encode(content.encode()).decode(),
         }
         if sha:
             payload["sha"] = sha
-        _req.put(api, headers=headers, json=payload, timeout=10)
-    except Exception:
-        pass  # never block model generation for CSV write failures
+        resp = _req.put(api, headers=headers, json=payload, timeout=10)
+        if resp.status_code not in (200, 201):
+            st.warning(f"Heatmap CSV write failed: {resp.status_code} — {resp.json().get('message','')}")
+    except Exception as e:
+        st.warning(f"Heatmap CSV write error: {e}")
 
 if run and ticker:
     log = st.empty()
