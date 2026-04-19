@@ -1,17 +1,20 @@
-import base64, requests, os
+"""Reset outputs.csv to current schema header (wipes all rows)."""
+import base64, requests, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import csv_schema as _schema
 
 token = os.environ["GITHUB_TOKEN"]
 headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
 api = "https://api.github.com/repos/jaysang2908/Investment-Automation/contents/outputs.csv"
 
 r = requests.get(api, headers=headers, params={"ref": "main"})
-sha = r.json()["sha"]
+sha = r.json().get("sha")
 
-new = "Ticker,Price,MktCap_B,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,PE_Current,PE_5yr,PFCF_Current,PFCF_5yr,Auto_Score,Floor_Cap,Date\n"
 payload = {
-    "message": "Reset outputs.csv with correct header",
+    "message": "Reset outputs.csv to current schema",
     "branch": "main",
-    "sha": sha,
-    "content": base64.b64encode(new.encode()).decode(),
+    "content": base64.b64encode(_schema.HEADER.encode()).decode(),
 }
+if sha:
+    payload["sha"] = sha
 print(requests.put(api, headers=headers, json=payload).status_code)

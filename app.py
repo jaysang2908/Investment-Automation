@@ -8,6 +8,7 @@ import datetime
 import io
 import sys
 import streamlit as st
+import csv_schema as _schema
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -76,13 +77,8 @@ def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None, dcf_prices=Non
             content = base64.b64decode(info["content"]).decode()
         else:
             sha     = None
-            content = (
-                "Ticker,Price,MktCap_B,"
-                "GG_Price,GG_Upside,EM_Price,EM_Upside,"
-                "PE_Current,PE_5yr,PFCF_Current,PFCF_5yr,"
-                "ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
-                "Auto_Score,Floor_Cap,Date\n"
-            )
+            content = _schema.HEADER
+        content = _schema.migrate(content)   # upgrade old schema automatically
 
         def _f(v, dp=4):
             return "" if v is None else f"{v:.{dp}f}"
@@ -90,26 +86,29 @@ def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None, dcf_prices=Non
         mkt_cap_b = (mkt_cap / 1e9) if mkt_cap else None
         dp = dcf_prices or {}
 
-        row = ",".join([
-            ticker,
-            _f(price,   2),
-            _f(mkt_cap_b, 2),
-            _f(dp.get("gg_price"),  2),
-            _f(dp.get("gg_upside"), 4),
-            _f(dp.get("em_price"),  2),
-            _f(dp.get("em_upside"), 4),
-            _f(metrics.get("pe_current"),   1),
-            _f(metrics.get("pe_5yr_avg"),   1),
-            _f(metrics.get("pfcf_current"), 1),
-            _f(metrics.get("pfcf_5yr_avg"), 1),
-            _f(metrics.get("roic")),
-            _f(metrics.get("rev_cagr")),
-            _f(metrics.get("fcf_ni")),
-            _f(metrics.get("d_ebitda"), 2),
-            "" if metrics.get("auto_score") is None else str(metrics["auto_score"]),
-            "" if metrics.get("floor_cap")  is None else str(metrics["floor_cap"]),
-            datetime.date.today().isoformat(),
-        ]) + "\n"
+        new_row = {
+            "Ticker":    ticker,
+            "Price":     _f(price,   2),
+            "MktCap_B":  _f(mkt_cap_b, 2),
+            "GG_Price":  _f(dp.get("gg_price"),  2),
+            "GG_Upside": _f(dp.get("gg_upside"), 4),
+            "EM_Price":  _f(dp.get("em_price"),  2),
+            "EM_Upside": _f(dp.get("em_upside"), 4),
+            "PE_Current":    _f(metrics.get("pe_current"),   1),
+            "PE_5yr":        _f(metrics.get("pe_5yr_avg"),   1),
+            "PFCF_Current":  _f(metrics.get("pfcf_current"), 1),
+            "PFCF_5yr":      _f(metrics.get("pfcf_5yr_avg"), 1),
+            "ROIC":          _f(metrics.get("roic")),
+            "Rev_CAGR":      _f(metrics.get("rev_cagr")),
+            "FCF_NI":        _f(metrics.get("fcf_ni")),
+            "D_EBITDA":      _f(metrics.get("d_ebitda"), 2),
+            "Auto_Score":    "" if metrics.get("auto_score") is None else str(metrics["auto_score"]),
+            "Floor_Cap":     "" if metrics.get("floor_cap")  is None else str(metrics["floor_cap"]),
+            "Manual_Clarity": "",
+            "Manual_LTP":    "",
+            "Date":          datetime.date.today().isoformat(),
+        }
+        row = ",".join(new_row.get(c, "") for c in _schema.COLUMNS) + "\n"
         content += row
 
         payload = {

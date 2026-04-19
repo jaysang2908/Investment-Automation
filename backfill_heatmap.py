@@ -19,6 +19,8 @@ import re
 import sys
 import requests
 import openpyxl
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import csv_schema as _schema
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GITHUB_TOKEN  = os.environ.get("GITHUB_TOKEN", "")   # or paste token here
@@ -26,13 +28,7 @@ GITHUB_REPO   = "jaysang2908/Investment-Automation"
 GITHUB_BRANCH = "main"
 FOLDER        = os.path.dirname(os.path.abspath(__file__))
 
-CSV_HEADER = (
-    "Ticker,Price,MktCap_B,"
-    "GG_Price,GG_Upside,EM_Price,EM_Upside,"
-    "PE_Current,PE_5yr,PFCF_Current,PFCF_5yr,"
-    "ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
-    "Auto_Score,Floor_Cap,Date\n"
-)
+CSV_HEADER = _schema.HEADER
 
 # Scorecard criteria: (label_substring, weight)
 CRITERIA_WEIGHTS = {
@@ -230,6 +226,17 @@ def run():
     for line in content.splitlines()[1:]:
         if line.strip():
             existing.add(line.split(",")[0].strip())
+    # Migrate any old schema before appending
+    content = _schema.migrate(content)
+    sha = None  # sha will be refreshed on write anyway; re-fetch after migrate
+    r2 = requests.get(GH_API, headers=GH_HEADERS, params={"ref": GITHUB_BRANCH}, timeout=8)
+    if r2.status_code == 200:
+        sha = r2.json()["sha"]
+
+    existing = set()
+    for line in content.splitlines()[1:]:
+        if line.strip():
+            existing.add(line.split(",")[0].strip())
     print(f"Already present: {sorted(existing) or 'none'}\n")
 
     today      = datetime.date.today().isoformat()
@@ -250,26 +257,29 @@ def run():
                 print(f"  No Scorecard tab — skipping.")
                 continue
 
-            row = ",".join([
-                ticker,
-                _f(m.get("price"),        2),
-                _f(m.get("mkt_cap_b"),    2),
-                "",   # GG_Price  — blank; regenerate via app to populate
-                "",   # GG_Upside
-                "",   # EM_Price
-                "",   # EM_Upside
-                _f(m.get("pe_current"),   1),
-                _f(m.get("pe_5yr_avg"),   1),
-                _f(m.get("pfcf_current"), 1),
-                _f(m.get("pfcf_5yr_avg"), 1),
-                _f(m.get("roic")),
-                _f(m.get("rev_cagr")),
-                _f(m.get("fcf_ni")),
-                _f(m.get("d_ebitda"),     2),
-                "" if m.get("auto_score") is None else str(m["auto_score"]),
-                "" if m.get("floor_cap")  is None else str(m["floor_cap"]),
-                today,
-            ]) + "\n"
+            new_row = {
+                "Ticker":    ticker,
+                "Price":     _f(m.get("price"),        2),
+                "MktCap_B":  _f(m.get("mkt_cap_b"),    2),
+                "GG_Price":  "",
+                "GG_Upside": "",
+                "EM_Price":  "",
+                "EM_Upside": "",
+                "PE_Current":    _f(m.get("pe_current"),   1),
+                "PE_5yr":        _f(m.get("pe_5yr_avg"),   1),
+                "PFCF_Current":  _f(m.get("pfcf_current"), 1),
+                "PFCF_5yr":      _f(m.get("pfcf_5yr_avg"), 1),
+                "ROIC":          _f(m.get("roic")),
+                "Rev_CAGR":      _f(m.get("rev_cagr")),
+                "FCF_NI":        _f(m.get("fcf_ni")),
+                "D_EBITDA":      _f(m.get("d_ebitda"),     2),
+                "Auto_Score":    "" if m.get("auto_score") is None else str(m["auto_score"]),
+                "Floor_Cap":     "" if m.get("floor_cap")  is None else str(m["floor_cap"]),
+                "Manual_Clarity": "",
+                "Manual_LTP":    "",
+                "Date":          today,
+            }
+            row = ",".join(new_row.get(c, "") for c in _schema.COLUMNS) + "\n"
 
             content += row
             rows_added += 1
