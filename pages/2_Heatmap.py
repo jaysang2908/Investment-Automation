@@ -80,9 +80,9 @@ def save_data(df):
 # ── Page ──────────────────────────────────────────────────────────────────────
 st.title("Portfolio Heatmap")
 st.caption(
-    f"**Auto Score** = points from 11 quantitative criteria, max **{AUTO_MAX}**.  "
-    f"Add up to **{MANUAL_MAX} manual pts** (Business Clarity /2.5 + Long-Term Potential /10.0) "
-    f"in the editor below to reach a 100-pt total.  "
+    f"**Auto Score** (max **{AUTO_MAX}**) = 11 quantitative criteria.  "
+    f"Add **Business Clarity** (0–2.5) + **LT Potential** (0–10) in the editor below — "
+    f"when both are filled the **Full Score (/100)** column updates.  "
     f"GG / EM prices computed from Python-side DCF (mirrors Excel defaults: g=3%, exit 20×)."
 )
 
@@ -108,6 +108,13 @@ df["Total_Score"] = (df["Auto_Score"]
                      .add(df["Manual_Clarity"], fill_value=0)
                      .add(df["Manual_LTP"],     fill_value=0)
                      .round(1))
+
+# Full_Score (/100): only populated when BOTH manual fields are > 0
+_both_filled = (df["Manual_Clarity"] > 0) & (df["Manual_LTP"] > 0)
+df["Full_Score"] = df["Total_Score"].where(_both_filled, other=df["Total_Score"])
+# Mark as NaN where not both filled so the cell shows "—" but keep value for sort
+df["Full_Score"] = df["Total_Score"].where(_both_filled, other=float("nan"))
+
 df["Verdict"]     = df["Total_Score"].apply(_verdict)
 df = df.sort_values("Total_Score", ascending=False).reset_index(drop=True)
 
@@ -151,7 +158,7 @@ st.subheader("Company Scores")
 
 # Columns shown in the main styled table
 MAIN_COLS = [
-    "Ticker", "Verdict", "Total_Score", "Auto_Score",
+    "Ticker", "Verdict", "Total_Score", "Full_Score", "Auto_Score",
     "Manual_Clarity", "Manual_LTP",
     "Price", "MktCap_B",
     "GG_Price", "GG_Upside", "EM_Price", "EM_Upside",
@@ -167,7 +174,8 @@ if "Date" in disp.columns:
 
 # Rename columns for display
 rename_map = {
-    "Total_Score":    "Total Score",
+    "Total_Score":    "Total Score (/87.5)",
+    "Full_Score":     "Full Score (/100)",
     "Auto_Score":     "Auto Score",
     "Manual_Clarity": "Clarity (/2.5)",
     "Manual_LTP":     "LT Potential (/10)",
@@ -192,7 +200,7 @@ rename_map = {
 disp = disp.rename(columns=rename_map)
 
 # Convert numeric columns
-for col in ["Total Score", "Auto Score", "Clarity (/2.5)", "LT Potential (/10)",
+for col in ["Total Score (/87.5)", "Full Score (/100)", "Auto Score", "Clarity (/2.5)", "LT Potential (/10)",
             "Price", "Mkt Cap ($B)", "GG Price", "EM Price",
             "GG Upside/(Down)", "EM Upside/(Down)",
             "P/E", "P/E 5yr avg", "P/FCF", "P/FCF 5yr avg",
@@ -272,24 +280,38 @@ for col, fmt_str in [
     ("Revenue ($B)",      "${:.1f}B"),
     ("OCF ($B)",          "${:.1f}B"),
     ("FCF ($B)",          "${:.1f}B"),
-    ("Total Score",       "{:.1f}"),
-    ("Auto Score",        "{:.1f}"),
-    ("Clarity (/2.5)",    "{:.1f}"),
-    ("LT Potential (/10)","{:.1f}"),
+    ("Total Score (/87.5)", "{:.1f}"),
+    ("Full Score (/100)",   "{:.1f}"),
+    ("Auto Score",          "{:.1f}"),
+    ("Clarity (/2.5)",      "{:.1f}"),
+    ("LT Potential (/10)",  "{:.1f}"),
 ]:
     if col in disp.columns:
         fmt[col] = fmt_str
 
+_score_cols = [c for c in ["Total Score (/87.5)", "Full Score (/100)"] if c in disp.columns]
 styled = (
     disp.style
     .format(fmt, na_rep="—")
     .map(_style_verdict,  subset=["Verdict"])
-    .map(_style_score,    subset=["Total Score"])
+    .map(_style_score,    subset=_score_cols)
     .map(_style_roic,     subset=["ROIC"] if "ROIC" in disp.columns else [])
     .map(_style_upside,   subset=[c for c in ["GG Upside/(Down)", "EM Upside/(Down)"] if c in disp.columns])
     .map(_style_de,       subset=["D/EBITDA"] if "D/EBITDA" in disp.columns else [])
     .map(_style_manual,   subset=[c for c in ["Clarity (/2.5)", "LT Potential (/10)"] if c in disp.columns])
     .set_properties(**{"white-space": "nowrap"})
+    .set_table_styles([
+        {"selector": "thead th", "props": [
+            ("background-color", "#1a1a1a"),
+            ("color", "white"),
+            ("font-weight", "bold"),
+            ("padding", "8px 10px"),
+            ("white-space", "nowrap"),
+        ]},
+        {"selector": "thead tr", "props": [
+            ("background-color", "#1a1a1a"),
+        ]},
+    ])
 )
 
 st.dataframe(styled, use_container_width=True, hide_index=True,
@@ -305,19 +327,19 @@ st.caption(
     "Press **Save Manual Scores** to persist — scores refresh within 5 minutes."
 )
 
-editor_df = df[["Ticker", "Total_Score", "Auto_Score", "Manual_Clarity", "Manual_LTP"]].copy()
-editor_df["Total_Score"] = df["Total_Score"]
+editor_df = df[["Ticker", "Auto_Score", "Manual_Clarity", "Manual_LTP", "Total_Score", "Full_Score"]].copy()
 
 edited = st.data_editor(
     editor_df,
     column_config={
-        "Ticker":         st.column_config.TextColumn("Ticker",           disabled=True),
-        "Total_Score":    st.column_config.NumberColumn("Total Score",    disabled=True, format="%.1f"),
-        "Auto_Score":     st.column_config.NumberColumn("Auto Score",     disabled=True, format="%.1f"),
+        "Ticker":         st.column_config.TextColumn("Ticker",              disabled=True),
+        "Auto_Score":     st.column_config.NumberColumn("Auto Score (/87.5)", disabled=True, format="%.1f"),
         "Manual_Clarity": st.column_config.NumberColumn("Clarity (/2.5)",
                               min_value=0.0, max_value=2.5, step=0.5, format="%.1f"),
         "Manual_LTP":     st.column_config.NumberColumn("LT Potential (/10)",
                               min_value=0.0, max_value=10.0, step=1.0, format="%.1f"),
+        "Total_Score":    st.column_config.NumberColumn("Total (/87.5)",     disabled=True, format="%.1f"),
+        "Full_Score":     st.column_config.NumberColumn("Full Score (/100)", disabled=True, format="%.1f"),
     },
     use_container_width=True,
     hide_index=True,
