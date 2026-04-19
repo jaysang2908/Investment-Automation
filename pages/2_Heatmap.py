@@ -81,8 +81,8 @@ def save_data(df):
 st.title("Portfolio Heatmap")
 st.caption(
     f"**Auto Score** = points from 11 quantitative criteria, max **{AUTO_MAX}**.  "
-    f"Add up to **{MANUAL_MAX} manual pts** (Business Clarity 2.5 + Long-Term Potential 10.0) "
-    f"in the table below to reach a 100-pt total.  "
+    f"Add up to **{MANUAL_MAX} manual pts** (Business Clarity /2.5 + Long-Term Potential /10.0) "
+    f"in the editor below to reach a 100-pt total.  "
     f"GG / EM prices computed from Python-side DCF (mirrors Excel defaults: g=3%, exit 20×)."
 )
 
@@ -119,11 +119,9 @@ present = [(v, counts.get(v, 0)) for v in order if counts.get(v, 0) > 0]
 total   = len(df)
 
 if present:
-    # HTML flex bar — minimum 8% width per segment so labels always fit
     MIN_W = 8
     raw_pcts = [c / total * 100 for _, c in present]
-    # Scale so minimum segments get MIN_W, rest fill proportionally
-    n_small = sum(1 for p in raw_pcts if p < MIN_W)
+    n_small  = sum(1 for p in raw_pcts if p < MIN_W)
     reserved = n_small * MIN_W
     remaining = 100 - reserved
     big_total = sum(p for p in raw_pcts if p >= MIN_W) or 1
@@ -148,78 +146,191 @@ if present:
 
 st.markdown("---")
 
-# ── Manual score overlay ──────────────────────────────────────────────────────
+# ── Colour-coded main table (read-only, pandas Styler) ────────────────────────
 st.subheader("Company Scores")
-st.caption(
-    "Edit **Clarity** (0–2.5) and **LT Potential** (0–10) directly in the table. "
-    "Total Score and Verdict update live. Press **Save Manual Scores** to persist."
+
+# Columns shown in the main styled table
+MAIN_COLS = [
+    "Ticker", "Verdict", "Total_Score", "Auto_Score",
+    "Manual_Clarity", "Manual_LTP",
+    "Price", "MktCap_B",
+    "GG_Price", "GG_Upside", "EM_Price", "EM_Upside",
+    "PE_Current", "PE_5yr", "PFCF_Current", "PFCF_5yr",
+    "ROIC", "Rev_CAGR", "FCF_NI",
+    "D_EBITDA", "Revenue_B", "OCF_B", "FCF_B",
+    "Floor_Cap", "Date",
+]
+show_cols = [c for c in MAIN_COLS if c in df.columns]
+disp = df[show_cols].copy()
+if "Date" in disp.columns:
+    disp["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
+
+# Rename columns for display
+rename_map = {
+    "Total_Score":    "Total Score",
+    "Auto_Score":     "Auto Score",
+    "Manual_Clarity": "Clarity (/2.5)",
+    "Manual_LTP":     "LT Potential (/10)",
+    "MktCap_B":       "Mkt Cap ($B)",
+    "GG_Price":       "GG Price",
+    "GG_Upside":      "GG Upside/(Down)",
+    "EM_Price":       "EM Price",
+    "EM_Upside":      "EM Upside/(Down)",
+    "PE_Current":     "P/E",
+    "PE_5yr":         "P/E 5yr avg",
+    "PFCF_Current":   "P/FCF",
+    "PFCF_5yr":       "P/FCF 5yr avg",
+    "ROIC":           "ROIC",
+    "Rev_CAGR":       "Rev CAGR",
+    "FCF_NI":         "FCF/NPAT",
+    "D_EBITDA":       "D/EBITDA",
+    "Revenue_B":      "Revenue ($B)",
+    "OCF_B":          "OCF ($B)",
+    "FCF_B":          "FCF ($B)",
+    "Floor_Cap":      "Floor Cap",
+}
+disp = disp.rename(columns=rename_map)
+
+# Convert numeric columns
+for col in ["Total Score", "Auto Score", "Clarity (/2.5)", "LT Potential (/10)",
+            "Price", "Mkt Cap ($B)", "GG Price", "EM Price",
+            "GG Upside/(Down)", "EM Upside/(Down)",
+            "P/E", "P/E 5yr avg", "P/FCF", "P/FCF 5yr avg",
+            "ROIC", "Rev CAGR", "FCF/NPAT", "D/EBITDA",
+            "Revenue ($B)", "OCF ($B)", "FCF ($B)", "Floor Cap"]:
+    if col in disp.columns:
+        disp[col] = pd.to_numeric(disp[col], errors="coerce")
+
+
+# ── Styling helpers ───────────────────────────────────────────────────────────
+def _style_verdict(val):
+    color = VERDICT_COLORS.get(str(val), "#BDBDBD")
+    return f"background-color:{color};color:white;font-weight:bold;text-align:center"
+
+def _style_score(val):
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return ""
+    if v >= 70:   return "background-color:#1B5E20;color:white;font-weight:bold"
+    if v >= 56.9: return "background-color:#43A047;color:white"
+    if v >= 43.8: return "background-color:#FB8C00;color:white"
+    if v >= 30.6: return "background-color:#EF6C00;color:white"
+    return "background-color:#B71C1C;color:white"
+
+def _style_roic(val):
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return ""
+    if v >= 0.20:  return "background-color:#1B5E20;color:white"
+    if v >= 0.12:  return "background-color:#43A047;color:white"
+    if v >= 0.08:  return "background-color:#FB8C00;color:white"
+    return "background-color:#B71C1C;color:white"
+
+def _style_upside(val):
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return ""
+    if v >= 0.30:  return "background-color:#1B5E20;color:white"
+    if v >= 0.10:  return "background-color:#43A047;color:white"
+    if v >= -0.10: return "background-color:#FB8C00;color:white"
+    return "background-color:#B71C1C;color:white"
+
+def _style_de(val):
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return ""
+    if v <= 1.0:  return "background-color:#1B5E20;color:white"
+    if v <= 2.5:  return "background-color:#43A047;color:white"
+    if v <= 4.0:  return "background-color:#FB8C00;color:white"
+    return "background-color:#B71C1C;color:white"
+
+def _style_manual(val):
+    return "background-color:#1565C0;color:white"
+
+
+# Build format dict — only for columns that exist in disp
+fmt = {}
+for col, fmt_str in [
+    ("Price",             "${:.2f}"),
+    ("Mkt Cap ($B)",      "${:.1f}B"),
+    ("GG Price",          "${:.2f}"),
+    ("EM Price",          "${:.2f}"),
+    ("GG Upside/(Down)",  "{:.1%}"),
+    ("EM Upside/(Down)",  "{:.1%}"),
+    ("P/E",               "{:.1f}x"),
+    ("P/E 5yr avg",       "{:.1f}x"),
+    ("P/FCF",             "{:.1f}x"),
+    ("P/FCF 5yr avg",     "{:.1f}x"),
+    ("ROIC",              "{:.1%}"),
+    ("Rev CAGR",          "{:.1%}"),
+    ("FCF/NPAT",          "{:.1%}"),
+    ("D/EBITDA",          "{:.1f}x"),
+    ("Revenue ($B)",      "${:.1f}B"),
+    ("OCF ($B)",          "${:.1f}B"),
+    ("FCF ($B)",          "${:.1f}B"),
+    ("Total Score",       "{:.1f}"),
+    ("Auto Score",        "{:.1f}"),
+    ("Clarity (/2.5)",    "{:.1f}"),
+    ("LT Potential (/10)","{:.1f}"),
+]:
+    if col in disp.columns:
+        fmt[col] = fmt_str
+
+styled = (
+    disp.style
+    .format(fmt, na_rep="—")
+    .map(_style_verdict,  subset=["Verdict"])
+    .map(_style_score,    subset=["Total Score"])
+    .map(_style_roic,     subset=["ROIC"] if "ROIC" in disp.columns else [])
+    .map(_style_upside,   subset=[c for c in ["GG Upside/(Down)", "EM Upside/(Down)"] if c in disp.columns])
+    .map(_style_de,       subset=["D/EBITDA"] if "D/EBITDA" in disp.columns else [])
+    .map(_style_manual,   subset=[c for c in ["Clarity (/2.5)", "LT Potential (/10)"] if c in disp.columns])
+    .set_properties(**{"white-space": "nowrap"})
 )
 
-# Columns to show in the editor
-NUM_COLS = {
-    "Total_Score": "Total Score",
-    "Auto_Score":  "Auto Score",
-    "Verdict":     "Verdict",
-    "Manual_Clarity": "Clarity",
-    "Manual_LTP":  "LT Potential",
-}
+st.dataframe(styled, use_container_width=True, hide_index=True,
+             height=min(80 + 35 * len(disp), 750))
 
-DISPLAY_COLS = ["Ticker", "Total_Score", "Verdict", "Auto_Score",
-                "Manual_Clarity", "Manual_LTP",
-                "Price", "MktCap_B",
-                "GG_Price", "GG_Upside", "EM_Price", "EM_Upside",
-                "PE_Current", "PE_5yr", "PFCF_Current", "PFCF_5yr",
-                "ROIC", "Rev_CAGR", "FCF_NI", "D_EBITDA",
-                "Floor_Cap", "Date"]
-show = [c for c in DISPLAY_COLS if c in df.columns]
-display = df[show].copy()
-if "Date" in display.columns:
-    display["Date"] = display["Date"].dt.strftime("%Y-%m-%d")
+st.markdown("---")
 
-# Configure editable columns
-col_config = {
-    "Ticker":        st.column_config.TextColumn("Ticker",       disabled=True),
-    "Total_Score":   st.column_config.NumberColumn("Total Score", disabled=True, format="%.1f"),
-    "Auto_Score":    st.column_config.NumberColumn("Auto Score",  disabled=True, format="%.1f"),
-    "Verdict":       st.column_config.TextColumn("Verdict",       disabled=True),
-    "Manual_Clarity":st.column_config.NumberColumn("Clarity",     min_value=0.0, max_value=2.5,  step=0.5,  format="%.1f"),
-    "Manual_LTP":    st.column_config.NumberColumn("LT Potential",min_value=0.0, max_value=10.0, step=1.0,  format="%.1f"),
-    "Price":         st.column_config.NumberColumn("Price",        disabled=True, format="$%.2f"),
-    "MktCap_B":      st.column_config.NumberColumn("Mkt Cap ($B)", disabled=True, format="$%.1f"),
-    "GG_Price":      st.column_config.NumberColumn("GG Price",     disabled=True, format="$%.2f"),
-    "GG_Upside":     st.column_config.NumberColumn("GG Upside",    disabled=True, format="{:.1%}"),
-    "EM_Price":      st.column_config.NumberColumn("EM Price",     disabled=True, format="$%.2f"),
-    "EM_Upside":     st.column_config.NumberColumn("EM Upside",    disabled=True, format="{:.1%}"),
-    "PE_Current":    st.column_config.NumberColumn("P/E",          disabled=True, format="%.1fx"),
-    "PE_5yr":        st.column_config.NumberColumn("P/E 5yr avg",  disabled=True, format="%.1fx"),
-    "PFCF_Current":  st.column_config.NumberColumn("P/FCF",        disabled=True, format="%.1fx"),
-    "PFCF_5yr":      st.column_config.NumberColumn("P/FCF 5yr avg",disabled=True, format="%.1fx"),
-    "ROIC":          st.column_config.NumberColumn("ROIC",          disabled=True, format="{:.1%}"),
-    "Rev_CAGR":      st.column_config.NumberColumn("Rev CAGR",     disabled=True, format="{:.1%}"),
-    "FCF_NI":        st.column_config.NumberColumn("FCF/NI",       disabled=True, format="{:.1%}"),
-    "D_EBITDA":      st.column_config.NumberColumn("D/EBITDA",     disabled=True, format="%.1fx"),
-    "Floor_Cap":     st.column_config.NumberColumn("Floor Cap",    disabled=True),
-    "Date":          st.column_config.TextColumn("Date",           disabled=True),
-}
-col_config = {k: v for k, v in col_config.items() if k in show}
+# ── Manual score editor ───────────────────────────────────────────────────────
+st.subheader("Edit Manual Scores")
+st.caption(
+    "**Clarity** (0–2.5 pts): business model clarity.  "
+    "**LT Potential** (0–10 pts): long-term upside potential.  "
+    "Press **Save Manual Scores** to persist — scores refresh within 5 minutes."
+)
+
+editor_df = df[["Ticker", "Total_Score", "Auto_Score", "Manual_Clarity", "Manual_LTP"]].copy()
+editor_df["Total_Score"] = df["Total_Score"]
 
 edited = st.data_editor(
-    display,
-    column_config=col_config,
+    editor_df,
+    column_config={
+        "Ticker":         st.column_config.TextColumn("Ticker",           disabled=True),
+        "Total_Score":    st.column_config.NumberColumn("Total Score",    disabled=True, format="%.1f"),
+        "Auto_Score":     st.column_config.NumberColumn("Auto Score",     disabled=True, format="%.1f"),
+        "Manual_Clarity": st.column_config.NumberColumn("Clarity (/2.5)",
+                              min_value=0.0, max_value=2.5, step=0.5, format="%.1f"),
+        "Manual_LTP":     st.column_config.NumberColumn("LT Potential (/10)",
+                              min_value=0.0, max_value=10.0, step=1.0, format="%.1f"),
+    },
     use_container_width=True,
     hide_index=True,
-    height=min(80 + 35 * len(display), 750),
-    key="heatmap_editor",
+    height=min(80 + 35 * len(editor_df), 600),
+    key="manual_editor",
 )
 
-if st.button("💾 Save Manual Scores", type="primary"):
-    # Merge edits back into full df
+if st.button("Save Manual Scores", type="primary"):
     for col in ["Manual_Clarity", "Manual_LTP"]:
         if col in edited.columns:
             df.loc[df["Ticker"].isin(edited["Ticker"]), col] = (
-                edited.set_index("Ticker")[col]
+                edited.set_index("Ticker")[col].values
             )
-    # Recompute totals
     df["Total_Score"] = (df["Auto_Score"]
                          .add(df["Manual_Clarity"], fill_value=0)
                          .add(df["Manual_LTP"],     fill_value=0)

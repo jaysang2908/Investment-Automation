@@ -14,7 +14,7 @@ import csv_schema as _schema
 st.set_page_config(
     page_title="Investment Model Generator",
     page_icon="📊",
-    layout="centered",
+    layout="wide",
 )
 
 # ── Password gate ─────────────────────────────────────────────────────────────
@@ -55,7 +55,8 @@ if manual_rating_raw:
 run = st.button("Generate Model", type="primary", disabled=not ticker)
 
 
-def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None, dcf_prices=None):
+def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None, dcf_prices=None,
+                       revenue_b=None, ocf_b=None, fcf_b=None):
     """Append one row to outputs.csv in the GitHub repo."""
     token  = st.secrets.get("GITHUB_TOKEN")
     repo   = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
@@ -102,6 +103,9 @@ def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None, dcf_prices=Non
             "Rev_CAGR":      _f(metrics.get("rev_cagr")),
             "FCF_NI":        _f(metrics.get("fcf_ni")),
             "D_EBITDA":      _f(metrics.get("d_ebitda"), 2),
+            "Revenue_B":     _f(revenue_b, 2),
+            "OCF_B":         _f(ocf_b, 2),
+            "FCF_B":         _f(fcf_b, 2),
             "Auto_Score":    "" if metrics.get("auto_score") is None else str(metrics["auto_score"]),
             "Floor_Cap":     "" if metrics.get("floor_cap")  is None else str(metrics["floor_cap"]),
             "Manual_Clarity": "",
@@ -195,9 +199,13 @@ if run and ticker:
 
         st.success("Model generated successfully.")
         _dcf_p = (dcf_refs or {}).get("dcf_prices", {})
+        _rev_b = (is_data[-1].get("revenue") or 0) / 1e9 or None
+        _ocf_b = (cf_data[-1].get("operatingCashFlow") or 0) / 1e9 or None
+        _fcf_b = (cf_data[-1].get("freeCashFlow") or 0) / 1e9 or None
         _write_outputs_row(ticker, scorecard_metrics,
                            price=current_price, mkt_cap=market_cap,
-                           dcf_prices=_dcf_p)
+                           dcf_prices=_dcf_p,
+                           revenue_b=_rev_b, ocf_b=_ocf_b, fcf_b=_fcf_b)
         st.download_button(
             label="⬇️ Download Excel Model",
             data=buf,
