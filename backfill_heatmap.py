@@ -178,28 +178,47 @@ def parse_excel(path):
 
     result["floor_cap"] = floor_cap
 
-    # ── DCF tab — price and shares ────────────────────────────────────────────
+    # ── DCF tab — price, shares, and implied prices ───────────────────────────
     price  = None
     shares = None
+    gg_price = None
+    em_price = None
     if "DCF" in wb.sheetnames:
         dcf = wb["DCF"]
         for row in dcf.iter_rows(min_col=1, max_col=2, values_only=True):
             a = str(row[0] or "").strip()
             b = row[1]
-            if "current market price" in a.lower() and b is not None:
+            al = a.lower()
+            if "current market price" in al and b is not None:
                 try:
                     price = float(b)
                 except (TypeError, ValueError):
                     pass
-            if "shares outstanding" in a.lower() and "diluted" in a.lower() and b is not None:
+            if "shares outstanding" in al and "diluted" in al and b is not None:
                 try:
                     shares = float(b)   # in millions
                 except (TypeError, ValueError):
                     pass
+            # Implied prices — only populated if the file was opened/saved in Excel
+            # (openpyxl leaves formula cache empty on fresh generation)
+            if "implied share price" in al and "gordon growth" in al and b is not None:
+                try:
+                    gg_price = float(b)
+                except (TypeError, ValueError):
+                    pass
+            if "implied share price" in al and "exit multiple" in al and b is not None:
+                try:
+                    em_price = float(b)
+                except (TypeError, ValueError):
+                    pass
 
-    result["price"]   = round(price, 2) if price else None
+    result["price"]    = round(price, 2) if price else None
     mkt_cap_b = round(price * shares / 1000, 2) if price and shares else None
     result["mkt_cap_b"] = mkt_cap_b
+    result["gg_price"]  = round(gg_price, 2) if gg_price else None
+    result["em_price"]  = round(em_price, 2) if em_price else None
+    result["gg_upside"] = round(gg_price / price - 1, 4) if gg_price and price else None
+    result["em_upside"] = round(em_price / price - 1, 4) if em_price and price else None
 
     return result
 
@@ -261,10 +280,10 @@ def run():
                 "Ticker":    ticker,
                 "Price":     _f(m.get("price"),        2),
                 "MktCap_B":  _f(m.get("mkt_cap_b"),    2),
-                "GG_Price":  "",
-                "GG_Upside": "",
-                "EM_Price":  "",
-                "EM_Upside": "",
+                "GG_Price":  _f(m.get("gg_price"),  2),
+                "GG_Upside": _f(m.get("gg_upside"), 4),
+                "EM_Price":  _f(m.get("em_price"),  2),
+                "EM_Upside": _f(m.get("em_upside"), 4),
                 "PE_Current":    _f(m.get("pe_current"),   1),
                 "PE_5yr":        _f(m.get("pe_5yr_avg"),   1),
                 "PFCF_Current":  _f(m.get("pfcf_current"), 1),
