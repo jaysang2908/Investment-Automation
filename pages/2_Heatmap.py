@@ -220,6 +220,7 @@ def _style_score(val):
         v = float(val)
     except (TypeError, ValueError):
         return ""
+    if v != v:     return ""   # NaN guard (float('nan') != float('nan'))
     if v >= 70:   return "background-color:#1B5E20;color:white;font-weight:bold"
     if v >= 56.9: return "background-color:#43A047;color:white"
     if v >= 43.8: return "background-color:#FB8C00;color:white"
@@ -301,14 +302,19 @@ styled = (
     .map(_style_manual,   subset=[c for c in ["Clarity (/2.5)", "LT Potential (/10)"] if c in disp.columns])
     .set_properties(**{"white-space": "nowrap"})
     .set_table_styles([
-        {"selector": "thead th", "props": [
+        {"selector": "th", "props": [
             ("background-color", "#1a1a1a"),
             ("color", "white"),
             ("font-weight", "bold"),
             ("padding", "8px 10px"),
             ("white-space", "nowrap"),
         ]},
-        {"selector": "thead tr", "props": [
+        {"selector": "th.col_heading", "props": [
+            ("background-color", "#1a1a1a"),
+            ("color", "white"),
+            ("font-weight", "bold"),
+        ]},
+        {"selector": "th.blank", "props": [
             ("background-color", "#1a1a1a"),
         ]},
     ])
