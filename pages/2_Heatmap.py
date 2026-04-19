@@ -109,12 +109,6 @@ df["Total_Score"] = (df["Auto_Score"]
                      .add(df["Manual_LTP"],     fill_value=0)
                      .round(1))
 
-# Full_Score (/100): only populated when BOTH manual fields are > 0
-_both_filled = (df["Manual_Clarity"] > 0) & (df["Manual_LTP"] > 0)
-df["Full_Score"] = df["Total_Score"].where(_both_filled, other=df["Total_Score"])
-# Mark as NaN where not both filled so the cell shows "—" but keep value for sort
-df["Full_Score"] = df["Total_Score"].where(_both_filled, other=float("nan"))
-
 df["Verdict"]     = df["Total_Score"].apply(_verdict)
 df = df.sort_values("Total_Score", ascending=False).reset_index(drop=True)
 
@@ -155,17 +149,22 @@ st.markdown("---")
 
 # ── Colour-coded main table (read-only, pandas Styler) ────────────────────────
 st.subheader("Company Scores")
+st.info(
+    "**Tip:** Scroll to the far right of the table to see **Clarity (/2.5)** and **LT Potential (/10)** columns. "
+    "Enter your manual scores in the **Edit Manual Scores** editor below and press **Save Manual Scores** — "
+    "they will be reflected in the Total Score (/100) column."
+)
 
-# Columns shown in the main styled table
+# Columns shown in the main styled table — manual inputs at far right
 MAIN_COLS = [
-    "Ticker", "Verdict", "Total_Score", "Full_Score", "Auto_Score",
-    "Manual_Clarity", "Manual_LTP",
+    "Ticker", "Verdict", "Total_Score", "Auto_Score",
     "Price", "MktCap_B",
     "GG_Price", "GG_Upside", "EM_Price", "EM_Upside",
     "PE_Current", "PE_5yr", "PFCF_Current", "PFCF_5yr",
     "ROIC", "Rev_CAGR", "FCF_NI",
     "D_EBITDA", "Revenue_B", "OCF_B", "FCF_B",
     "Floor_Cap", "Date",
+    "Manual_Clarity", "Manual_LTP",
 ]
 show_cols = [c for c in MAIN_COLS if c in df.columns]
 disp = df[show_cols].copy()
@@ -174,9 +173,8 @@ if "Date" in disp.columns:
 
 # Rename columns for display
 rename_map = {
-    "Total_Score":    "Total Score (/87.5)",
-    "Full_Score":     "Full Score (/100)",
-    "Auto_Score":     "Auto Score",
+    "Total_Score":    "Total Score (/100)",
+    "Auto_Score":     "Auto Score (/87.5)",
     "Manual_Clarity": "Clarity (/2.5)",
     "Manual_LTP":     "LT Potential (/10)",
     "MktCap_B":       "Mkt Cap ($B)",
@@ -200,7 +198,7 @@ rename_map = {
 disp = disp.rename(columns=rename_map)
 
 # Convert numeric columns
-for col in ["Total Score (/87.5)", "Full Score (/100)", "Auto Score", "Clarity (/2.5)", "LT Potential (/10)",
+for col in ["Total Score (/100)", "Auto Score (/87.5)", "Clarity (/2.5)", "LT Potential (/10)",
             "Price", "Mkt Cap ($B)", "GG Price", "EM Price",
             "GG Upside/(Down)", "EM Upside/(Down)",
             "P/E", "P/E 5yr avg", "P/FCF", "P/FCF 5yr avg",
@@ -281,16 +279,15 @@ for col, fmt_str in [
     ("Revenue ($B)",      "${:.1f}B"),
     ("OCF ($B)",          "${:.1f}B"),
     ("FCF ($B)",          "${:.1f}B"),
-    ("Total Score (/87.5)", "{:.1f}"),
-    ("Full Score (/100)",   "{:.1f}"),
-    ("Auto Score",          "{:.1f}"),
+    ("Total Score (/100)",  "{:.1f}"),
+    ("Auto Score (/87.5)", "{:.1f}"),
     ("Clarity (/2.5)",      "{:.1f}"),
     ("LT Potential (/10)",  "{:.1f}"),
 ]:
     if col in disp.columns:
         fmt[col] = fmt_str
 
-_score_cols = [c for c in ["Total Score (/87.5)", "Full Score (/100)"] if c in disp.columns]
+_score_cols = [c for c in ["Total Score (/100)", "Auto Score (/87.5)"] if c in disp.columns]
 styled = (
     disp.style
     .format(fmt, na_rep="—")
@@ -333,7 +330,7 @@ st.caption(
     "Press **Save Manual Scores** to persist — scores refresh within 5 minutes."
 )
 
-editor_df = df[["Ticker", "Auto_Score", "Manual_Clarity", "Manual_LTP", "Total_Score", "Full_Score"]].copy()
+editor_df = df[["Ticker", "Auto_Score", "Manual_Clarity", "Manual_LTP", "Total_Score"]].copy()
 
 edited = st.data_editor(
     editor_df,
@@ -344,8 +341,7 @@ edited = st.data_editor(
                               min_value=0.0, max_value=2.5, step=0.5, format="%.1f"),
         "Manual_LTP":     st.column_config.NumberColumn("LT Potential (/10)",
                               min_value=0.0, max_value=10.0, step=1.0, format="%.1f"),
-        "Total_Score":    st.column_config.NumberColumn("Total (/87.5)",     disabled=True, format="%.1f"),
-        "Full_Score":     st.column_config.NumberColumn("Full Score (/100)", disabled=True, format="%.1f"),
+        "Total_Score":    st.column_config.NumberColumn("Total Score (/100)", disabled=True, format="%.1f"),
     },
     use_container_width=True,
     hide_index=True,
