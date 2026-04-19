@@ -224,13 +224,14 @@ def parse_excel(path):
             elif "terminal ev/ebitda multiple" in al:
                 exit_mult = _fv(vals[0])
             elif "d&a as % of revenue" in al:
-                da_pct = _fv(vals[0])
+                # Use last historical year — that's what the Excel projections default to
+                da_pct = _fv(vals[hist_cols[-1]]) if hist_cols else _fv(vals[0])
             elif "capex as % of revenue" in al:
-                capex_pct = _fv(vals[0])
+                capex_pct = _fv(vals[hist_cols[-1]]) if hist_cols else _fv(vals[0])
             elif "change in nwc as % of revenue" in al:
-                nwc_pct = _fv(vals[0])
+                nwc_pct = _fv(vals[hist_cols[-1]]) if hist_cols else _fv(vals[0])
             elif "effective tax rate" in al and "user input" in al:
-                tax_dcf = _fv(vals[0])
+                tax_dcf = _fv(vals[hist_cols[-1]]) if hist_cols else _fv(vals[0])
             elif a == "Revenue" and proj_cols:
                 hist_rev    = [v for i in hist_cols if (v := _fv(vals[i])) is not None]
                 proj_rev    = [v for i in proj_cols if (v := _fv(vals[i])) is not None]
@@ -263,8 +264,9 @@ def parse_excel(path):
 
     # ── Python-side GG/EM computation (mirrors build_dcf logic) ──────────────
     gg_price = em_price = None
+    _dbg = {}   # collects intermediate values for validation output
     try:
-        _g    = g    if g    is not None else 0.03
+        _g    = g         if g         is not None else 0.03
         _tev  = exit_mult if exit_mult is not None else 20.0
         _nd   = net_debt  if net_debt  is not None else 0.0
         _mi   = mi        if mi        is not None else 0.0
@@ -273,6 +275,11 @@ def parse_excel(path):
         _cx   = capex_pct if capex_pct is not None else 0.05
         _nwc  = nwc_pct   if nwc_pct   is not None else 0.01
         _last_margin = (hist_ebitda[-1] / hist_rev[-1]) if hist_rev and hist_ebitda else 0.20
+
+        _dbg = dict(wacc=wacc_val, g=_g, tev=_tev, nd=_nd, mi=_mi,
+                    tax=_tax, da=_da, cx=_cx, nwc=_nwc,
+                    ebitda_margin=_last_margin, shares=shares,
+                    n_proj=len(proj_rev))
 
         if wacc_val and (wacc_val - _g) > 0.001 and shares and shares > 0 and proj_rev and proj_ebitda:
             def _ufcf(rev, ebitda):
@@ -290,12 +297,18 @@ def parse_excel(path):
             term_ebitda = term_rev * _last_margin
             term_ufcf   = _ufcf(term_rev, term_ebitda)
 
-            _ip_gg = (sum_pv + term_ufcf / (_wacc_g := wacc_val - _g) / tv_disc - _nd - _mi) / shares
+            _wacc_g = wacc_val - _g
+            _ip_gg = (sum_pv + term_ufcf / _wacc_g / tv_disc - _nd - _mi) / shares
             _ip_em = (sum_pv + term_ebitda * _tev / tv_disc - _nd - _mi) / shares
             gg_price = round(_ip_gg, 2)
             em_price = round(_ip_em, 2)
-    except Exception:
-        pass
+            _dbg.update(sum_pv=round(sum_pv), tv_disc=round(tv_disc, 4),
+                        term_ufcf=round(term_ufcf), term_ebitda=round(term_ebitda),
+                        gg_price=gg_price, em_price=em_price)
+    except Exception as _e:
+        _dbg["error"] = str(_e)
+
+    result["_dbg"] = _dbg   # stripped before writing to CSV
 
     result["price"]    = round(price, 2) if price else None
     mkt_cap_b = round(price * shares / 1000, 2) if price and shares else None
@@ -390,8 +403,15 @@ def run():
 
             content += row
             rows_added += 1
-            print(f"  auto_score={m.get('auto_score')}  price={m.get('price')}  "
-                  f"mkt_cap={m.get('mkt_cap_b')}B  roic={m.get('roic')}")
+            dbg = m.get("_dbg", {})
+            wacc_pct = f"{dbg.get('wacc', 0)*100:.2f}%" if dbg.get("wacc") else "n/a"
+            print(f"  score={m.get('auto_score')}  price=${m.get('price')}  "
+                  f"gg=${m.get('gg_price')}  em=${m.get('em_price')}  wacc={wacc_pct}")
+            print(f"    inputs: da={dbg.get('da'):.3f}  cx={dbg.get('cx'):.3f}  "
+                  f"tax={dbg.get('tax'):.3f}  margin={dbg.get('ebitda_margin', 0):.3f}  "
+                  f"nd={dbg.get('nd')}  shares={dbg.get('shares')}mm  "
+                  f"n_proj={dbg.get('n_proj')}"
+                  if dbg.get("da") is not None else "    (no DCF inputs found)")
 
         except Exception as e:
             import traceback
