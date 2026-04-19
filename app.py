@@ -54,7 +54,7 @@ if manual_rating_raw:
 run = st.button("Generate Model", type="primary", disabled=not ticker)
 
 
-def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None):
+def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None, dcf_prices=None):
     """Append one row to outputs.csv in the GitHub repo."""
     token  = st.secrets.get("GITHUB_TOKEN")
     repo   = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
@@ -77,8 +77,10 @@ def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None):
         else:
             sha     = None
             content = (
-                "Ticker,Price,MktCap_B,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
+                "Ticker,Price,MktCap_B,"
+                "GG_Price,GG_Upside,EM_Price,EM_Upside,"
                 "PE_Current,PE_5yr,PFCF_Current,PFCF_5yr,"
+                "ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
                 "Auto_Score,Floor_Cap,Date\n"
             )
 
@@ -86,19 +88,24 @@ def _write_outputs_row(ticker, metrics, price=None, mkt_cap=None):
             return "" if v is None else f"{v:.{dp}f}"
 
         mkt_cap_b = (mkt_cap / 1e9) if mkt_cap else None
+        dp = dcf_prices or {}
 
         row = ",".join([
             ticker,
             _f(price,   2),
             _f(mkt_cap_b, 2),
-            _f(metrics.get("roic")),
-            _f(metrics.get("rev_cagr")),
-            _f(metrics.get("fcf_ni")),
-            _f(metrics.get("d_ebitda"), 2),
+            _f(dp.get("gg_price"),  2),
+            _f(dp.get("gg_upside"), 4),
+            _f(dp.get("em_price"),  2),
+            _f(dp.get("em_upside"), 4),
             _f(metrics.get("pe_current"),   1),
             _f(metrics.get("pe_5yr_avg"),   1),
             _f(metrics.get("pfcf_current"), 1),
             _f(metrics.get("pfcf_5yr_avg"), 1),
+            _f(metrics.get("roic")),
+            _f(metrics.get("rev_cagr")),
+            _f(metrics.get("fcf_ni")),
+            _f(metrics.get("d_ebitda"), 2),
             "" if metrics.get("auto_score") is None else str(metrics["auto_score"]),
             "" if metrics.get("floor_cap")  is None else str(metrics["floor_cap"]),
             datetime.date.today().isoformat(),
@@ -188,8 +195,10 @@ if run and ticker:
         log_print("Done.")
 
         st.success("Model generated successfully.")
+        _dcf_p = (dcf_refs or {}).get("dcf_prices", {})
         _write_outputs_row(ticker, scorecard_metrics,
-                           price=current_price, mkt_cap=market_cap)
+                           price=current_price, mkt_cap=market_cap,
+                           dcf_prices=_dcf_p)
         st.download_button(
             label="⬇️ Download Excel Model",
             data=buf,

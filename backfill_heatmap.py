@@ -27,8 +27,10 @@ GITHUB_BRANCH = "main"
 FOLDER        = os.path.dirname(os.path.abspath(__file__))
 
 CSV_HEADER = (
-    "Ticker,Price,MktCap_B,ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
+    "Ticker,Price,MktCap_B,"
+    "GG_Price,GG_Upside,EM_Price,EM_Upside,"
     "PE_Current,PE_5yr,PFCF_Current,PFCF_5yr,"
+    "ROIC,Rev_CAGR,FCF_NI,D_EBITDA,"
     "Auto_Score,Floor_Cap,Date\n"
 )
 
@@ -250,16 +252,20 @@ def run():
 
             row = ",".join([
                 ticker,
-                _f(m.get("price"),       2),
-                _f(m.get("mkt_cap_b"),   2),
+                _f(m.get("price"),        2),
+                _f(m.get("mkt_cap_b"),    2),
+                "",   # GG_Price  — blank; regenerate via app to populate
+                "",   # GG_Upside
+                "",   # EM_Price
+                "",   # EM_Upside
+                _f(m.get("pe_current"),   1),
+                _f(m.get("pe_5yr_avg"),   1),
+                _f(m.get("pfcf_current"), 1),
+                _f(m.get("pfcf_5yr_avg"), 1),
                 _f(m.get("roic")),
                 _f(m.get("rev_cagr")),
                 _f(m.get("fcf_ni")),
-                _f(m.get("d_ebitda"),    2),
-                _f(m.get("pe_current"),  1),
-                _f(m.get("pe_5yr_avg"),  1),
-                _f(m.get("pfcf_current"),1),
-                _f(m.get("pfcf_5yr_avg"),1),
+                _f(m.get("d_ebitda"),     2),
                 "" if m.get("auto_score") is None else str(m["auto_score"]),
                 "" if m.get("floor_cap")  is None else str(m["floor_cap"]),
                 today,

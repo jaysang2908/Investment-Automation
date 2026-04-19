@@ -1894,11 +1894,15 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None):
             vc.number_format = '0.00%;(0.00%);"-"'
         row += 1
 
+    sel_re   = rf + sel_beta * sel_erp
+    wacc_val = w_e * sel_re + w_d * sel_rd * (1 - eff_tax)
+
     return {
         "wacc_row": wacc_row, "re_row":   re_row,
         "rf_row":   rf_row,   "beta_row": beta_row,
         "erp_row":  erp_row,  "rd_row":   rd_row,
         "tax_row":  tax_row,
+        "wacc_val": round(wacc_val, 4),
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2612,9 +2616,66 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         for c in range(3, NC + 1): wcell(row, c, None, bg=C_SUB)
         row += 1
 
+    # ── Python-side implied prices (mirrors Excel DCF formulas) ──────────────
+    dcf_prices = {"gg_price": None, "em_price": None,
+                  "gg_upside": None, "em_upside": None}
+    try:
+        _g    = 0.03    # terminal growth rate (matches Excel default)
+        _tev  = 20.0    # exit EV/EBITDA multiple (matches Excel default)
+        _wacc = (wacc_refs or {}).get("wacc_val")
+        _last_margin = hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.20
+        _nwc_pct     = 0.01  # matches Excel default
+
+        if _wacc and (_wacc - _g) > 0.001 and shares > 0:
+            # Project revenues and EBITDA
+            _proj_revs, _proj_ebitda = [], []
+            for _i, _yr in enumerate(proj_years):
+                if _yr in est_map and est_map[_yr].get("rev_avg"):
+                    _r = est_map[_yr]["rev_avg"]
+                    _e = est_map[_yr].get("ebitda_avg") or _r * _last_margin
+                else:
+                    _prior = _proj_revs[-1] if _proj_revs else hist_rev[-1]
+                    _r = _prior * (1 + _g)
+                    _e = _r * _last_margin
+                _proj_revs.append(_r); _proj_ebitda.append(_e)
+
+            # Terminal year
+            _term_rev    = _proj_revs[-1] * (1 + _g)
+            _term_ebitda = _term_rev * _last_margin
+
+            def _py_ufcf(rev, ebitda):
+                da    = rev * last_da_pct
+                nopat = (ebitda - da) * (1 - last_tax)
+                return nopat + da - rev * last_capex_pct - rev * _nwc_pct
+
+            # PV of explicit FCFs (mid-year convention)
+            _sum_pv = sum(
+                _py_ufcf(_proj_revs[i], _proj_ebitda[i]) / (1 + _wacc) ** (i + 0.5)
+                for i in range(len(proj_years))
+            )
+            _tv_disc = (1 + _wacc) ** len(proj_years)
+
+            # Gordon Growth
+            _tv_gg = _py_ufcf(_term_rev, _term_ebitda) / (_wacc - _g)
+            _ip_gg = (_sum_pv + _tv_gg / _tv_disc - net_debt - mi) / shares
+
+            # Exit Multiple
+            _tv_em = _term_ebitda * _tev
+            _ip_em = (_sum_pv + _tv_em / _tv_disc - net_debt - mi) / shares
+
+            dcf_prices = {
+                "gg_price":  round(_ip_gg, 2),
+                "em_price":  round(_ip_em, 2),
+                "gg_upside": round(_ip_gg / price - 1, 4) if price else None,
+                "em_upside": round(_ip_em / price - 1, 4) if price else None,
+            }
+    except Exception:
+        pass  # never break model generation for heatmap computation
+
     return {
         "ufcf_row": ufcf_row, "rev_row": rev_row,
         "ebitda_row": ebitda_row, "wacc_dcf_row": wacc_dcf_row,
+        "dcf_prices": dcf_prices,
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
