@@ -178,45 +178,130 @@ def parse_excel(path):
 
     result["floor_cap"] = floor_cap
 
-    # ── DCF tab — price, shares, and implied prices ───────────────────────────
-    price  = None
-    shares = None
-    gg_price = None
-    em_price = None
+    # ── DCF tab — read all inputs needed for Python-side GG/EM computation ──────
+    price = shares = net_debt = mi = g = exit_mult = None
+    da_pct = capex_pct = nwc_pct = tax_dcf = None
+    proj_rev = []
+    proj_ebitda = []
+    hist_rev = []
+    hist_ebitda = []
+
     if "DCF" in wb.sheetnames:
-        dcf = wb["DCF"]
-        for row in dcf.iter_rows(min_col=1, max_col=2, values_only=True):
-            a = str(row[0] or "").strip()
-            b = row[1]
+        dcf_ws = wb["DCF"]
+        # Pass 1: find fiscal year row and identify projection vs historical columns
+        proj_cols = []   # 0-based indices into data values (col B = index 0)
+        hist_cols = []
+        for row_t in dcf_ws.iter_rows(min_col=1, max_col=15, values_only=True):
+            if str(row_t[0] or "").strip() == "Fiscal Year":
+                for i, h in enumerate(row_t[1:]):
+                    hs = str(h or "")
+                    if hs.endswith("E"):
+                        proj_cols.append(i)
+                    elif hs.isdigit() and len(hs) == 4:
+                        hist_cols.append(i)
+                break
+
+        # Pass 2: read scalar and vector values
+        for row_t in dcf_ws.iter_rows(min_col=1, max_col=15, values_only=True):
+            a  = str(row_t[0] or "").strip()
             al = a.lower()
-            if "current market price" in al and b is not None:
-                try:
-                    price = float(b)
-                except (TypeError, ValueError):
-                    pass
-            if "shares outstanding" in al and "diluted" in al and b is not None:
-                try:
-                    shares = float(b)   # in millions
-                except (TypeError, ValueError):
-                    pass
-            # Implied prices — only populated if the file was opened/saved in Excel
-            # (openpyxl leaves formula cache empty on fresh generation)
-            if "implied share price" in al and "gordon growth" in al and b is not None:
-                try:
-                    gg_price = float(b)
-                except (TypeError, ValueError):
-                    pass
-            if "implied share price" in al and "exit multiple" in al and b is not None:
-                try:
-                    em_price = float(b)
-                except (TypeError, ValueError):
-                    pass
+            vals = list(row_t[1:])   # indices match proj_cols / hist_cols
+
+            def _fv(v):
+                try: return float(v)
+                except: return None
+
+            if "current market price" in al:
+                price = _fv(vals[0])
+            elif "shares outstanding" in al and "diluted" in al:
+                shares = _fv(vals[0])
+            elif "less: net debt" in al:
+                net_debt = _fv(vals[0])
+            elif "less: minority interest" in al:
+                mi = _fv(vals[0])
+            elif "terminal growth rate" in al:
+                g = _fv(vals[0])
+            elif "terminal ev/ebitda multiple" in al:
+                exit_mult = _fv(vals[0])
+            elif "d&a as % of revenue" in al:
+                da_pct = _fv(vals[0])
+            elif "capex as % of revenue" in al:
+                capex_pct = _fv(vals[0])
+            elif "change in nwc as % of revenue" in al:
+                nwc_pct = _fv(vals[0])
+            elif "effective tax rate" in al and "user input" in al:
+                tax_dcf = _fv(vals[0])
+            elif a == "Revenue" and proj_cols:
+                hist_rev    = [v for i in hist_cols if (v := _fv(vals[i])) is not None]
+                proj_rev    = [v for i in proj_cols if (v := _fv(vals[i])) is not None]
+            elif a == "EBITDA" and proj_cols:
+                hist_ebitda = [v for i in hist_cols if (v := _fv(vals[i])) is not None]
+                proj_ebitda = [v for i in proj_cols if (v := _fv(vals[i])) is not None]
+
+    # ── WACC tab — compute WACC from plain-number inputs ─────────────────────
+    wacc_val = None
+    if "WACC" in wb.sheetnames:
+        wm = {}
+        for row_t in wb["WACC"].iter_rows(min_col=1, max_col=2, values_only=True):
+            a = str(row_t[0] or "").strip()
+            b = row_t[1]
+            if b is not None:
+                try: wm[a] = float(b)
+                except: pass
+        # Read selected override values (prefixed with ►)
+        rf   = next((wm[k] for k in wm if k.startswith("► Selected Rf")),   None)
+        beta = next((wm[k] for k in wm if k.startswith("► Selected beta")), None)
+        erp  = next((wm[k] for k in wm if k.startswith("► Selected ERP")),  None)
+        rd   = next((wm[k] for k in wm if k.startswith("► Selected pre-tax Rd")), None)
+        t_w  = next((wm[k] for k in wm if k.startswith("► Selected tax rate")),   None)
+        eq   = next((wm[k] for k in wm if k.startswith("Equity ")), None)
+        debt = next((wm[k] for k in wm if k.startswith("Debt ")),   None)
+        if all(v is not None for v in [rf, beta, erp, rd, t_w, eq, debt]) and (eq + debt) > 0:
+            v_tot    = eq + debt
+            r_e      = rf + beta * erp
+            wacc_val = (eq / v_tot) * r_e + (debt / v_tot) * rd * (1 - t_w)
+
+    # ── Python-side GG/EM computation (mirrors build_dcf logic) ──────────────
+    gg_price = em_price = None
+    try:
+        _g    = g    if g    is not None else 0.03
+        _tev  = exit_mult if exit_mult is not None else 20.0
+        _nd   = net_debt  if net_debt  is not None else 0.0
+        _mi   = mi        if mi        is not None else 0.0
+        _tax  = tax_dcf   if tax_dcf   is not None else 0.20
+        _da   = da_pct    if da_pct    is not None else 0.08
+        _cx   = capex_pct if capex_pct is not None else 0.05
+        _nwc  = nwc_pct   if nwc_pct   is not None else 0.01
+        _last_margin = (hist_ebitda[-1] / hist_rev[-1]) if hist_rev and hist_ebitda else 0.20
+
+        if wacc_val and (wacc_val - _g) > 0.001 and shares and shares > 0 and proj_rev and proj_ebitda:
+            def _ufcf(rev, ebitda):
+                da    = rev * _da
+                nopat = (ebitda - da) * (1 - _tax)
+                return nopat + da - rev * _cx - rev * _nwc
+
+            n = min(len(proj_rev), len(proj_ebitda))
+            sum_pv = sum(
+                _ufcf(proj_rev[i], proj_ebitda[i]) / (1 + wacc_val) ** (i + 0.5)
+                for i in range(n)
+            )
+            tv_disc     = (1 + wacc_val) ** n
+            term_rev    = proj_rev[-1] * (1 + _g)
+            term_ebitda = term_rev * _last_margin
+            term_ufcf   = _ufcf(term_rev, term_ebitda)
+
+            _ip_gg = (sum_pv + term_ufcf / (_wacc_g := wacc_val - _g) / tv_disc - _nd - _mi) / shares
+            _ip_em = (sum_pv + term_ebitda * _tev / tv_disc - _nd - _mi) / shares
+            gg_price = round(_ip_gg, 2)
+            em_price = round(_ip_em, 2)
+    except Exception:
+        pass
 
     result["price"]    = round(price, 2) if price else None
     mkt_cap_b = round(price * shares / 1000, 2) if price and shares else None
     result["mkt_cap_b"] = mkt_cap_b
-    result["gg_price"]  = round(gg_price, 2) if gg_price else None
-    result["em_price"]  = round(em_price, 2) if em_price else None
+    result["gg_price"]  = gg_price
+    result["em_price"]  = em_price
     result["gg_upside"] = round(gg_price / price - 1, 4) if gg_price and price else None
     result["em_upside"] = round(em_price / price - 1, 4) if em_price and price else None
 
