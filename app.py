@@ -183,8 +183,8 @@ if run and ticker:
         mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs)
         mdl.build_segments(wb, ticker, years)
         wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating)
-        mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs,
-                      current_price=current_price)
+        dcf_refs = mdl.build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs,
+                                 current_price=current_price)
         _, scorecard_metrics = mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
 
         # Save to memory buffer instead of disk
