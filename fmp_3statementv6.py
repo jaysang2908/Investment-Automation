@@ -1372,11 +1372,22 @@ def build_cover(wb, ticker, years, is_data):
     ws.column_dimensions["B"].width = 22
     nc = 2
 
+    _ccy = is_data[0].get("reportedCurrency", "USD") if is_data else "USD"
+    _ccy_note = f"All figures {_ccy} millions" if _ccy == "USD" else f"All figures {_ccy} millions  |  ⚠ Non-USD currency — DCF implied prices converted to USD"
     row = write_tab_title(ws, 1, f"{ticker.upper()} — Financial Model", nc,
-        subtitle=f"Source: Financial Modeling Prep API  |  All figures USD millions  |  FY {years[0]}–{years[-1]}")
+        subtitle=f"Source: Financial Modeling Prep API  |  {_ccy_note}  |  FY {years[0]}–{years[-1]}")
 
     row += 1
     d = is_data[-1]
+
+    # Write reporting currency so backfill can read it back without an API call
+    _rc = ws.cell(row=row, column=1, value="Reporting Currency")
+    _rc.font = fnt(size=10); _rc.border = brd()
+    _rc.alignment = Alignment(horizontal="left", indent=1)
+    _rv = ws.cell(row=row, column=2, value=_ccy)
+    _rv.font = fnt(color=C_BLUE, size=10)
+    _rv.alignment = Alignment(horizontal="right"); _rv.border = brd()
+    row += 1
 
     row = write_section_hdr(ws, row, "KEY METRICS — MOST RECENT YEAR", nc, C_SUMMARY_HD)
 
@@ -2623,6 +2634,20 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         _g    = 0.03    # terminal growth rate (matches Excel default)
         _tev  = 20.0    # exit EV/EBITDA multiple (matches Excel default)
         _wacc = (wacc_refs or {}).get("wacc_val")
+
+        # FX: financials are in reportedCurrency; implied price must be in USD
+        _ccy_dcf = is_data[0].get("reportedCurrency", "USD") if is_data else "USD"
+        _fx_to_usd = 1.0
+        if _ccy_dcf != "USD":
+            try:
+                import requests as _rx
+                _fxr = _rx.get(
+                    f"https://financialmodelingprep.com/api/v3/fx/{_ccy_dcf}USD"
+                    f"?apikey={API_KEY}", timeout=5
+                ).json()
+                _fx_to_usd = float(_fxr[0]["ask"]) if isinstance(_fxr, list) and _fxr else 1.0
+            except Exception:
+                pass  # if FX fetch fails, leave as 1.0 (price will be in local currency)
         _last_margin = hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.20
         _nwc_pct     = 0.01  # matches Excel default
 
@@ -2663,11 +2688,14 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _tv_em = _term_ebitda * _tev
             _ip_em = (_sum_pv + _tv_em / _tv_disc - net_debt - mi) / shares
 
+            # Convert EV-derived price to USD if financials are in local currency
+            _ip_gg_usd = _ip_gg * _fx_to_usd
+            _ip_em_usd = _ip_em * _fx_to_usd
             dcf_prices = {
-                "gg_price":  round(_ip_gg, 2),
-                "em_price":  round(_ip_em, 2),
-                "gg_upside": round(_ip_gg / price - 1, 4) if price else None,
-                "em_upside": round(_ip_em / price - 1, 4) if price else None,
+                "gg_price":  round(_ip_gg_usd, 2),
+                "em_price":  round(_ip_em_usd, 2),
+                "gg_upside": round(_ip_gg_usd / price - 1, 4) if price else None,
+                "em_upside": round(_ip_em_usd / price - 1, 4) if price else None,
             }
     except Exception:
         pass  # never break model generation for heatmap computation

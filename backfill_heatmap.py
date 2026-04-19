@@ -239,6 +239,14 @@ def parse_excel(path):
                 hist_ebitda = [v for i in hist_cols if (v := _fv(vals[i])) is not None]
                 proj_ebitda = [v for i in proj_cols if (v := _fv(vals[i])) is not None]
 
+    # ── Cover tab — read reporting currency ──────────────────────────────────
+    reporting_currency = "USD"
+    if "Cover" in wb.sheetnames:
+        for row_t in wb["Cover"].iter_rows(min_col=1, max_col=2, values_only=True):
+            if str(row_t[0] or "").strip() == "Reporting Currency" and row_t[1]:
+                reporting_currency = str(row_t[1]).strip()
+                break
+
     # ── WACC tab — compute WACC from plain-number inputs ─────────────────────
     wacc_val = None
     if "WACC" in wb.sheetnames:
@@ -262,6 +270,19 @@ def parse_excel(path):
             r_e      = rf + beta * erp
             wacc_val = (eq / v_tot) * r_e + (debt / v_tot) * rd * (1 - t_w)
 
+    # ── FX rate: convert local-currency EV to USD ─────────────────────────────
+    # Uses Frankfurter (open-source, no API key required)
+    fx_to_usd = 1.0
+    if reporting_currency != "USD":
+        try:
+            _fxr = requests.get(
+                f"https://api.frankfurter.app/latest?from={reporting_currency}&to=USD",
+                timeout=5
+            ).json()
+            fx_to_usd = float(_fxr["rates"]["USD"])
+        except Exception:
+            pass  # leave fx_to_usd=1.0; GG/EM will be in local currency
+
     # ── Python-side GG/EM computation (mirrors build_dcf logic) ──────────────
     gg_price = em_price = None
     _dbg = {}   # collects intermediate values for validation output
@@ -279,7 +300,8 @@ def parse_excel(path):
         _dbg = dict(wacc=wacc_val, g=_g, tev=_tev, nd=_nd, mi=_mi,
                     tax=_tax, da=_da, cx=_cx, nwc=_nwc,
                     ebitda_margin=_last_margin, shares=shares,
-                    n_proj=len(proj_rev))
+                    n_proj=len(proj_rev),
+                    currency=reporting_currency, fx=fx_to_usd)
 
         if wacc_val and (wacc_val - _g) > 0.001 and shares and shares > 0 and proj_rev and proj_ebitda:
             def _ufcf(rev, ebitda):
@@ -298,8 +320,8 @@ def parse_excel(path):
             term_ufcf   = _ufcf(term_rev, term_ebitda)
 
             _wacc_g = wacc_val - _g
-            _ip_gg = (sum_pv + term_ufcf / _wacc_g / tv_disc - _nd - _mi) / shares
-            _ip_em = (sum_pv + term_ebitda * _tev / tv_disc - _nd - _mi) / shares
+            _ip_gg = (sum_pv + term_ufcf / _wacc_g / tv_disc - _nd - _mi) / shares * fx_to_usd
+            _ip_em = (sum_pv + term_ebitda * _tev / tv_disc - _nd - _mi) / shares * fx_to_usd
             gg_price = round(_ip_gg, 2)
             em_price = round(_ip_em, 2)
             _dbg.update(sum_pv=round(sum_pv), tv_disc=round(tv_disc, 4),
@@ -405,8 +427,9 @@ def run():
             rows_added += 1
             dbg = m.get("_dbg", {})
             wacc_pct = f"{dbg.get('wacc', 0)*100:.2f}%" if dbg.get("wacc") else "n/a"
+            ccy_note = f"  [{dbg.get('currency','USD')}→USD fx={dbg.get('fx',1):.4f}]" if dbg.get("currency","USD") != "USD" else ""
             print(f"  score={m.get('auto_score')}  price=${m.get('price')}  "
-                  f"gg=${m.get('gg_price')}  em=${m.get('em_price')}  wacc={wacc_pct}")
+                  f"gg=${m.get('gg_price')}  em=${m.get('em_price')}  wacc={wacc_pct}{ccy_note}")
             print(f"    inputs: da={dbg.get('da'):.3f}  cx={dbg.get('cx'):.3f}  "
                   f"tax={dbg.get('tax'):.3f}  margin={dbg.get('ebitda_margin', 0):.3f}  "
                   f"nd={dbg.get('nd')}  shares={dbg.get('shares')}mm  "
