@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: investment-automation
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app
+    envVars:
+      - key: FMP_API_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false

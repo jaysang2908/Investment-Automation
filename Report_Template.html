@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{COMPANY_NAME}} — Independent Research Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #3d3d5c;
+    --ink-muted: #6b6b8a;
+    --accent: #0d6e6e;
+    --accent2: #0a4f6b;
+    --accent-light: #e0f4f4;
+    --green: #00695c;
+    --green-light: #e0f2f1;
+    --red: #c00000;
+    --red-light: #fef2f2;
+    --amber: #b45309;
+    --amber-light: #fef3c7;
+    --blue: #1e3a5f;
+    --blue-light: #dbeafe;
+    --rule: #d4cfc9;
+    --bg: #faf9f7;
+    --card: #ffffff;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg);
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ── HEADER ─────────────────────────────────────── */
+  .report-header {
+    border-top: 3px solid var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0 12px;
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .company-name { font-family: 'Playfair Display', serif; font-size: 22pt; font-weight: 700; color: var(--ink); line-height: 1.1; letter-spacing: -0.5px; }
+  .company-sub { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; color: var(--ink-muted); margin-top: 4px; letter-spacing: 0.5px; }
+  .rating-badge { text-align: right; }
+  .verdict { display: inline-block; color: white; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 2px; margin-bottom: 6px; }
+  .verdict-green { background: var(--green); }
+  .verdict-amber { background: var(--amber); }
+  .verdict-red   { background: var(--red); }
+  .price-line { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; color: var(--ink); }
+  .price-line .current { font-size: 18pt; font-weight: 500; }
+  .price-line .target { color: var(--green); font-weight: 500; }
+  .report-meta { font-size: 7.5pt; color: var(--ink-muted); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── COMPANY SUMMARY ─────────────────────────────── */
+  .company-summary-box {
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 9pt;
+    line-height: 1.6;
+    color: var(--ink-light);
+  }
+  .summary-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* ── METRICS GRID ─────────────────────────────── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .metric-cell { background: var(--card); padding: 8px 10px; }
+  .metric-cell .m-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+  .metric-cell .m-value { font-size: 11pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .metric-cell .m-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 1px; }
+  .metric-cell.highlight .m-value { color: var(--accent); }
+  .metric-cell.positive .m-value { color: var(--green); }
+  .metric-cell.warn .m-value { color: var(--red); }
+
+  /* ── SECTION LABEL ────────────────────────────── */
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5pt; letter-spacing: 0.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 2px solid var(--accent); margin-top: 4px; }
+
+  /* ── CREDIT ───────────────────────────────────── */
+  .credit-band { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .credit-chip { display: inline-flex; flex-direction: column; align-items: center; background: var(--card); border: 1px solid var(--rule); padding: 6px 14px; border-radius: 2px; }
+  .credit-chip .agency { font-size: 6.5pt; font-family: 'IBM Plex Mono', monospace; color: var(--ink-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .credit-chip .rating-val { font-size: 14pt; font-weight: 700; font-family: 'Playfair Display', serif; }
+  .credit-chip .rating-green { color: var(--green); }
+  .credit-chip .rating-amber { color: var(--amber); }
+  .credit-chip .rating-red   { color: var(--red); }
+  .credit-chip .rating-muted { color: var(--ink-muted); }
+  .credit-chip .outlook { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; }
+  .credit-chip .tier { font-size: 6.5pt; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 1px; }
+  .credit-note { font-size: 8pt; color: var(--ink-light); line-height: 1.5; flex: 1; }
+
+  /* ── THESIS ───────────────────────────────────── */
+  .thesis-box { background: var(--card); border-left: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 9pt; line-height: 1.6; }
+  .thesis-box p + p { margin-top: 8px; }
+  .thesis-box .thesis-heading {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-top: 11px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .thesis-box .thesis-heading:first-child { margin-top: 0; }
+  .thesis-box strong { color: var(--ink); font-weight: 600; }
+
+  /* ── REVENUE MIX BAND ─────────────────────────── */
+  .mix-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .mix-cell { background: var(--card); padding: 9px 12px; }
+  .mix-cell .mix-name { font-size: 7.5pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
+  .mix-cell .mix-rev { font-size: 13pt; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: var(--accent); }
+  .mix-cell .mix-sub { font-size: 8pt; color: var(--ink-light); margin-top: 2px; }
+  .mix-cell.seg2 .mix-rev { color: var(--accent2); }
+  .mix-cell.seg3 .mix-rev { color: var(--green); }
+
+  /* ── STATS ROW ─────────────────────────────────── */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .stat-cell { background: var(--card); padding: 8px 10px; }
+  .stat-cell .s-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .stat-cell .s-trail { font-size: 9pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .stat-cell .s-fwd { font-size: 8.5pt; color: var(--green); font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .stat-cell .s-avg { font-size: 7.5pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+
+  /* ── CHARTS ────────────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .chart-container { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
+  .chart-title { font-size: 8pt; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-light); margin-bottom: 8px; font-weight: 500; }
+  .chart-canvas-wrap { height: 160px; }
+
+  /* ── PAGE BREAK ────────────────────────────────── */
+  .page-break { border-top: 2px solid var(--rule); margin: 20px 0 16px; padding-top: 4px; display: flex; align-items: center; gap: 10px; }
+  .page-break-label { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--ink-muted); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+  .page-break hr { flex: 1; border: none; border-top: 1px solid var(--rule); }
+
+  /* ── ANALYST TABLE ─────────────────────────────── */
+  .analyst-consensus-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 8px; }
+  .cons-cell { background: var(--card); padding: 8px 12px; text-align: center; }
+  .cons-cell .cons-label { font-size: 7pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
+  .cons-cell .cons-val { font-size: 14pt; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .cons-cell .cons-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
+  .cons-cell.buy-cell .cons-val { color: var(--green); }
+  .cons-cell.hold-cell .cons-val { color: var(--amber); }
+  .cons-cell.sell-cell .cons-val { color: var(--red); }
+  .analyst-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 6px; }
+  .analyst-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .analyst-table th.center { text-align: center; }
+  .analyst-table td { padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  .analyst-table tr:nth-child(even) td { background: #f8f7f5; }
+  .rating-buy  { color: var(--green); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .rating-hold { color: var(--amber); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .rating-sell { color: var(--red);   font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .pt-val { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 9pt; }
+  .pt-above { color: var(--green); }
+  .pt-below { color: var(--red); }
+  .pt-flat  { color: var(--amber); }
+  .analyst-name { font-weight: 500; }
+  .firm-name { color: var(--ink-muted); font-size: 8pt; }
+  .analyst-note { font-size: 7.5pt; color: var(--ink-muted); margin-top: 5px; font-style: italic; }
+
+  /* ── SCORECARD ──────────────────────────────────── */
+  .scorecard-header { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-bottom: 8px; }
+  .score-final { font-family: 'IBM Plex Mono', monospace; font-size: 9pt; font-weight: 500; color: white; padding: 4px 12px; border-radius: 2px; }
+  .score-final-green { background: var(--green); }
+  .score-final-amber { background: var(--amber); }
+  .score-final-red   { background: var(--red); }
+  .scorecard-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
+  .scorecard-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .scorecard-table th.center { text-align: center; }
+  .scorecard-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  .scorecard-table tr:nth-child(even) td { background: #f8f7f5; }
+  .scorecard-table .part-header td { background: var(--accent-light); font-weight: 600; font-size: 8pt; color: var(--accent); border-bottom: 1px solid #a7d8d8; }
+  .score-pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .score-high { background: var(--green-light); color: var(--green); }
+  .score-mid  { background: var(--amber-light); color: var(--amber); }
+  .score-low  { background: var(--red-light); color: var(--red); }
+  .score-num { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; text-align: center; }
+  .col-commentary { font-size: 7.8pt; color: var(--ink-light); line-height: 1.45; }
+  .col-metric { font-weight: 500; color: var(--ink); }
+  .weighted-row td { background: #e8f4f4 !important; font-weight: 600; font-size: 8pt; border-top: 1px solid #a7d8d8; }
+
+  /* ── SCENARIOS ──────────────────────────────────── */
+  .scenario-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
+  .scenario-table th { padding: 7px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; text-align: left; }
+  .scenario-table th.bear-h { background: #fef2f2; color: var(--red); }
+  .scenario-table th.base-h { background: var(--blue-light); color: var(--blue); }
+  .scenario-table th.bull-h { background: var(--green-light); color: var(--green); }
+  .scenario-table td { padding: 5px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .scenario-table tr:nth-child(even) td { background: #f8f7f5; }
+  .scenario-table .row-label { font-weight: 500; color: var(--ink); width: 28%; }
+  .scenario-table .price-row td { font-weight: 700; font-size: 10pt; font-family: 'IBM Plex Mono', monospace; }
+  .scenario-table .price-row td.bear-p { color: var(--red); background: #fef2f2; }
+  .scenario-table .price-row td.base-p { color: var(--blue); background: var(--blue-light); }
+  .scenario-table .price-row td.bull-p { color: var(--green); background: var(--green-light); }
+
+  /* ── RISKS ──────────────────────────────────────── */
+  .risk-list { list-style: none; margin-bottom: 14px; }
+  .risk-list li { padding: 6px 8px 6px 20px; border-bottom: 1px solid var(--rule); font-size: 8.5pt; position: relative; line-height: 1.45; }
+  .risk-list li::before { content: '▸'; position: absolute; left: 6px; color: var(--accent); font-size: 8pt; }
+  .risk-list li strong { color: var(--ink); font-weight: 600; }
+
+  /* ── VALUATION ──────────────────────────────────── */
+  .valuation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .val-card { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
+  .val-card-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; color: var(--ink); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.5px; }
+  .dcf-scenario-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 8px; }
+  .dcf-scenario-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
+  .dcf-scenario-table th:first-child { text-align: left; }
+  .dcf-scenario-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
+  .dcf-scenario-table td:first-child { text-align: left; font-weight: 600; }
+  .dcf-scenario-table tr.base-row td { background: var(--blue-light); }
+  .dcf-scenario-table .price-up { color: var(--green); font-weight: 700; }
+  .dcf-scenario-table .price-dn { color: var(--red); font-weight: 700; }
+  .rev-dcf-box { background: #fef9ee; border-left: 3px solid var(--amber); padding: 8px 10px; margin-top: 8px; font-size: 8pt; line-height: 1.55; }
+  .rev-dcf-box strong { color: var(--ink); }
+  .mult-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  .mult-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
+  .mult-table th:first-child { text-align: left; }
+  .mult-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
+  .mult-table td:first-child { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 7.5pt; color: var(--ink-light); }
+  .mult-table tr:nth-child(even) td { background: #f8f7f5; }
+  .mult-table .up { color: var(--green); font-weight: 600; }
+  .mult-table .dn { color: var(--red); }
+  .mult-table .section-divider td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 8px; }
+  .valuation-verdict { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 8.5pt; line-height: 1.6; }
+  .valuation-verdict .verdict-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .valuation-verdict p + p { margin-top: 6px; }
+  .sensitivity-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 8px; }
+  .sensitivity-table th { background: var(--ink); color: white; padding: 4px 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; }
+  .sensitivity-table td { padding: 3px 8px; text-align: center; border: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .sensitivity-table td.row-wacc { background: var(--ink); color: white; font-weight: 500; text-align: left; padding-left: 10px; }
+  .sensitivity-table td.near-market { background: #dcfce7; color: var(--green); font-weight: 700; }
+  .sensitivity-table td.mid-range { background: #fef9c3; color: var(--amber); }
+  .sensitivity-table td.low-range { background: #fef2f2; color: var(--red); }
+
+  /* ── FOOTNOTES ──────────────────────────────────── */
+  .footnotes { border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 14px; }
+  .footnotes-title { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 6px; }
+  .footnotes ol { padding-left: 16px; }
+  .footnotes li { font-size: 7pt; color: var(--ink-muted); margin-bottom: 3px; line-height: 1.4; }
+  .footnotes a { color: #1d4ed8; text-decoration: none; }
+  sup a { color: var(--accent); font-size: 6.5pt; text-decoration: none; font-family: 'IBM Plex Mono', monospace; }
+  .disclaimer { font-size: 7pt; color: var(--ink-muted); line-height: 1.4; border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 6px; }
+
+  /* ── FINANCIAL TABLE ──────────────────────────────── */
+  .fin-table-wrap { margin-bottom: 14px; overflow-x: auto; }
+  .fin-table { width: 100%; border-collapse: collapse; font-size: 8pt; font-family: 'IBM Plex Mono', monospace; }
+  .fin-table th { background: var(--ink); color: white; padding: 5px 10px; text-align: right; font-size: 7.5pt; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap; }
+  .fin-table th.row-head { text-align: left; width: 24%; }
+  .fin-table td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; color: var(--ink); }
+  .fin-table td.row-label { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 8pt; color: var(--ink-light); font-weight: 500; }
+  .fin-table tr:nth-child(even) td { background: #f8f7f5; }
+  .fin-table .section-row td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 10px; text-align: left; }
+  .fin-table .highlight-row td { font-weight: 700; color: var(--ink); }
+  .fin-table .margin-row td { color: var(--accent2); font-style: italic; }
+  .fin-table-note { font-size: 7pt; color: var(--ink-muted); margin-top: 5px; line-height: 1.5; font-style: italic; }
+
+  .no-break { page-break-inside: avoid; }
+  @media print {
+    /* ── GENERAL ── */
+    body { max-width: 100%; padding: 8px; background: white; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+    /* ── PAGE BREAKS ── */
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+
+    /* ── PROTECT MAJOR SECTIONS ── */
+    .report-header        { page-break-inside: avoid; }
+    .company-summary-box  { page-break-inside: avoid; }
+    .metrics-grid         { page-break-inside: avoid; }
+    .mix-band             { page-break-inside: avoid; }
+    .credit-band          { page-break-inside: avoid; }
+    .thesis-box           { page-break-inside: avoid; }
+    .stat-row             { page-break-inside: avoid; }
+    .fin-table-wrap       { page-break-inside: avoid; }
+    .two-col              { page-break-inside: avoid; }
+    .chart-container      { page-break-inside: avoid; }
+    .valuation-verdict    { page-break-inside: avoid; }
+    .valuation-grid       { page-break-inside: avoid; }
+    .val-card             { page-break-inside: avoid; }
+    .analyst-consensus-bar{ page-break-inside: avoid; }
+    .footnotes            { page-break-inside: avoid; }
+
+    /* ── TABLE ROW PROTECTION ── */
+    tr                    { page-break-inside: avoid; page-break-after: auto; }
+    .part-header          { page-break-after: avoid; }
+    .scorecard-table tr   { page-break-inside: avoid; }
+    .scenario-table tr    { page-break-inside: avoid; }
+    .analyst-table tr     { page-break-inside: avoid; }
+    .fin-table tr         { page-break-inside: avoid; }
+
+    /* ── SECTION LABELS ── */
+    .section-label        { page-break-after: avoid; }
+
+    /* ── VALUATION SECTION: force onto fresh page ── */
+    .valuation-section    { page-break-before: always; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="report-header">
+  <div>
+    <div class="company-name">{{COMPANY_NAME}}</div>
+    <div class="company-sub">{{TICKER_LINE}}</div>
+    <div class="company-sub" style="margin-top:3px">{{DESCRIPTION_LINE}}</div>
+  </div>
+  <div class="rating-badge">
+    <!-- VERDICT_CLASS: verdict-green (score ≥70) | verdict-amber (50-69) | verdict-red (<50) -->
+    <div class="verdict {{VERDICT_CLASS}}">{{VERDICT_TEXT}}</div>
+    <div class="price-line">
+      <span style="color:var(--ink-muted); font-size:7.5pt; font-family:'IBM Plex Mono',monospace; display:block; margin-bottom:2px; letter-spacing:0.5px; text-transform:uppercase;">Current Price &nbsp;·&nbsp; Price Target</span>
+      <span class="current">{{CURRENT_PRICE}}</span>
+      <span style="color:var(--ink-muted); font-size:9pt"> / </span>
+      <span class="target">{{PRICE_TARGET}}</span>
+    </div>
+    <div class="report-meta">Independent Research · {{REPORT_DATE}} · Score: {{FINAL_SCORE}} / 100</div>
+  </div>
+</header>
+
+<!-- ═══ COMPANY SUMMARY ═══ -->
+<div class="company-summary-box">
+  <span class="summary-label">Company Overview</span>
+  {{COMPANY_SUMMARY_TEXT}}
+</div>
+
+<!-- ═══ KEY METRICS ═══ -->
+<div class="metrics-grid">
+  <div class="metric-cell">
+    <div class="m-label">Market Cap</div>
+    <div class="m-value">{{MARKET_CAP}}</div>
+    <div class="m-sub">{{SHARES_DILUTED}}</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Enterprise Value</div>
+    <div class="m-value">{{ENTERPRISE_VALUE}}</div>
+    <!-- NET_CASH_DEBT: e.g. "Net cash $9.0B" or "Net debt $13B" -->
+    <div class="m-sub">{{NET_CASH_DEBT}}</div>
+  </div>
+  <!-- TRAILING_PE_CELL_CLASS: "warn" if >15% above 10yr avg, "" otherwise -->
+  <div class="metric-cell">
+    <div class="m-label">Trailing P/E</div>
+    <div class="m-value {{TRAILING_PE_CELL_CLASS}}">{{TRAILING_PE}}</div>
+    <!-- TRAILING_PE_DELTA_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <div class="m-sub">10yr avg {{TRAILING_PE_10YR}} <span style="color:{{TRAILING_PE_DELTA_COLOR}};font-weight:600">{{TRAILING_PE_DELTA}}</span></div>
+  </div>
+  <!-- FORWARD_PE_CELL_CLASS: "highlight" if at avg, "positive" if below, "warn" if >15% above -->
+  <div class="metric-cell {{FORWARD_PE_CELL_CLASS}}">
+    <div class="m-label">Forward P/E</div>
+    <div class="m-value">{{FORWARD_PE}}</div>
+    <!-- FORWARD_PE_DELTA_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <div class="m-sub">10yr avg {{FORWARD_PE_10YR}} <span style="color:{{FORWARD_PE_DELTA_COLOR}};font-weight:600">{{FORWARD_PE_DELTA}}</span> · {{FORWARD_PE_EST}}</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Trailing P/FCF</div>
+    <div class="m-value">{{TRAILING_PFCF}}</div>
+    <div class="m-sub">10yr avg {{TRAILING_PFCF_10YR}} <span style="color:{{TRAILING_PFCF_DELTA_COLOR}};font-weight:600">{{TRAILING_PFCF_DELTA}}</span></div>
+  </div>
+  <!-- FORWARD_PFCF_CELL_CLASS: "positive" if below 10yr avg, "" otherwise -->
+  <div class="metric-cell {{FORWARD_PFCF_CELL_CLASS}}">
+    <div class="m-label">Forward P/FCF</div>
+    <div class="m-value">{{FORWARD_PFCF}}</div>
+    <div class="m-sub">10yr avg {{FORWARD_PFCF_10YR}} <span style="color:{{FORWARD_PFCF_DELTA_COLOR}};font-weight:600">{{FORWARD_PFCF_DELTA}}</span> · {{FORWARD_PFCF_EST}}</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">EV/EBITDA</div>
+    <div class="m-value">{{EV_EBITDA_TRAILING}}</div>
+    <div class="m-sub">{{EV_EBITDA_FWD_NOTE}}</div>
+  </div>
+  <!-- REVENUE_VALUE_CLASS: "positive" if strong growth, "" otherwise -->
+  <div class="metric-cell">
+    <div class="m-label">{{REVENUE_YEAR_LABEL}}</div>
+    <div class="m-value {{REVENUE_VALUE_CLASS}}">{{REVENUE_VALUE}}</div>
+    <div class="m-sub">{{REVENUE_SUB}}</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">{{EBITDA_MARGIN_LABEL}}</div>
+    <div class="m-value">{{EBITDA_MARGIN}}</div>
+    <div class="m-sub">{{EBITDA_MARGIN_SUB}}</div>
+  </div>
+  <!-- FCF_VALUE_CLASS: "positive" if strong, "" otherwise -->
+  <div class="metric-cell {{FCF_VALUE_CLASS}}">
+    <div class="m-label">Free Cash Flow</div>
+    <div class="m-value">{{FCF_VALUE}}</div>
+    <div class="m-sub">{{FCF_SUB}}</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">ROIC</div>
+    <!-- ROIC_VALUE_CLASS: "positive" if >20%, "" if 10-20%, "warn" if <10% -->
+    <div class="m-value {{ROIC_VALUE_CLASS}}">{{ROIC_VALUE}}</div>
+    <div class="m-sub">{{ROIC_SUB}}</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">{{CAP_RETURNS_LABEL}}</div>
+    <div class="m-value">{{CAP_RETURNS_VALUE}}</div>
+    <div class="m-sub">{{CAP_RETURNS_SUB}}</div>
+  </div>
+</div>
+
+<!-- ═══ REVENUE MIX ═══ -->
+<!-- REV_MIX_SECTION_LABEL: e.g. "Revenue Breakdown — FY2025A ($10.1B Total)" -->
+<div class="section-label">{{REV_MIX_SECTION_LABEL}}</div>
+<div class="mix-band">
+  <div class="mix-cell">
+    <div class="mix-name">{{SEG1_EMOJI_NAME}}</div>
+    <div class="mix-rev">{{SEG1_REV_PCT}}</div>
+    <div class="mix-sub">{{SEG1_DESC}}</div>
+  </div>
+  <!-- seg2 class colours the revenue figure in accent2 (deep blue) -->
+  <div class="mix-cell seg2">
+    <div class="mix-name">{{SEG2_EMOJI_NAME}}</div>
+    <div class="mix-rev">{{SEG2_REV_PCT}}</div>
+    <div class="mix-sub">{{SEG2_DESC}}</div>
+  </div>
+  <!-- seg3 class colours the revenue figure in green -->
+  <div class="mix-cell seg3">
+    <div class="mix-name">{{SEG3_EMOJI_NAME}}</div>
+    <div class="mix-rev">{{SEG3_REV_PCT}}</div>
+    <div class="mix-sub">{{SEG3_DESC}}</div>
+  </div>
+</div>
+
+<!-- ═══ CREDIT PROFILE ═══ -->
+<div class="section-label">Credit Profile</div>
+<div class="credit-band">
+  <!-- RATING_CLASS: rating-green (A or above) | rating-amber (BBB) | rating-red (sub-IG) | rating-muted (NR) -->
+  <div class="credit-chip">
+    <div class="agency">S&amp;P Global</div>
+    <div class="rating-val {{SP_RATING_CLASS}}">{{SP_RATING}}</div>
+    <div class="outlook">{{SP_OUTLOOK}}</div>
+    <div class="tier">{{SP_TIER_LABEL}}</div>
+  </div>
+  <div class="credit-chip">
+    <div class="agency">Moody's</div>
+    <div class="rating-val {{MOODYS_RATING_CLASS}}">{{MOODYS_RATING}}</div>
+    <div class="outlook">{{MOODYS_OUTLOOK}}</div>
+    <div class="tier">{{MOODYS_TIER_LABEL}}</div>
+  </div>
+  <div class="credit-chip">
+    <div class="agency">Fitch</div>
+    <div class="rating-val {{FITCH_RATING_CLASS}}">{{FITCH_RATING}}</div>
+    <div class="outlook">{{FITCH_OUTLOOK}}</div>
+    <div class="tier">{{FITCH_TIER_LABEL}}</div>
+  </div>
+  <div class="credit-note">
+    {{CREDIT_NOTE_TEXT}}<sup><a href="#fn1">[1]</a></sup>
+  </div>
+</div>
+
+<!-- ═══ INVESTMENT THESIS ═══ -->
+<div class="section-label">Investment Thesis</div>
+<div class="thesis-box">
+  <span class="thesis-heading">The Moat</span>
+  <p>{{THESIS_MOAT_TEXT}}<sup><a href="#fn2">[2]</a></sup></p>
+  <span class="thesis-heading">Growth Catalysts</span>
+  <p>{{THESIS_CATALYSTS_TEXT}}</p>
+  <span class="thesis-heading">Valuation &amp; Entry Point</span>
+  <p>{{THESIS_VALUATION_TEXT}}</p>
+</div>
+
+<!-- ═══ HISTORICAL FINANCIALS ═══ -->
+<!-- FY1–FY5: five consecutive fiscal years, oldest first. e.g. FY2021A … FY2025A -->
+<div class="section-label">Historical Financials — {{FY1}}–{{FY5}} ({{CURRENCY_NAME}} Millions) <sup><a href="#fn2">[2]</a></sup></div>
+<div class="fin-table-wrap">
+<table class="fin-table">
+  <thead>
+    <tr>
+      <th class="row-head">Metric</th>
+      <th>{{FY1}}</th><th>{{FY2}}</th><th>{{FY3}}</th><th>{{FY4}}</th><th>{{FY5}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="section-row"><td colspan="6">Income Statement</td></tr>
+    <tr class="highlight-row">
+      <td class="row-label">Revenue</td>
+      <td>{{REV_FY1}}</td><td>{{REV_FY2}}</td><td>{{REV_FY3}}</td><td>{{REV_FY4}}</td><td>{{REV_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Gross Profit</td>
+      <td>{{GP_FY1}}</td><td>{{GP_FY2}}</td><td>{{GP_FY3}}</td><td>{{GP_FY4}}</td><td>{{GP_FY5}}</td>
+    </tr>
+    <tr class="margin-row">
+      <td class="row-label" style="padding-left:18px;font-style:italic">Gross Margin</td>
+      <td>{{GM_FY1}}</td><td>{{GM_FY2}}</td><td>{{GM_FY3}}</td><td>{{GM_FY4}}</td><td>{{GM_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBITDA</td>
+      <td>{{EBITDA_FY1}}</td><td>{{EBITDA_FY2}}</td><td>{{EBITDA_FY3}}</td><td>{{EBITDA_FY4}}</td><td>{{EBITDA_FY5}}</td>
+    </tr>
+    <tr class="margin-row">
+      <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA Margin</td>
+      <td>{{EBITDAM_FY1}}</td><td>{{EBITDAM_FY2}}</td><td>{{EBITDAM_FY3}}</td><td>{{EBITDAM_FY4}}</td><td>{{EBITDAM_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBIT</td>
+      <td>{{EBIT_FY1}}</td><td>{{EBIT_FY2}}</td><td>{{EBIT_FY3}}</td><td>{{EBIT_FY4}}</td><td>{{EBIT_FY5}}</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Net Income (GAAP)</td>
+      <td>{{NI_FY1}}</td><td>{{NI_FY2}}</td><td>{{NI_FY3}}</td><td>{{NI_FY4}}</td><td>{{NI_FY5}}</td>
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Balance Sheet</td></tr>
+    <tr>
+      <td class="row-label">Cash &amp; Equivalents (incl. investments)</td>
+      <td>{{CASH_FY1}}</td><td>{{CASH_FY2}}</td><td>{{CASH_FY3}}</td><td>{{CASH_FY4}}</td><td>{{CASH_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Debt (incl. leases)</td>
+      <td>{{DEBT_FY1}}</td><td>{{DEBT_FY2}}</td><td>{{DEBT_FY3}}</td><td>{{DEBT_FY4}}</td><td>{{DEBT_FY5}}</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Net Cash / (Net Debt)</td>
+      <td>{{NETCASH_FY1}}</td><td>{{NETCASH_FY2}}</td><td>{{NETCASH_FY3}}</td><td>{{NETCASH_FY4}}</td><td>{{NETCASH_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Equity</td>
+      <td>{{EQUITY_FY1}}</td><td>{{EQUITY_FY2}}</td><td>{{EQUITY_FY3}}</td><td>{{EQUITY_FY4}}</td><td>{{EQUITY_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Intangibles (goodwill + other)</td>
+      <td>{{INTANG_FY1}}</td><td>{{INTANG_FY2}}</td><td>{{INTANG_FY3}}</td><td>{{INTANG_FY4}}</td><td>{{INTANG_FY5}}</td>
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Credit &amp; Coverage Ratios</td></tr>
+    <tr>
+      <td class="row-label">Debt / EBITDA</td>
+      <td>{{DEBITDA_FY1}}</td><td>{{DEBITDA_FY2}}</td><td>{{DEBITDA_FY3}}</td><td>{{DEBITDA_FY4}}</td><td>{{DEBITDA_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBIT / Interest</td>
+      <!-- If company is net cash / interest income exceeds interest expense, use a colspan note like ISRG.
+           Otherwise fill in 5 individual values. Choose one format and delete the other. -->
+      <!-- FORMAT A — net lender / minimal debt: -->
+      <td colspan="5" style="text-align:center;color:var(--green);font-weight:600">{{EBITINT_NOTE}}</td>
+      <!-- FORMAT B — normal leverage (delete FORMAT A and uncomment this):
+      <td>{{EBITINT_FY1}}</td><td>{{EBITINT_FY2}}</td><td>{{EBITINT_FY3}}</td><td>{{EBITINT_FY4}}</td><td>{{EBITINT_FY5}}</td>
+      -->
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Cash Flow Statement</td></tr>
+    <tr>
+      <td class="row-label">Operating Cash Flow</td>
+      <td>{{OCF_FY1}}</td><td>{{OCF_FY2}}</td><td>{{OCF_FY3}}</td><td>{{OCF_FY4}}</td><td>{{OCF_FY5}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">CAPEX</td>
+      <!-- CAPEX shown in brackets e.g. (399) -->
+      <td>{{CAPEX_FY1}}</td><td>{{CAPEX_FY2}}</td><td>{{CAPEX_FY3}}</td><td>{{CAPEX_FY4}}</td><td>{{CAPEX_FY5}}</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Free Cash Flow</td>
+      <td>{{FCF_FY1}}</td><td>{{FCF_FY2}}</td><td>{{FCF_FY3}}</td><td>{{FCF_FY4}}</td><td>{{FCF_FY5}}</td>
+    </tr>
+  </tbody>
+</table>
+<p class="fin-table-note">{{FIN_TABLE_NOTE}}</p>
+</div>
+
+<!-- ═══ GROWTH & VALUATION CONTEXT ═══ -->
+<div class="section-label">Growth &amp; Valuation Context</div>
+<div class="stat-row">
+  <div class="stat-cell">
+    <div class="s-label">Revenue 3yr CAGR</div>
+    <div class="s-trail">{{REV_CAGR_TRAIL}}</div>
+    <div class="s-fwd">{{REV_CAGR_FWD}}<sup><a href="#fn3">[3]</a></sup></div>
+    <div class="s-avg">{{REV_CAGR_NOTE}}</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">FCF 3yr CAGR</div>
+    <div class="s-trail">{{FCF_CAGR_TRAIL}}</div>
+    <div class="s-fwd">{{FCF_CAGR_FWD}}<sup><a href="#fn3">[3]</a></sup></div>
+    <div class="s-avg">{{FCF_CAGR_NOTE}}</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">P/E vs 10yr Avg</div>
+    <div class="s-trail">{{PE_TRAIL_STAT}}</div>
+    <div class="s-fwd">{{PE_FWD_STAT}}</div>
+    <div class="s-avg">{{PE_AVG_NOTE}}</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">P/FCF vs 10yr Avg</div>
+    <div class="s-trail">{{PFCF_TRAIL_STAT}}</div>
+    <div class="s-fwd">{{PFCF_FWD_STAT}}</div>
+    <div class="s-avg">{{PFCF_AVG_NOTE}}</div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ROW 1: Price + Financials ═══ -->
+<div class="two-col no-break">
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Share Price — 5 Year History ({{CURRENCY_SYMBOL}}) <sup><a href="#fn4">[4]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Revenue · Operating Cash Flow · FCF ({{CURRENCY_SYMBOL}}B) <sup><a href="#fn2">[2]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ROW 2: ROIC + Shareholder Returns ═══ -->
+<div class="two-col no-break">
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">ROIC % — Return on Invested Capital <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="roicChart"></canvas></div>
+    </div>
+  </div>
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Shareholder Returns — Buybacks &amp; FCF/Share ({{CURRENCY_SYMBOL}}) <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="returnChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 2 ═══ -->
+<div class="page-break">
+  <div class="page-break-label">Page 2 of 2</div>
+  <hr>
+</div>
+
+<!-- ═══ SCORECARD ═══ -->
+<div class="section-label">JS Proprietary Scorecard — Full Breakdown</div>
+<div class="scorecard-header">
+  <span style="font-size:8.5pt;color:var(--ink-light)">Low = 0 pts &nbsp;|&nbsp; Moderate = 5 pts &nbsp;|&nbsp; High = 10 pts &nbsp;×&nbsp; weight</span>
+  <!-- SCORE_FINAL_CLASS: score-final-green (≥70) | score-final-amber (50-69) | score-final-red (<50) -->
+  <span class="score-final {{SCORE_FINAL_CLASS}}">{{FINAL_SCORE}} / 100 — {{VERDICT_TEXT}}</span>
+</div>
+<table class="scorecard-table">
+  <thead>
+    <tr>
+      <th style="width:22%">Metric / Pillar</th>
+      <th class="center" style="width:10%">Score</th>
+      <th class="center" style="width:8%">Weight</th>
+      <th class="center" style="width:8%">Wtd Pts</th>
+      <th style="width:52%">Commentary</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- PART 1: MOAT AND NARRATIVE — max 300 weighted pts (weights: 2.5+10+10+7.5 × 10) -->
+    <!-- P1_WEIGHTED: e.g. "300 / 300" or "225 / 300" -->
+    <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: {{P1_WEIGHTED}}</td></tr>
+
+    <!-- SCORE PILL CLASS: score-high | score-mid | score-low -->
+    <!-- SCORE PILL TEXT: "HIGH · 10" | "MOD · 5" | "LOW · 0" -->
+    <tr>
+      <td class="col-metric">Business Clarity</td>
+      <td class="score-num"><span class="score-pill {{P1_BC_SCORE_CLASS}}">{{P1_BC_SCORE_TEXT}}</span></td>
+      <td class="score-num">2.5</td>
+      <td class="score-num">{{P1_BC_WTD}}</td>
+      <td class="col-commentary">{{P1_BC_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Moat Profile</td>
+      <td class="score-num"><span class="score-pill {{P1_MOAT_SCORE_CLASS}}">{{P1_MOAT_SCORE_TEXT}}</span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">{{P1_MOAT_WTD}}</td>
+      <td class="col-commentary">{{P1_MOAT_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Long-Term Potential</td>
+      <td class="score-num"><span class="score-pill {{P1_LTP_SCORE_CLASS}}">{{P1_LTP_SCORE_TEXT}}</span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">{{P1_LTP_WTD}}</td>
+      <td class="col-commentary">{{P1_LTP_COMMENTARY}}</td>
+    </tr>
+    <!-- CEO sub-line format: "CEO [Name] / Tenure: [Month Year] (~[N] yrs)" -->
+    <tr>
+      <td class="col-metric">Management<br><span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">CEO {{CEO_NAME}}<br>Tenure: {{CEO_TENURE}}</span></td>
+      <td class="score-num"><span class="score-pill {{P1_MGT_SCORE_CLASS}}">{{P1_MGT_SCORE_TEXT}}</span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">{{P1_MGT_WTD}}</td>
+      <td class="col-commentary">{{P1_MGT_COMMENTARY}}</td>
+    </tr>
+
+    <!-- PART 2: QUANTITATIVE — max 325 weighted pts (10+10+5+7.5 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 2 — Quantitative: Profitability Engine &nbsp;|&nbsp; Weighted: {{P2_WEIGHTED}}</td></tr>
+    <tr>
+      <td class="col-metric">Revenue 3yr CAGR</td>
+      <td class="score-num"><span class="score-pill {{P2_RC_SCORE_CLASS}}">{{P2_RC_SCORE_TEXT}}</span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">{{P2_RC_WTD}}</td>
+      <td class="col-commentary">{{P2_RC_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Cash Quality (FCF/NI)</td>
+      <td class="score-num"><span class="score-pill {{P2_CQ_SCORE_CLASS}}">{{P2_CQ_SCORE_TEXT}}</span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">{{P2_CQ_WTD}}</td>
+      <td class="col-commentary">{{P2_CQ_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Capital Returns</td>
+      <td class="score-num"><span class="score-pill {{P2_CR_SCORE_CLASS}}">{{P2_CR_SCORE_TEXT}}</span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">{{P2_CR_WTD}}</td>
+      <td class="col-commentary">{{P2_CR_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">ROIC</td>
+      <td class="score-num"><span class="score-pill {{P2_ROIC_SCORE_CLASS}}">{{P2_ROIC_SCORE_TEXT}}</span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">{{P2_ROIC_WTD}}</td>
+      <td class="col-commentary">{{P2_ROIC_COMMENTARY}}</td>
+    </tr>
+
+    <!-- PART 3: RISK & CREDIT — max 175 weighted pts (5+7.5+5 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: {{P3_WEIGHTED}}</td></tr>
+    <tr>
+      <td class="col-metric">Credit Risk (D/EBITDA)</td>
+      <td class="score-num"><span class="score-pill {{P3_CREDRISK_SCORE_CLASS}}">{{P3_CREDRISK_SCORE_TEXT}}</span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">{{P3_CREDRISK_WTD}}</td>
+      <td class="col-commentary">{{P3_CREDRISK_COMMENTARY}}<sup><a href="#fn1">[1]</a></sup></td>
+    </tr>
+    <tr>
+      <td class="col-metric">Interest Cover (EBIT/Int)</td>
+      <td class="score-num"><span class="score-pill {{P3_IC_SCORE_CLASS}}">{{P3_IC_SCORE_TEXT}}</span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">{{P3_IC_WTD}}</td>
+      <td class="col-commentary">{{P3_IC_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Execution Risk</td>
+      <td class="score-num"><span class="score-pill {{P3_ER_SCORE_CLASS}}">{{P3_ER_SCORE_TEXT}}</span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">{{P3_ER_WTD}}</td>
+      <td class="col-commentary">{{P3_ER_COMMENTARY}}</td>
+    </tr>
+
+    <!-- PART 4: VALUATION — max 200 weighted pts (10+10 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 4 — Valuation (The Entry Point) &nbsp;|&nbsp; Weighted: {{P4_WEIGHTED}}</td></tr>
+
+    <!-- P/E sub-line: trailing and forward with 10yr avg delta, colour-coded -->
+    <!-- TRAIL_PE_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <!-- FWD_PE_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <tr>
+      <td class="col-metric">P/E vs. 5yr Median<br>
+        <span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">
+          Trail: <strong style="color:{{TRAIL_PE_COLOR}}">{{TRAILING_PE}}</strong> ({{TRAILING_PE_DELTA}} vs 10yr)<br>
+          Fwd:&nbsp;&nbsp; <strong style="color:{{FWD_PE_COLOR}}">{{FORWARD_PE}}</strong> ({{FORWARD_PE_DELTA}} vs 10yr)
+        </span>
+      </td>
+      <td class="score-num"><span class="score-pill {{P4_PE_SCORE_CLASS}}">{{P4_PE_SCORE_TEXT}}</span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">{{P4_PE_WTD}}</td>
+      <td class="col-commentary">{{P4_PE_COMMENTARY}}</td>
+    </tr>
+    <tr>
+      <td class="col-metric">P/FCF vs. 5yr Median<br>
+        <span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">
+          Trail: <strong style="color:{{TRAIL_PFCF_COLOR}}">{{TRAILING_PFCF}}</strong> ({{TRAILING_PFCF_DELTA}} vs 10yr)<br>
+          Fwd:&nbsp;&nbsp; <strong style="color:{{FWD_PFCF_COLOR}}">{{FORWARD_PFCF}}</strong> ({{FORWARD_PFCF_DELTA}} vs 10yr)
+        </span>
+      </td>
+      <td class="score-num"><span class="score-pill {{P4_PFCF_SCORE_CLASS}}">{{P4_PFCF_SCORE_TEXT}}</span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">{{P4_PFCF_WTD}}</td>
+      <td class="col-commentary">{{P4_PFCF_COMMENTARY}}</td>
+    </tr>
+
+    <!-- TOTAL: SUMPRODUCT of (score × weight) across all 13 criteria -->
+    <!-- TOTAL_WEIGHTED_SCORE: e.g. 812.5 -->
+    <!-- FINAL_SCORE_CALC: e.g. "812.5 ÷ 10 = 81.25 / 100 → Good Business at Fair Price (Core Holding)" -->
+    <tr class="weighted-row">
+      <td colspan="3" style="text-align:right;padding-right:12px">Total Weighted Score</td>
+      <td class="score-num" style="color:var(--green)">{{TOTAL_WEIGHTED_SCORE}}</td>
+      <td style="color:var(--green);font-size:8pt">Final: {{FINAL_SCORE_CALC}}</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══ SCENARIOS ═══ -->
+<div class="section-label">Base, Bull &amp; Bear Cases</div>
+<table class="scenario-table no-break">
+  <thead>
+    <tr>
+      <th style="background:#f8f7f5;color:var(--ink-muted);width:28%">Assumption</th>
+      <!-- BEAR_PRICE_RANGE: e.g. "$380-430" -->
+      <th class="bear-h" style="width:24%">🐻 Bear — {{BEAR_PRICE_RANGE}}</th>
+      <th class="base-h" style="width:24%">📊 Base — {{BASE_PRICE_RANGE}}</th>
+      <th class="bull-h" style="width:24%">🐂 Bull — {{BULL_PRICE_RANGE}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="row-label">Revenue / procedure growth</td>
+      <td>{{BEAR_REVENUE_GROWTH}}</td>
+      <td>{{BASE_REVENUE_GROWTH}}</td>
+      <td>{{BULL_REVENUE_GROWTH}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBITDA margin</td>
+      <td>{{BEAR_MARGIN}}</td>
+      <td>{{BASE_MARGIN}}</td>
+      <td>{{BULL_MARGIN}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">FCF ({{FCF_YEAR_LABEL}})</td>
+      <td>{{BEAR_FCF}}</td>
+      <td>{{BASE_FCF}}</td>
+      <td>{{BULL_FCF}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Exit multiple</td>
+      <td>{{BEAR_MULTIPLE}}</td>
+      <td>{{BASE_MULTIPLE}}</td>
+      <td>{{BULL_MULTIPLE}}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Key catalyst / risk</td>
+      <td>{{BEAR_CATALYST}}</td>
+      <td>{{BASE_CATALYST}}</td>
+      <td>{{BULL_CATALYST}}</td>
+    </tr>
+    <tr class="price-row">
+      <td class="row-label" style="font-weight:700">Implied Price Range</td>
+      <td class="bear-p">{{BEAR_PRICE_RANGE}}</td>
+      <td class="base-p">{{BASE_PRICE_RANGE}}</td>
+      <td class="bull-p">{{BULL_PRICE_RANGE}}</td>
+    </tr>
+    <tr class="price-row">
+      <td class="row-label" style="font-weight:700;font-size:8.5pt">Upside vs {{CURRENT_PRICE}}</td>
+      <td class="bear-p" style="font-size:9pt">{{BEAR_UPSIDE}}</td>
+      <td class="base-p" style="font-size:9pt">{{BASE_UPSIDE}}</td>
+      <td class="bull-p" style="font-size:9pt">{{BULL_UPSIDE}}</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══ KEY RISKS ═══ -->
+<div class="section-label">Key Risk Factors</div>
+<ul class="risk-list no-break">
+  <li><strong>{{RISK_1_TITLE}}:</strong> {{RISK_1_TEXT}}</li>
+  <li><strong>{{RISK_2_TITLE}}:</strong> {{RISK_2_TEXT}}<sup><a href="#fn7">[7]</a></sup></li>
+  <li><strong>{{RISK_3_TITLE}}:</strong> {{RISK_3_TEXT}}</li>
+  <li><strong>{{RISK_4_TITLE}}:</strong> {{RISK_4_TEXT}}</li>
+  <li><strong>{{RISK_5_TITLE}}:</strong> {{RISK_5_TEXT}}</li>
+</ul>
+
+<!-- ═══ VALUATION ANALYSIS ═══ -->
+<div class="valuation-section">
+<div class="section-label">Valuation Analysis — DCF &amp; Multiples <sup><a href="#fn8">[8]</a></sup></div>
+
+<div class="valuation-verdict">
+  <div class="verdict-title">{{VALUATION_VERDICT_TITLE}}</div>
+  <p>{{VALUATION_VERDICT_TEXT}}</p>
+</div>
+
+<div class="valuation-grid">
+
+  <!-- LEFT: DCF -->
+  <div class="val-card">
+    <div class="val-card-title">Discounted Cash Flow (10yr Explicit Period)</div>
+    <table class="dcf-scenario-table">
+      <thead>
+        <tr>
+          <th>Scenario</th><th>WACC</th><th>TGR</th><th>Rev CAGR</th><th>DCF Price</th><th>vs {{CURRENT_PRICE}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- price-dn class = red; price-up class = green -->
+        <tr>
+          <td>Bear</td><td>{{DCF_BEAR_WACC}}</td><td>{{DCF_BEAR_TGR}}</td><td>{{DCF_BEAR_CAGR}}</td>
+          <td class="{{DCF_BEAR_PX_CLASS}}">{{DCF_BEAR_PX}}</td>
+          <td class="{{DCF_BEAR_PX_CLASS}}">{{DCF_BEAR_VS}}</td>
+        </tr>
+        <tr class="base-row">
+          <td>Base</td><td>{{DCF_BASE_WACC}}</td><td>{{DCF_BASE_TGR}}</td><td>{{DCF_BASE_CAGR}}</td>
+          <td class="{{DCF_BASE_PX_CLASS}}">{{DCF_BASE_PX}}</td>
+          <td class="{{DCF_BASE_PX_CLASS}}">{{DCF_BASE_VS}}</td>
+        </tr>
+        <tr>
+          <td>Bull</td><td>{{DCF_BULL_WACC}}</td><td>{{DCF_BULL_TGR}}</td><td>{{DCF_BULL_CAGR}}</td>
+          <td class="{{DCF_BULL_PX_CLASS}}">{{DCF_BULL_PX}}</td>
+          <td class="{{DCF_BULL_PX_CLASS}}">{{DCF_BULL_VS}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:var(--ink-muted);margin-bottom:8px;">
+      Sensitivity: Implied Price (Base margins) — WACC × TGR
+    </div>
+    <!-- Sensitivity table: 6 WACC rows × 5 TGR columns -->
+    <!-- Cell classes: near-market (±10% of current price) | mid-range (~30% below) | low-range (>30% below) -->
+    <table class="sensitivity-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding-left:10px">WACC \ TGR</th>
+          <th>{{TGR_1}}</th><th>{{TGR_2}}</th><th>{{TGR_3}}</th><th>{{TGR_4}}</th><th>{{TGR_5}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="row-wacc">{{WACC_1}}</td><td class="{{S11}}">{{V11}}</td><td class="{{S12}}">{{V12}}</td><td class="{{S13}}">{{V13}}</td><td class="{{S14}}">{{V14}}</td><td class="{{S15}}">{{V15}}</td></tr>
+        <tr><td class="row-wacc">{{WACC_2}}</td><td class="{{S21}}">{{V21}}</td><td class="{{S22}}">{{V22}}</td><td class="{{S23}}">{{V23}}</td><td class="{{S24}}">{{V24}}</td><td class="{{S25}}">{{V25}}</td></tr>
+        <tr><td class="row-wacc">{{WACC_3}}</td><td class="{{S31}}">{{V31}}</td><td class="{{S32}}">{{V32}}</td><td class="{{S33}}">{{V33}}</td><td class="{{S34}}">{{V34}}</td><td class="{{S35}}">{{V35}}</td></tr>
+        <tr><td class="row-wacc">{{WACC_4}}</td><td class="{{S41}}">{{V41}}</td><td class="{{S42}}">{{V42}}</td><td class="{{S43}}">{{V43}}</td><td class="{{S44}}">{{V44}}</td><td class="{{S45}}">{{V45}}</td></tr>
+        <tr><td class="row-wacc">{{WACC_5}}</td><td class="{{S51}}">{{V51}}</td><td class="{{S52}}">{{V52}}</td><td class="{{S53}}">{{V53}}</td><td class="{{S54}}">{{V54}}</td><td class="{{S55}}">{{V55}}</td></tr>
+        <tr><td class="row-wacc">{{WACC_6}}</td><td class="{{S61}}">{{V61}}</td><td class="{{S62}}">{{V62}}</td><td class="{{S63}}">{{V63}}</td><td class="{{S64}}">{{V64}}</td><td class="{{S65}}">{{V65}}</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:7pt;color:var(--ink-muted);margin-top:4px;font-style:italic">{{SENSITIVITY_NOTE}}</p>
+
+    <div class="rev-dcf-box">
+      <strong>Reverse DCF — What Does {{CURRENT_PRICE}} Imply?</strong><br>
+      {{REVERSE_DCF_TEXT}}
+    </div>
+  </div>
+
+  <!-- RIGHT: MULTIPLES -->
+  <div class="val-card">
+    <div class="val-card-title">Multiples Valuation (Historical Avg Exit)</div>
+    <table class="mult-table">
+      <thead>
+        <tr>
+          <!-- FY_FWD1: e.g. FY26E  |  FY_FWD2: e.g. FY27E -->
+          <th>Method</th><th>{{FY_FWD1}} Px</th><th>Upside</th><th>{{FY_FWD2}} Px</th><th>Upside</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="section-divider"><td colspan="5">P/E Multiple</td></tr>
+        <tr>
+          <td>10yr avg P/E — {{PE_10YR_AVG}}</td>
+          <td>{{MULT_PE10_FY1_PX}}</td><td class="up">{{MULT_PE10_FY1_UPS}}</td>
+          <td>{{MULT_PE10_FY2_PX}}</td><td class="up">{{MULT_PE10_FY2_UPS}}</td>
+        </tr>
+        <tr>
+          <td>5yr avg P/E — {{PE_5YR_AVG}}</td>
+          <td>{{MULT_PE5_FY1_PX}}</td><td class="up">{{MULT_PE5_FY1_UPS}}</td>
+          <td>{{MULT_PE5_FY2_PX}}</td><td class="up">{{MULT_PE5_FY2_UPS}}</td>
+        </tr>
+        <tr class="section-divider"><td colspan="5">P/FCF Multiple</td></tr>
+        <tr>
+          <td>10yr avg P/FCF — {{PFCF_10YR_AVG}}</td>
+          <td>{{MULT_PFCF10_FY1_PX}}</td><td class="up">{{MULT_PFCF10_FY1_UPS}}</td>
+          <td>{{MULT_PFCF10_FY2_PX}}</td><td class="up">{{MULT_PFCF10_FY2_UPS}}</td>
+        </tr>
+        <tr>
+          <td>5yr avg P/FCF — {{PFCF_5YR_AVG}}</td>
+          <td>{{MULT_PFCF5_FY1_PX}}</td><td class="up">{{MULT_PFCF5_FY1_UPS}}</td>
+          <td>{{MULT_PFCF5_FY2_PX}}</td><td class="up">{{MULT_PFCF5_FY2_UPS}}</td>
+        </tr>
+        <tr class="section-divider"><td colspan="5">EV/EBITDA Multiple</td></tr>
+        <tr>
+          <td>10yr avg EV/EBITDA — {{EVEBITDA_10YR_AVG}}</td>
+          <td>{{MULT_EV10_FY1_PX}}</td><td class="up">{{MULT_EV10_FY1_UPS}}</td>
+          <td>{{MULT_EV10_FY2_PX}}</td><td class="up">{{MULT_EV10_FY2_UPS}}</td>
+        </tr>
+        <tr>
+          <td>5yr avg EV/EBITDA — {{EVEBITDA_5YR_AVG}}</td>
+          <td>{{MULT_EV5_FY1_PX}}</td><td class="up">{{MULT_EV5_FY1_UPS}}</td>
+          <td>{{MULT_EV5_FY2_PX}}</td><td class="up">{{MULT_EV5_FY2_UPS}}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:7.5pt;color:var(--ink-light);margin-top:8px;line-height:1.5;">
+      {{MULTIPLES_METHOD_RATIONALE}}
+    </p>
+    <p style="font-size:7.5pt;color:var(--ink-light);margin-top:6px;line-height:1.5;">
+      {{MULTIPLES_KEY_QUESTION}}
+    </p>
+    <div style="margin-top:8px;padding:7px 10px;background:var(--green-light);border-left:3px solid var(--green);font-size:8pt;line-height:1.5;">
+      <strong style="color:var(--green)">Composite Fair Value Range:</strong>
+      <span style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--green)"> {{COMPOSITE_FAIR_VALUE}}</span>
+      on {{FY_FWD1}} consensus (avg of 6 methods, historical multiples).<br>
+      <span style="color:var(--ink-light)">{{COMPOSITE_UPSIDE_NOTE}}</span>
+    </div>
+  </div>
+
+</div>
+</div><!-- end valuation-section -->
+
+<!-- ═══ ANALYST PRICE TARGETS ═══ -->
+<div class="section-label">Analyst Price Targets — {{TICKER_SHORT}} ({{REPORT_DATE}})</div>
+<div class="no-break">
+  <div class="analyst-consensus-bar">
+    <div class="cons-cell buy-cell">
+      <div class="cons-label">Buy / Strong Buy</div>
+      <div class="cons-val">{{BUY_PCT}}</div>
+      <div class="cons-sub">{{BUY_COUNT}}</div>
+    </div>
+    <div class="cons-cell hold-cell">
+      <div class="cons-label">Hold</div>
+      <div class="cons-val">{{HOLD_PCT}}</div>
+      <div class="cons-sub">{{HOLD_COUNT}}</div>
+    </div>
+    <div class="cons-cell sell-cell">
+      <div class="cons-label">Sell</div>
+      <div class="cons-val">{{SELL_PCT}}</div>
+      <div class="cons-sub">{{SELL_COUNT}}</div>
+    </div>
+  </div>
+  <table class="analyst-table">
+    <thead>
+      <tr>
+        <th style="width:20%">Analyst</th>
+        <th style="width:20%">Firm</th>
+        <th class="center" style="width:12%">Rating</th>
+        <th class="center" style="width:14%">Price Target</th>
+        <th class="center" style="width:12%">vs {{CURRENT_PRICE}}</th>
+        <th style="width:22%">Last Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- RATING PILL CLASS: rating-buy | rating-hold | rating-sell -->
+      <!-- PT CLASS: pt-above (green) | pt-flat (amber) | pt-below (red) -->
+      <tr>
+        <td class="analyst-name">{{A1_NAME}}</td><td class="firm-name">{{A1_FIRM}}</td>
+        <td class="center"><span class="{{A1_RATING_CLASS}}">{{A1_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A1_PT_CLASS}}">{{A1_PT}}</td>
+        <td class="center {{A1_PT_CLASS}}">{{A1_PT_VS}}</td>
+        <td>{{A1_DATE}}</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">{{A2_NAME}}</td><td class="firm-name">{{A2_FIRM}}</td>
+        <td class="center"><span class="{{A2_RATING_CLASS}}">{{A2_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A2_PT_CLASS}}">{{A2_PT}}</td>
+        <td class="center {{A2_PT_CLASS}}">{{A2_PT_VS}}</td>
+        <td>{{A2_DATE}}</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">{{A3_NAME}}</td><td class="firm-name">{{A3_FIRM}}</td>
+        <td class="center"><span class="{{A3_RATING_CLASS}}">{{A3_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A3_PT_CLASS}}">{{A3_PT}}</td>
+        <td class="center {{A3_PT_CLASS}}">{{A3_PT_VS}}</td>
+        <td>{{A3_DATE}}</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">{{A4_NAME}}</td><td class="firm-name">{{A4_FIRM}}</td>
+        <td class="center"><span class="{{A4_RATING_CLASS}}">{{A4_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A4_PT_CLASS}}">{{A4_PT}}</td>
+        <td class="center {{A4_PT_CLASS}}">{{A4_PT_VS}}</td>
+        <td>{{A4_DATE}}</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">{{A5_NAME}}</td><td class="firm-name">{{A5_FIRM}}</td>
+        <td class="center"><span class="{{A5_RATING_CLASS}}">{{A5_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A5_PT_CLASS}}">{{A5_PT}}</td>
+        <td class="center {{A5_PT_CLASS}}">{{A5_PT_VS}}</td>
+        <td>{{A5_DATE}}</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">{{A6_NAME}}</td><td class="firm-name">{{A6_FIRM}}</td>
+        <td class="center"><span class="{{A6_RATING_CLASS}}">{{A6_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A6_PT_CLASS}}">{{A6_PT}}</td>
+        <td class="center {{A6_PT_CLASS}}">{{A6_PT_VS}}</td>
+        <td>{{A6_DATE}}</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">{{A7_NAME}}</td><td class="firm-name">{{A7_FIRM}}</td>
+        <td class="center"><span class="{{A7_RATING_CLASS}}">{{A7_RATING_TEXT}}</span></td>
+        <td class="center pt-val {{A7_PT_CLASS}}">{{A7_PT}}</td>
+        <td class="center {{A7_PT_CLASS}}">{{A7_PT_VS}}</td>
+        <td>{{A7_DATE}}</td>
+      </tr>
+      <tr style="background:#f0f4fa !important; font-weight:600; border-top: 1px solid #a7d8d8;">
+        <td colspan="2" style="font-size:8pt; color:var(--accent);">Consensus Average ({{ANALYST_COUNT}} analysts)</td>
+        <td class="center" style="font-size:8pt; color:var(--green);">{{BUY_PCT}} Buy</td>
+        <td class="center pt-val" style="color:var(--accent2);">{{CONSENSUS_PT}}</td>
+        <td class="center" style="color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:8pt;">{{CONSENSUS_PT_VS}}</td>
+        <td style="font-size:7.5pt;color:var(--ink-muted);">Range: {{PT_RANGE}}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="analyst-note">{{ANALYST_TABLE_NOTE}}</p>
+</div>
+
+<!-- ═══ FOOTNOTES ═══ -->
+<div class="footnotes">
+  <div class="footnotes-title">Sources &amp; Footnotes</div>
+  <ol>
+    <li id="fn1">{{FN1}}</li>
+    <li id="fn2">{{FN2}}</li>
+    <li id="fn3">{{FN3}}</li>
+    <li id="fn4">{{FN4}}</li>
+    <li id="fn5">{{FN5}}</li>
+    <li id="fn6">{{FN6}}</li>
+    <li id="fn7">{{FN7}}</li>
+    <li id="fn8">{{FN8}}</li>
+  </ol>
+</div>
+
+<div class="disclaimer">
+  <strong>Disclaimer:</strong> {{DISCLAIMER_TEXT}}
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 1 — SHARE PRICE (line)
+// PRICE_LABELS: JS array of ~monthly labels, e.g. ['Apr-21','Jul-21', ...]
+// PRICE_DATA: JS array of prices in CURRENCY_SYMBOL
+// ─────────────────────────────────────────────────────────────────────────────
+const priceLabels = {{PRICE_LABELS_JS}};
+const priceData   = {{PRICE_DATA_JS}};
+const currencySymbol = '{{CURRENCY_SYMBOL}}';  // '$' or '€' or '£' etc.
+
+const priceCtx = document.getElementById('priceChart').getContext('2d');
+new Chart(priceCtx, {
+  type: 'line',
+  data: {
+    labels: priceLabels,
+    datasets: [{
+      data: priceData,
+      borderColor: '#0d6e6e',
+      backgroundColor: 'rgba(13,110,110,0.07)',
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => `${currencySymbol}${ctx.parsed.y.toFixed(0)}` },
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont:  { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#6b6b8a', maxTicksLimit: 8, maxRotation: 0 }, border: { color: '#d4cfc9' } },
+      y: { grid: { color: 'rgba(212,207,201,0.4)' }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${currencySymbol}${v}` }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 2 — FINANCIALS (stacked bar: Revenue/EBITDA/NI + OCF & FCF lines)
+// FIN_LABELS: JS array, e.g. ['FY20A','FY21A',...,'FY26E','FY27E']
+// N_ACTUALS: index where estimates begin (0-based), e.g. 6 means first 6 are actuals
+// All values in reporting currency billions
+// ─────────────────────────────────────────────────────────────────────────────
+const finLabels = {{FIN_LABELS_JS}};
+const nActuals  = {{N_ACTUALS}};  // first N entries are actuals; rest are estimates
+
+const rev    = {{REV_JS}};
+const ebitda = {{EBITDA_JS}};
+const ni     = {{NI_JS}};
+const ocfData = {{OCF_JS}};
+const fcfData = {{FCF_JS}};
+
+const seg1 = ni;
+const seg2 = rev.map((r,i) => Math.max(0, ebitda[i] - ni[i]));
+const seg3 = rev.map((r,i) => Math.max(0, r - ebitda[i]));
+
+const isEst = (ctx) => ctx.dataIndex >= nActuals;
+
+const finCtx = document.getElementById('financialChart').getContext('2d');
+new Chart(finCtx, {
+  type: 'bar',
+  data: {
+    labels: finLabels,
+    datasets: [
+      {
+        label: 'Net Income',
+        data: seg1,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(0,105,92,0.30)' : 'rgba(0,105,92,0.85)',
+        borderColor: 'transparent', borderWidth: 0,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'EBITDA − NI',
+        data: seg2,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.20)' : 'rgba(13,110,110,0.55)',
+        borderColor: 'transparent', borderWidth: 0,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'Revenue − EBITDA',
+        data: seg3,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.10)' : 'rgba(13,110,110,0.22)',
+        borderColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.3)' : '#0d6e6e',
+        borderWidth: ctx => isEst(ctx) ? 1 : 0.5,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'Op. Cash Flow',
+        data: ocfData,
+        type: 'line', borderColor: '#1e3a5f', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#1e3a5f',
+        tension: 0.3, yAxisID: 'yCF', order: 1, stack: undefined
+      },
+      {
+        label: 'Free Cash Flow',
+        data: fcfData,
+        type: 'line', borderColor: '#c8102e', backgroundColor: 'transparent',
+        borderWidth: 2, borderDash: [5,3], pointRadius: 3, pointBackgroundColor: '#c8102e',
+        tension: 0.3, yAxisID: 'yCF', order: 0, stack: undefined
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: {
+        display: true, position: 'top', align: 'end',
+        labels: {
+          font: { family: 'IBM Plex Mono', size: 7 }, color: '#3d3d5c',
+          usePointStyle: true, pointStyleWidth: 12, padding: 8, boxHeight: 6,
+          generateLabels: (chart) => {
+            const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+            const barLabel = { text: 'Revenue (stacked: NI / EBITDA / Rev)', fillStyle: 'rgba(13,110,110,0.6)', strokeStyle: 'transparent', lineWidth: 0, pointStyle: 'rect', hidden: false };
+            const lines = labels.filter(l => l.text === 'Op. Cash Flow' || l.text === 'Free Cash Flow');
+            return [barLabel, ...lines];
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            if (ctx.dataset.label === 'Net Income') return `Net Income: ${currencySymbol}${seg1[ctx.dataIndex].toFixed(2)}B`;
+            if (ctx.dataset.label === 'EBITDA − NI') return `EBITDA: ${currencySymbol}${ebitda[ctx.dataIndex].toFixed(2)}B`;
+            if (ctx.dataset.label === 'Revenue − EBITDA') return `Revenue: ${currencySymbol}${rev[ctx.dataIndex].toFixed(2)}B`;
+            return `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(2)}B`;
+          }
+        },
+        filter: item => !(item.dataset.label === 'EBITDA − NI' || item.dataset.label === 'Revenue − EBITDA'),
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      yRev: {
+        position: 'left', stacked: true,
+        grid: { color: 'rgba(212,207,201,0.4)' },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0d6e6e', callback: v => `${currencySymbol}${v}B` },
+        border: { color: '#d4cfc9' },
+        title: { display: true, text: 'Rev / EBITDA / NI', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0d6e6e' }
+      },
+      yCF: {
+        position: 'right', stacked: false,
+        grid: { display: false },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#1e3a5f', callback: v => `${currencySymbol}${v}B` },
+        border: { color: '#d4cfc9' },
+        title: { display: true, text: 'OCF / FCF', font: { size: 7, family: 'IBM Plex Mono' }, color: '#1e3a5f' }
+      },
+      x: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 },
+        border: { color: '#d4cfc9' }
+      }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 3 — ROIC (bars + WACC reference line)
+// ROIC_LABELS: JS array of year labels
+// ROIC_DATA: JS array of ROIC % values (bars green if >20, amber if ≤20)
+// WACC_VALUE: single number used for flat reference line, e.g. 8
+// ─────────────────────────────────────────────────────────────────────────────
+const roicLabels = {{ROIC_LABELS_JS}};
+const roicData   = {{ROIC_DATA_JS}};
+const waccValue  = {{WACC_VALUE}};
+const waccLine   = roicLabels.map(() => waccValue);
+
+const roicCtx = document.getElementById('roicChart').getContext('2d');
+new Chart(roicCtx, {
+  type: 'bar',
+  data: {
+    labels: roicLabels,
+    datasets: [
+      {
+        label: 'ROIC %',
+        data: roicData,
+        backgroundColor: roicData.map(v => v > 20 ? 'rgba(0,105,92,0.75)' : 'rgba(180,83,9,0.65)'),
+        borderColor: roicData.map(v => v > 20 ? '#00695c' : '#b45309'),
+        borderWidth: 1,
+        order: 2
+      },
+      {
+        label: `Est. WACC ~${waccValue}%`,
+        data: waccLine,
+        type: 'line',
+        borderColor: '#c8102e',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [6,3],
+        pointRadius: 0,
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end', labels: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#3d3d5c', usePointStyle: true, pointStyleWidth: 14, padding: 10, boxHeight: 6 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` }, backgroundColor: '#1a1a2e', titleFont: { family: 'IBM Plex Mono', size: 9 }, bodyFont: { family: 'IBM Plex Mono', size: 9 }, padding: 8 }
+    },
+    scales: {
+      y: {
+        grid: { color: 'rgba(212,207,201,0.4)' },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${v}%` },
+        border: { color: '#d4cfc9' },
+        min: 0, max: 45,
+        title: { display: true, text: 'ROIC %', font: { size: 7, family: 'IBM Plex Mono' }, color: '#6b6b8a' }
+      },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 4 — SHAREHOLDER RETURNS (buybacks bar + FCF/share line)
+// RET_LABELS: JS array of year labels
+// BUYBACK_JS: JS array of annual buybacks in reporting currency billions
+// FCF_PER_SHARE_JS: JS array of FCF per share values
+// ─────────────────────────────────────────────────────────────────────────────
+const retLabels   = {{RET_LABELS_JS}};
+const buybackData = {{BUYBACK_JS}};
+const fcfPerShare = {{FCF_PER_SHARE_JS}};
+
+const retCtx = document.getElementById('returnChart').getContext('2d');
+new Chart(retCtx, {
+  type: 'bar',
+  data: {
+    labels: retLabels,
+    datasets: [
+      {
+        label: `Buybacks (${currencySymbol}B)`,
+        data: buybackData,
+        backgroundColor: 'rgba(10,79,107,0.7)',
+        borderColor: '#0a4f6b',
+        borderWidth: 1,
+        yAxisID: 'yBuy',
+        order: 2
+      },
+      {
+        label: `FCF per Share (${currencySymbol})`,
+        data: fcfPerShare,
+        type: 'line',
+        borderColor: '#0d6e6e',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#0d6e6e',
+        tension: 0.3,
+        yAxisID: 'yFCF',
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end', labels: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#3d3d5c', usePointStyle: true, pointStyleWidth: 14, padding: 10, boxHeight: 6 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ctx.dataset.label.includes('FCF') ? `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(2)}` : `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(1)}B`
+        },
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      yBuy: { position: 'left', grid: { color: 'rgba(212,207,201,0.4)' }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0a4f6b', callback: v => `${currencySymbol}${v}B` }, border: { color: '#d4cfc9' }, title: { display: true, text: 'Buybacks', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0a4f6b' } },
+      yFCF: { position: 'right', grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0d6e6e', callback: v => `${currencySymbol}${v}` }, border: { color: '#d4cfc9' }, title: { display: true, text: 'FCF/Share', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0d6e6e' } },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

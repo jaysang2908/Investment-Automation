@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Equity Research — Independent Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #07090e;
+      --surface:    #0e1520;
+      --surface2:   #131c2c;
+      --border:     rgba(255,255,255,0.06);
+      --border2:    rgba(255,255,255,0.12);
+      --gold:       #c9a84c;
+      --gold-light: #e8c97a;
+      --gold-dim:   rgba(201,168,76,0.12);
+      --text:       #d9e0ea;
+      --text-muted: #7a8499;
+      --text-dim:   #3d4455;
+      --green:      #10b981;
+      --green-dim:  rgba(16,185,129,0.12);
+      --amber:      #f59e0b;
+      --amber-dim:  rgba(245,158,11,0.12);
+      --red:        #ef4444;
+      --red-dim:    rgba(239,68,68,0.12);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; inset: 0 0 auto 0; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 62px;
+      background: rgba(7,9,14,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-family:'IBM Plex Mono',monospace; font-size:10.5pt; font-weight:500; letter-spacing:3.5px; color:var(--text); text-transform:uppercase; text-decoration:none; }
+    .nav-logo span { color:var(--gold); }
+    .nav-links { display:flex; gap:32px; list-style:none; }
+    .nav-links a { font-size:8pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-muted); text-decoration:none; transition:color 0.2s; }
+    .nav-links a:hover { color:var(--text); }
+    .nav-pill { font-family:'IBM Plex Mono',monospace; font-size:7.5pt; letter-spacing:1.5px; text-transform:uppercase; padding:5px 14px; border:1px solid rgba(201,168,76,0.35); border-radius:2px; color:var(--gold); text-decoration:none; transition:background 0.2s; }
+    .nav-pill:hover { background:var(--gold-dim); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 110px 24px 90px; position: relative;
+    }
+    .hero-glow {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-60%);
+      width:600px; height:600px;
+      background:radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 70%);
+      pointer-events:none;
+    }
+    .hero-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:8.5pt; letter-spacing:5px; text-transform:uppercase; color:var(--gold); margin-bottom:28px; opacity:0; animation:fadeUp 0.7s ease 0.1s forwards; }
+    .hero-headline { font-family:'Playfair Display',serif; font-size:clamp(28pt,4.5vw,50pt); font-weight:700; line-height:1.1; color:#fff; margin-bottom:22px; max-width:820px; opacity:0; animation:fadeUp 0.7s ease 0.25s forwards; }
+    .hero-headline em { font-style:italic; color:var(--gold); }
+    .hero-sub { font-size:11pt; font-weight:300; color:var(--text-muted); margin-bottom:52px; max-width:480px; line-height:1.75; opacity:0; animation:fadeUp 0.7s ease 0.4s forwards; }
+
+    /* ── GENERATE FORM ── */
+    .gen-outer { width:100%; max-width:640px; opacity:0; animation:fadeUp 0.7s ease 0.55s forwards; }
+
+    .gen-form { background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:28px; }
+
+    .gen-row { display:flex; gap:12px; margin-bottom:12px; }
+
+    .gen-field { flex:1; display:flex; flex-direction:column; gap:6px; }
+    .gen-field label { font-family:'IBM Plex Mono',monospace; font-size:7pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); }
+    .gen-field input {
+      background:rgba(255,255,255,0.04); border:1px solid var(--border2); border-radius:4px;
+      padding:13px 16px; font-family:'IBM Plex Mono',monospace; font-size:13pt; font-weight:500;
+      color:#fff; outline:none; transition:border-color 0.2s, background 0.2s;
+    }
+    .gen-field input::placeholder { color:var(--text-dim); font-size:10pt; font-weight:400; letter-spacing:0.5px; text-transform:none; }
+    .gen-field input:focus { border-color:var(--gold); background:rgba(201,168,76,0.04); }
+    #tickerInput { text-transform:uppercase; letter-spacing:3px; font-size:15pt; }
+
+    .gen-password { margin-bottom:16px; }
+
+    .gen-btn {
+      width:100%; background:var(--gold); border:none; border-radius:4px;
+      padding:15px 24px; font-family:'IBM Plex Mono',monospace; font-size:9pt;
+      font-weight:500; letter-spacing:2.5px; text-transform:uppercase; color:#07090e;
+      cursor:pointer; transition:background 0.2s; display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .gen-btn:hover:not(:disabled) { background:var(--gold-light); }
+    .gen-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .gen-msg { margin-top:14px; font-family:'IBM Plex Mono',monospace; font-size:8pt; letter-spacing:1px; min-height:18px; text-align:center; }
+    .gen-msg.info  { color:var(--text-dim); }
+    .gen-msg.error { color:var(--red); }
+    .gen-msg.ok    { color:var(--green); }
+
+    /* ── PROGRESS LOG ── */
+    .progress-log {
+      margin-top:16px; background:rgba(0,0,0,0.3); border:1px solid var(--border);
+      border-radius:4px; padding:14px 16px; display:none; font-family:'IBM Plex Mono',monospace;
+      font-size:7.5pt; color:var(--text-muted); line-height:1.8; max-height:120px; overflow-y:auto;
+    }
+
+    /* ── RESULTS PANEL ── */
+    .results-panel {
+      margin-top:20px; background:var(--surface); border:1px solid rgba(201,168,76,0.25);
+      border-radius:6px; padding:24px; display:none;
+    }
+
+    .results-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .results-ticker { font-family:'Playfair Display',serif; font-size:18pt; font-weight:600; color:#fff; }
+    .results-score  { font-family:'IBM Plex Mono',monospace; font-size:10pt; color:var(--text-muted); }
+    .results-score span { color:var(--gold); font-size:14pt; font-weight:500; }
+
+    .results-btns { display:flex; gap:10px; flex-wrap:wrap; }
+
+    .res-btn {
+      flex:1; min-width:140px; padding:13px 16px; border-radius:4px; border:1px solid var(--border2);
+      font-family:'IBM Plex Mono',monospace; font-size:8pt; letter-spacing:1.5px; text-transform:uppercase;
+      cursor:pointer; text-align:center; text-decoration:none; display:flex; align-items:center;
+      justify-content:center; gap:8px; transition:all 0.2s; white-space:nowrap;
+    }
+
+    .res-btn-excel { background:rgba(16,185,129,0.08); color:var(--green); border-color:rgba(16,185,129,0.25); }
+    .res-btn-excel:hover { background:rgba(16,185,129,0.16); border-color:rgba(16,185,129,0.4); }
+    .res-btn-html  { background:rgba(201,168,76,0.08);  color:var(--gold);  border-color:rgba(201,168,76,0.25); }
+    .res-btn-html:hover  { background:rgba(201,168,76,0.16);  border-color:rgba(201,168,76,0.4); }
+    .res-btn-view  { background:rgba(255,255,255,0.04); color:var(--text); border-color:var(--border2); }
+    .res-btn-view:hover  { background:rgba(255,255,255,0.08); border-color:var(--border2); }
+
+    .results-note { margin-top:14px; font-size:8pt; color:var(--text-dim); line-height:1.6; }
+
+    /* scroll cue */
+    .scroll-cue { position:absolute; bottom:40px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:10px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:7pt; letter-spacing:3px; text-transform:uppercase; opacity:0; animation:fadeUp 0.7s ease 1s forwards; }
+    .scroll-line { width:1px; height:36px; background:linear-gradient(var(--text-dim),transparent); animation:scrollPulse 2.4s ease-in-out infinite; }
+    @keyframes scrollPulse { 0%,100%{opacity:.3} 50%{opacity:.8} }
+
+    /* ── STATS BAR ── */
+    .stats-bar { display:flex; border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--surface); }
+    .stat-item { flex:1; text-align:center; padding:24px 20px; border-right:1px solid var(--border); }
+    .stat-item:last-child { border-right:none; }
+    .stat-val { font-family:'Playfair Display',serif; font-size:22pt; font-weight:600; color:#fff; line-height:1; margin-bottom:6px; }
+    .stat-val span { color:var(--gold); }
+    .stat-label { font-family:'IBM Plex Mono',monospace; font-size:7.5pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); }
+
+    /* ── SECTION ── */
+    .section { padding:88px 48px; max-width:1160px; margin:0 auto; position:relative; }
+    .section-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:8pt; letter-spacing:4px; text-transform:uppercase; color:var(--gold); margin-bottom:10px; }
+    .section-heading { font-family:'Playfair Display',serif; font-size:28pt; font-weight:700; color:#fff; margin-bottom:52px; line-height:1.15; }
+
+    /* ── CARDS ── */
+    .cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(460px,1fr)); gap:20px; }
+
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:30px; text-decoration:none; color:inherit; display:block; position:relative; overflow:hidden; transition:border-color 0.3s, transform 0.3s, box-shadow 0.3s; }
+    .card::after { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--gold),transparent); opacity:0; transition:opacity 0.3s; }
+    .card:hover { border-color:rgba(201,168,76,0.28); transform:translateY(-4px); box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(201,168,76,0.12); }
+    .card:hover::after { opacity:1; }
+    .card.inactive { pointer-events:none; opacity:0.42; }
+
+    .card-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; }
+    .card-company { font-family:'Playfair Display',serif; font-size:17pt; font-weight:600; color:#fff; line-height:1.2; margin-bottom:8px; }
+    .card-ticker { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:8pt; font-weight:500; letter-spacing:2px; color:var(--gold); background:var(--gold-dim); border:1px solid rgba(201,168,76,0.18); padding:3px 9px; border-radius:2px; }
+
+    .score-ring { position:relative; width:68px; height:68px; flex-shrink:0; }
+    .score-ring svg { transform:rotate(-90deg); }
+    .ring-track { fill:none; stroke:rgba(255,255,255,0.06); stroke-width:4.5; }
+    .ring-fill { fill:none; stroke-width:4.5; stroke-linecap:round; transition:stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1); }
+    .ring-green { stroke:var(--green); }
+    .ring-amber { stroke:var(--amber); }
+    .ring-red   { stroke:var(--red); }
+    .score-inner { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+    .score-num { font-family:'IBM Plex Mono',monospace; font-size:14pt; font-weight:500; color:#fff; line-height:1; }
+    .score-denom { font-family:'IBM Plex Mono',monospace; font-size:6.5pt; color:var(--text-dim); }
+    .coming-tag { font-family:'IBM Plex Mono',monospace; font-size:7pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); border:1px solid var(--border2); padding:4px 10px; border-radius:2px; }
+
+    .verdict-chip { display:inline-flex; align-items:center; gap:7px; font-size:8pt; font-weight:500; padding:4px 11px; border-radius:3px; margin-bottom:14px; }
+    .verdict-chip.green { background:var(--green-dim); color:var(--green); border:1px solid rgba(16,185,129,0.18); }
+    .verdict-chip.amber { background:var(--amber-dim); color:var(--amber); border:1px solid rgba(245,158,11,0.18); }
+    .v-dot { width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0; }
+
+    .rating-row { display:flex; align-items:center; gap:7px; margin-bottom:16px; flex-wrap:wrap; }
+    .rating-row-label { font-family:'IBM Plex Mono',monospace; font-size:6.5pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-right:2px; }
+    .cr-badge { font-family:'IBM Plex Mono',monospace; font-size:8pt; font-weight:500; padding:3px 9px; border-radius:2px; display:inline-flex; align-items:center; gap:5px; line-height:1.2; }
+    .cr-agency { font-size:6pt; letter-spacing:0.5px; opacity:0.6; text-transform:uppercase; }
+    .cr-aaa { background:var(--green-dim); color:var(--green); border:1px solid rgba(16,185,129,0.20); }
+    .cr-aa  { background:rgba(16,185,129,0.07); color:#6ee7b7; border:1px solid rgba(110,231,183,0.18); }
+    .cr-nr  { background:rgba(255,255,255,0.04); color:var(--text-dim); border:1px solid var(--border2); }
+
+    .price-row { display:flex; gap:0; padding-top:18px; border-top:1px solid var(--border); }
+    .price-cell { flex:1; padding-right:12px; }
+    .price-cell + .price-cell { border-left:1px solid var(--border); padding-left:16px; }
+    .price-label { font-family:'IBM Plex Mono',monospace; font-size:6.5pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-bottom:5px; }
+    .price-val { font-family:'IBM Plex Mono',monospace; font-size:13pt; font-weight:500; color:#fff; }
+    .price-val.up { color:var(--green); }
+    .price-val.dn { color:var(--red); }
+
+    .card-cta { position:absolute; bottom:30px; right:30px; font-family:'IBM Plex Mono',monospace; font-size:8.5pt; letter-spacing:1px; color:var(--text-dim); transition:color 0.2s, transform 0.2s; }
+    .card:hover .card-cta { color:var(--gold); transform:translateX(5px); }
+
+    /* ── METHODOLOGY ── */
+    .pillars-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+    .pillar { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:28px; }
+    .pillar-num { font-family:'IBM Plex Mono',monospace; font-size:26pt; font-weight:400; color:var(--text-dim); line-height:1; margin-bottom:14px; }
+    .pillar-title { font-family:'Playfair Display',serif; font-size:13pt; font-weight:600; color:#fff; margin-bottom:10px; }
+    .pillar-body { font-size:8.5pt; font-weight:300; color:var(--text-muted); line-height:1.7; }
+    .scale-row { display:flex; align-items:center; gap:24px; margin-top:40px; padding:20px 24px; background:var(--surface); border:1px solid var(--border); border-radius:5px; }
+    .scale-label { font-family:'IBM Plex Mono',monospace; font-size:7.5pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); white-space:nowrap; }
+    .scale-bar { flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--red),var(--amber) 50%,var(--green)); }
+    .scale-ticks { display:flex; justify-content:space-between; margin-top:6px; }
+    .scale-tick { font-family:'IBM Plex Mono',monospace; font-size:7pt; color:var(--text-dim); }
+
+    /* ── DIVIDER / FOOTER ── */
+    .rule { border:none; border-top:1px solid var(--border); margin:0 48px; }
+    footer { border-top:1px solid var(--border); padding:32px 48px; display:flex; align-items:center; justify-content:space-between; gap:24px; }
+    .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:10pt; letter-spacing:3.5px; text-transform:uppercase; color:var(--text-dim); }
+    .footer-logo span { color:var(--gold); }
+    .footer-disc { font-size:7.5pt; color:var(--text-dim); max-width:520px; text-align:right; line-height:1.6; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spinner { width:16px; height:16px; border:2px solid rgba(7,9,14,0.3); border-top-color:#07090e; border-radius:50%; animation:spin 0.7s linear infinite; }
+
+    .reveal { opacity:0; transform:translateY(22px); transition:opacity 0.65s ease, transform 0.65s ease; }
+    .reveal.visible { opacity:1; transform:translateY(0); }
+    .reveal-stagger > * { opacity:0; transform:translateY(18px); transition:opacity 0.55s ease, transform 0.55s ease; }
+    .reveal-stagger.visible > *:nth-child(1){opacity:1;transform:none;transition-delay:0s}
+    .reveal-stagger.visible > *:nth-child(2){opacity:1;transform:none;transition-delay:0.1s}
+    .reveal-stagger.visible > *:nth-child(3){opacity:1;transform:none;transition-delay:0.2s}
+    .reveal-stagger.visible > *:nth-child(4){opacity:1;transform:none;transition-delay:0.3s}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:860px){
+      nav{padding:0 24px}
+      .nav-links,.nav-pill{display:none}
+      .section{padding:64px 24px}
+      .rule{margin:0 24px}
+      .cards-grid{grid-template-columns:1fr}
+      .stats-bar{flex-wrap:wrap}
+      .stat-item{min-width:50%;border-right:none;border-bottom:1px solid var(--border)}
+      footer{flex-direction:column;padding:28px 24px}
+      .footer-disc{text-align:center}
+      .gen-row{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo">Equity<span>.</span>Research</a>
+  <div style="display:flex;align-items:center;gap:36px">
+    <ul class="nav-links">
+      <li><a href="#generate">Generate</a></li>
+      <li><a href="#coverage">Coverage</a></li>
+      <li><a href="#methodology">Methodology</a></li>
+    </ul>
+    <a class="nav-pill" href="#generate">Generate Report</a>
+  </div>
+</nav>
+
+<!-- HERO + GENERATE FORM -->
+<section class="hero" id="generate">
+  <div class="hero-glow"></div>
+
+  <div class="hero-eyebrow">Independent Equity Research</div>
+  <h1 class="hero-headline">
+    Institutional-Grade Analysis.<br>
+    <em>Built to Hold.</em>
+  </h1>
+  <p class="hero-sub">
+    Enter any ticker. The engine fetches financials from FMP, runs WACC and DCF,
+    scores 11 criteria automatically, and generates a full Excel model + HTML report.
+  </p>
+
+  <div class="gen-outer">
+    <div class="gen-form">
+
+      <div class="gen-row">
+        <div class="gen-field" style="flex:1.4">
+          <label>Ticker Symbol</label>
+          <input type="text" id="tickerInput" placeholder="AAPL, MSFT, NVDA…" maxlength="6" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="gen-field" style="flex:1">
+          <label>S&P / Moody's Rating <span style="opacity:0.5">(optional)</span></label>
+          <input type="text" id="ratingInput" placeholder="AA+  or  Aa1" maxlength="6" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="gen-field gen-password" id="passwordWrap" style="display:none;margin-bottom:16px">
+        <label>Password</label>
+        <input type="password" id="passwordInput" placeholder="Enter access password">
+      </div>
+
+      <button class="gen-btn" id="generateBtn" onclick="runGenerate()">
+        <span id="btnText">Generate Report</span>
+        <div class="spinner" id="btnSpinner" style="display:none"></div>
+      </button>
+
+      <div class="gen-msg info" id="genMsg">Generates Excel model + HTML report. ~30–60 seconds.</div>
+
+      <div class="progress-log" id="progressLog"></div>
+
+      <div class="results-panel" id="resultsPanel">
+        <div class="results-header">
+          <div>
+            <div class="results-ticker" id="resTicker">—</div>
+            <div class="results-score">Auto-score: <span id="resScore">—</span><span style="color:var(--text-dim);font-size:9pt">/100</span></div>
+          </div>
+          <div style="font-size:8pt;color:var(--text-dim);font-family:'IBM Plex Mono',monospace">Report ready</div>
+        </div>
+        <div class="results-btns">
+          <a class="res-btn res-btn-excel" id="excelBtn" href="#" target="_blank" rel="noopener">
+            ⬇ Download Excel Model
+          </a>
+          <a class="res-btn res-btn-html" id="htmlBtn" href="#" target="_blank" rel="noopener">
+            ⬇ Download HTML Report
+          </a>
+          <a class="res-btn res-btn-view" id="viewBtn" href="#" target="_blank" rel="noopener">
+            ↗ View Report in Browser
+          </a>
+        </div>
+        <div class="results-note">
+          <strong>Quantitative fields are auto-filled.</strong>
+          Qualitative fields (thesis, analyst consensus, segment descriptions) are smart stubs —
+          add your analysis after reviewing the Excel model and 10-K.
+          Reports expire after 2 hours; download to keep permanently.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="scroll-cue">
+    <div class="scroll-line"></div>
+    Coverage
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar reveal">
+  <div class="stat-item"><div class="stat-val">FMP<span>+</span></div><div class="stat-label">Data Source</div></div>
+  <div class="stat-item"><div class="stat-val">5</div><div class="stat-label">Year Financials</div></div>
+  <div class="stat-item"><div class="stat-val">11</div><div class="stat-label">Auto-Scored Criteria</div></div>
+  <div class="stat-item"><div class="stat-val">2</div><div class="stat-label">Output Formats</div></div>
+</div>
+
+<!-- COVERAGE -->
+<section class="section" id="coverage">
+  <div class="section-eyebrow">Active Coverage</div>
+  <h2 class="section-heading">Pre-Built Reports</h2>
+
+  <div class="cards-grid reveal-stagger">
+
+    <a class="card" href="/output/AAPL_report.html" target="_blank" rel="noopener" data-score="74">
+      <div class="card-head">
+        <div>
+          <div class="card-company">Apple Inc.</div>
+          <div class="card-ticker">NASDAQ: AAPL</div>
+        </div>
+        <div class="score-ring">
+          <svg width="68" height="68" viewBox="0 0 68 68">
+            <circle class="ring-track" cx="34" cy="34" r="28"/>
+            <circle class="ring-fill ring-green" cx="34" cy="34" r="28" stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
+          </svg>
+          <div class="score-inner"><span class="score-num">74</span><span class="score-denom">/100</span></div>
+        </div>
+      </div>
+      <div class="verdict-chip green"><span class="v-dot"></span>Good Business at Fair Price</div>
+      <div class="rating-row">
+        <span class="rating-row-label">Credit</span>
+        <span class="cr-badge cr-aa"><span class="cr-agency">S&amp;P</span> AA+</span>
+        <span class="cr-badge cr-aaa"><span class="cr-agency">Moody's</span> Aaa</span>
+        <span class="cr-badge cr-aa"><span class="cr-agency">Fitch</span> AA+</span>
+      </div>
+      <div class="price-row">
+        <div class="price-cell"><div class="price-label">Current</div><div class="price-val">$210.00</div></div>
+        <div class="price-cell"><div class="price-label">Target</div><div class="price-val">$230.00</div></div>
+        <div class="price-cell"><div class="price-label">Upside</div><div class="price-val up">+10%</div></div>
+      </div>
+      <div class="card-cta">View Report →</div>
+    </a>
+
+    <a class="card" href="/output/MSFT_report.html" target="_blank" rel="noopener" data-score="75">
+      <div class="card-head">
+        <div>
+          <div class="card-company">Microsoft Corporation</div>
+          <div class="card-ticker">NASDAQ: MSFT</div>
+        </div>
+        <div class="score-ring">
+          <svg width="68" height="68" viewBox="0 0 68 68">
+            <circle class="ring-track" cx="34" cy="34" r="28"/>
+            <circle class="ring-fill ring-green" cx="34" cy="34" r="28" stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
+          </svg>
+          <div class="score-inner"><span class="score-num">75</span><span class="score-denom">/100</span></div>
+        </div>
+      </div>
+      <div class="verdict-chip green"><span class="v-dot"></span>Good Business at Fair Price</div>
+      <div class="rating-row">
+        <span class="rating-row-label">Credit</span>
+        <span class="cr-badge cr-aaa"><span class="cr-agency">S&amp;P</span> AAA</span>
+        <span class="cr-badge cr-aaa"><span class="cr-agency">Moody's</span> Aaa</span>
+        <span class="cr-badge cr-nr"><span class="cr-agency">Fitch</span> NR</span>
+      </div>
+      <div class="price-row">
+        <div class="price-cell"><div class="price-label">Current</div><div class="price-val">$371.45</div></div>
+        <div class="price-cell"><div class="price-label">Target</div><div class="price-val">$525.00</div></div>
+        <div class="price-cell"><div class="price-label">Upside</div><div class="price-val up">+41%</div></div>
+      </div>
+      <div class="card-cta">View Report →</div>
+    </a>
+
+    <div class="card inactive" data-score="0">
+      <div class="card-head"><div><div class="card-company">Meta Platforms Inc.</div><div class="card-ticker">NASDAQ: META</div></div><div class="coming-tag">In Progress</div></div>
+      <div class="verdict-chip amber"><span class="v-dot"></span>Report Pending</div>
+      <div class="price-row">
+        <div class="price-cell"><div class="price-label">Current</div><div class="price-val">—</div></div>
+        <div class="price-cell"><div class="price-label">Target</div><div class="price-val">—</div></div>
+        <div class="price-cell"><div class="price-label">Upside</div><div class="price-val">—</div></div>
+      </div>
+    </div>
+
+    <div class="card inactive" data-score="0">
+      <div class="card-head"><div><div class="card-company">JPMorgan Chase &amp; Co.</div><div class="card-ticker">NYSE: JPM</div></div><div class="coming-tag">In Progress</div></div>
+      <div class="verdict-chip amber"><span class="v-dot"></span>Report Pending</div>
+      <div class="price-row">
+        <div class="price-cell"><div class="price-label">Current</div><div class="price-val">—</div></div>
+        <div class="price-cell"><div class="price-label">Target</div><div class="price-val">—</div></div>
+        <div class="price-cell"><div class="price-label">Upside</div><div class="price-val">—</div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- METHODOLOGY -->
+<section class="section" id="methodology">
+  <div class="section-eyebrow">Framework</div>
+  <h2 class="section-heading">How We Analyse</h2>
+
+  <div class="pillars-grid reveal-stagger">
+    <div class="pillar"><div class="pillar-num">01</div><div class="pillar-title">Business Quality</div><p class="pillar-body">Moat, management track record, long-term positioning — proxy-scored from financials, refined manually from 10-K.</p></div>
+    <div class="pillar"><div class="pillar-num">02</div><div class="pillar-title">Financial Rigour</div><p class="pillar-body">Five-year P&L, balance sheet, and cash flow — auto-fetched from FMP. ROIC, FCF conversion, D/EBITDA, EBIT/interest fully computed.</p></div>
+    <div class="pillar"><div class="pillar-num">03</div><div class="pillar-title">Valuation</div><p class="pillar-body">WACC (Damodaran) + DCF (Gordon Growth + Exit Multiple) + sensitivity grid. Multiples vs. 5-year averages. Bear / Base / Bull scenarios.</p></div>
+    <div class="pillar"><div class="pillar-num">04</div><div class="pillar-title">Risk &amp; Credit</div><p class="pillar-body">Credit ratings, interest coverage, leverage, execution risks — weighted into the 0–100 scorecard. 11 of 13 criteria auto-scored.</p></div>
+  </div>
+
+  <div class="scale-row reveal">
+    <span class="scale-label">Score Scale</span>
+    <div style="flex:1">
+      <div class="scale-bar"></div>
+      <div class="scale-ticks">
+        <span class="scale-tick">0 — Avoid</span>
+        <span class="scale-tick">50 — Hold</span>
+        <span class="scale-tick">65 — Buy</span>
+        <span class="scale-tick">75+ — High Conviction</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">Equity<span>.</span>Research</div>
+  <div class="footer-disc">For informational purposes only. Not investment advice. Financials sourced from FMP API. Reports expire after 2 hours — download to keep permanently.</div>
+</footer>
+
+<script>
+  /* ── Password detection ── */
+  (function() {
+    // Show password field only if server has a password set
+    // We probe by sending an empty request; if 401 comes back, show the field
+    fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
+      .then(r => { if (r.status === 401) document.getElementById('passwordWrap').style.display = 'flex'; })
+      .catch(() => {});
+  })();
+
+  /* ── Generate ── */
+  let currentRid = null;
+
+  async function runGenerate() {
+    const ticker   = document.getElementById('tickerInput').value.trim().toUpperCase();
+    const rating   = document.getElementById('ratingInput').value.trim();
+    const password = document.getElementById('passwordInput').value.trim();
+
+    if (!ticker) { showMsg('Enter a ticker symbol.', 'error'); return; }
+
+    setLoading(true);
+    showMsg('Fetching financials and building model…', 'info');
+    document.getElementById('progressLog').style.display = 'block';
+    document.getElementById('progressLog').textContent = '';
+    document.getElementById('resultsPanel').style.display = 'none';
+
+    // Poll log every 3s while waiting
+    const logInterval = setInterval(() => {
+      if (currentRid) { clearInterval(logInterval); return; }
+    }, 3000);
+
+    try {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ ticker, rating, password }),
+      });
+
+      clearInterval(logInterval);
+      const data = await res.json();
+
+      if (!res.ok) {
+        showMsg(data.error || 'Generation failed.', 'error');
+        setLoading(false);
+        return;
+      }
+
+      currentRid = data.report_id;
+
+      // Show logs
+      if (data.logs && data.logs.length) {
+        document.getElementById('progressLog').textContent = data.logs.join('\n');
+      }
+
+      // Show results panel
+      document.getElementById('resTicker').textContent = data.ticker;
+      document.getElementById('resScore').textContent =
+        data.auto_score != null ? data.auto_score.toFixed(1) : 'N/A';
+
+      document.getElementById('excelBtn').href    = `/download/excel/${data.report_id}`;
+      document.getElementById('htmlBtn').href     = `/download/html/${data.report_id}`;
+      document.getElementById('viewBtn').href     = `/report/${data.report_id}`;
+
+      document.getElementById('resultsPanel').style.display = 'block';
+      showMsg('Done! Both files are ready.', 'ok');
+
+    } catch (e) {
+      showMsg('Network error — check the server is running.', 'error');
+    }
+
+    setLoading(false);
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = on;
+    document.getElementById('btnText').textContent = on ? 'Generating…' : 'Generate Report';
+    document.getElementById('btnSpinner').style.display = on ? 'block' : 'none';
+  }
+
+  function showMsg(text, type) {
+    const el = document.getElementById('genMsg');
+    el.className = `gen-msg ${type}`;
+    el.textContent = text;
+  }
+
+  /* ── Enter key ── */
+  ['tickerInput','ratingInput','passwordInput'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') runGenerate();
+    });
+  });
+
+  /* ── Score ring animation ── */
+  function animateRings() {
+    document.querySelectorAll('.card[data-score]').forEach(card => {
+      const score = parseInt(card.dataset.score);
+      if (!score) return;
+      const fill = card.querySelector('.ring-fill');
+      if (!fill) return;
+      const circ = 2 * Math.PI * 28;
+      setTimeout(() => { fill.style.strokeDashoffset = circ * (1 - score/100); }, 400);
+    });
+  }
+
+  /* ── Scroll reveal ── */
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => obs.observe(el));
+
+  animateRings();
+</script>
+</body>
+</html>
