@@ -9,180 +9,132 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:         #07090e;
-      --surface:    #0e1520;
-      --surface2:   #131c2c;
-      --border:     rgba(255,255,255,0.06);
-      --border2:    rgba(255,255,255,0.12);
-      --gold:       #c9a84c;
-      --gold-light: #e8c97a;
-      --gold-dim:   rgba(201,168,76,0.12);
-      --text:       #d9e0ea;
-      --text-muted: #7a8499;
-      --text-dim:   #3d4455;
-      --green:      #10b981;
-      --green-dim:  rgba(16,185,129,0.12);
-      --amber:      #f59e0b;
-      --amber-dim:  rgba(245,158,11,0.12);
-      --red:        #ef4444;
-      --red-dim:    rgba(239,68,68,0.12);
+      --bg:       #07090e; --surface: #0e1520; --surface2: #131c2c;
+      --border:   rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.12);
+      --gold:     #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.12);
+      --text:     #d9e0ea; --text-muted: #7a8499; --text-dim: #3d4455;
+      --green:    #10b981; --green-dim: rgba(16,185,129,0.12);
+      --amber:    #f59e0b; --amber-dim: rgba(245,158,11,0.12);
+      --red:      #ef4444; --red-dim:   rgba(239,68,68,0.12);
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-    body::before {
-      content: ''; position: fixed; inset: 0;
-      background-image: radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px);
-      background-size: 32px 32px; pointer-events: none; z-index: 0;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.022) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+
+    /* ── NAV ── */
+    nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:64px;background:rgba(7,9,14,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .nav-logo{font-family:'IBM Plex Mono',monospace;font-size:10pt;letter-spacing:3.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none}
+    .nav-logo span{color:var(--gold)}
+    .nav-links{list-style:none;display:flex;gap:32px}
+    .nav-links a{font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none;transition:color .2s}
+    .nav-links a:hover,.nav-links a.active{color:var(--gold)}
+    .nav-pill{font-family:'IBM Plex Mono',monospace;font-size:8pt;letter-spacing:1px;text-transform:uppercase;padding:8px 18px;border:1px solid var(--gold);color:var(--gold);border-radius:2px;text-decoration:none;transition:background .2s}
+    .nav-pill:hover{background:var(--gold-dim)}
+
+    /* ── PAGE HEADER ── */
+    .ph{padding:52px 48px 32px;border-bottom:1px solid var(--border)}
+    .ph-eye{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+    .ph-title{font-family:'Playfair Display',serif;font-size:26pt;font-weight:600;color:#fff;margin-bottom:8px}
+    .ph-sub{font-size:9pt;color:var(--text-muted);font-weight:300;max-width:560px;line-height:1.7}
+    .ph-actions{display:flex;gap:12px;margin-top:22px}
+    .btn{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:1px;text-transform:uppercase;padding:9px 20px;border-radius:2px;text-decoration:none;border:none;cursor:pointer;transition:all .2s}
+    .btn-gold{background:var(--gold);color:#07090e;font-weight:500}
+    .btn-gold:hover{background:var(--gold-light)}
+    .btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border2)}
+    .btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+
+    /* ── SUMMARY BAR ── */
+    .sbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border)}
+    .si{flex:1;padding:18px 32px;border-right:1px solid var(--border)}
+    .si:last-child{border-right:none}
+    .si-lbl{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+    .si-val{font-family:'IBM Plex Mono',monospace;font-size:15pt;font-weight:500;color:#fff}
+    .si-sub{font-size:7.5pt;color:var(--text-muted);margin-top:3px}
+
+    /* ── TABLE SECTION ── */
+    .ts{padding:32px 48px 20px}
+    .ts-lbl{font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px;display:flex;align-items:center;gap:12px}
+    .ts-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+    /* ── LEGEND ── */
+    .legend{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+    .leg{display:flex;align-items:center;gap:6px;font-size:7.5pt;color:var(--text-muted)}
+    .ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+    /* ── TABLE ── */
+    .tscroll{overflow-x:auto;border:1px solid var(--border);border-radius:4px}
+    table{width:100%;border-collapse:collapse;font-size:8.5pt;min-width:1080px}
+    thead th{
+      font-family:'IBM Plex Mono',monospace;font-size:6pt;letter-spacing:1.5px;text-transform:uppercase;
+      color:var(--text-dim);font-weight:400;padding:11px 16px;white-space:nowrap;
+      background:var(--surface);border-bottom:2px solid var(--border2);
+      text-align:left;
     }
+    thead th.rc{text-align:center}
+    tbody td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--bg);white-space:nowrap}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:hover td{background:rgba(255,255,255,.015)}
+    tbody tr.pr td{opacity:.38}
 
-    /* NAV */
-    nav {
-      position: sticky; top: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 48px; height: 64px;
-      background: rgba(7,9,14,0.92); backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; letter-spacing: 3.5px; text-transform: uppercase; color: var(--text-muted); text-decoration: none; }
-    .nav-logo span { color: var(--gold); }
-    .nav-links { list-style: none; display: flex; gap: 32px; }
-    .nav-links a { font-size: 8.5pt; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
-    .nav-links a:hover { color: var(--text); }
-    .nav-links a.active { color: var(--gold); }
-    .nav-pill { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; padding: 8px 18px; border: 1px solid var(--gold); color: var(--gold); border-radius: 2px; text-decoration: none; transition: background 0.2s, color 0.2s; }
-    .nav-pill:hover { background: var(--gold-dim); }
+    /* ── TICKER CELL ── */
+    .tcc{display:flex;align-items:center;gap:12px}
+    .tlog{width:36px;height:36px;border-radius:5px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:7pt;font-weight:500;color:var(--text-muted);flex-shrink:0}
+    .tn{font-size:8.5pt;font-weight:500;color:#fff;white-space:nowrap}
+    .te{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;color:var(--text-dim);margin-top:2px}
 
-    /* PAGE HEADER */
-    .page-header { padding: 56px 48px 36px; border-bottom: 1px solid var(--border); }
-    .page-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
-    .page-title { font-family: 'Playfair Display', serif; font-size: 28pt; font-weight: 600; color: #fff; line-height: 1.15; margin-bottom: 10px; }
-    .page-sub { font-size: 9.5pt; color: var(--text-muted); font-weight: 300; max-width: 580px; line-height: 1.7; }
-    .page-actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
-    .action-btn { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; padding: 9px 20px; border-radius: 2px; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; }
-    .action-btn-primary { background: var(--gold); color: #07090e; font-weight: 500; }
-    .action-btn-primary:hover { background: var(--gold-light); }
-    .action-btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border2); }
-    .action-btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+    /* ── SCORE CELL ── */
+    .scc{display:flex;align-items:center;gap:10px;white-space:nowrap}
+    .snum{font-family:'IBM Plex Mono',monospace;font-size:11pt;font-weight:500;min-width:44px;display:inline-block}
+    .sbar{display:inline-block;width:52px;height:3px;background:var(--surface2);border-radius:2px;vertical-align:middle;overflow:hidden}
+    .sfill{display:block;height:100%;border-radius:2px;width:0;transition:width .9s ease}
+    .snote{font-family:'IBM Plex Mono',monospace;font-size:6pt;color:var(--text-dim);display:block;margin-top:3px}
 
-    /* SUMMARY BAR */
-    .summary-bar { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
-    .sum-item { flex: 1; padding: 20px 32px; border-right: 1px solid var(--border); }
-    .sum-item:last-child { border-right: none; }
-    .sum-label { font-family: 'IBM Plex Mono', monospace; font-size: 6.5pt; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 7px; }
-    .sum-val { font-family: 'IBM Plex Mono', monospace; font-size: 16pt; font-weight: 500; color: #fff; }
-    .sum-sub { font-size: 7.5pt; color: var(--text-muted); margin-top: 4px; }
+    /* colour helpers */
+    .cg{color:var(--green)} .ca{color:var(--amber)} .cr{color:var(--red)} .cd{color:var(--text-dim)}
+    .fg{background:var(--green)} .fa{background:var(--amber)} .fr{background:var(--red)}
 
-    /* TABLE SECTION */
-    .table-section { padding: 36px 48px 16px; }
-    .section-label {
-      font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 2.5px; text-transform: uppercase;
-      color: var(--text-dim); margin-bottom: 18px; display: flex; align-items: center; gap: 12px;
-    }
-    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    /* ── CHIPS ── */
+    .chip{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:7.5pt;font-weight:500;padding:3px 8px;border-radius:2px;white-space:nowrap}
+    .ch-g{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.20)}
+    .ch-a{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,.18)}
+    .ch-r{background:var(--red-dim);  color:var(--red);  border:1px solid rgba(239,68,68,.18)}
+    .ch-d{background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--border)}
 
-    /* HEATMAP TABLE */
-    .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 4px; }
-    .heatmap-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; min-width: 1100px; }
-    .heatmap-table th {
-      font-family: 'IBM Plex Mono', monospace; font-size: 6.5pt; letter-spacing: 1.5px; text-transform: uppercase;
-      color: var(--text-dim); font-weight: 400; padding: 12px 14px; text-align: left;
-      border-bottom: 1px solid var(--border2); background: var(--surface); white-space: nowrap; position: sticky; top: 64px;
-    }
-    .heatmap-table th.r { text-align: right; }
-    .heatmap-table td { padding: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; background: var(--bg); }
-    .heatmap-table tr:last-child td { border-bottom: none; }
-    .heatmap-table tr:hover td { background: rgba(255,255,255,0.015); }
-    .heatmap-table tr.pending-row td { opacity: 0.38; }
-    .heatmap-table tr.pending-row:hover td { opacity: 0.55; }
+    /* ── VALUATION CELL (two numbers + delta chip, all inline) ── */
+    .vc{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}
+    .vc-cur{font-family:'IBM Plex Mono',monospace;font-size:8.5pt;color:#fff}
+    .vc-sep{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
+    .vc-avg{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
 
-    /* Ticker cell */
-    .tc { display: flex; align-items: center; gap: 13px; }
-    .tc-logo {
-      width: 38px; height: 38px; border-radius: 6px; background: var(--surface2);
-      border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center;
-      font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--text-muted);
-      flex-shrink: 0; letter-spacing: 0;
-    }
-    .tc-name { font-size: 8.5pt; font-weight: 500; color: #fff; line-height: 1.35; }
-    .tc-exch { font-family: 'IBM Plex Mono', monospace; font-size: 6.5pt; color: var(--text-dim); margin-top: 2px; }
+    /* ── ACTIONS ── */
+    .acts{display:flex;gap:6px;justify-content:flex-end}
+    .al{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:5px 10px;border-radius:2px;text-decoration:none;transition:all .2s;white-space:nowrap}
+    .al-v{color:var(--gold);border:1px solid rgba(201,168,76,.3)}
+    .al-v:hover{background:var(--gold-dim)}
+    .al-g{color:var(--text-muted);border:1px solid var(--border2)}
+    .al-g:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+    .al-n{color:var(--text-dim);border:1px solid var(--border);pointer-events:none;cursor:default}
 
-    /* Score cell */
-    .sc { display: flex; align-items: center; gap: 10px; }
-    .sc-num { font-family: 'IBM Plex Mono', monospace; font-size: 11pt; font-weight: 500; min-width: 46px; }
-    .sc-bar { width: 60px; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-    .sc-fill { height: 100%; border-radius: 2px; width: 0; transition: width 0.9s ease; }
-    .g  { color: var(--green); }
-    .a  { color: var(--amber); }
-    .r  { color: var(--red); }
-    .dg { color: var(--text-dim); }
-    .fg { background: var(--green); }
-    .fa { background: var(--amber); }
-    .fr { background: var(--red); }
+    /* ── TABLE NOTES ── */
+    .tnotes{font-size:7.5pt;color:var(--text-dim);padding:10px 0;line-height:1.7}
 
-    /* Chips */
-    .chip {
-      display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; font-weight: 500;
-      padding: 3px 9px; border-radius: 2px; white-space: nowrap; line-height: 1.5;
-    }
-    .cg { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.20); }
-    .ca { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.18); }
-    .cr { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(239,68,68,0.18); }
-    .cd { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+    /* ── LIVE SECTION ── */
+    .ls{padding:32px 48px 52px}
+    .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:14px}
+    .lcard{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:16px 18px;display:flex;flex-direction:column;gap:9px;text-decoration:none;transition:border-color .2s,transform .15s}
+    .lcard:hover{border-color:var(--border2);transform:translateY(-2px)}
+    .ltop{display:flex;align-items:center;justify-content:space-between}
+    .ltick{font-family:'IBM Plex Mono',monospace;font-size:13pt;font-weight:500;color:#fff}
+    .lscore{font-family:'IBM Plex Mono',monospace;font-size:11pt}
+    .lts{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
+    .lbtns{display:flex;gap:7px}
+    .el{font-size:8.5pt;color:var(--text-dim);padding:18px 0;font-style:italic}
 
-    /* Metric cells */
-    .mono { font-family: 'IBM Plex Mono', monospace; font-size: 8.5pt; color: #fff; }
-    .sub  { font-family: 'IBM Plex Mono', monospace; font-size: 6.5pt; color: var(--text-dim); margin-top: 3px; }
-
-    /* DCF cell */
-    .dcf { display: flex; flex-direction: column; gap: 3px; }
-    .dcf-row { display: flex; align-items: center; gap: 6px; }
-    .dcf-label { font-family: 'IBM Plex Mono', monospace; font-size: 6pt; color: var(--text-dim); width: 16px; flex-shrink: 0; }
-
-    /* Actions */
-    .row-btns { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
-    .row-link {
-      font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase;
-      padding: 5px 10px; border-radius: 2px; text-decoration: none; transition: all 0.2s; white-space: nowrap;
-    }
-    .rl-view { color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
-    .rl-view:hover { background: var(--gold-dim); }
-    .rl-gen  { color: var(--text-muted); border: 1px solid var(--border2); }
-    .rl-gen:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
-    .rl-none { color: var(--text-dim); border: 1px solid var(--border); cursor: default; pointer-events: none; }
-
-    /* NOTE */
-    .table-note { font-size: 7.5pt; color: var(--text-dim); padding: 12px 0 0; line-height: 1.6; }
-
-    /* LIVE SECTION */
-    .live-section { padding: 36px 48px 56px; }
-    .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; margin-top: 16px; }
-    .live-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 5px;
-      padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;
-      text-decoration: none; transition: border-color 0.2s, transform 0.15s;
-    }
-    .live-card:hover { border-color: var(--border2); transform: translateY(-2px); }
-    .live-top { display: flex; align-items: center; justify-content: space-between; }
-    .live-ticker { font-family: 'IBM Plex Mono', monospace; font-size: 13pt; font-weight: 500; color: #fff; }
-    .live-score { font-family: 'IBM Plex Mono', monospace; font-size: 11pt; }
-    .live-ts { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--text-dim); }
-    .live-btns { display: flex; gap: 7px; }
-    .empty-live { font-size: 8.5pt; color: var(--text-dim); padding: 20px 0; font-style: italic; }
-
-    /* LEGEND */
-    .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
-    .leg { display: flex; align-items: center; gap: 7px; font-size: 7.5pt; color: var(--text-muted); }
-    .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-    @media(max-width: 900px) {
-      nav { padding: 0 24px; }
-      .nav-links, .nav-pill { display: none; }
-      .page-header { padding: 40px 24px 28px; }
-      .table-section { padding: 24px 24px 12px; }
-      .live-section { padding: 24px 24px 48px; }
-      .summary-bar { flex-wrap: wrap; }
-      .sum-item { min-width: 50%; border-bottom: 1px solid var(--border); border-right: none; }
+    @media(max-width:900px){
+      nav{padding:0 24px} .nav-links,.nav-pill{display:none}
+      .ph{padding:36px 24px 24px} .ts{padding:24px 24px 12px} .ls{padding:24px 24px 48px}
+      .sbar{flex-wrap:wrap} .si{min-width:50%;border-right:none;border-bottom:1px solid var(--border)}
     }
   </style>
 </head>
@@ -200,354 +152,226 @@
   </div>
 </nav>
 
-<div class="page-header">
-  <div class="page-eyebrow">Active Coverage</div>
-  <h1 class="page-title">Coverage Dashboard</h1>
-  <p class="page-sub">All analysed companies — DCF upside, valuation vs history, quality metrics, and scorecard. Pre-built from 10-K filings and FMP engine outputs.</p>
-  <div class="page-actions">
-    <a href="/" class="action-btn action-btn-primary">Generate New Report</a>
+<div class="ph">
+  <div class="ph-eye">Active Coverage</div>
+  <h1 class="ph-title">Coverage Dashboard</h1>
+  <p class="ph-sub">All analysed companies — DCF upside, valuation vs history, quality metrics, and scorecard. Pre-built from 10-K filings and FMP engine outputs.</p>
+  <div class="ph-actions">
+    <a href="/" class="btn btn-gold">Generate New Report</a>
   </div>
 </div>
 
-<div class="summary-bar">
-  <div class="sum-item">
-    <div class="sum-label">Coverage</div>
-    <div class="sum-val" id="sumCoverage">6</div>
-    <div class="sum-sub">Companies with data</div>
-  </div>
-  <div class="sum-item">
-    <div class="sum-label">Avg Score</div>
-    <div class="sum-val" id="sumAvg">—</div>
-    <div class="sum-sub">Scored companies</div>
-  </div>
-  <div class="sum-item">
-    <div class="sum-label">High Conviction</div>
-    <div class="sum-val" id="sumHC">—</div>
-    <div class="sum-sub">Score ≥ 75</div>
-  </div>
-  <div class="sum-item">
-    <div class="sum-label">Live Reports</div>
-    <div class="sum-val" id="sumLive">—</div>
-    <div class="sum-sub">Generated this session</div>
-  </div>
+<div class="sbar">
+  <div class="si"><div class="si-lbl">Coverage</div><div class="si-val" id="sCov">6</div><div class="si-sub">Companies with data</div></div>
+  <div class="si"><div class="si-lbl">Avg Score</div><div class="si-val" id="sAvg">—</div><div class="si-sub">Scored companies</div></div>
+  <div class="si"><div class="si-lbl">High Conviction</div><div class="si-val" id="sHC">—</div><div class="si-sub">Score ≥ 75</div></div>
+  <div class="si"><div class="si-lbl">Live Reports</div><div class="si-val" id="sLive">—</div><div class="si-sub">This session</div></div>
 </div>
 
-<!-- MAIN HEATMAP -->
-<div class="table-section">
-  <div class="section-label">Coverage Heatmap  ·  Pre-Built from Excel Models &amp; 10-K Filings</div>
-
+<div class="ts">
+  <div class="ts-lbl">Coverage Heatmap  ·  Pre-Built from Excel Models &amp; 10-K Filings</div>
   <div class="legend">
-    <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>HIGH / Favourable</div>
-    <div class="leg"><div class="leg-dot" style="background:var(--amber)"></div>MOD / Neutral</div>
-    <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>LOW / Cautionary</div>
-    <div class="leg"><div class="leg-dot" style="background:var(--text-dim)"></div>No data / Pending</div>
+    <div class="leg"><div class="ld" style="background:var(--green)"></div>HIGH / Favourable</div>
+    <div class="leg"><div class="ld" style="background:var(--amber)"></div>MOD / Neutral</div>
+    <div class="leg"><div class="ld" style="background:var(--red)"></div>LOW / Cautionary</div>
+    <div class="leg"><div class="ld" style="background:var(--text-dim)"></div>No data</div>
   </div>
 
-  <div class="table-scroll">
-    <table class="heatmap-table">
+  <div class="tscroll">
+    <table>
       <thead>
         <tr>
           <th style="min-width:200px">Company</th>
-          <th style="min-width:130px">Score</th>
-          <th class="r" style="min-width:110px">DCF (GG)</th>
-          <th class="r" style="min-width:110px">DCF (EM)</th>
-          <th class="r" style="min-width:100px">ROIC</th>
-          <th class="r" style="min-width:110px">Rev 3yr CAGR</th>
-          <th class="r" style="min-width:90px">FCF / NI</th>
-          <th class="r" style="min-width:90px">D / EBITDA</th>
-          <th class="r" style="min-width:130px">P/E vs 5yr avg</th>
-          <th class="r" style="min-width:130px">P/FCF vs 5yr avg</th>
-          <th style="min-width:140px"></th>
+          <th style="min-width:120px">Score</th>
+          <th class="rc" style="min-width:80px">DCF GG</th>
+          <th class="rc" style="min-width:80px">DCF EM</th>
+          <th class="rc" style="min-width:72px">ROIC</th>
+          <th class="rc" style="min-width:80px">Rev CAGR</th>
+          <th class="rc" style="min-width:72px">FCF / NI</th>
+          <th class="rc" style="min-width:80px">D / EBITDA</th>
+          <th class="rc" style="min-width:160px">P/E  ·  5yr avg  ·  Δ</th>
+          <th class="rc" style="min-width:160px">P/FCF  ·  5yr avg  ·  Δ</th>
+          <th style="min-width:130px"></th>
         </tr>
       </thead>
-      <tbody id="hmTbody"></tbody>
+      <tbody id="tb"></tbody>
     </table>
   </div>
-  <div class="table-note" id="tableNote"></div>
+  <div class="tnotes" id="tnotes"></div>
 </div>
 
-<!-- LIVE REPORTS -->
-<div class="live-section">
-  <div class="section-label">Live-Generated Reports  ·  This Session  (2-hour TTL)</div>
-  <div class="live-grid" id="liveGrid">
-    <div class="empty-live" id="liveEmpty">
-      No reports generated this session. <a href="/" style="color:var(--gold);text-decoration:none">Generate one →</a>
-    </div>
+<div class="ls">
+  <div class="ts-lbl">Live-Generated Reports  ·  This Session  (2-hour TTL)</div>
+  <div class="lgrid" id="lgrid">
+    <div class="el" id="lempty">No reports generated this session. <a href="/" style="color:var(--gold);text-decoration:none">Generate one →</a></div>
   </div>
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
-// DATA  (sourced from Excel models + 10-K data files — point-in-time snapshots)
-// ─────────────────────────────────────────────────────────────────────────────
-const COV = [
-  {
-    ticker: "AAPL", name: "Apple Inc.", exchange: "NASDAQ",
-    score: 74.3, score_note: "incl. qualitative",
-    gg_upside: -0.433, em_upside: -0.161,
-    roic: 0.823, rev_cagr: 0.018, fcf_ni: 0.88, d_ebitda: 0.7,
-    pe_cur: 28.2, pe_avg: 22.0, pfcf_cur: 31.4, pfcf_avg: 25.0,
-    report_url: "/reports/AAPL_report.html",
-    note: null,
-  },
-  {
-    ticker: "MSFT", name: "Microsoft Corporation", exchange: "NASDAQ",
-    score: 74.5, score_note: "incl. qualitative",
-    gg_upside: -0.377, em_upside: 0.629,
-    roic: 0.297, rev_cagr: 0.124, fcf_ni: 0.70, d_ebitda: 0.3,
-    pe_cur: 36.3, pe_avg: 33.9, pfcf_cur: 51.6, pfcf_avg: 41.2,
-    report_url: "/reports/MSFT_report.html",
-    note: null,
-  },
-  {
-    ticker: "NVDA", name: "NVIDIA Corporation", exchange: "NASDAQ",
-    score: 75.0, score_note: "auto-score",
-    gg_upside: -0.417, em_upside: 0.096,
-    roic: 0.713, rev_cagr: 1.00, fcf_ni: 0.81, d_ebitda: 0.0,
-    pe_cur: 37.7, pe_avg: 60.2, pfcf_cur: 46.9, pfcf_avg: 70.4,
-    report_url: null,
-    note: null,
-  },
-  {
-    ticker: "NFLX", name: "Netflix Inc.", exchange: "NASDAQ",
-    score: 43.5, score_note: "auto-score",
-    gg_upside: 0.134, em_upside: 0.645,
-    roic: 0.359, rev_cagr: 0.126, fcf_ni: 0.86, d_ebitda: 0.5,
-    pe_cur: null, pe_avg: null, pfcf_cur: null, pfcf_avg: null,
-    report_url: null,
-    note: "P/E and P/FCF unavailable in this model version. DCF prices reflect model run date.",
-  },
-  {
-    ticker: "TSM", name: "Taiwan Semiconductor", exchange: "NYSE",
-    score: 52.8, score_note: "auto-score",
-    gg_upside: null, em_upside: null,   // TWD — FX conversion not applied
-    roic: 0.447, rev_cagr: 0.193, fcf_ni: 0.63, d_ebitda: 0.0,
-    pe_cur: 28.5, pe_avg: 23.6, pfcf_cur: 45.0, pfcf_avg: 45.9,
-    report_url: null,
-    note: "DCF prices in TWD — FX conversion pending. Other metrics in reporting currency.",
-  },
-  {
-    ticker: "WFC", name: "Wells Fargo & Co.", exchange: "NYSE",
-    score: 35.2, score_note: "auto · floor cap 59",
-    gg_upside: -0.835, em_upside: -0.351,
-    roic: 0.049, rev_cagr: 0.140, fcf_ni: 0.89, d_ebitda: 14.5,
-    pe_cur: 13.9, pe_avg: 11.2, pfcf_cur: null, pfcf_avg: 29.9,
-    report_url: null,
-    note: "D/EBITDA 14.5x reflects bank leverage structure (expected). Hard floor gate triggered.",
-  },
-  {
-    ticker: "UAL", name: "United Airlines Holdings", exchange: "NASDAQ",
-    score: null, score_note: null,
-    gg_upside: null, em_upside: null,
-    roic: null, rev_cagr: null, fcf_ni: null, d_ebitda: null,
-    pe_cur: null, pe_avg: null, pfcf_cur: null, pfcf_avg: null,
-    report_url: null,
-    note: "Scorecard tab not present in current model version.",
-    pending: true,
-  },
-  {
-    ticker: "META", name: "Meta Platforms Inc.", exchange: "NASDAQ",
-    score: null, score_note: null,
-    gg_upside: null, em_upside: null,
-    roic: null, rev_cagr: null, fcf_ni: null, d_ebitda: null,
-    pe_cur: null, pe_avg: null, pfcf_cur: null, pfcf_avg: null,
-    report_url: null,
-    note: null,
-    pending: true,
-  },
-  {
-    ticker: "JPM", name: "JPMorgan Chase & Co.", exchange: "NYSE",
-    score: null, score_note: null,
-    gg_upside: null, em_upside: null,
-    roic: null, rev_cagr: null, fcf_ni: null, d_ebitda: null,
-    pe_cur: null, pe_avg: null, pfcf_cur: null, pfcf_avg: null,
-    report_url: null,
-    note: null,
-    pending: true,
-  },
+// ── Coverage data ─────────────────────────────────────────────────────────────
+const D = [
+  { t:"AAPL", n:"Apple Inc.",             ex:"NASDAQ", score:74.3, snote:"incl. qual.",
+    gg:-0.433, em:-0.161,
+    roic:0.823, cagr:0.018, fcfni:0.88, de:0.7,
+    pe:28.2,  pe5:22.0, pf:31.4, pf5:25.0,
+    url:"/reports/AAPL_report.html", note:null },
+  { t:"MSFT", n:"Microsoft Corporation", ex:"NASDAQ", score:74.5, snote:"incl. qual.",
+    gg:-0.377, em:0.629,
+    roic:0.297, cagr:0.124, fcfni:0.70, de:0.3,
+    pe:36.3,  pe5:33.9, pf:51.6, pf5:41.2,
+    url:"/reports/MSFT_report.html", note:null },
+  { t:"NVDA", n:"NVIDIA Corporation",    ex:"NASDAQ", score:75.0, snote:"auto-score",
+    gg:-0.417, em:0.096,
+    roic:0.713, cagr:1.00, fcfni:0.81, de:0.0,
+    pe:37.7,  pe5:60.2, pf:46.9, pf5:70.4,
+    url:null, note:null },
+  { t:"NFLX", n:"Netflix Inc.",          ex:"NASDAQ", score:43.5, snote:"auto-score",
+    gg:0.134, em:0.645,
+    roic:0.359, cagr:0.126, fcfni:0.86, de:0.5,
+    pe:null,  pe5:null, pf:null, pf5:null,
+    url:null, note:"P/E and P/FCF unavailable in this model version. DCF reflects model run date." },
+  { t:"TSM",  n:"Taiwan Semiconductor",  ex:"NYSE",   score:52.8, snote:"auto-score",
+    gg:null, em:null,
+    roic:0.447, cagr:0.193, fcfni:0.63, de:0.0,
+    pe:28.5, pe5:23.6, pf:45.0, pf5:45.9,
+    url:null, note:"DCF prices in TWD — FX conversion not applied. Other metrics in reporting currency." },
+  { t:"WFC",  n:"Wells Fargo & Co.",     ex:"NYSE",   score:35.2, snote:"floor cap 59",
+    gg:-0.835, em:-0.351,
+    roic:0.049, cagr:0.140, fcfni:0.89, de:14.5,
+    pe:13.9, pe5:11.2, pf:null, pf5:29.9,
+    url:null, note:"D/EBITDA 14.5x reflects bank leverage structure. Hard floor gate triggered." },
+  { t:"UAL",  n:"United Airlines Holdings", ex:"NASDAQ", score:null, snote:null,
+    gg:null, em:null, roic:null, cagr:null, fcfni:null, de:null,
+    pe:null, pe5:null, pf:null, pf5:null,
+    url:null, note:"Scorecard tab missing from current model.", pending:true },
+  { t:"META", n:"Meta Platforms Inc.",   ex:"NASDAQ", score:null, snote:null,
+    gg:null, em:null, roic:null, cagr:null, fcfni:null, de:null,
+    pe:null, pe5:null, pf:null, pf5:null,
+    url:null, note:null, pending:true },
+  { t:"JPM",  n:"JPMorgan Chase & Co.", ex:"NYSE",   score:null, snote:null,
+    gg:null, em:null, roic:null, cagr:null, fcfni:null, de:null,
+    pe:null, pe5:null, pf:null, pf5:null,
+    url:null, note:null, pending:true },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-function sc(v, hi, lo) {  // score class based on value thresholds
-  if (v === null || v === undefined) return 'dg';
-  return v >= hi ? 'g' : v >= lo ? 'a' : 'r';
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const p=(v,d=1)=>v==null?'—':((v>=0?'+':'')+((v*100).toFixed(d))+'%');
+const x=(v,d=1)=>v==null?'—':(v.toFixed(d)+'x');
+
+function chip(lbl, cls){ return `<span class="chip ${cls}">${lbl}</span>`; }
+
+function upChip(v){
+  if(v==null) return chip('—','ch-d');
+  const l=p(v); return chip(l, v>0.20?'ch-g':v>0?'ch-a':'ch-r');
 }
-function fc(v, hi, lo) {
-  if (v === null || v === undefined) return '';
-  return v >= hi ? 'fg' : v >= lo ? 'fa' : 'fr';
+function roicChip(v){
+  if(v==null) return chip('—','ch-d');
+  return chip(p(v,0), v>=0.20?'ch-g':v>=0.08?'ch-a':'ch-r');
 }
-function pct(v, dp=1) {
-  if (v === null || v === undefined) return '—';
-  const s = (v * 100).toFixed(dp);
-  return (v >= 0 ? '+' : '') + s + '%';
+function cagrChip(v){
+  if(v==null) return chip('—','ch-d');
+  return chip(p(v,1), v>=0.12?'ch-g':v>=0.05?'ch-a':'ch-r');
 }
-function x(v, dp=1) {
-  if (v === null || v === undefined) return '—';
-  return v.toFixed(dp) + 'x';
+function fcfChip(v){
+  if(v==null) return chip('—','ch-d');
+  return chip(p(v,0), v>=0.80?'ch-g':v>=0.60?'ch-a':'ch-r');
 }
-function chip(label, cls) {
-  return `<span class="chip ${cls}">${label}</span>`;
+function deChip(v){
+  if(v==null) return chip('—','ch-d');
+  return chip(v.toFixed(1)+'x', v<1.5?'ch-g':v<4?'ch-a':'ch-r');
 }
-function uChip(upside) {
-  if (upside === null || upside === undefined) return chip('—', 'cd');
-  const label = pct(upside);
-  const cls = upside > 0.20 ? 'cg' : upside > 0 ? 'ca' : 'cr';
-  return chip(label, cls);
+function valCell(cur, avg){
+  if(cur==null || avg==null) return chip('—','ch-d');
+  const d=(cur-avg)/avg;
+  const ds=(d>=0?'+':'')+(d*100).toFixed(0)+'%';
+  const dc=d<=0?'ch-g':d<=0.20?'ch-a':'ch-r';
+  return `<span class="vc"><span class="vc-cur">${x(cur)}</span><span class="vc-sep">/</span><span class="vc-avg">${x(avg)}</span>${chip(ds,dc)}</span>`;
 }
-function roicChip(v) {
-  if (v === null || v === undefined) return chip('—', 'cd');
-  const cls = v >= 0.20 ? 'cg' : v >= 0.08 ? 'ca' : 'cr';
-  return chip(pct(v), cls);
-}
-function cagChip(v) {
-  if (v === null || v === undefined) return chip('—', 'cd');
-  const cls = v >= 0.12 ? 'cg' : v >= 0.05 ? 'ca' : 'cr';
-  return chip(pct(v), cls);
-}
-function fcfChip(v) {
-  if (v === null || v === undefined) return chip('—', 'cd');
-  const cls = v >= 0.80 ? 'cg' : v >= 0.60 ? 'ca' : 'cr';
-  return chip(pct(v), cls);
-}
-function debtChip(v) {
-  if (v === null || v === undefined) return chip('—', 'cd');
-  const cls = v < 1.5 ? 'cg' : v < 4.0 ? 'ca' : 'cr';
-  return chip(v.toFixed(1) + 'x', cls);
-}
-function valChip(cur, avg) {
-  if (cur === null || avg === null || cur === undefined || avg === undefined) return chip('—', 'cd');
-  const delta = (cur - avg) / avg;
-  const deltaStr = (delta >= 0 ? '+' : '') + (delta * 100).toFixed(0) + '%';
-  const cls = delta <= 0 ? 'cg' : delta <= 0.20 ? 'ca' : 'cr';
-  return `<div class="mono">${x(cur)}</div><div class="sub">${x(avg)} avg  <span class="chip ${cls}" style="padding:2px 6px;font-size:6.5pt">${deltaStr}</span></div>`;
-}
-function scoreHtml(c) {
-  if (c.score === null) return `<span class="dg" style="font-family:'IBM Plex Mono',monospace;font-size:8pt">—</span>`;
-  const sClass = c.score >= 75 ? 'g' : c.score >= 60 ? 'a' : 'r';
-  const fClass = c.score >= 75 ? 'fg' : c.score >= 60 ? 'fa' : 'fr';
-  return `<div class="sc">
-    <span class="sc-num ${sClass}">${c.score.toFixed(1)}</span>
-    <div><div class="sc-bar"><div class="sc-fill ${fClass}" data-w="${c.score}" style="width:0"></div></div>
-    <div style="font-size:6.5pt;color:var(--text-dim);margin-top:3px">${c.score_note || ''}</div></div>
+function scoreCell(c){
+  if(c.score==null) return `<span style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim)">—</span>`;
+  const sc=c.score>=75?'cg':c.score>=60?'ca':'cr';
+  const fc=c.score>=75?'fg':c.score>=60?'fa':'fr';
+  return `<div class="scc">
+    <span class="snum ${sc}">${c.score.toFixed(1)}</span>
+    <span class="sbar"><span class="sfill ${fc}" data-w="${c.score}"></span></span>
+    ${c.snote?`<span style="font-family:'IBM Plex Mono',monospace;font-size:6.5pt;color:var(--text-dim)">${c.snote}</span>`:''}
   </div>`;
 }
-function actionsHtml(c) {
-  if (c.pending) return `<div class="row-btns"><a class="row-link rl-none">Pending</a></div>`;
-  const view = c.report_url
-    ? `<a class="row-link rl-view" href="${c.report_url}" target="_blank">View Report</a>`
-    : '';
-  const gen = `<a class="row-link rl-gen" href="/" title="Generate fresh report for ${c.ticker}">Re-run →</a>`;
-  return `<div class="row-btns">${view}${gen}</div>`;
+function actions(c){
+  if(c.pending) return `<div class="acts"><span class="al al-n">Pending</span></div>`;
+  const v=c.url?`<a class="al al-v" href="${c.url}" target="_blank">View Report</a>`:'';
+  const g=`<a class="al al-g" href="/" title="Re-run ${c.t}">Re-run →</a>`;
+  return `<div class="acts">${v}${g}</div>`;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RENDER TABLE
-// ─────────────────────────────────────────────────────────────────────────────
-function renderTable() {
-  const tbody = document.getElementById('hmTbody');
-  const notes = [];
-
-  COV.forEach((c, idx) => {
-    const tr = document.createElement('tr');
-    if (c.pending) tr.className = 'pending-row';
-
-    tr.innerHTML = `
-      <td>
-        <div class="tc">
-          <div class="tc-logo">${c.ticker.slice(0,4)}</div>
-          <div>
-            <div class="tc-name">${c.name}</div>
-            <div class="tc-exch">${c.exchange}: ${c.ticker}</div>
-          </div>
-        </div>
-      </td>
-      <td>${scoreHtml(c)}</td>
-      <td class="r">${uChip(c.gg_upside)}</td>
-      <td class="r">${uChip(c.em_upside)}</td>
-      <td class="r">${roicChip(c.roic)}</td>
-      <td class="r">${cagChip(c.rev_cagr)}</td>
-      <td class="r">${fcfChip(c.fcf_ni)}</td>
-      <td class="r">${debtChip(c.d_ebitda)}</td>
-      <td class="r">${valChip(c.pe_cur, c.pe_avg)}</td>
-      <td class="r">${valChip(c.pfcf_cur, c.pfcf_avg)}</td>
-      <td>${actionsHtml(c)}</td>
-    `;
-    tbody.appendChild(tr);
-
-    if (c.note) notes.push(`<strong>${c.ticker}</strong>: ${c.note}`);
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(){
+  const tb=document.getElementById('tb');
+  const notes=[];
+  D.forEach(c=>{
+    const tr=document.createElement('tr');
+    if(c.pending) tr.className='pr';
+    tr.innerHTML=`
+      <td><div class="tcc">
+        <div class="tlog">${c.t.slice(0,4)}</div>
+        <div><div class="tn">${c.n}</div><div class="te">${c.ex}: ${c.t}</div></div>
+      </div></td>
+      <td>${scoreCell(c)}</td>
+      <td style="text-align:center">${upChip(c.gg)}</td>
+      <td style="text-align:center">${upChip(c.em)}</td>
+      <td style="text-align:center">${roicChip(c.roic)}</td>
+      <td style="text-align:center">${cagrChip(c.cagr)}</td>
+      <td style="text-align:center">${fcfChip(c.fcfni)}</td>
+      <td style="text-align:center">${deChip(c.de)}</td>
+      <td style="text-align:center">${valCell(c.pe,c.pe5)}</td>
+      <td style="text-align:center">${valCell(c.pf,c.pf5)}</td>
+      <td>${actions(c)}</td>`;
+    tb.appendChild(tr);
+    if(c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`);
   });
+  setTimeout(()=>document.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
+  if(notes.length) document.getElementById('tnotes').innerHTML='<strong>Notes —</strong> '+notes.join(' &nbsp;·&nbsp; ');
 
-  // Animate bars
-  setTimeout(() => {
-    document.querySelectorAll('.sc-fill[data-w]').forEach(el => {
-      el.style.width = el.dataset.w + '%';
-    });
-  }, 150);
-
-  // Notes
-  if (notes.length) {
-    document.getElementById('tableNote').innerHTML =
-      '<strong>Notes:</strong> ' + notes.join(' &nbsp;·&nbsp; ');
-  }
-
-  // Summary stats
-  const scores = COV.filter(c => c.score !== null).map(c => c.score);
-  document.getElementById('sumCoverage').textContent = scores.length;
-  if (scores.length) {
-    document.getElementById('sumAvg').textContent = (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
-    document.getElementById('sumHC').textContent = scores.filter(s => s >= 75).length;
-  }
+  // Summary stats (pre-built only)
+  const sc=D.filter(c=>c.score!=null).map(c=>c.score);
+  document.getElementById('sCov').textContent=sc.length;
+  document.getElementById('sAvg').textContent=sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1):'—';
+  document.getElementById('sHC').textContent=sc.length?sc.filter(s=>s>=75).length:'—';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LIVE REPORTS
-// ─────────────────────────────────────────────────────────────────────────────
-async function loadLive() {
-  try {
-    const res = await fetch('/api/reports');
-    const rpts = await res.json();
-    document.getElementById('sumLive').textContent = rpts.length;
-    if (!rpts.length) return;
-    document.getElementById('liveEmpty').style.display = 'none';
-    const grid = document.getElementById('liveGrid');
-    rpts.forEach(r => {
-      const cls = r.score >= 75 ? 'g' : r.score >= 60 ? 'a' : 'r';
-      const ts  = new Date(r.ts);
-      const tStr = ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + ' · ' + ts.toLocaleDateString([],{month:'short',day:'numeric'});
-      const card = document.createElement('div');
-      card.className = 'live-card';
-      card.innerHTML = `
-        <div class="live-top">
-          <div class="live-ticker">${r.ticker}</div>
-          <div class="live-score ${cls}">${r.score != null ? r.score.toFixed(1) : '—'}<span style="font-size:8pt;color:var(--text-dim)">/100</span></div>
-        </div>
-        <div class="live-ts">${tStr}</div>
-        <div class="live-btns">
-          <a class="row-link rl-view" href="/report/${r.rid}" target="_blank">View</a>
-          <a class="row-link rl-gen"  href="/download/excel/${r.rid}" target="_blank">Excel</a>
-          <a class="row-link rl-gen"  href="/download/html/${r.rid}"  target="_blank">HTML</a>
-        </div>
-      `;
-      grid.appendChild(card);
+// ── Live reports ──────────────────────────────────────────────────────────────
+async function loadLive(){
+  try{
+    const rpts=await (await fetch('/api/reports')).json();
+    document.getElementById('sLive').textContent=rpts.length;
+    if(!rpts.length) return;
+    document.getElementById('lempty').style.display='none';
+    const g=document.getElementById('lgrid');
+    rpts.forEach(r=>{
+      const sc=r.score>=75?'cg':r.score>=60?'ca':'cr';
+      const ts=new Date(r.ts);
+      const card=document.createElement('div');
+      card.className='lcard';
+      card.innerHTML=`
+        <div class="ltop"><div class="ltick">${r.ticker}</div>
+          <div class="lscore ${sc}">${r.score!=null?r.score.toFixed(1):'—'}<span style="font-size:8pt;color:var(--text-dim)">/100</span></div></div>
+        <div class="lts">${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${ts.toLocaleDateString([],{month:'short',day:'numeric'})}</div>
+        <div class="lbtns">
+          <a class="al al-v" href="/report/${r.rid}" target="_blank">View</a>
+          <a class="al al-g" href="/download/excel/${r.rid}" target="_blank">Excel</a>
+          <a class="al al-g" href="/download/html/${r.rid}" target="_blank">HTML</a>
+        </div>`;
+      g.appendChild(card);
     });
-    // Update summary bar to include live
-    const allScores = [
-      ...COV.filter(c=>c.score!==null).map(c=>c.score),
-      ...rpts.filter(r=>r.score!=null).map(r=>r.score),
-    ];
-    if (allScores.length) {
-      document.getElementById('sumCoverage').textContent = allScores.length;
-      document.getElementById('sumAvg').textContent = (allScores.reduce((a,b)=>a+b,0)/allScores.length).toFixed(1);
-      document.getElementById('sumHC').textContent  = allScores.filter(s=>s>=75).length;
-    }
-  } catch(e) {
-    document.getElementById('sumLive').textContent = '0';
-  }
+    // Recalculate summary including live
+    const all=[...D.filter(c=>c.score!=null).map(c=>c.score),...rpts.filter(r=>r.score!=null).map(r=>r.score)];
+    document.getElementById('sCov').textContent=all.length;
+    document.getElementById('sAvg').textContent=(all.reduce((a,b)=>a+b,0)/all.length).toFixed(1);
+    document.getElementById('sHC').textContent=all.filter(s=>s>=75).length;
+  }catch(e){ document.getElementById('sLive').textContent='0'; }
 }
 
-renderTable();
+render();
 loadLive();
 </script>
 </body>
