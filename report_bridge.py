@@ -307,15 +307,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     fcf0   = cf0.get("freeCashFlow") or (ocf0 - capex0)
 
     # ── Scorecard metrics ─────────────────────────────────────────────────────
-    roic_v       = scorecard_metrics.get("roic")
-    rev_cagr_v   = scorecard_metrics.get("rev_cagr")
-    fcf_ni_v     = scorecard_metrics.get("fcf_ni")
-    d_ebitda_v   = scorecard_metrics.get("d_ebitda")
-    auto_score   = scorecard_metrics.get("auto_score")
-    trailing_pe  = scorecard_metrics.get("pe_current")
-    pe_5yr       = scorecard_metrics.get("pe_5yr_avg")
-    trailing_pfc = scorecard_metrics.get("pfcf_current")
-    pfcf_5yr     = scorecard_metrics.get("pfcf_5yr_avg")
+    roic_v        = scorecard_metrics.get("roic")
+    rev_cagr_v    = scorecard_metrics.get("rev_cagr")
+    fcf_ni_v      = scorecard_metrics.get("fcf_ni")
+    d_ebitda_v    = scorecard_metrics.get("d_ebitda")
+    equity_assets_v = scorecard_metrics.get("equity_assets")
+    is_bank_v     = scorecard_metrics.get("is_bank", False)
+    auto_score    = scorecard_metrics.get("auto_score")
+    trailing_pe   = scorecard_metrics.get("pe_current")
+    pe_5yr        = scorecard_metrics.get("pe_5yr_avg")
+    trailing_pfc  = scorecard_metrics.get("pfcf_current")
+    pfcf_5yr      = scorecard_metrics.get("pfcf_5yr_avg")
 
     # ── YoY growth ────────────────────────────────────────────────────────────
     def _yoy(series, key):
@@ -374,8 +376,15 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_rev    = _tier_rev_cagr(rev_cagr_v)
     t_roic   = _tier_roic(roic_v)
     t_fcf_ni = _tier_fcf_ni(fcf_ni_v)
-    t_debd   = _tier_d_ebitda(d_ebd)
     t_eint   = _tier_ebit_int(ebit_int)
+    # Bank-aware leverage tier
+    if is_bank_v:
+        ea = equity_assets_v
+        t_debd = ("HIGH" if ea and ea > 0.10 else
+                  "MOD-HIGH" if ea and ea > 0.08 else
+                  "MOD-LOW" if ea and ea > 0.06 else "MOD")
+    else:
+        t_debd = _tier_d_ebitda(d_ebd)
     t_pe     = _tier_pe(trailing_pe, pe_5yr)
     t_pfcf   = _tier_pfcf(trailing_pfc, pfcf_5yr)
 
@@ -600,7 +609,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
         "P3_WEIGHTED":          str(p3),
         "P3_CREDRISK_SCORE_TEXT": t_debd, "P3_CREDRISK_WTD": str(round(P[t_debd]*5.0/10, 1)),
-        "P3_CREDRISK_COMMENTARY": f"D/EBITDA: {d_ebd_str}.",
+        "P3_CREDRISK_COMMENTARY": (
+            f"Capital Adequacy (Equity/Assets): {_pct(equity_assets_v)} — CET1 proxy."
+            if is_bank_v else f"D/EBITDA: {d_ebd_str}."
+        ),
         "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD": str(round(P[t_eint]*7.5/10, 1)),
         "P3_IC_COMMENTARY":     f"EBIT/Interest: {ebit_int_str}.",
         "P3_ER_SCORE_TEXT":     "MOD",  "P3_ER_WTD": "1.75",
@@ -642,7 +654,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "RISK_3_TITLE": "Regulatory / Macro Risk",
         "RISK_3_TEXT":  "Add regulatory and macroeconomic sensitivity risks.",
         "RISK_4_TITLE": "Capital Allocation Risk",
-        "RISK_4_TEXT":  f"D/EBITDA: {d_ebd_str}. Review capital allocation discipline.",
+        "RISK_4_TEXT":  (
+            f"Capital Adequacy (Equity/Assets): {_pct(equity_assets_v)}. Monitor regulatory capital ratios."
+            if is_bank_v else f"D/EBITDA: {d_ebd_str}. Review capital allocation discipline."
+        ),
         "RISK_5_TITLE": "Valuation Risk",
         "RISK_5_TEXT":  f"At {_x(trailing_pe)} trailing P/E, material multiple compression possible in risk-off environments.",
 

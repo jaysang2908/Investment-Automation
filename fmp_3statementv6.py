@@ -2789,6 +2789,16 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     int_exp = abs(is0.get("interestExpense") or 0)
     ebit_int = ebit0 / int_exp if int_exp > 0 else None
 
+    # 4b. Bank capital adequacy — Equity/Assets (proxy for CET1 ratio)
+    #     Only meaningful for financial institutions; replaces D/EBITDA for banks.
+    equity_assets = None
+    if is_bank:
+        total_equity = (bs0.get("totalStockholdersEquity") or
+                        bs0.get("totalEquity") or 0)
+        total_assets = bs0.get("totalAssets") or 0
+        if total_assets > 0 and total_equity > 0:
+            equity_assets = total_equity / total_assets
+
     # 5. Capital Returns
     def _ret(cf):
         return (abs(cf.get("commonStockRepurchased") or
@@ -2864,6 +2874,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         print(f"  FMP ratios fetch failed: {e_rat}")
 
     # Sector peer P/E and P/FCF medians (FMP ratios, latest year only)
+    prof_sc    = {}
+    sector_str = ""
+    is_bank    = False
     try:
         # Get sector from FMP profile (1 call — also used for beta below)
         prof_sc = {}
@@ -2877,6 +2890,11 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         except Exception:
             pass
         sector_str   = prof_sc.get("industry") or prof_sc.get("sector") or ""
+        # Bank/financial sector detection — D/EBITDA is meaningless for deposit-funded institutions
+        _BANK_KW = {"bank", "banking", "financial services", "savings", "thrift",
+                    "mortgage", "credit union", "investment bank", "diversified financial"}
+        is_bank = any(kw in sector_str.lower() for kw in _BANK_KW)
+        print(f"  Sector: {sector_str!r}  is_bank={is_bank}")
         peer_list_sc = []
         for key, peers in SECTOR_PEERS.items():
             if key.lower() in sector_str.lower() or sector_str.lower() in key.lower():
@@ -2981,12 +2999,32 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
              "MOD-LOW"  if v > 2.0  else "LOW")
         return t, f"{v:.1f}x"
 
+    def _t_equity_assets(v):
+        """Capital adequacy (Equity/Assets) for banks — proxy for CET1 ratio.
+        Regulators target >8% (minimum) to >10-12% (well-capitalised)."""
+        if v is None:
+            return None, "N/A — insufficient data"
+        t = ("HIGH"     if v > 0.10 else
+             "MOD-HIGH" if v > 0.08 else
+             "MOD-LOW"  if v > 0.06 else "LOW")
+        return t, f"{v:.1%}  [Equity/Assets — CET1 proxy; well-capitalised >10%]"
+
     tier_rev_cagr,  note_rev_cagr  = _t_rev(rev_cagr)
     tier_fcf_ni,    note_fcf_ni    = _t_fcf(fcf_ni_latest, fcf_ni_trend)
     tier_cap_ret,   note_cap_ret   = _t_ret(tot_ret, ret_yrs_cnt, debt_funded)
     tier_roic,      note_roic      = _t_roic(roic_latest, roic_trend)
     tier_d_ebitda,  note_d_ebitda  = _t_de(d_ebitda, net_cash_v)
     tier_ebit_int,  note_ebit_int  = _t_ei(ebit_int)
+
+    # Dynamic leverage criterion — bank-aware
+    if is_bank:
+        tier_leverage  = _t_equity_assets(equity_assets)[0]
+        note_leverage  = _t_equity_assets(equity_assets)[1]
+        leverage_label = "Capital Adequacy  (Equity / Assets)"
+    else:
+        tier_leverage  = tier_d_ebitda
+        note_leverage  = note_d_ebitda
+        leverage_label = "Credit Risk  (D / EBITDA)"
 
     # ── Moat proxy (4 indicators → tier) ─────────────────────────────────────
     # Rough WACC for ROIC spread — use FMP profile beta (already fetched above)
@@ -3095,8 +3133,15 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
                                    "P/FCF", roic_latest, rev_cagr)
 
     # ── Hard floor gates ──────────────────────────────────────────────────────
-    gate1 = d_ebitda is not None and d_ebitda > 4.0 and net_cash_v <= 0
-    gate2 = ebit_int is not None and ebit_int < 2.0
+    # Banks are exempt: D/EBITDA and EBIT/Interest are structurally extreme for
+    # deposit-funded institutions and do not signal distress. Capital adequacy
+    # (Equity/Assets) is scored separately as the P3 leverage criterion.
+    if is_bank:
+        gate1 = False
+        gate2 = False
+    else:
+        gate1 = d_ebitda is not None and d_ebitda > 4.0 and net_cash_v <= 0
+        gate2 = ebit_int is not None and ebit_int < 2.0
     floor_cap = (59 if gate1 and gate2 else
                  64 if gate1 or gate2 else None)
 
@@ -3112,7 +3157,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         ("P2", "Cash Quality  (FCF / Net Income)",  10.0, tier_fcf_ni,   note_fcf_ni,    True),
         ("P2", "Capital Returns",                    5.0,  tier_cap_ret,  note_cap_ret,   True),
         ("P2", "ROIC",                               7.5,  tier_roic,     note_roic,      True),
-        ("P3", "Credit Risk  (D / EBITDA)",          5.0,  tier_d_ebitda, note_d_ebitda,  True),
+        ("P3", leverage_label,                        5.0,  tier_leverage, note_leverage,  True),
         ("P3", "Interest Cover  (EBIT / Interest)",  7.5,  tier_ebit_int, note_ebit_int,  True),
         ("P3", "Execution Risk",                     5.0,  tier_exec,     note_exec,      True),
         ("P4", "Valuation vs Median  (P/E)",        10.0, tier_pe,       note_pe,        tier_pe   is not None),
@@ -3198,7 +3243,16 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     row = blank_row(row)
 
     # Gate status
-    if gate1 or gate2:
+    if is_bank:
+        ws.row_dimensions[row].height = 16
+        row = merge_row(
+            row,
+            "✓  Bank/Financial sector — D/EBITDA and EBIT/Interest gates exempt  "
+            f"| Capital Adequacy (Equity/Assets) used as P3 leverage criterion"
+            + (f"  |  Equity/Assets = {equity_assets:.1%}" if equity_assets else ""),
+            bold=False, color="1B5E20", bg="C8E6C9", size=9
+        )
+    elif gate1 or gate2:
         msgs = []
         if gate1:
             msgs.append(f"LEVERAGE GATE: D/EBITDA {d_ebitda:.1f}x > 4.0x")
@@ -3303,7 +3357,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         wt_col   = get_column_letter(3)
         scr_col  = get_column_letter(6)
         c_wscore = wcell(row, 7,
-                         f'=IF({scr_col}{row}="","",{wt_col}{row}*{scr_col}{row})',
+                         f'=IF({scr_col}{row}="",0,{wt_col}{row}*{scr_col}{row})',
                          bold=False, bg=row_bg, halign="center", fmt='0.00;(0.00);"-"')
 
         # H: Notes
@@ -3388,7 +3442,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     row = merge_row(
         row,
         "SCORING GUIDE:  ≥80 STRONG BUY  |  65–79 BUY  |  50–64 HOLD  |  35–49 REDUCE  |  <35 SELL  "
-        "  ||  Floor gates: D/EBITDA >4x OR EBIT/Int <2x → cap 64;  both → cap 59",
+        "  ||  Floor gates (non-banks only): D/EBITDA >4x OR EBIT/Int <2x → cap 64;  both → cap 59  "
+        "  ||  Banks: gates exempt; P3 uses Equity/Assets (CET1 proxy) instead of D/EBITDA",
         bold=False, color="444444", bg="F4F8FB", size=8, indent=2
     )
 
@@ -3397,17 +3452,17 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     # Max = 87.5  (Business Clarity 2.5 + Long-Term Potential 10.0 = 12.5 manual)
     _TIER_VAL = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
     _auto_criteria = [
-        (tier_moat,     10.0),
-        (tier_mgmt,      7.5),
-        (tier_rev_cagr, 10.0),
-        (tier_fcf_ni,   10.0),
-        (tier_cap_ret,   5.0),
-        (tier_roic,      7.5),
-        (tier_d_ebitda,  5.0),
-        (tier_ebit_int,  7.5),
-        (tier_exec,      5.0),
-        (tier_pe,       10.0),
-        (tier_pfcf,     10.0),
+        (tier_moat,      10.0),
+        (tier_mgmt,       7.5),
+        (tier_rev_cagr,  10.0),
+        (tier_fcf_ni,    10.0),
+        (tier_cap_ret,    5.0),
+        (tier_roic,       7.5),
+        (tier_leverage,   5.0),   # D/EBITDA for non-banks; Equity/Assets for banks
+        (tier_ebit_int,   7.5),
+        (tier_exec,       5.0),
+        (tier_pe,        10.0),
+        (tier_pfcf,      10.0),
     ]
     _scored = [(t, w) for t, w in _auto_criteria if t in _TIER_VAL]
     if _scored:
@@ -3418,16 +3473,18 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         _auto_score = None
 
     metrics = {
-        "roic":         roic_latest,
-        "rev_cagr":     rev_cagr,
-        "fcf_ni":       fcf_ni_latest,
-        "d_ebitda":     d_ebitda,
-        "auto_score":   _auto_score,
-        "floor_cap":    floor_cap,
-        "pe_current":   pe_current,
-        "pe_5yr_avg":   pe_5yr_avg,
-        "pfcf_current": trailing_pfcf,
-        "pfcf_5yr_avg": pfcf_5yr_avg,
+        "roic":          roic_latest,
+        "rev_cagr":      rev_cagr,
+        "fcf_ni":        fcf_ni_latest,
+        "d_ebitda":      d_ebitda,        # None for banks (meaningless)
+        "equity_assets": equity_assets,   # CET1 proxy; only set for banks
+        "is_bank":       is_bank,
+        "auto_score":    _auto_score,
+        "floor_cap":     floor_cap,
+        "pe_current":    pe_current,
+        "pe_5yr_avg":    pe_5yr_avg,
+        "pfcf_current":  trailing_pfcf,
+        "pfcf_5yr_avg":  pfcf_5yr_avg,
     }
 
     print("  Scorecard tab built.")
