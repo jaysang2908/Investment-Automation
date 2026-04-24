@@ -8,190 +8,158 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg:       #07090e; --surface: #0e1520; --surface2: #131c2c;
-      --border:   rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.12);
-      --gold:     #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.12);
-      --text:     #d9e0ea; --text-muted: #7a8499; --text-dim: #3d4455;
-      --green:    #10b981; --green-dim: rgba(16,185,129,0.12);
-      --amber:    #f59e0b; --amber-dim: rgba(245,158,11,0.12);
-      --red:      #ef4444; --red-dim:   rgba(239,68,68,0.12);
+    :root{
+      --bg:#07090e;--surface:#0e1520;--surface2:#131c2c;
+      --border:rgba(255,255,255,.06);--border2:rgba(255,255,255,.12);
+      --gold:#c9a84c;--gold-light:#e8c97a;--gold-dim:rgba(201,168,76,.12);
+      --text:#d9e0ea;--text-muted:#7a8499;--text-dim:#3d4455;
+      --green:#10b981;--green-dim:rgba(16,185,129,.12);
+      --amber:#f59e0b;--amber-dim:rgba(245,158,11,.12);
+      --red:#ef4444;--red-dim:rgba(239,68,68,.12);
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html{scroll-behavior:smooth}
     body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.022) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+    body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,.022) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
 
-    /* ── NAV ── */
-    nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:64px;background:rgba(7,9,14,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
-    .nav-logo{font-family:'IBM Plex Mono',monospace;font-size:10pt;letter-spacing:3.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none}
-    .nav-logo span{color:var(--gold)}
-    .nav-links{list-style:none;display:flex;gap:32px}
-    .nav-links a{font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none;transition:color .2s}
-    .nav-links a:hover,.nav-links a.active{color:var(--gold)}
-    .nav-pill{font-family:'IBM Plex Mono',monospace;font-size:8pt;letter-spacing:1px;text-transform:uppercase;padding:8px 18px;border:1px solid var(--gold);color:var(--gold);border-radius:2px;text-decoration:none;transition:background .2s}
-    .nav-pill:hover{background:var(--gold-dim)}
+    nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:64px;background:rgba(7,9,14,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .nl{font-family:'IBM Plex Mono',monospace;font-size:10pt;letter-spacing:3.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none}
+    .nl span{color:var(--gold)}
+    .nlinks{list-style:none;display:flex;gap:32px}
+    .nlinks a{font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none;transition:color .2s}
+    .nlinks a:hover,.nlinks a.active{color:var(--gold)}
+    .np{font-family:'IBM Plex Mono',monospace;font-size:8pt;letter-spacing:1px;text-transform:uppercase;padding:8px 18px;border:1px solid var(--gold);color:var(--gold);border-radius:2px;text-decoration:none;transition:background .2s}
+    .np:hover{background:var(--gold-dim)}
 
-    /* ── PAGE HEADER ── */
-    .ph{padding:52px 48px 32px;border-bottom:1px solid var(--border)}
-    .ph-eye{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+    .ph{padding:48px 48px 28px;border-bottom:1px solid var(--border)}
+    .ph-eye{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
     .ph-title{font-family:'Playfair Display',serif;font-size:26pt;font-weight:600;color:#fff;margin-bottom:8px}
     .ph-sub{font-size:9pt;color:var(--text-muted);font-weight:300;max-width:560px;line-height:1.7}
-    .ph-actions{display:flex;gap:12px;margin-top:22px}
-    .btn{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:1px;text-transform:uppercase;padding:9px 20px;border-radius:2px;text-decoration:none;border:none;cursor:pointer;transition:all .2s}
-    .btn-gold{background:var(--gold);color:#07090e;font-weight:500}
-    .btn-gold:hover{background:var(--gold-light)}
-    .btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border2)}
-    .btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+    .ph-act{display:flex;gap:12px;margin-top:20px}
+    .btn{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:1px;text-transform:uppercase;padding:9px 20px;border-radius:2px;text-decoration:none;border:none;cursor:pointer;transition:all .2s;display:inline-block}
+    .bg{background:var(--gold);color:#07090e;font-weight:500}.bg:hover{background:var(--gold-light)}
 
-    /* ── SUMMARY BAR ── */
     .sbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border)}
-    .si{flex:1;padding:18px 32px;border-right:1px solid var(--border)}
-    .si:last-child{border-right:none}
-    .si-lbl{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
-    .si-val{font-family:'IBM Plex Mono',monospace;font-size:15pt;font-weight:500;color:#fff}
-    .si-sub{font-size:7.5pt;color:var(--text-muted);margin-top:3px}
+    .si{flex:1;padding:18px 32px;border-right:1px solid var(--border)}.si:last-child{border-right:none}
+    .si-l{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+    .si-v{font-family:'IBM Plex Mono',monospace;font-size:15pt;font-weight:500;color:#fff}
+    .si-s{font-size:7.5pt;color:var(--text-muted);margin-top:3px}
 
-    /* ── TABLE SECTION ── */
-    .ts{padding:32px 48px 20px}
-    .ts-lbl{font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px;display:flex;align-items:center;gap:12px}
-    .ts-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
-
-    /* ── LEGEND ── */
-    .legend{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px}
-    .leg{display:flex;align-items:center;gap:6px;font-size:7.5pt;color:var(--text-muted)}
+    .ts{padding:28px 48px 16px}
+    .tslbl{font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;gap:12px}
+    .tslbl::after{content:'';flex:1;height:1px;background:var(--border)}
+    .leg{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+    .li{display:flex;align-items:center;gap:6px;font-size:7.5pt;color:var(--text-muted)}
     .ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
-    /* ── TABLE ── */
     .tscroll{overflow-x:auto;border:1px solid var(--border);border-radius:4px}
-    table{width:100%;border-collapse:collapse;font-size:8.5pt;min-width:1080px}
-    thead th{
-      font-family:'IBM Plex Mono',monospace;font-size:6pt;letter-spacing:1.5px;text-transform:uppercase;
-      color:var(--text-dim);font-weight:400;padding:11px 16px;white-space:nowrap;
-      background:var(--surface);border-bottom:2px solid var(--border2);
-      text-align:left;
-    }
-    thead th.rc{text-align:center}
-    tbody td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--bg);white-space:nowrap}
+    table{width:100%;border-collapse:collapse;font-size:8.5pt;min-width:1060px}
+    thead th{font-family:'IBM Plex Mono',monospace;font-size:5.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);font-weight:400;padding:11px 13px;white-space:nowrap;background:var(--surface);border-bottom:2px solid var(--border2);text-align:left}
+    thead th.c{text-align:center}
+    tbody td{padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--bg);white-space:nowrap}
     tbody tr:last-child td{border-bottom:none}
-    tbody tr:hover td{background:rgba(255,255,255,.015)}
-    tbody tr.pr td{opacity:.38}
+    tbody tr:hover td{background:rgba(255,255,255,.012)}
+    tbody tr.pr td{opacity:.35}
 
-    /* ── TICKER CELL ── */
-    .tcc{display:flex;align-items:center;gap:12px}
-    .tlog{width:36px;height:36px;border-radius:5px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:7pt;font-weight:500;color:var(--text-muted);flex-shrink:0}
-    .tn{font-size:8.5pt;font-weight:500;color:#fff;white-space:nowrap}
-    .te{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;color:var(--text-dim);margin-top:2px}
+    .tcc{display:flex;align-items:center;gap:11px}
+    .tlog{width:34px;height:34px;border-radius:5px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:6.5pt;font-weight:500;color:var(--text-muted);flex-shrink:0}
+    .tn{font-size:8pt;font-weight:500;color:#fff}.te{font-family:'IBM Plex Mono',monospace;font-size:6pt;color:var(--text-dim);margin-top:2px}
 
-    /* ── SCORE CELL ── */
-    .scc{display:flex;align-items:center;gap:10px;white-space:nowrap}
-    .snum{font-family:'IBM Plex Mono',monospace;font-size:11pt;font-weight:500;min-width:44px;display:inline-block}
-    .sbar{display:inline-block;width:52px;height:3px;background:var(--surface2);border-radius:2px;vertical-align:middle;overflow:hidden}
+    .scc{display:flex;align-items:center;gap:9px}
+    .snum{font-family:'IBM Plex Mono',monospace;font-size:10.5pt;font-weight:500;min-width:40px}
+    .sbar{display:inline-block;width:48px;height:3px;background:var(--surface2);border-radius:2px;vertical-align:middle;overflow:hidden}
     .sfill{display:block;height:100%;border-radius:2px;width:0;transition:width .9s ease}
-    .snote{font-family:'IBM Plex Mono',monospace;font-size:6pt;color:var(--text-dim);display:block;margin-top:3px}
+    .sn{font-family:'IBM Plex Mono',monospace;font-size:6pt;color:var(--text-dim)}
 
-    /* colour helpers */
-    .cg{color:var(--green)} .ca{color:var(--amber)} .cr{color:var(--red)} .cd{color:var(--text-dim)}
-    .fg{background:var(--green)} .fa{background:var(--amber)} .fr{background:var(--red)}
+    .cg{color:var(--green)}.ca{color:var(--amber)}.cr{color:var(--red)}.cd{color:var(--text-dim)}
+    .fg{background:var(--green)}.fa{background:var(--amber)}.fr{background:var(--red)}
 
-    /* ── CHIPS ── */
     .chip{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:7.5pt;font-weight:500;padding:3px 8px;border-radius:2px;white-space:nowrap}
-    .ch-g{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.20)}
-    .ch-a{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,.18)}
-    .ch-r{background:var(--red-dim);  color:var(--red);  border:1px solid rgba(239,68,68,.18)}
-    .ch-d{background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--border)}
+    .chg{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.20)}
+    .cha{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,.18)}
+    .chr{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.18)}
+    .chd{background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--border)}
 
-    /* ── VALUATION CELL (two numbers + delta chip, all inline) ── */
-    .vc{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}
-    .vc-cur{font-family:'IBM Plex Mono',monospace;font-size:8.5pt;color:#fff}
-    .vc-sep{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
-    .vc-avg{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
+    .vc{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
+    .vc-c{font-family:'IBM Plex Mono',monospace;font-size:8pt;color:#fff}
+    .vc-s{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;color:var(--text-dim)}
 
-    /* ── ACTIONS ── */
-    .acts{display:flex;gap:6px;justify-content:flex-end}
-    .al{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:5px 10px;border-radius:2px;text-decoration:none;transition:all .2s;white-space:nowrap}
-    .al-v{color:var(--gold);border:1px solid rgba(201,168,76,.3)}
-    .al-v:hover{background:var(--gold-dim)}
-    .al-g{color:var(--text-muted);border:1px solid var(--border2)}
-    .al-g:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
-    .al-n{color:var(--text-dim);border:1px solid var(--border);pointer-events:none;cursor:default}
+    .acts{display:flex;gap:5px;justify-content:flex-end}
+    .al{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;border-radius:2px;text-decoration:none;transition:all .2s;white-space:nowrap}
+    .alv{color:var(--gold);border:1px solid rgba(201,168,76,.3)}.alv:hover{background:var(--gold-dim)}
+    .alg{color:var(--text-muted);border:1px solid var(--border2)}.alg:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+    .aln{color:var(--text-dim);border:1px solid var(--border);pointer-events:none}
 
-    /* ── TABLE NOTES ── */
-    .tnotes{font-size:7.5pt;color:var(--text-dim);padding:10px 0;line-height:1.7}
+    .tnotes{font-size:7pt;color:var(--text-dim);padding:8px 0 0;line-height:1.8}
 
-    /* ── LIVE SECTION ── */
-    .ls{padding:32px 48px 52px}
-    .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:14px}
+    .ls{padding:28px 48px 52px}
+    .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:12px}
     .lcard{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:16px 18px;display:flex;flex-direction:column;gap:9px;text-decoration:none;transition:border-color .2s,transform .15s}
     .lcard:hover{border-color:var(--border2);transform:translateY(-2px)}
     .ltop{display:flex;align-items:center;justify-content:space-between}
     .ltick{font-family:'IBM Plex Mono',monospace;font-size:13pt;font-weight:500;color:#fff}
-    .lscore{font-family:'IBM Plex Mono',monospace;font-size:11pt}
+    .lsc{font-family:'IBM Plex Mono',monospace;font-size:11pt}
     .lts{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
     .lbtns{display:flex;gap:7px}
-    .el{font-size:8.5pt;color:var(--text-dim);padding:18px 0;font-style:italic}
+    .el{font-size:8.5pt;color:var(--text-dim);padding:16px 0;font-style:italic}
 
     @media(max-width:900px){
-      nav{padding:0 24px} .nav-links,.nav-pill{display:none}
-      .ph{padding:36px 24px 24px} .ts{padding:24px 24px 12px} .ls{padding:24px 24px 48px}
-      .sbar{flex-wrap:wrap} .si{min-width:50%;border-right:none;border-bottom:1px solid var(--border)}
+      nav{padding:0 24px}.nlinks,.np{display:none}
+      .ph{padding:32px 24px 20px}.ts{padding:20px 24px 10px}.ls{padding:20px 24px 40px}
+      .sbar{flex-wrap:wrap}.si{min-width:50%;border-bottom:1px solid var(--border);border-right:none}
     }
   </style>
 </head>
 <body>
 
 <nav>
-  <a href="/" class="nav-logo">Equity<span>.</span>Research</a>
+  <a href="/" class="nl">Equity<span>.</span>Research</a>
   <div style="display:flex;align-items:center;gap:36px">
-    <ul class="nav-links">
+    <ul class="nlinks">
       <li><a href="/">Generate</a></li>
       <li><a href="/dashboard.html" class="active">Dashboard</a></li>
       <li><a href="/#methodology">Methodology</a></li>
     </ul>
-    <a class="nav-pill" href="/">Generate Report</a>
+    <a class="np" href="/">Generate Report</a>
   </div>
 </nav>
 
 <div class="ph">
   <div class="ph-eye">Active Coverage</div>
   <h1 class="ph-title">Coverage Dashboard</h1>
-  <p class="ph-sub">All analysed companies — DCF upside, valuation vs history, quality metrics, and scorecard. Pre-built from 10-K filings and FMP engine outputs.</p>
-  <div class="ph-actions">
-    <a href="/" class="btn btn-gold">Generate New Report</a>
-  </div>
+  <p class="ph-sub">All analysed companies — DCF upside, valuation vs history, and quality metrics. Scores are auto-scored (FMP engine) unless noted as including qualitative inputs.</p>
+  <div class="ph-act"><a href="/" class="btn bg">Generate New Report</a></div>
 </div>
 
 <div class="sbar">
-  <div class="si"><div class="si-lbl">Coverage</div><div class="si-val" id="sCov">6</div><div class="si-sub">Companies with data</div></div>
-  <div class="si"><div class="si-lbl">Avg Score</div><div class="si-val" id="sAvg">—</div><div class="si-sub">Scored companies</div></div>
-  <div class="si"><div class="si-lbl">High Conviction</div><div class="si-val" id="sHC">—</div><div class="si-sub">Score ≥ 75</div></div>
-  <div class="si"><div class="si-lbl">Live Reports</div><div class="si-val" id="sLive">—</div><div class="si-sub">This session</div></div>
+  <div class="si"><div class="si-l">Coverage</div><div class="si-v" id="sCov">—</div><div class="si-s">Companies with data</div></div>
+  <div class="si"><div class="si-l">Avg Score</div><div class="si-v" id="sAvg">—</div><div class="si-s">Scored companies</div></div>
+  <div class="si"><div class="si-l">High Conviction</div><div class="si-v" id="sHC">—</div><div class="si-s">Score ≥ 75</div></div>
+  <div class="si"><div class="si-l">Live Reports</div><div class="si-v" id="sLive">—</div><div class="si-s">This session</div></div>
 </div>
 
 <div class="ts">
-  <div class="ts-lbl">Coverage Heatmap  ·  Pre-Built from Excel Models &amp; 10-K Filings</div>
-  <div class="legend">
-    <div class="leg"><div class="ld" style="background:var(--green)"></div>HIGH / Favourable</div>
-    <div class="leg"><div class="ld" style="background:var(--amber)"></div>MOD / Neutral</div>
-    <div class="leg"><div class="ld" style="background:var(--red)"></div>LOW / Cautionary</div>
-    <div class="leg"><div class="ld" style="background:var(--text-dim)"></div>No data</div>
+  <div class="tslbl">Coverage Heatmap  ·  FMP Engine Outputs &amp; 10-K Data</div>
+  <div class="leg">
+    <div class="li"><div class="ld" style="background:var(--green)"></div>HIGH / Favourable</div>
+    <div class="li"><div class="ld" style="background:var(--amber)"></div>MOD / Neutral</div>
+    <div class="li"><div class="ld" style="background:var(--red)"></div>LOW / Cautionary</div>
+    <div class="li"><div class="ld" style="background:var(--text-dim)"></div>No data / Model issue</div>
   </div>
-
   <div class="tscroll">
     <table>
       <thead>
         <tr>
-          <th style="min-width:200px">Company</th>
-          <th style="min-width:120px">Score</th>
-          <th class="rc" style="min-width:80px">DCF GG</th>
-          <th class="rc" style="min-width:80px">DCF EM</th>
-          <th class="rc" style="min-width:72px">ROIC</th>
-          <th class="rc" style="min-width:80px">Rev CAGR</th>
-          <th class="rc" style="min-width:72px">FCF / NI</th>
-          <th class="rc" style="min-width:80px">D / EBITDA</th>
-          <th class="rc" style="min-width:160px">P/E  ·  5yr avg  ·  Δ</th>
-          <th class="rc" style="min-width:160px">P/FCF  ·  5yr avg  ·  Δ</th>
-          <th style="min-width:130px"></th>
+          <th style="min-width:190px">Company</th>
+          <th style="min-width:115px">Score</th>
+          <th class="c" style="min-width:72px">DCF GG</th>
+          <th class="c" style="min-width:72px">DCF EM</th>
+          <th class="c" style="min-width:68px">ROIC</th>
+          <th class="c" style="min-width:75px">Rev CAGR</th>
+          <th class="c" style="min-width:68px">FCF/NI</th>
+          <th class="c" style="min-width:75px">D/EBITDA</th>
+          <th class="c" style="min-width:155px">P/E  ·  5yr avg  ·  Δ</th>
+          <th class="c" style="min-width:155px">P/FCF  ·  5yr avg  ·  Δ</th>
+          <th style="min-width:120px"></th>
         </tr>
       </thead>
       <tbody id="tb"></tbody>
@@ -201,107 +169,77 @@
 </div>
 
 <div class="ls">
-  <div class="ts-lbl">Live-Generated Reports  ·  This Session  (2-hour TTL)</div>
+  <div class="tslbl">Live-Generated Reports  ·  This Session  (2-hour TTL)</div>
   <div class="lgrid" id="lgrid">
     <div class="el" id="lempty">No reports generated this session. <a href="/" style="color:var(--gold);text-decoration:none">Generate one →</a></div>
   </div>
 </div>
 
 <script>
-// ── Coverage data ─────────────────────────────────────────────────────────────
+// ── Coverage data (sorted by score desc) ──────────────────────────────────────
+// Sources: outputs.csv (2026-04-19 run) + manual 10-K data files
+// GG/EM: null when DCF model produced negative/implausible prices
 const D = [
-  { t:"AAPL", n:"Apple Inc.",             ex:"NASDAQ", score:74.3, snote:"incl. qual.",
-    gg:-0.433, em:-0.161,
-    roic:0.823, cagr:0.018, fcfni:0.88, de:0.7,
-    pe:28.2,  pe5:22.0, pf:31.4, pf5:25.0,
-    url:"/reports/AAPL_report.html", note:null },
-  { t:"MSFT", n:"Microsoft Corporation", ex:"NASDAQ", score:74.5, snote:"incl. qual.",
-    gg:-0.377, em:0.629,
-    roic:0.297, cagr:0.124, fcfni:0.70, de:0.3,
-    pe:36.3,  pe5:33.9, pf:51.6, pf5:41.2,
-    url:"/reports/MSFT_report.html", note:null },
-  { t:"NVDA", n:"NVIDIA Corporation",    ex:"NASDAQ", score:75.0, snote:"auto-score",
-    gg:-0.417, em:0.096,
-    roic:0.713, cagr:1.00, fcfni:0.81, de:0.0,
-    pe:37.7,  pe5:60.2, pf:46.9, pf5:70.4,
-    url:null, note:null },
-  { t:"NFLX", n:"Netflix Inc.",          ex:"NASDAQ", score:43.5, snote:"auto-score",
-    gg:0.134, em:0.645,
-    roic:0.359, cagr:0.126, fcfni:0.86, de:0.5,
-    pe:null,  pe5:null, pf:null, pf5:null,
-    url:null, note:"P/E and P/FCF unavailable in this model version. DCF reflects model run date." },
-  { t:"TSM",  n:"Taiwan Semiconductor",  ex:"NYSE",   score:52.8, snote:"auto-score",
-    gg:null, em:null,
-    roic:0.447, cagr:0.193, fcfni:0.63, de:0.0,
-    pe:28.5, pe5:23.6, pf:45.0, pf5:45.9,
-    url:null, note:"DCF prices in TWD — FX conversion not applied. Other metrics in reporting currency." },
-  { t:"WFC",  n:"Wells Fargo & Co.",     ex:"NYSE",   score:35.2, snote:"floor cap 59",
-    gg:-0.835, em:-0.351,
-    roic:0.049, cagr:0.140, fcfni:0.89, de:14.5,
-    pe:13.9, pe5:11.2, pf:null, pf5:29.9,
-    url:null, note:"D/EBITDA 14.5x reflects bank leverage structure. Hard floor gate triggered." },
-  { t:"UAL",  n:"United Airlines Holdings", ex:"NASDAQ", score:null, snote:null,
-    gg:null, em:null, roic:null, cagr:null, fcfni:null, de:null,
-    pe:null, pe5:null, pf:null, pf5:null,
-    url:null, note:"Scorecard tab missing from current model.", pending:true },
-  { t:"META", n:"Meta Platforms Inc.",   ex:"NASDAQ", score:null, snote:null,
-    gg:null, em:null, roic:null, cagr:null, fcfni:null, de:null,
-    pe:null, pe5:null, pf:null, pf5:null,
-    url:null, note:null, pending:true },
-  { t:"JPM",  n:"JPMorgan Chase & Co.", ex:"NYSE",   score:null, snote:null,
-    gg:null, em:null, roic:null, cagr:null, fcfni:null, de:null,
-    pe:null, pe5:null, pf:null, pf5:null,
-    url:null, note:null, pending:true },
+  {t:"NVDA",n:"NVIDIA Corporation",     ex:"NASDAQ",score:75.0,sn:"auto-score",   gg:-0.417,em:0.096,  roic:0.713,cagr:1.00, fcfni:0.81,de:0.0,  pe:37.7, pe5:60.2, pf:46.9, pf5:70.4, url:null},
+  {t:"MSFT",n:"Microsoft Corporation",  ex:"NASDAQ",score:74.5,sn:"incl. qual.",   gg:-0.377,em:0.629,  roic:0.297,cagr:0.124,fcfni:0.70,de:0.3,  pe:36.3, pe5:33.9, pf:51.6, pf5:41.2, url:"/reports/MSFT_report.html"},
+  {t:"AAPL",n:"Apple Inc.",             ex:"NASDAQ",score:74.3,sn:"incl. qual.",   gg:-0.434,em:-0.158, roic:0.823,cagr:0.018,fcfni:0.88,de:0.7,  pe:34.1, pe5:29.9, pf:38.7, pf5:29.2, url:"/reports/AAPL_report.html"},
+  {t:"ADBE",n:"Adobe Inc.",             ex:"NASDAQ",score:72.8,sn:"auto-score",   gg:0.428,  em:1.211,  roic:0.573,cagr:0.105,fcfni:1.38,de:0.6,  pe:19.1, pe5:41.4, pf:13.8, pf5:29.6, url:null},
+  {t:"COST",n:"Costco Wholesale Corp.", ex:"NASDAQ",score:63.5,sn:"auto-score",   gg:-0.849, em:-0.366, roic:0.375,cagr:0.066,fcfni:0.97,de:0.0,  pe:51.7, pe5:44.9, pf:53.4, pf5:50.8, url:null},
+  {t:"AMD", n:"Advanced Micro Devices", ex:"NASDAQ",score:59.2,sn:"auto-score",   gg:-0.486, em:-0.105, roic:0.059,cagr:0.136,fcfni:1.55,de:0.0,  pe:80.5, pe5:123.1,pf:51.8, pf5:87.2, url:null},
+  {t:"JNJ", n:"Johnson & Johnson",      ex:"NYSE",  score:54.0,sn:"auto-score",   gg:0.493,  em:0.622,  roic:0.192,cagr:0.056,fcfni:0.73,de:1.2,  pe:18.8, pe5:20.4, pf:25.6, pf5:22.9, url:null},
+  {t:"META",n:"Meta Platforms Inc.",    ex:"NASDAQ",score:53.0,sn:"auto-score",   gg:null,   em:0.762,  roic:0.244,cagr:0.199,fcfni:0.76,de:0.6,  pe:27.5, pe5:22.5, pf:36.1, pf5:25.1, url:null,note:"GG price implausible (negative EV from model) — EM shown only."},
+  {t:"TSM", n:"Taiwan Semiconductor",   ex:"NYSE",  score:52.8,sn:"auto-score",   gg:null,   em:null,   roic:0.447,cagr:0.193,fcfni:0.63,de:0.0,  pe:28.5, pe5:23.6, pf:45.0, pf5:45.9, url:null,note:"DCF prices in TWD — FX conversion not applied."},
+  {t:"V",   n:"Visa Inc.",              ex:"NYSE",  score:51.2,sn:"auto-score",   gg:0.036,  em:0.173,  roic:0.463,cagr:0.109,fcfni:1.08,de:1.0,  pe:null, pe5:null, pf:null, pf5:null,  url:null},
+  {t:"KO",  n:"The Coca-Cola Company",  ex:"NYSE",  score:47.0,sn:"auto-score",   gg:-0.067, em:0.052,  roic:0.168,cagr:0.037,fcfni:0.40,de:2.4,  pe:23.0, pe5:25.4, pf:56.8, pf5:38.2, url:null},
+  {t:"NFLX",n:"Netflix Inc.",           ex:"NASDAQ",score:43.5,sn:"auto-score",   gg:0.134,  em:0.645,  roic:0.359,cagr:0.126,fcfni:0.86,de:0.5,  pe:null, pe5:null, pf:null, pf5:null,  url:null,note:"P/E and P/FCF unavailable in model version. DCF reflects model run date."},
+  {t:"ABBV",n:"AbbVie Inc.",            ex:"NYSE",  score:42.8,sn:"auto-score",   gg:0.820,  em:0.668,  roic:0.175,cagr:0.018,fcfni:4.22,de:2.4,  pe:96.3, pe5:54.2, pf:22.8, pf5:15.1, url:null,note:"FCF/NI >100% reflects large amortisation of acquired intangibles (post-AbbVie/Allergan)."},
+  {t:"CSCO",n:"Cisco Systems Inc.",     ex:"NASDAQ",score:41.8,sn:"auto-score",   gg:-0.222, em:-0.056, roic:0.162,cagr:0.032,fcfni:1.31,de:1.8,  pe:26.8, pe5:20.1, pf:20.6, pf5:16.3, url:null},
+  {t:"WMT", n:"Walmart Inc.",           ex:"NYSE",  score:40.0,sn:"auto-score",   gg:-0.894, em:-0.180, roic:0.166,cagr:0.053,fcfni:0.68,de:1.0,  pe:43.4, pe5:35.0, pf:63.7, pf5:44.7, url:null},
+  {t:"F",   n:"Ford Motor Company",     ex:"NYSE",  score:35.8,sn:"auto-score, floor 64", gg:null,em:-0.944,roic:0.010,cagr:0.058,fcfni:1.52,de:19.3,pe:null,pe5:7.5,pf:4.2,pf5:6.5,url:null,note:"GG DCF produces negative value (extreme leverage). D/EBITDA reflects auto OEM balance sheet structure."},
+  {t:"WFC", n:"Wells Fargo & Co.",      ex:"NYSE",  score:35.2,sn:"auto-score, floor 59", gg:-0.835,em:-0.351,roic:0.049,cagr:0.140,fcfni:0.89,de:14.5,pe:13.9,pe5:11.2,pf:null,pf5:29.9,url:null,note:"D/EBITDA 14.5x reflects bank leverage. Hard floor gate triggered."},
+  {t:"INTC",n:"Intel Corporation",      ex:"NASDAQ",score:33.0,sn:"auto-score, floor 64", gg:null,em:-0.310,roic:0.0,  cagr:0.057,fcfni:18.54,de:3.2,pe:null,pe5:49.6,pf:null,pf5:null,url:null,note:"GG DCF produces negative value. FCF/NI >100% due to heavy D&A. ROIC ~0 reflects capex investment cycle."},
+  {t:"TSLA",n:"Tesla Inc.",             ex:"NASDAQ",score:32.5,sn:"auto-score",   gg:-0.966, em:-0.679, roic:0.043,cagr:0.052,fcfni:1.64,de:0.0,  pe:382.3,pe5:167.1,pf:233.2,pf5:225.0,url:null},
+  {t:"SOFI",n:"SoFi Technologies Inc.", ex:"NASDAQ",score:31.0,sn:"auto-score, floor 64", gg:0.324,em:1.283,roic:0.209,cagr:0.393,fcfni:8.28,de:0.0,pe:62.6,pe5:47.5,pf:null,pf5:null,url:null,note:"FCF/NI and fintech metrics non-standard due to banking licence economics."},
+  {t:"JPM", n:"JPMorgan Chase & Co.",   ex:"NYSE",  score:28.5,sn:"auto-score, floor 59", gg:null,em:-0.405,roic:0.059,cagr:0.221,fcfni:1.77,de:11.6,pe:15.8,pe5:11.6,pf:8.9,pf5:14.3,url:null,note:"GG price implausible for bank structure. D/EBITDA and FCF/NI metrics non-standard."},
+  {t:"C",   n:"Citigroup Inc.",          ex:"NYSE",  score:21.5,sn:"auto-score, floor 59", gg:null,em:null,  roic:0.025,cagr:0.189,fcfni:1.56,de:31.0,pe:14.9,pe5:9.5, pf:9.5, pf5:5.6, url:null,note:"DCF prices negative (bank structure). D/EBITDA 31x reflects bank leverage — not comparable to industrial D/EBITDA."},
+  {t:"BAC", n:"Bank of America Corp.",  ex:"NYSE",  score:20.2,sn:"auto-score, floor 59", gg:null,em:-0.228,roic:0.070,cagr:0.185,fcfni:0.41,de:9.1, pe:13.3,pe5:11.5,pf:32.1,pf5:19.1,url:null,note:"GG price implausible. Bank leverage metrics not comparable to industrial peers."},
+  {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:null,note:"Scorecard tab missing from current model."},
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const p=(v,d=1)=>v==null?'—':((v>=0?'+':'')+((v*100).toFixed(d))+'%');
+const p=(v,d=1)=>v==null?'—':((v>=0?'+':'')+(v*100).toFixed(d)+'%');
 const x=(v,d=1)=>v==null?'—':(v.toFixed(d)+'x');
-
-function chip(lbl, cls){ return `<span class="chip ${cls}">${lbl}</span>`; }
-
+function chip(l,c){return`<span class="chip ${c}">${l}</span>`}
 function upChip(v){
-  if(v==null) return chip('—','ch-d');
-  const l=p(v); return chip(l, v>0.20?'ch-g':v>0?'ch-a':'ch-r');
+  if(v==null) return chip('—','chd');
+  if(Math.abs(v)>2) return chip('—','chd'); // implausible DCF
+  return chip(p(v),v>0.20?'chg':v>0?'cha':'chr');
 }
-function roicChip(v){
-  if(v==null) return chip('—','ch-d');
-  return chip(p(v,0), v>=0.20?'ch-g':v>=0.08?'ch-a':'ch-r');
-}
-function cagrChip(v){
-  if(v==null) return chip('—','ch-d');
-  return chip(p(v,1), v>=0.12?'ch-g':v>=0.05?'ch-a':'ch-r');
-}
+function roicChip(v){if(v==null)return chip('—','chd');return chip(p(v,0),v>=0.20?'chg':v>=0.08?'cha':'chr')}
+function cagrChip(v){if(v==null)return chip('—','chd');return chip(p(v,1),v>=0.12?'chg':v>=0.05?'cha':'chr')}
 function fcfChip(v){
-  if(v==null) return chip('—','ch-d');
-  return chip(p(v,0), v>=0.80?'ch-g':v>=0.60?'ch-a':'ch-r');
+  if(v==null)return chip('—','chd');
+  const display=v>1.5?'>100%':p(v,0);
+  return chip(display,v>=0.80?'chg':v>=0.60?'cha':'chr');
 }
-function deChip(v){
-  if(v==null) return chip('—','ch-d');
-  return chip(v.toFixed(1)+'x', v<1.5?'ch-g':v<4?'ch-a':'ch-r');
-}
-function valCell(cur, avg){
-  if(cur==null || avg==null) return chip('—','ch-d');
+function deChip(v){if(v==null)return chip('—','chd');return chip(v.toFixed(1)+'x',v<1.5?'chg':v<4?'cha':'chr')}
+function valCell(cur,avg){
+  if(cur==null||avg==null) return chip('—','chd');
   const d=(cur-avg)/avg;
   const ds=(d>=0?'+':'')+(d*100).toFixed(0)+'%';
-  const dc=d<=0?'ch-g':d<=0.20?'ch-a':'ch-r';
-  return `<span class="vc"><span class="vc-cur">${x(cur)}</span><span class="vc-sep">/</span><span class="vc-avg">${x(avg)}</span>${chip(ds,dc)}</span>`;
+  const dc=d<=0?'chg':d<=0.20?'cha':'chr';
+  return`<span class="vc"><span class="vc-c">${x(cur)}</span><span class="vc-s">/ ${x(avg)}</span>${chip(ds,dc)}</span>`;
 }
 function scoreCell(c){
-  if(c.score==null) return `<span style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim)">—</span>`;
+  if(c.score==null) return`<span style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim)">—</span>`;
   const sc=c.score>=75?'cg':c.score>=60?'ca':'cr';
   const fc=c.score>=75?'fg':c.score>=60?'fa':'fr';
-  return `<div class="scc">
-    <span class="snum ${sc}">${c.score.toFixed(1)}</span>
-    <span class="sbar"><span class="sfill ${fc}" data-w="${c.score}"></span></span>
-    ${c.snote?`<span style="font-family:'IBM Plex Mono',monospace;font-size:6.5pt;color:var(--text-dim)">${c.snote}</span>`:''}
-  </div>`;
+  return`<div class="scc"><span class="snum ${sc}">${c.score.toFixed(1)}</span><span class="sbar"><span class="sfill ${fc}" data-w="${c.score}"></span></span>${c.sn?`<span class="sn">${c.sn}</span>`:''}</div>`;
 }
 function actions(c){
-  if(c.pending) return `<div class="acts"><span class="al al-n">Pending</span></div>`;
-  const v=c.url?`<a class="al al-v" href="${c.url}" target="_blank">View Report</a>`:'';
-  const g=`<a class="al al-g" href="/" title="Re-run ${c.t}">Re-run →</a>`;
-  return `<div class="acts">${v}${g}</div>`;
+  if(c.pending) return`<div class="acts"><span class="al aln">Pending</span></div>`;
+  const v=c.url?`<a class="al alv" href="${c.url}" target="_blank">Report</a>`:'';
+  return`<div class="acts">${v}<a class="al alg" href="/" title="Re-run ${c.t}">Re-run →</a></div>`;
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -312,10 +250,8 @@ function render(){
     const tr=document.createElement('tr');
     if(c.pending) tr.className='pr';
     tr.innerHTML=`
-      <td><div class="tcc">
-        <div class="tlog">${c.t.slice(0,4)}</div>
-        <div><div class="tn">${c.n}</div><div class="te">${c.ex}: ${c.t}</div></div>
-      </div></td>
+      <td><div class="tcc"><div class="tlog">${c.t.slice(0,4)}</div>
+        <div><div class="tn">${c.n}</div><div class="te">${c.ex}: ${c.t}</div></div></div></td>
       <td>${scoreCell(c)}</td>
       <td style="text-align:center">${upChip(c.gg)}</td>
       <td style="text-align:center">${upChip(c.em)}</td>
@@ -330,9 +266,7 @@ function render(){
     if(c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`);
   });
   setTimeout(()=>document.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
-  if(notes.length) document.getElementById('tnotes').innerHTML='<strong>Notes —</strong> '+notes.join(' &nbsp;·&nbsp; ');
-
-  // Summary stats (pre-built only)
+  if(notes.length) document.getElementById('tnotes').innerHTML='<strong>Notes —</strong> '+notes.join(' &nbsp;&middot;&nbsp; ');
   const sc=D.filter(c=>c.score!=null).map(c=>c.score);
   document.getElementById('sCov').textContent=sc.length;
   document.getElementById('sAvg').textContent=sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1):'—';
@@ -342,7 +276,7 @@ function render(){
 // ── Live reports ──────────────────────────────────────────────────────────────
 async function loadLive(){
   try{
-    const rpts=await (await fetch('/api/reports')).json();
+    const rpts=await(await fetch('/api/reports')).json();
     document.getElementById('sLive').textContent=rpts.length;
     if(!rpts.length) return;
     document.getElementById('lempty').style.display='none';
@@ -354,21 +288,20 @@ async function loadLive(){
       card.className='lcard';
       card.innerHTML=`
         <div class="ltop"><div class="ltick">${r.ticker}</div>
-          <div class="lscore ${sc}">${r.score!=null?r.score.toFixed(1):'—'}<span style="font-size:8pt;color:var(--text-dim)">/100</span></div></div>
+          <div class="lsc ${sc}">${r.score!=null?r.score.toFixed(1):'—'}<span style="font-size:8pt;color:var(--text-dim)">/100</span></div></div>
         <div class="lts">${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${ts.toLocaleDateString([],{month:'short',day:'numeric'})}</div>
         <div class="lbtns">
-          <a class="al al-v" href="/report/${r.rid}" target="_blank">View</a>
-          <a class="al al-g" href="/download/excel/${r.rid}" target="_blank">Excel</a>
-          <a class="al al-g" href="/download/html/${r.rid}" target="_blank">HTML</a>
+          <a class="al alv" href="/report/${r.rid}" target="_blank">View</a>
+          <a class="al alg" href="/download/excel/${r.rid}" target="_blank">Excel</a>
+          <a class="al alg" href="/download/html/${r.rid}" target="_blank">HTML</a>
         </div>`;
       g.appendChild(card);
     });
-    // Recalculate summary including live
     const all=[...D.filter(c=>c.score!=null).map(c=>c.score),...rpts.filter(r=>r.score!=null).map(r=>r.score)];
     document.getElementById('sCov').textContent=all.length;
     document.getElementById('sAvg').textContent=(all.reduce((a,b)=>a+b,0)/all.length).toFixed(1);
     document.getElementById('sHC').textContent=all.filter(s=>s>=75).length;
-  }catch(e){ document.getElementById('sLive').textContent='0'; }
+  }catch(e){document.getElementById('sLive').textContent='0';}
 }
 
 render();
