@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coverage Dashboard — Equity Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #07090e;
+      --surface:    #0e1520;
+      --surface2:   #131c2c;
+      --border:     rgba(255,255,255,0.06);
+      --border2:    rgba(255,255,255,0.12);
+      --gold:       #c9a84c;
+      --gold-light: #e8c97a;
+      --gold-dim:   rgba(201,168,76,0.12);
+      --text:       #d9e0ea;
+      --text-muted: #7a8499;
+      --text-dim:   #3d4455;
+      --green:      #10b981;
+      --green-dim:  rgba(16,185,129,0.12);
+      --amber:      #f59e0b;
+      --amber-dim:  rgba(245,158,11,0.12);
+      --red:        #ef4444;
+      --red-dim:    rgba(239,68,68,0.12);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 32px 32px; pointer-events: none; z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 64px;
+      background: rgba(7,9,14,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; letter-spacing: 3.5px; text-transform: uppercase; color: var(--text-muted); text-decoration: none; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { list-style: none; display: flex; gap: 32px; }
+    .nav-links a { font-size: 8.5pt; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--gold); }
+    .nav-pill { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; padding: 8px 18px; border: 1px solid var(--gold); color: var(--gold); border-radius: 2px; text-decoration: none; transition: background 0.2s, color 0.2s; }
+    .nav-pill:hover { background: var(--gold-dim); }
+
+    /* PAGE HEADER */
+    .page-header {
+      padding: 56px 48px 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: 28pt; font-weight: 600; color: #fff; line-height: 1.15; margin-bottom: 10px; }
+    .page-sub { font-size: 9.5pt; color: var(--text-muted); font-weight: 300; max-width: 560px; line-height: 1.7; }
+    .page-actions { display: flex; gap: 12px; margin-top: 24px; }
+    .action-btn { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; padding: 9px 20px; border-radius: 2px; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; }
+    .action-btn-primary { background: var(--gold); color: #07090e; font-weight: 500; }
+    .action-btn-primary:hover { background: var(--gold-light); }
+    .action-btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border2); }
+    .action-btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+
+    /* SUMMARY STATS */
+    .summary-bar {
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .sum-item {
+      flex: 1; padding: 20px 32px;
+      border-right: 1px solid var(--border);
+    }
+    .sum-item:last-child { border-right: none; }
+    .sum-label { font-family: 'IBM Plex Mono', monospace; font-size: 6.5pt; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 7px; }
+    .sum-val { font-family: 'IBM Plex Mono', monospace; font-size: 16pt; font-weight: 500; color: #fff; line-height: 1; }
+    .sum-sub { font-size: 7.5pt; color: var(--text-muted); margin-top: 4px; }
+
+    /* HEATMAP TABLE */
+    .table-wrap { padding: 40px 48px; }
+    .table-section-label {
+      font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 2.5px; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+    }
+    .table-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .heatmap-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    .heatmap-table th {
+      font-family: 'IBM Plex Mono', monospace; font-size: 6.5pt; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-dim); font-weight: 400; padding: 10px 14px; text-align: left;
+      border-bottom: 1px solid var(--border2); white-space: nowrap;
+    }
+    .heatmap-table th.right { text-align: right; }
+    .heatmap-table td { padding: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .heatmap-table tr:last-child td { border-bottom: none; }
+    .heatmap-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .heatmap-table tr.inactive-row td { opacity: 0.45; }
+
+    /* Ticker cell */
+    .ticker-cell { display: flex; align-items: center; gap: 14px; }
+    .ticker-logo { width: 36px; height: 36px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; font-weight: 500; color: var(--text-muted); flex-shrink: 0; }
+    .ticker-name { font-size: 9pt; font-weight: 500; color: #fff; line-height: 1.3; }
+    .ticker-exchange { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--text-dim); margin-top: 2px; }
+
+    /* Score cell */
+    .score-cell { display: flex; align-items: center; gap: 10px; }
+    .score-pill {
+      font-family: 'IBM Plex Mono', monospace; font-size: 11pt; font-weight: 500;
+      min-width: 52px; text-align: right;
+    }
+    .score-bar-wrap { width: 70px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+    .score-green  { color: var(--green); }
+    .score-amber  { color: var(--amber); }
+    .score-red    { color: var(--red); }
+    .fill-green   { background: var(--green); }
+    .fill-amber   { background: var(--amber); }
+    .fill-red     { background: var(--red); }
+
+    /* Metric chip */
+    .chip {
+      display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 500;
+      padding: 4px 10px; border-radius: 2px; white-space: nowrap;
+    }
+    .chip-green   { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(16,185,129,0.20); }
+    .chip-amber   { background: var(--amber-dim);  color: var(--amber);  border: 1px solid rgba(245,158,11,0.18); }
+    .chip-red     { background: var(--red-dim);    color: var(--red);    border: 1px solid rgba(239,68,68,0.18); }
+    .chip-dim     { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    /* Verdict */
+    .verdict { font-size: 8pt; color: var(--text-muted); white-space: nowrap; }
+
+    /* Action links */
+    .row-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .row-link {
+      font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase;
+      padding: 5px 11px; border-radius: 2px; text-decoration: none; transition: all 0.2s; white-space: nowrap;
+    }
+    .row-link-view { color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+    .row-link-view:hover { background: var(--gold-dim); }
+    .row-link-dl { color: var(--text-muted); border: 1px solid var(--border2); }
+    .row-link-dl:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .row-link-pending { color: var(--text-dim); border: 1px solid var(--border); cursor: default; }
+
+    /* LIVE REPORTS SECTION */
+    .live-section { padding: 0 48px 60px; }
+    .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
+    .live-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 5px;
+      padding: 20px 22px; display: flex; flex-direction: column; gap: 10px;
+      text-decoration: none; transition: border-color 0.2s, transform 0.2s;
+    }
+    .live-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .live-card-top { display: flex; align-items: center; justify-content: space-between; }
+    .live-card-ticker { font-family: 'IBM Plex Mono', monospace; font-size: 13pt; font-weight: 500; color: #fff; }
+    .live-card-score { font-family: 'IBM Plex Mono', monospace; font-size: 11pt; }
+    .live-card-ts { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--text-dim); }
+    .live-card-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .empty-live { font-size: 8.5pt; color: var(--text-dim); padding: 24px 0; font-style: italic; }
+
+    @media(max-width:900px) {
+      nav { padding: 0 24px; }
+      .nav-links, .nav-pill { display: none; }
+      .page-header { padding: 40px 24px 28px; }
+      .table-wrap { padding: 28px 24px; }
+      .live-section { padding: 0 24px 48px; }
+      .summary-bar { flex-wrap: wrap; }
+      .sum-item { min-width: 50%; border-right: 1px solid var(--border); }
+      .heatmap-table { font-size: 8pt; }
+      .heatmap-table .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">Equity<span>.</span>Research</a>
+  <div style="display:flex;align-items:center;gap:36px">
+    <ul class="nav-links">
+      <li><a href="/">Generate</a></li>
+      <li><a href="/dashboard.html" class="active">Dashboard</a></li>
+      <li><a href="/#methodology">Methodology</a></li>
+    </ul>
+    <a class="nav-pill" href="/">Generate Report</a>
+  </div>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="page-eyebrow">Active Coverage</div>
+  <h1 class="page-title">Coverage Dashboard</h1>
+  <p class="page-sub">All analysed companies, key metrics, and valuation snapshots. Pre-built reports sourced from 10-K filings. Live-generated reports expire after 2 hours.</p>
+  <div class="page-actions">
+    <a href="/" class="action-btn action-btn-primary">Generate New Report</a>
+    <a href="/#coverage" class="action-btn action-btn-ghost">Pre-Built Reports</a>
+  </div>
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="summary-bar">
+  <div class="sum-item">
+    <div class="sum-label">Coverage</div>
+    <div class="sum-val" id="sumCoverage">2</div>
+    <div class="sum-sub">Companies analysed</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-label">Avg Score</div>
+    <div class="sum-val" id="sumAvgScore">74.4</div>
+    <div class="sum-sub">Out of 100</div>
+  </div>
+  <div class="sum-item hide-mobile">
+    <div class="sum-label">High Conviction</div>
+    <div class="sum-val" id="sumHighConv">0</div>
+    <div class="sum-sub">Score ≥ 75</div>
+  </div>
+  <div class="sum-item hide-mobile">
+    <div class="sum-label">Live Reports</div>
+    <div class="sum-val" id="sumLive">—</div>
+    <div class="sum-sub">Generated this session</div>
+  </div>
+</div>
+
+<!-- HEATMAP TABLE -->
+<div class="table-wrap">
+  <div class="table-section-label">Pre-Built Coverage  ·  Sourced from 10-K Filings</div>
+  <table class="heatmap-table" id="coverageTable">
+    <thead>
+      <tr>
+        <th style="width:220px">Company</th>
+        <th style="width:160px">Score</th>
+        <th class="right hide-mobile">Revenue</th>
+        <th class="right hide-mobile">EBITDA Margin</th>
+        <th class="right hide-mobile">ROIC</th>
+        <th class="right hide-mobile">FCF</th>
+        <th class="right hide-mobile">P/E (Trailing)</th>
+        <th class="right">Price / Target</th>
+        <th class="right">Verdict</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="coverageTbody">
+      <!-- Pre-built rows injected by JS -->
+    </tbody>
+  </table>
+</div>
+
+<!-- LIVE REPORTS -->
+<div class="live-section">
+  <div class="table-section-label">Live-Generated Reports  ·  This Session  (2-hour TTL)</div>
+  <div class="live-grid" id="liveGrid">
+    <div class="empty-live" id="liveEmpty">No reports generated yet this session. <a href="/" style="color:var(--gold);text-decoration:none">Generate one →</a></div>
+  </div>
+</div>
+
+<script>
+// ── Pre-built coverage data ──────────────────────────────────────────────────
+const COVERAGE = [
+  {
+    ticker:    "AAPL",
+    name:      "Apple Inc.",
+    exchange:  "NASDAQ",
+    score:     74.3,
+    verdict:   "Good Business at Fair Price",
+    revenue:   "$416.2B",
+    rev_sub:   "+6.4% YoY",
+    ebitda_m:  "34.8%",
+    roic:      "68%",
+    fcf:       "$98.8B",
+    pe:        "28.2x",
+    pe_avg:    "22.0x avg",
+    pe_above:  true,    // above average = amber/red
+    price:     "$210.00",
+    target:    "$230.00",
+    upside:    "+10%",
+    upside_up: true,
+    report_url:"/reports/AAPL_report.html",
+    status:    "live",
+  },
+  {
+    ticker:    "MSFT",
+    name:      "Microsoft Corporation",
+    exchange:  "NASDAQ",
+    score:     74.5,
+    verdict:   "Good Business at Fair Price",
+    revenue:   "$281.7B",
+    rev_sub:   "+15% YoY",
+    ebitda_m:  "48.0%",
+    roic:      "28.8%",
+    fcf:       "$77.4B",
+    pe:        "23.2x",
+    pe_avg:    "33.2x avg",
+    pe_above:  false,   // below average = green
+    price:     "$371.45",
+    target:    "$525.00",
+    upside:    "+41%",
+    upside_up: true,
+    report_url:"/reports/MSFT_report.html",
+    status:    "live",
+  },
+  {
+    ticker:    "META",
+    name:      "Meta Platforms Inc.",
+    exchange:  "NASDAQ",
+    score:     null,
+    verdict:   "In Progress",
+    revenue:   "—",
+    rev_sub:   "",
+    ebitda_m:  "—",
+    roic:      "—",
+    fcf:       "—",
+    pe:        "—",
+    pe_avg:    "",
+    pe_above:  null,
+    price:     "—",
+    target:    "—",
+    upside:    "—",
+    upside_up: null,
+    report_url: null,
+    status:    "pending",
+  },
+  {
+    ticker:    "JPM",
+    name:      "JPMorgan Chase & Co.",
+    exchange:  "NYSE",
+    score:     null,
+    verdict:   "In Progress",
+    revenue:   "—",
+    rev_sub:   "",
+    ebitda_m:  "—",
+    roic:      "—",
+    fcf:       "—",
+    pe:        "—",
+    pe_avg:    "",
+    pe_above:  null,
+    price:     "—",
+    target:    "—",
+    upside:    "—",
+    upside_up: null,
+    report_url: null,
+    status:    "pending",
+  },
+];
+
+function scoreClass(s) {
+  if (s == null) return "score-dim";
+  if (s >= 75)   return "score-green";
+  if (s >= 60)   return "score-amber";
+  return "score-red";
+}
+function fillClass(s) {
+  if (s == null) return "fill-dim";
+  if (s >= 75)   return "fill-green";
+  if (s >= 60)   return "fill-amber";
+  return "fill-red";
+}
+function peChip(above) {
+  if (above === null) return `<span class="chip chip-dim">—</span>`;
+  return above
+    ? `<span class="chip chip-amber">Above avg</span>`
+    : `<span class="chip chip-green">Below avg</span>`;
+}
+function upsideChip(val, up) {
+  if (up === null) return `<span style="color:var(--text-dim)">—</span>`;
+  const cls = up ? "chip chip-green" : "chip chip-red";
+  return `<span class="${cls}">${val}</span>`;
+}
+
+function renderCoverage() {
+  const tbody = document.getElementById('coverageTbody');
+  tbody.innerHTML = '';
+  COVERAGE.forEach(c => {
+    const isPending = c.status === 'pending';
+    const scoreHtml = c.score != null
+      ? `<div class="score-cell">
+           <span class="score-pill ${scoreClass(c.score)}">${c.score.toFixed(1)}</span>
+           <div class="score-bar-wrap"><div class="score-bar-fill ${fillClass(c.score)}" style="width:${c.score}%" id="bar-${c.ticker}"></div></div>
+         </div>`
+      : `<span style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim)">—</span>`;
+
+    const actionsHtml = isPending
+      ? `<span class="row-link row-link-pending">Pending</span>`
+      : `<div class="row-actions">
+           <a class="row-link row-link-view" href="${c.report_url}" target="_blank">View Report</a>
+         </div>`;
+
+    const tr = document.createElement('tr');
+    if (isPending) tr.className = 'inactive-row';
+    tr.innerHTML = `
+      <td>
+        <div class="ticker-cell">
+          <div class="ticker-logo">${c.ticker.slice(0,4)}</div>
+          <div>
+            <div class="ticker-name">${c.name}</div>
+            <div class="ticker-exchange">${c.exchange}: ${c.ticker}</div>
+          </div>
+        </div>
+      </td>
+      <td>${scoreHtml}</td>
+      <td class="right hide-mobile">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9pt;color:#fff">${c.revenue}</div>
+        <div style="font-size:7.5pt;color:var(--text-muted);margin-top:2px">${c.rev_sub}</div>
+      </td>
+      <td class="right hide-mobile">
+        <span class="chip ${c.ebitda_m !== '—' ? 'chip-green' : 'chip-dim'}">${c.ebitda_m}</span>
+      </td>
+      <td class="right hide-mobile">
+        <span class="chip ${c.roic !== '—' ? 'chip-green' : 'chip-dim'}">${c.roic}</span>
+      </td>
+      <td class="right hide-mobile">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9pt;color:#fff">${c.fcf}</div>
+      </td>
+      <td class="right hide-mobile">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5pt;color:#fff">${c.pe}</div>
+        ${c.pe_avg ? `<div style="font-size:7pt;color:var(--text-dim);margin-top:2px">${c.pe_avg}</div>` : ''}
+        <div style="margin-top:4px">${peChip(c.pe_above)}</div>
+      </td>
+      <td class="right">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5pt;color:#fff">${c.price}</div>
+        <div style="font-size:7pt;color:var(--text-muted);margin-top:2px">Target: ${c.target}</div>
+        <div style="margin-top:4px">${upsideChip(c.upside, c.upside_up)}</div>
+      </td>
+      <td class="right">
+        <div class="verdict">${c.verdict}</div>
+      </td>
+      <td>${actionsHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Animate score bars after render
+  setTimeout(() => {
+    COVERAGE.forEach(c => {
+      if (c.score != null) {
+        const el = document.getElementById('bar-' + c.ticker);
+        if (el) el.style.width = c.score + '%';
+      }
+    });
+  }, 200);
+}
+
+// ── Live reports from server ──────────────────────────────────────────────────
+async function loadLiveReports() {
+  try {
+    const res = await fetch('/api/reports');
+    const reports = await res.json();
+
+    document.getElementById('sumLive').textContent = reports.length;
+
+    const grid = document.getElementById('liveGrid');
+    if (reports.length === 0) return;
+
+    document.getElementById('liveEmpty').style.display = 'none';
+
+    reports.forEach(r => {
+      const score = r.score;
+      const sc = scoreClass(score);
+      const ts = new Date(r.ts);
+      const timeStr = ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const dateStr = ts.toLocaleDateString([], {month:'short', day:'numeric'});
+
+      const card = document.createElement('div');
+      card.className = 'live-card';
+      card.innerHTML = `
+        <div class="live-card-top">
+          <div class="live-card-ticker">${r.ticker}</div>
+          <div class="live-card-score ${sc}">${score != null ? score.toFixed(1) : '—'}<span style="font-size:8pt;color:var(--text-dim)">/100</span></div>
+        </div>
+        <div class="live-card-ts">Generated ${dateStr} at ${timeStr}</div>
+        <div class="live-card-actions">
+          <a class="row-link row-link-view" href="/report/${r.rid}" target="_blank">View Report</a>
+          <a class="row-link row-link-dl" href="/download/excel/${r.rid}" target="_blank">Excel</a>
+          <a class="row-link row-link-dl" href="/download/html/${r.rid}" target="_blank">HTML</a>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    // Update summary stats with live data too
+    const allScores = [
+      ...COVERAGE.filter(c => c.score != null).map(c => c.score),
+      ...reports.filter(r => r.score != null).map(r => r.score),
+    ];
+    if (allScores.length) {
+      const avg = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+      document.getElementById('sumAvgScore').textContent = avg.toFixed(1);
+    }
+    const total = COVERAGE.filter(c => c.score != null).length + reports.length;
+    document.getElementById('sumCoverage').textContent = total;
+    const highConv = allScores.filter(s => s >= 75).length;
+    document.getElementById('sumHighConv').textContent = highConv;
+
+  } catch(e) {
+    document.getElementById('sumLive').textContent = '0';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderCoverage();
+loadLiveReports();
+</script>
+</body>
+</html>

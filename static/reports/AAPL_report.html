@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apple Inc. — Independent Research Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #3d3d5c;
+    --ink-muted: #6b6b8a;
+    --accent: #0d6e6e;
+    --accent2: #0a4f6b;
+    --accent-light: #e0f4f4;
+    --green: #00695c;
+    --green-light: #e0f2f1;
+    --red: #c00000;
+    --red-light: #fef2f2;
+    --amber: #b45309;
+    --amber-light: #fef3c7;
+    --blue: #1e3a5f;
+    --blue-light: #dbeafe;
+    --rule: #d4cfc9;
+    --bg: #faf9f7;
+    --card: #ffffff;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg);
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ── HEADER ─────────────────────────────────────── */
+  .report-header {
+    border-top: 3px solid var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0 12px;
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .company-name { font-family: 'Playfair Display', serif; font-size: 22pt; font-weight: 700; color: var(--ink); line-height: 1.1; letter-spacing: -0.5px; }
+  .company-sub { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; color: var(--ink-muted); margin-top: 4px; letter-spacing: 0.5px; }
+  .rating-badge { text-align: right; }
+  .verdict { display: inline-block; color: white; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 2px; margin-bottom: 6px; }
+  .verdict-green { background: var(--green); }
+  .verdict-amber { background: var(--amber); }
+  .verdict-red   { background: var(--red); }
+  .price-line { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; color: var(--ink); }
+  .price-line .current { font-size: 18pt; font-weight: 500; }
+  .price-line .target { color: var(--green); font-weight: 500; }
+  .report-meta { font-size: 7.5pt; color: var(--ink-muted); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── COMPANY SUMMARY ─────────────────────────────── */
+  .company-summary-box {
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 9pt;
+    line-height: 1.6;
+    color: var(--ink-light);
+  }
+  .summary-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* ── METRICS GRID ─────────────────────────────── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .metric-cell { background: var(--card); padding: 8px 10px; }
+  .metric-cell .m-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+  .metric-cell .m-value { font-size: 11pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .metric-cell .m-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 1px; }
+  .metric-cell.highlight .m-value { color: var(--accent); }
+  .metric-cell.positive .m-value { color: var(--green); }
+  .metric-cell.warn .m-value { color: var(--red); }
+
+  /* ── SECTION LABEL ────────────────────────────── */
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5pt; letter-spacing: 0.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 2px solid var(--accent); margin-top: 4px; }
+
+  /* ── CREDIT ───────────────────────────────────── */
+  .credit-band { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .credit-chip { display: inline-flex; flex-direction: column; align-items: center; background: var(--card); border: 1px solid var(--rule); padding: 6px 14px; border-radius: 2px; }
+  .credit-chip .agency { font-size: 6.5pt; font-family: 'IBM Plex Mono', monospace; color: var(--ink-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .credit-chip .rating-val { font-size: 14pt; font-weight: 700; font-family: 'Playfair Display', serif; }
+  .credit-chip .rating-green { color: var(--green); }
+  .credit-chip .rating-amber { color: var(--amber); }
+  .credit-chip .rating-red   { color: var(--red); }
+  .credit-chip .rating-muted { color: var(--ink-muted); }
+  .credit-chip .outlook { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; }
+  .credit-chip .tier { font-size: 6.5pt; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 1px; }
+  .credit-note { font-size: 8pt; color: var(--ink-light); line-height: 1.5; flex: 1; }
+
+  /* ── THESIS ───────────────────────────────────── */
+  .thesis-box { background: var(--card); border-left: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 9pt; line-height: 1.6; }
+  .thesis-box p + p { margin-top: 8px; }
+  .thesis-box .thesis-heading {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-top: 11px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .thesis-box .thesis-heading:first-child { margin-top: 0; }
+  .thesis-box strong { color: var(--ink); font-weight: 600; }
+
+  /* ── REVENUE MIX BAND ─────────────────────────── */
+  .mix-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .mix-cell { background: var(--card); padding: 9px 12px; }
+  .mix-cell .mix-name { font-size: 7.5pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
+  .mix-cell .mix-rev { font-size: 13pt; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: var(--accent); }
+  .mix-cell .mix-sub { font-size: 8pt; color: var(--ink-light); margin-top: 2px; }
+  .mix-cell.seg2 .mix-rev { color: var(--accent2); }
+  .mix-cell.seg3 .mix-rev { color: var(--green); }
+
+  /* ── STATS ROW ─────────────────────────────────── */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .stat-cell { background: var(--card); padding: 8px 10px; }
+  .stat-cell .s-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .stat-cell .s-trail { font-size: 9pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .stat-cell .s-fwd { font-size: 8.5pt; color: var(--green); font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .stat-cell .s-avg { font-size: 7.5pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+
+  /* ── CHARTS ────────────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .chart-container { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
+  .chart-title { font-size: 8pt; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-light); margin-bottom: 8px; font-weight: 500; }
+  .chart-canvas-wrap { height: 160px; }
+
+  /* ── PAGE BREAK ────────────────────────────────── */
+  .page-break { border-top: 2px solid var(--rule); margin: 20px 0 16px; padding-top: 4px; display: flex; align-items: center; gap: 10px; }
+  .page-break-label { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--ink-muted); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+  .page-break hr { flex: 1; border: none; border-top: 1px solid var(--rule); }
+
+  /* ── ANALYST TABLE ─────────────────────────────── */
+  .analyst-consensus-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 8px; }
+  .cons-cell { background: var(--card); padding: 8px 12px; text-align: center; }
+  .cons-cell .cons-label { font-size: 7pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
+  .cons-cell .cons-val { font-size: 14pt; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .cons-cell .cons-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
+  .cons-cell.buy-cell .cons-val { color: var(--green); }
+  .cons-cell.hold-cell .cons-val { color: var(--amber); }
+  .cons-cell.sell-cell .cons-val { color: var(--red); }
+  .analyst-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 6px; }
+  .analyst-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .analyst-table th.center { text-align: center; }
+  .analyst-table td { padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  .analyst-table tr:nth-child(even) td { background: #f8f7f5; }
+  .rating-buy  { color: var(--green); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .rating-hold { color: var(--amber); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .rating-sell { color: var(--red);   font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .pt-val { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 9pt; }
+  .pt-above { color: var(--green); }
+  .pt-below { color: var(--red); }
+  .pt-flat  { color: var(--amber); }
+  .analyst-name { font-weight: 500; }
+  .firm-name { color: var(--ink-muted); font-size: 8pt; }
+  .analyst-note { font-size: 7.5pt; color: var(--ink-muted); margin-top: 5px; font-style: italic; }
+
+  /* ── SCORECARD ──────────────────────────────────── */
+  .scorecard-header { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-bottom: 8px; }
+  .score-final { font-family: 'IBM Plex Mono', monospace; font-size: 9pt; font-weight: 500; color: white; padding: 4px 12px; border-radius: 2px; }
+  .score-final-green { background: var(--green); }
+  .score-final-amber { background: var(--amber); }
+  .score-final-red   { background: var(--red); }
+  .scorecard-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
+  .scorecard-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .scorecard-table th.center { text-align: center; }
+  .scorecard-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  .scorecard-table tr:nth-child(even) td { background: #f8f7f5; }
+  .scorecard-table .part-header td { background: var(--accent-light); font-weight: 600; font-size: 8pt; color: var(--accent); border-bottom: 1px solid #a7d8d8; }
+  .score-pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .score-high { background: var(--green-light); color: var(--green); }
+  .score-mid  { background: var(--amber-light); color: var(--amber); }
+  .score-low  { background: var(--red-light); color: var(--red); }
+  .score-num { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; text-align: center; }
+  .col-commentary { font-size: 7.8pt; color: var(--ink-light); line-height: 1.45; }
+  .col-metric { font-weight: 500; color: var(--ink); }
+  .weighted-row td { background: #e8f4f4 !important; font-weight: 600; font-size: 8pt; border-top: 1px solid #a7d8d8; }
+
+  /* ── SCENARIOS ──────────────────────────────────── */
+  .scenario-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
+  .scenario-table th { padding: 7px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; text-align: left; }
+  .scenario-table th.bear-h { background: #fef2f2; color: var(--red); }
+  .scenario-table th.base-h { background: var(--blue-light); color: var(--blue); }
+  .scenario-table th.bull-h { background: var(--green-light); color: var(--green); }
+  .scenario-table td { padding: 5px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .scenario-table tr:nth-child(even) td { background: #f8f7f5; }
+  .scenario-table .row-label { font-weight: 500; color: var(--ink); width: 28%; }
+  .scenario-table .price-row td { font-weight: 700; font-size: 10pt; font-family: 'IBM Plex Mono', monospace; }
+  .scenario-table .price-row td.bear-p { color: var(--red); background: #fef2f2; }
+  .scenario-table .price-row td.base-p { color: var(--blue); background: var(--blue-light); }
+  .scenario-table .price-row td.bull-p { color: var(--green); background: var(--green-light); }
+
+  /* ── RISKS ──────────────────────────────────────── */
+  .risk-list { list-style: none; margin-bottom: 14px; }
+  .risk-list li { padding: 6px 8px 6px 20px; border-bottom: 1px solid var(--rule); font-size: 8.5pt; position: relative; line-height: 1.45; }
+  .risk-list li::before { content: '▸'; position: absolute; left: 6px; color: var(--accent); font-size: 8pt; }
+  .risk-list li strong { color: var(--ink); font-weight: 600; }
+
+  /* ── VALUATION ──────────────────────────────────── */
+  .valuation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .val-card { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
+  .val-card-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; color: var(--ink); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.5px; }
+  .dcf-scenario-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 8px; }
+  .dcf-scenario-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
+  .dcf-scenario-table th:first-child { text-align: left; }
+  .dcf-scenario-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
+  .dcf-scenario-table td:first-child { text-align: left; font-weight: 600; }
+  .dcf-scenario-table tr.base-row td { background: var(--blue-light); }
+  .dcf-scenario-table .price-up { color: var(--green); font-weight: 700; }
+  .dcf-scenario-table .price-dn { color: var(--red); font-weight: 700; }
+  .rev-dcf-box { background: #fef9ee; border-left: 3px solid var(--amber); padding: 8px 10px; margin-top: 8px; font-size: 8pt; line-height: 1.55; }
+  .rev-dcf-box strong { color: var(--ink); }
+  .mult-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  .mult-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
+  .mult-table th:first-child { text-align: left; }
+  .mult-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
+  .mult-table td:first-child { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 7.5pt; color: var(--ink-light); }
+  .mult-table tr:nth-child(even) td { background: #f8f7f5; }
+  .mult-table .up { color: var(--green); font-weight: 600; }
+  .mult-table .dn { color: var(--red); }
+  .mult-table .section-divider td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 8px; }
+  .valuation-verdict { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 8.5pt; line-height: 1.6; }
+  .valuation-verdict .verdict-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .valuation-verdict p + p { margin-top: 6px; }
+  .sensitivity-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 8px; }
+  .sensitivity-table th { background: var(--ink); color: white; padding: 4px 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; }
+  .sensitivity-table td { padding: 3px 8px; text-align: center; border: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .sensitivity-table td.row-wacc { background: var(--ink); color: white; font-weight: 500; text-align: left; padding-left: 10px; }
+  .sensitivity-table td.near-market { background: #dcfce7; color: var(--green); font-weight: 700; }
+  .sensitivity-table td.mid-range { background: #fef9c3; color: var(--amber); }
+  .sensitivity-table td.low-range { background: #fef2f2; color: var(--red); }
+
+  /* ── FOOTNOTES ──────────────────────────────────── */
+  .footnotes { border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 14px; }
+  .footnotes-title { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 6px; }
+  .footnotes ol { padding-left: 16px; }
+  .footnotes li { font-size: 7pt; color: var(--ink-muted); margin-bottom: 3px; line-height: 1.4; }
+  .footnotes a { color: #1d4ed8; text-decoration: none; }
+  sup a { color: var(--accent); font-size: 6.5pt; text-decoration: none; font-family: 'IBM Plex Mono', monospace; }
+  .disclaimer { font-size: 7pt; color: var(--ink-muted); line-height: 1.4; border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 6px; }
+
+  /* ── FINANCIAL TABLE ──────────────────────────────── */
+  .fin-table-wrap { margin-bottom: 14px; overflow-x: auto; }
+  .fin-table { width: 100%; border-collapse: collapse; font-size: 8pt; font-family: 'IBM Plex Mono', monospace; }
+  .fin-table th { background: var(--ink); color: white; padding: 5px 10px; text-align: right; font-size: 7.5pt; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap; }
+  .fin-table th.row-head { text-align: left; width: 24%; }
+  .fin-table td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; color: var(--ink); }
+  .fin-table td.row-label { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 8pt; color: var(--ink-light); font-weight: 500; }
+  .fin-table tr:nth-child(even) td { background: #f8f7f5; }
+  .fin-table .section-row td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 10px; text-align: left; }
+  .fin-table .highlight-row td { font-weight: 700; color: var(--ink); }
+  .fin-table .margin-row td { color: var(--accent2); font-style: italic; }
+  .fin-table-note { font-size: 7pt; color: var(--ink-muted); margin-top: 5px; line-height: 1.5; font-style: italic; }
+
+  .no-break { page-break-inside: avoid; }
+  @media print {
+    /* ── GENERAL ── */
+    body { max-width: 100%; padding: 8px; background: white; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+    /* ── PAGE BREAKS ── */
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+
+    /* ── PROTECT MAJOR SECTIONS ── */
+    .report-header        { page-break-inside: avoid; }
+    .company-summary-box  { page-break-inside: avoid; }
+    .metrics-grid         { page-break-inside: avoid; }
+    .mix-band             { page-break-inside: avoid; }
+    .credit-band          { page-break-inside: avoid; }
+    .thesis-box           { page-break-inside: avoid; }
+    .stat-row             { page-break-inside: avoid; }
+    .fin-table-wrap       { page-break-inside: avoid; }
+    .two-col              { page-break-inside: avoid; }
+    .chart-container      { page-break-inside: avoid; }
+    .valuation-verdict    { page-break-inside: avoid; }
+    .valuation-grid       { page-break-inside: avoid; }
+    .val-card             { page-break-inside: avoid; }
+    .analyst-consensus-bar{ page-break-inside: avoid; }
+    .footnotes            { page-break-inside: avoid; }
+
+    /* ── TABLE ROW PROTECTION ── */
+    tr                    { page-break-inside: avoid; page-break-after: auto; }
+    .part-header          { page-break-after: avoid; }
+    .scorecard-table tr   { page-break-inside: avoid; }
+    .scenario-table tr    { page-break-inside: avoid; }
+    .analyst-table tr     { page-break-inside: avoid; }
+    .fin-table tr         { page-break-inside: avoid; }
+
+    /* ── SECTION LABELS ── */
+    .section-label        { page-break-after: avoid; }
+
+    /* ── VALUATION SECTION: force onto fresh page ── */
+    .valuation-section    { page-break-before: always; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="report-header">
+  <div>
+    <div class="company-name">Apple Inc.</div>
+    <div class="company-sub">NASDAQ: AAPL · S&P 500 · Nasdaq 100 · DJIA</div>
+    <div class="company-sub" style="margin-top:3px">Consumer electronics, software, and services ecosystem</div>
+  </div>
+  <div class="rating-badge">
+    <!-- VERDICT_CLASS: verdict-green (score ≥70) | verdict-amber (50-69) | verdict-red (<50) -->
+    <div class="verdict verdict-green">Good Business at Fair Price</div>
+    <div class="price-line">
+      <span style="color:var(--ink-muted); font-size:7.5pt; font-family:'IBM Plex Mono',monospace; display:block; margin-bottom:2px; letter-spacing:0.5px; text-transform:uppercase;">Current Price &nbsp;·&nbsp; Price Target</span>
+      <span class="current">210.0</span>
+      <span style="color:var(--ink-muted); font-size:9pt"> / </span>
+      <span class="target">230.0</span>
+    </div>
+    <div class="report-meta">Independent Research · April 2026 · Score: 74.3 / 100</div>
+  </div>
+</header>
+
+<!-- ═══ COMPANY SUMMARY ═══ -->
+<div class="company-summary-box">
+  <span class="summary-label">Company Overview</span>
+  Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories, and sells a range of related services. The Company's flagship product, the iPhone, generated <strong>$209.6B</strong> in revenue in FY2025 (50% of total), while the fast-growing Services segment — encompassing the App Store, Apple Music, iCloud, Apple TV+, Apple Pay, and AppleCare — contributed <strong>$109.2B</strong> (26% of total), growing 14% year-over-year. With a <strong>~$3.1T market capitalisation</strong> and a net cash position of approximately $42B, Apple is one of the most profitable businesses ever built, generating <strong>$98.8B of free cash flow</strong> in FY2025. Source: Apple FY2025 10-K (fiscal year ended September 27, 2025).
+</div>
+
+<!-- ═══ KEY METRICS ═══ -->
+<div class="metrics-grid">
+  <div class="metric-cell">
+    <div class="m-label">Market Cap</div>
+    <div class="m-value">~$3.1T</div>
+    <div class="m-sub">14,773M shares basic; 15,005M diluted (FY2025 10-K)</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Enterprise Value</div>
+    <div class="m-value">~$3.06T</div>
+    <!-- NET_CASH_DEBT: e.g. "Net cash $9.0B" or "Net debt $13B" -->
+    <div class="m-sub">Net cash ~$41.7B (cash + mktable sec $132.4B less term debt $90.7B)</div>
+  </div>
+  <!-- TRAILING_PE_CELL_CLASS: "warn" if >15% above 10yr avg, "" otherwise -->
+  <div class="metric-cell">
+    <div class="m-label">Trailing P/E</div>
+    <div class="m-value warn">28.2x</div>
+    <!-- TRAILING_PE_DELTA_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <div class="m-sub">10yr avg 22.0x <span style="color:#b45309;font-weight:600">+28%</span></div>
+  </div>
+  <!-- FORWARD_PE_CELL_CLASS: "highlight" if at avg, "positive" if below, "warn" if >15% above -->
+  <div class="metric-cell ">
+    <div class="m-label">Forward P/E</div>
+    <div class="m-value">25.9x</div>
+    <!-- FORWARD_PE_DELTA_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <div class="m-sub">10yr avg 20.0x <span style="color:#b45309;font-weight:600">+30%</span> · FY26E EPS ~$8.10 (consensus)</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Trailing P/FCF</div>
+    <div class="m-value">31.4x</div>
+    <div class="m-sub">10yr avg 25.0x <span style="color:#b45309;font-weight:600">+26%</span></div>
+  </div>
+  <!-- FORWARD_PFCF_CELL_CLASS: "positive" if below 10yr avg, "" otherwise -->
+  <div class="metric-cell ">
+    <div class="m-label">Forward P/FCF</div>
+    <div class="m-value">28.5x</div>
+    <div class="m-sub">10yr avg 22.0x <span style="color:#b45309;font-weight:600">+29%</span> · FY26E FCF ~$109B (consensus estimate)</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">EV/EBITDA</div>
+    <div class="m-value">21.1x</div>
+    <div class="m-sub">Fwd FY26E: ~19x (consensus EBITDA ~$161B)</div>
+  </div>
+  <!-- REVENUE_VALUE_CLASS: "positive" if strong growth, "" otherwise -->
+  <div class="metric-cell">
+    <div class="m-label">FY2025</div>
+    <div class="m-value positive">$416.2B</div>
+    <div class="m-sub">+6.4% YoY</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">EBITDA Margin</div>
+    <div class="m-value">34.8%</div>
+    <div class="m-sub">+40 bps YoY</div>
+  </div>
+  <!-- FCF_VALUE_CLASS: "positive" if strong, "" otherwise -->
+  <div class="metric-cell positive">
+    <div class="m-label">Free Cash Flow</div>
+    <div class="m-value">$98.8B</div>
+    <div class="m-sub">-9.2% YoY (capex step-up)</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">ROIC</div>
+    <!-- ROIC_VALUE_CLASS: "positive" if >20%, "" if 10-20%, "warn" if <10% -->
+    <div class="m-value positive">68%</div>
+    <div class="m-sub">Well above WACC (~9%)</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Capital Returns</div>
+    <div class="m-value">$106.1B</div>
+    <div class="m-sub">Buybacks $90.7B + dividends $15.4B (FY2025)</div>
+  </div>
+</div>
+
+<!-- ═══ REVENUE MIX ═══ -->
+<!-- REV_MIX_SECTION_LABEL: e.g. "Revenue Breakdown — FY2025A ($10.1B Total)" -->
+<div class="section-label">Revenue by Product Category</div>
+<div class="mix-band">
+  <div class="mix-cell">
+    <div class="mix-name">iPhone</div>
+    <div class="mix-rev">50%</div>
+    <div class="mix-sub">iPhone net sales reached <strong>$209.6B</strong> in FY2025 (+4% YoY), representing half of total revenue. Growth was driven by strong iPhone 16 adoption across Americas and Japan; Greater China declined due to competitive pressure from Huawei. The installed base of active iPhones continues to grow, underpinning Services attach rates. Source: FY2025 10-K, Products and Services Performance.</div>
+  </div>
+  <!-- seg2 class colours the revenue figure in accent2 (deep blue) -->
+  <div class="mix-cell seg2">
+    <div class="mix-name">Services</div>
+    <div class="mix-rev">26%</div>
+    <div class="mix-sub">Services — comprising App Store, Apple Music, iCloud, Apple TV+, Apple Pay, AppleCare, and licensing — generated <strong>$109.2B</strong> in FY2025 (+14% YoY), the fastest-growing segment. Services carry structurally higher gross margins than Products (~75% vs ~37%), expanding overall company margins as the mix shifts. The segment has grown from $78.1B in FY2022, a 3-year CAGR of 11.8%. Source: FY2025 and FY2024 10-K.</div>
+  </div>
+  <!-- seg3 class colours the revenue figure in green -->
+  <div class="mix-cell seg3">
+    <div class="mix-name">Mac / iPad / Wearables</div>
+    <div class="mix-rev">24%</div>
+    <div class="mix-sub">Mac ($33.7B, +12% YoY), iPad ($28.0B, +5%), and Wearables/Home/Accessories ($35.7B, -4%) together contribute 24% of revenue. Mac growth was driven by M-series chip upgrades. Wearables declined modestly as the Apple Watch and AirPods markets mature. These categories provide hardware ecosystem diversification. Source: FY2025 10-K, Products and Services Performance.</div>
+  </div>
+</div>
+
+<!-- ═══ CREDIT PROFILE ═══ -->
+<div class="section-label">Credit Profile</div>
+<div class="credit-band">
+  <!-- RATING_CLASS: rating-green (A or above) | rating-amber (BBB) | rating-red (sub-IG) | rating-muted (NR) -->
+  <div class="credit-chip">
+    <div class="agency">S&amp;P Global</div>
+    <div class="rating-val rating-green">AA+</div>
+    <div class="outlook">Stable</div>
+    <div class="tier">Tier: 2</div>
+  </div>
+  <div class="credit-chip">
+    <div class="agency">Moody's</div>
+    <div class="rating-val rating-green">Aaa</div>
+    <div class="outlook">Stable</div>
+    <div class="tier">Tier: 1</div>
+  </div>
+  <div class="credit-chip">
+    <div class="agency">Fitch</div>
+    <div class="rating-val rating-green">AA+</div>
+    <div class="outlook">Stable</div>
+    <div class="tier">Tier: 2</div>
+  </div>
+  <div class="credit-note">
+    AA+/Aaa ratings reflect one of the strongest balance sheets in global corporate history. Apple carries <strong>$90.7B of term debt</strong> against <strong>$132.4B of cash and marketable securities</strong>, yielding a net cash position of approximately <strong>$41.7B</strong> at fiscal year-end 2025. D/EBITDA of <strong>0.6x</strong> is among the lowest for any investment-grade issuer of this scale. Net interest income exceeds interest expense, rendering traditional coverage ratios largely academic. The Company retains access to commercial paper and revolving credit at minimal cost. Source: Apple FY2025 10-K balance sheet and cash flow statement.<sup><a href="#fn1">[1]</a></sup>
+  </div>
+</div>
+
+<!-- ═══ INVESTMENT THESIS ═══ -->
+<div class="section-label">Investment Thesis</div>
+<div class="thesis-box">
+  <span class="thesis-heading">The Moat</span>
+  <p>Apple's moat rests on <strong>ecosystem lock-in</strong> that becomes more entrenched with every additional device, subscription, and service a customer adopts. An iPhone owner who also uses a Mac, AirPods, Apple Watch, iCloud, and Apple Pay faces switching costs that are psychological, financial, and logistical. The average iPhone retention rate exceeds <strong>90%</strong>, and the global active installed base has grown to over 2.3 billion devices. The App Store creates a platform network effect: more users attract more developers, which produces more apps, which attract more users. Services gross margins of ~75% (vs ~37% for Products) demonstrate the pricing power this moat affords. The contrarian risk is that regulatory scrutiny of App Store fees (EU Digital Markets Act, DOJ litigation) could compress the margin structure of the highest-value segment. However, even under adverse rulings, Apple's brand loyalty and hardware integration sustain the core lock-in dynamic. Source: FY2025 10-K Business section.<sup><a href="#fn2">[2]</a></sup></p>
+  <span class="thesis-heading">Growth Catalysts</span>
+  <p>Three near-term catalysts support the base case. <strong>(1) Services margin expansion:</strong> Services grew from 20% of revenue in FY2022 to 26% in FY2025 at structurally higher margins, and management has guided for continued double-digit growth. Each 100bps of mix shift toward Services adds approximately 20bps to total gross margin. <strong>(2) AI integration via Apple Intelligence:</strong> The rollout of on-device AI features (summarisation, generative image tools, upgraded Siri) is expected to drive an upgrade cycle for iPhone 16 Pro and beyond, particularly in markets where features require newer hardware. <strong>(3) India as the next growth market:</strong> Apple has accelerated manufacturing in India to reduce China exposure and is capturing significant share in a market where smartphone penetration is still rising — a multi-year opportunity. Source: FY2025 10-K, MD&A and Business sections.</p>
+  <span class="thesis-heading">Valuation &amp; Entry Point</span>
+  <p>At <strong>$210</strong>, Apple trades at <strong>28.2x trailing P/E</strong> and <strong>31.4x trailing P/FCF</strong>, both materially above their 10-year averages of 22x and 25x. The premium is partly justified by the structural mix shift toward high-margin Services, which makes today's earnings stream more durable and growing than the historic hardware-heavy mix implied. However, the FCF yield of 3.2% and a revenue CAGR of just 1.8% over FY2022-FY2025 make it difficult to argue for significant further multiple expansion. Our <strong>price target of $230</strong> applies a 28x multiple to FY2026E EPS of ~$8.10, representing approximately +10% upside. The primary valuation risk is regulatory interference with App Store economics, which could reduce Services revenue by 10-20% in a bear case and compress the multiple. Source: 10-K actuals; multiples from Yahoo Finance (market data).</p>
+</div>
+
+<!-- ═══ HISTORICAL FINANCIALS ═══ -->
+<!-- FY1–FY5: five consecutive fiscal years, oldest first. e.g. FY2021A … FY2025A -->
+<div class="section-label">Historical Financials — FY2022–FY2026E (USD Millions) <sup><a href="#fn2">[2]</a></sup></div>
+<div class="fin-table-wrap">
+<table class="fin-table">
+  <thead>
+    <tr>
+      <th class="row-head">Metric</th>
+      <th>FY2022</th><th>FY2023</th><th>FY2024</th><th>FY2025</th><th>FY2026E</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="section-row"><td colspan="6">Income Statement</td></tr>
+    <tr class="highlight-row">
+      <td class="row-label">Revenue</td>
+      <td>394,328</td><td>383,285</td><td>391,035</td><td>416,161</td><td>~445,000E</td>
+    </tr>
+    <tr>
+      <td class="row-label">Gross Profit</td>
+      <td>170,782</td><td>169,148</td><td>180,683</td><td>195,201</td><td>~212,000E</td>
+    </tr>
+    <tr class="margin-row">
+      <td class="row-label" style="padding-left:18px;font-style:italic">Gross Margin</td>
+      <td>43.3%</td><td>44.1%</td><td>46.2%</td><td>46.9%</td><td>~47.6%E</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBITDA</td>
+      <td>130,541</td><td>125,820</td><td>134,661</td><td>144,748</td><td>~161,000E</td>
+    </tr>
+    <tr class="margin-row">
+      <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA Margin</td>
+      <td>33.1%</td><td>32.8%</td><td>34.4%</td><td>34.8%</td><td>~36.2%E</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBIT</td>
+      <td>119,437</td><td>114,301</td><td>123,216</td><td>133,050</td><td>~147,000E</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Net Income (GAAP)</td>
+      <td>99,803</td><td>96,995</td><td>93,736</td><td>112,010</td><td>~121,000E</td>
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Balance Sheet</td></tr>
+    <tr>
+      <td class="row-label">Cash &amp; Equivalents (incl. investments)</td>
+      <td>N/A</td><td>29,965</td><td>29,943</td><td>35,934</td><td>~38,000E</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Debt (incl. leases)</td>
+      <td>N/A</td><td>105,103</td><td>96,662</td><td>90,678</td><td>~85,000E</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Net Cash / (Net Debt)</td>
+      <td>N/A</td><td>56,996</td><td>59,988</td><td>41,742</td><td>~35,000E</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Equity</td>
+      <td>N/A</td><td>62,146</td><td>56,950</td><td>73,733</td><td>~80,000E</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Intangibles (goodwill + other)</td>
+      <td>N/A</td><td>~3,600</td><td>~3,200</td><td>~2,800</td><td>~2,500E</td>
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Credit &amp; Coverage Ratios</td></tr>
+    <tr>
+      <td class="row-label">Debt / EBITDA</td>
+      <td>N/A</td><td>0.8x</td><td>0.7x</td><td>0.6x</td><td>~0.5xE</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBIT / Interest</td>
+      <!-- If company is net cash / interest income exceeds interest expense, use a colspan note like ISRG.
+           Otherwise fill in 5 individual values. Choose one format and delete the other. -->
+      <!-- FORMAT A — net lender / minimal debt: -->
+      <td>Net Inc.</td><td>Net Inc.</td><td>Net Inc.</td><td>Net Inc.</td><td>Net Inc.</td>
+      <!-- FORMAT B — normal leverage (delete FORMAT A and uncomment this):
+      <td>Net Inc.</td><td>Net Inc.</td><td>Net Inc.</td><td>Net Inc.</td><td>Net Inc.</td>
+      -->
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Cash Flow Statement</td></tr>
+    <tr>
+      <td class="row-label">Operating Cash Flow</td>
+      <td>122,151</td><td>110,543</td><td>118,254</td><td>111,482</td><td>~120,000E</td>
+    </tr>
+    <tr>
+      <td class="row-label">CAPEX</td>
+      <!-- CAPEX shown in brackets e.g. (399) -->
+      <td>10,708</td><td>10,959</td><td>9,447</td><td>12,715</td><td>~11,000E</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Free Cash Flow</td>
+      <td>111,443</td><td>99,584</td><td>108,807</td><td>98,767</td><td>~109,000E</td>
+    </tr>
+  </tbody>
+</table>
+<p class="fin-table-note">FY2022-FY2025 actuals sourced from Apple FY2025 10-K (fiscal year ended Sept 27, 2025) and Apple FY2024 10-K (fiscal year ended Sept 28, 2024). All figures in USD millions. EBITDA = Operating Income + D&A per 10-K cash flow statements. FY2022 balance sheet items marked N/A — not available in the provided filings. FY2024 net income includes $10.2B one-time EU State Aid tax charge. FY2026E = consensus estimates.</p>
+</div>
+
+<!-- ═══ GROWTH & VALUATION CONTEXT ═══ -->
+<div class="section-label">Growth &amp; Valuation Context</div>
+<div class="stat-row">
+  <div class="stat-cell">
+    <div class="s-label">Revenue 3yr CAGR</div>
+    <div class="s-trail">Trailing 3yr (FY22-FY25): +1.8% CAGR</div>
+    <div class="s-fwd">Fwd (FY25-FY27E): ~7.0% CAGR (consensus)<sup><a href="#fn3">[3]</a></sup></div>
+    <div class="s-avg">Growth subdued FY22-FY25 due to post-COVID normalisation; Services mix shift improves quality of earnings</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">FCF 3yr CAGR</div>
+    <div class="s-trail">Trailing 3yr (FY22-FY25): -4.0% CAGR</div>
+    <div class="s-fwd">Fwd (FY25-FY27E): ~5.0% CAGR (consensus)<sup><a href="#fn3">[3]</a></sup></div>
+    <div class="s-avg">FCF declined in FY2025 due to +35% YoY capex step-up; normalisation expected as AI infrastructure spend moderates</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">P/E vs 10yr Avg</div>
+    <div class="s-trail">28.2x</div>
+    <div class="s-fwd">25.9x</div>
+    <div class="s-avg">+28% premium to 10yr avg 22x; Services mix partially justifies premium but limits re-rating potential</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">P/FCF vs 10yr Avg</div>
+    <div class="s-trail">31.4x</div>
+    <div class="s-fwd">28.5x</div>
+    <div class="s-avg">+26% above 10yr avg 25x; FCF yield of 3.2% implies modest return without multiple expansion</div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ROW 1: Price + Financials ═══ -->
+<div class="two-col no-break">
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Share Price — 5 Year History ($) <sup><a href="#fn4">[4]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Revenue · Operating Cash Flow · FCF ($B) <sup><a href="#fn2">[2]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ROW 2: ROIC + Shareholder Returns ═══ -->
+<div class="two-col no-break">
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">ROIC % — Return on Invested Capital <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="roicChart"></canvas></div>
+    </div>
+  </div>
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Shareholder Returns — Buybacks &amp; FCF/Share ($) <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="returnChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 2 ═══ -->
+<div class="page-break">
+  <div class="page-break-label">Page 2 of 2</div>
+  <hr>
+</div>
+
+<!-- ═══ SCORECARD ═══ -->
+<div class="section-label">JS Proprietary Scorecard — Full Breakdown</div>
+<div class="scorecard-header">
+  <span style="font-size:8.5pt;color:var(--ink-light)">Low = 0 pts &nbsp;|&nbsp; Moderate = 5 pts &nbsp;|&nbsp; High = 10 pts &nbsp;×&nbsp; weight</span>
+  <!-- SCORE_FINAL_CLASS: score-final-green (≥70) | score-final-amber (50-69) | score-final-red (<50) -->
+  <span class="score-final score-final-green">74.3 / 100 — Good Business at Fair Price</span>
+</div>
+<table class="scorecard-table">
+  <thead>
+    <tr>
+      <th style="width:22%">Metric / Pillar</th>
+      <th class="center" style="width:10%">Score</th>
+      <th class="center" style="width:8%">Weight</th>
+      <th class="center" style="width:8%">Wtd Pts</th>
+      <th style="width:52%">Commentary</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- PART 1: MOAT AND NARRATIVE — max 300 weighted pts (weights: 2.5+10+10+7.5 × 10) -->
+    <!-- P1_WEIGHTED: e.g. "300 / 300" or "225 / 300" -->
+    <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 28.5</td></tr>
+
+    <!-- SCORE PILL CLASS: score-high | score-mid | score-low -->
+    <!-- SCORE PILL TEXT: "HIGH · 10" | "MOD · 5" | "LOW · 0" -->
+    <tr>
+      <td class="col-metric">Business Clarity</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">2.5</td>
+      <td class="score-num">8.5</td>
+      <td class="col-commentary">Crystal-clear consumer-facing model: hardware ecosystem + software + services. No ambiguity about what Apple sells or why customers pay premium prices.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Moat Profile</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">9.0</td>
+      <td class="col-commentary">Ecosystem lock-in is among the strongest moats in global equities. 90%+ iPhone retention rate, 2.3B active devices, App Store network effects, and brand premium pricing.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Long-Term Potential</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">8.0</td>
+      <td class="col-commentary">Services mix shift from 20% to 26% of revenue (FY22-FY25) structurally improves margin quality. Apple Intelligence adds upgrade cycle optionality. India expansion is a multi-year TAM opportunity.</td>
+    </tr>
+    <!-- CEO sub-line format: "CEO [Name] / Tenure: [Month Year] (~[N] yrs)" -->
+    <tr>
+      <td class="col-metric">Management<br><span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">CEO <br>Tenure: </span></td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">8.5</td>
+      <td class="col-commentary">Tim Cook (CEO since 2011) has delivered exceptional capital allocation: $106B returned to shareholders in FY2025 alone. New CFO Kevan Parekh (FY2024); operational continuity strong.</td>
+    </tr>
+
+    <!-- PART 2: QUANTITATIVE — max 325 weighted pts (10+10+5+7.5 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 2 — Quantitative: Profitability Engine &nbsp;|&nbsp; Weighted: 24.0</td></tr>
+    <tr>
+      <td class="col-metric">Revenue 3yr CAGR</td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">5.5</td>
+      <td class="col-commentary">3yr revenue CAGR of just 1.8% is below HIGH threshold. FY2025 acceleration to +6.4% is encouraging but sustained high-single-digit growth requires AI upgrade cycle materialisation.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Cash Quality (FCF/NI)</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">9.0</td>
+      <td class="col-commentary">FCF conversion averages ~100% of net income over 4 years. OCF/Revenue of 26.8% in FY2025 is exceptional. D&A is real capex; SBC manageable relative to FCF.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Capital Returns</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">9.5</td>
+      <td class="col-commentary">Apple returned $106B to shareholders in FY2025 ($90.7B buybacks + $15.4B dividends). Over FY2022-FY2025: ~$351B buybacks + ~$60B dividends. Share count reduced ~9% since FY2022.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">ROIC</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">9.0</td>
+      <td class="col-commentary">ROIC of 68% far exceeds WACC of ~9%. Even on gross asset base, returns are ~58%. The business creates enormous economic value; sustaining it as the installed base matures is the challenge.</td>
+    </tr>
+
+    <!-- PART 3: RISK & CREDIT — max 175 weighted pts (5+7.5+5 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: 15.5</td></tr>
+    <tr>
+      <td class="col-metric">Credit Risk (D/EBITDA)</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">9.5</td>
+      <td class="col-commentary">AA+/Aaa ratings; net cash ~$42B; D/EBITDA 0.6x. Balance sheet represents no near-term refinancing risk even in stressed scenarios.<sup><a href="#fn1">[1]</a></sup></td>
+    </tr>
+    <tr>
+      <td class="col-metric">Interest Cover (EBIT/Int)</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">9.5</td>
+      <td class="col-commentary">Apple earns net interest income — it is a net lender to the financial system via its $132B marketable securities portfolio. Coverage constraint is not binding.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Execution Risk</td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">6.0</td>
+      <td class="col-commentary">Three risks: (1) China (~19% of revenue) vulnerable to geopolitical escalation; (2) App Store regulatory risk from EU DMA and DOJ could impair Services margins; (3) AI differentiation vs Google/Samsung remains unproven at scale.</td>
+    </tr>
+
+    <!-- PART 4: VALUATION — max 200 weighted pts (10+10 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 4 — Valuation (The Entry Point) &nbsp;|&nbsp; Weighted: 6.3</td></tr>
+
+    <!-- P/E sub-line: trailing and forward with 10yr avg delta, colour-coded -->
+    <!-- TRAIL_PE_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <!-- FWD_PE_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <tr>
+      <td class="col-metric">P/E vs. 5yr Median<br>
+        <span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">
+          Trail: <strong style="color:#b45309">28.2x</strong> (+28% vs 10yr)<br>
+          Fwd:&nbsp;&nbsp; <strong style="color:#b45309">25.9x</strong> (+30% vs 10yr)
+        </span>
+      </td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">3.0</td>
+      <td class="col-commentary">Trailing P/E of 28.2x is 28% above the 10yr average of 22x. Premium partially justified by Services mix but leaves limited room for error if growth disappoints.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">P/FCF vs. 5yr Median<br>
+        <span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">
+          Trail: <strong style="color:#b45309">31.4x</strong> (+26% vs 10yr)<br>
+          Fwd:&nbsp;&nbsp; <strong style="color:#b45309">28.5x</strong> (+29% vs 10yr)
+        </span>
+      </td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">3.3</td>
+      <td class="col-commentary">Trailing P/FCF of 31.4x versus 10yr avg 25x. FCF yield of 3.2% provides limited current return; value creation depends on multiple re-rating or sustained FCF growth.</td>
+    </tr>
+
+    <!-- TOTAL: SUMPRODUCT of (score × weight) across all 13 criteria -->
+    <!-- TOTAL_WEIGHTED_SCORE: e.g. 812.5 -->
+    <!-- FINAL_SCORE_CALC: e.g. "812.5 ÷ 10 = 81.25 / 100 → Good Business at Fair Price (Core Holding)" -->
+    <tr class="weighted-row">
+      <td colspan="3" style="text-align:right;padding-right:12px">Total Weighted Score</td>
+      <td class="score-num" style="color:var(--green)">74.3</td>
+      <td style="color:var(--green);font-size:8pt">Final: 74.3</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══ SCENARIOS ═══ -->
+<div class="section-label">Base, Bull &amp; Bear Cases</div>
+<table class="scenario-table no-break">
+  <thead>
+    <tr>
+      <th style="background:#f8f7f5;color:var(--ink-muted);width:28%">Assumption</th>
+      <!-- BEAR_PRICE_RANGE: e.g. "$380-430" -->
+      <th class="bear-h" style="width:24%">🐻 Bear — $140-160</th>
+      <th class="base-h" style="width:24%">📊 Base — $210-230</th>
+      <th class="bull-h" style="width:24%">🐂 Bull — $280-310</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="row-label">Revenue / procedure growth</td>
+      <td>2-4% CAGR</td>
+      <td>6-8% CAGR</td>
+      <td>10-13% CAGR</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBITDA margin</td>
+      <td>EBITDA 30-32%</td>
+      <td>EBITDA 35-37%</td>
+      <td>EBITDA 40-43%</td>
+    </tr>
+    <tr>
+      <td class="row-label">FCF (FY2027E)</td>
+      <td>~$80B</td>
+      <td>~$115B</td>
+      <td>~$155B</td>
+    </tr>
+    <tr>
+      <td class="row-label">Exit multiple</td>
+      <td>16x P/FCF</td>
+      <td>26x P/FCF</td>
+      <td>33x P/FCF</td>
+    </tr>
+    <tr>
+      <td class="row-label">Key catalyst / risk</td>
+      <td>App Store regulatory loss + China revenue decline + AI upgrade cycle fails; Services growth decelerates to mid-single digits</td>
+      <td>AI upgrade cycle drives modest iPhone unit growth; Services sustains double-digit growth; India adds 2-3% incremental revenue CAGR by FY2028</td>
+      <td>Apple Intelligence drives mass iPhone 17 upgrade cycle globally; Services reaches 35%+ revenue mix; India becomes top-3 revenue geography</td>
+    </tr>
+    <tr class="price-row">
+      <td class="row-label" style="font-weight:700">Implied Price Range</td>
+      <td class="bear-p">$140-160</td>
+      <td class="base-p">$210-230</td>
+      <td class="bull-p">$280-310</td>
+    </tr>
+    <tr class="price-row">
+      <td class="row-label" style="font-weight:700;font-size:8.5pt">Upside vs 210.0</td>
+      <td class="bear-p" style="font-size:9pt">-29% to -24%</td>
+      <td class="base-p" style="font-size:9pt">+0% to +10%</td>
+      <td class="bull-p" style="font-size:9pt">+33% to +48%</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══ KEY RISKS ═══ -->
+<div class="section-label">Key Risk Factors</div>
+<ul class="risk-list no-break">
+  <li><strong>China Concentration & Geopolitical Risk:</strong> Greater China contributed ~19% of FY2025 revenue ($78.6B) but declined YoY due to Huawei competition. Sustained US-China decoupling, export controls, or consumer boycotts could materially impair revenues. Manufacturing concentration in China (though diversifying to India) adds supply chain risk. Source: FY2025 10-K, Geographic Information.</li>
+  <li><strong>App Store Regulatory Risk:</strong> The EU Digital Markets Act requires Apple to allow third-party app stores and alternative payment systems. DOJ antitrust litigation in the US targets similar restrictions. Apple's Services segment (26% of revenue, ~75% gross margin) is partially underpinned by App Store commissions of 15-30%. Forced reduction could reduce Services revenue 10-20% and compress the premium valuation multiple. Source: FY2025 10-K, Risk Factors.<sup><a href="#fn7">[7]</a></sup></li>
+  <li><strong>AI Differentiation Risk:</strong> Apple Intelligence launched in FY2025 but its impact on iPhone upgrade rates was below initial expectations in some markets. Google and Samsung have aggressively deployed on-device and cloud AI features. If Apple fails to establish meaningful AI differentiation, the FY2026 upgrade super-cycle may not materialise, putting consensus revenue estimates at risk. Source: FY2025 10-K.</li>
+  <li><strong>Valuation Premium / Multiple Compression:</strong> Apple trades at 28.2x trailing P/E — 28% above its 10-year average — with a revenue CAGR of just 1.8% over FY2022-FY2025. In a risk-off environment, returning to 22x trailing P/E would imply ~$164/share, approximately -22% from current levels. Source: Yahoo Finance multiples data; 10-K actuals.</li>
+  <li><strong>Capex Escalation & FCF Volatility:</strong> FY2025 capex of $12.7B (+35% YoY) reflects accelerating investment in data centres and AI infrastructure. If this spending continues to grow, FCF — already down 9% in FY2025 — could remain pressured. Apple's capital-light reputation may be challenged as Services requires more infrastructure. Source: FY2025 10-K, Cash Flow Statement.</li>
+</ul>
+
+<!-- ═══ VALUATION ANALYSIS ═══ -->
+<div class="valuation-section">
+<div class="section-label">Valuation Analysis — DCF &amp; Multiples <sup><a href="#fn8">[8]</a></sup></div>
+
+<div class="valuation-verdict">
+  <div class="verdict-title">Valuation Analysis Summary — Multiples Primary; DCF as Cross-Check</div>
+  <p>At <strong>$210</strong>, Apple is priced for quality at a meaningful premium to history. Across three lenses: <strong>(1) Multiples:</strong> Trailing P/E of 28.2x and P/FCF of 31.4x sit 26-28% above their respective 10-year averages of 22x and 25x. The premium is defensible given the structural shift toward higher-margin Services (26% of FY2025 revenue vs 20% in FY2022), but leaves limited room for growth disappointment. Applying the 5-year average P/E of 28x to FY2026E EPS of ~$8.10 implies a price of ~$227, broadly in line with our $230 price target. <strong>(2) Reverse DCF:</strong> At $210, the market implies approximately a 7.0% FCF CAGR through FY2030 at a 9.0% WACC and 3.0% TGR — achievable given the Services tailwind but a step-up from the actual 3-year FCF CAGR of -4% (FY2022-FY2025, depressed by capex step-up). <strong>(3) DCF cross-check:</strong> Bear (WACC 10.5%, TGR 2.0%, CAGR 4%) implies ~$150; base (WACC 9.0%, TGR 3.0%, CAGR 7%) implies ~$215; bull (WACC 8.5%, TGR 3.5%, CAGR 10%) implies ~$295. <strong>Verdict:</strong> Risk/reward is asymmetric at current levels — limited upside without a catalyst, meaningful downside if regulatory or competitive risks crystallise. Appropriate for quality-focused, long-duration investors; not a compelling entry for value investors.</p>
+</div>
+
+<div class="valuation-grid">
+
+  <!-- LEFT: DCF -->
+  <div class="val-card">
+    <div class="val-card-title">Discounted Cash Flow (10yr Explicit Period)</div>
+    <table class="dcf-scenario-table">
+      <thead>
+        <tr>
+          <th>Scenario</th><th>WACC</th><th>TGR</th><th>Rev CAGR</th><th>DCF Price</th><th>vs 210.0</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- price-dn class = red; price-up class = green -->
+        <tr>
+          <td>Bear</td><td>10.5%</td><td>2.0%</td><td>4.0%</td>
+          <td class="price-dn">$150</td>
+          <td class="price-dn">-29%</td>
+        </tr>
+        <tr class="base-row">
+          <td>Base</td><td>9.0%</td><td>3.0%</td><td>7.0%</td>
+          <td class="price-up">$215</td>
+          <td class="price-up">+2%</td>
+        </tr>
+        <tr>
+          <td>Bull</td><td>8.5%</td><td>3.5%</td><td>10.0%</td>
+          <td class="price-up">$295</td>
+          <td class="price-up">+40%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:var(--ink-muted);margin-bottom:8px;">
+      Sensitivity: Implied Price (Base margins) — WACC × TGR
+    </div>
+    <!-- Sensitivity table: 6 WACC rows × 5 TGR columns -->
+    <!-- Cell classes: near-market (±10% of current price) | mid-range (~30% below) | low-range (>30% below) -->
+    <table class="sensitivity-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding-left:10px">WACC \ TGR</th>
+          <th>2.0%</th><th>2.5%</th><th>3.0%</th><th>3.5%</th><th>4.0%</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="row-wacc">8.5%</td><td class="low-range">$198</td><td class="mid-range">$215</td><td class="near-market">$235</td><td class="near-market">$258</td><td class="near-market">$287</td></tr>
+        <tr><td class="row-wacc">9.0%</td><td class="low-range">$184</td><td class="low-range">$198</td><td class="mid-range">$215</td><td class="near-market">$235</td><td class="near-market">$258</td></tr>
+        <tr><td class="row-wacc">9.5%</td><td class="low-range">$172</td><td class="low-range">$184</td><td class="low-range">$198</td><td class="mid-range">$215</td><td class="near-market">$235</td></tr>
+        <tr><td class="row-wacc">10.0%</td><td class="low-range">$161</td><td class="low-range">$172</td><td class="low-range">$184</td><td class="low-range">$198</td><td class="mid-range">$215</td></tr>
+        <tr><td class="row-wacc">10.5%</td><td class="low-range">$152</td><td class="low-range">$161</td><td class="low-range">$172</td><td class="low-range">$184</td><td class="low-range">$198</td></tr>
+        <tr><td class="row-wacc">11.0%</td><td class="low-range">$143</td><td class="low-range">$152</td><td class="low-range">$161</td><td class="low-range">$172</td><td class="low-range">$184</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:7pt;color:var(--ink-muted);margin-top:4px;font-style:italic">Sensitivity cells: Red = Below Current Price | Yellow = Within +10% | Green = >+10% upside</p>
+
+    <div class="rev-dcf-box">
+      <strong>Reverse DCF — What Does 210.0 Imply?</strong><br>
+      At the current price of $210, the market implies approximately a <strong>7.0% FCF CAGR through FY2030</strong> at a 9.0% WACC and 3.0% terminal growth rate. This is achievable given the Services tailwind but represents a step-up from the actual FY2022-FY2025 FCF CAGR of -4% (depressed by FY2025 capex step-up). Successful execution of the Apple Intelligence upgrade cycle and sustained Services double-digit growth are required.
+    </div>
+  </div>
+
+  <!-- RIGHT: MULTIPLES -->
+  <div class="val-card">
+    <div class="val-card-title">Multiples Valuation (Historical Avg Exit)</div>
+    <table class="mult-table">
+      <thead>
+        <tr>
+          <!-- FY_FWD1: e.g. FY26E  |  FY_FWD2: e.g. FY27E -->
+          <th>Method</th><th>FY26E Px</th><th>Upside</th><th>FY27E Px</th><th>Upside</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="section-divider"><td colspan="5">P/E Multiple</td></tr>
+        <tr>
+          <td>10yr avg P/E — 22.0x</td>
+          <td>$178</td><td class="up">-15%</td>
+          <td>$195</td><td class="up">-7%</td>
+        </tr>
+        <tr>
+          <td>5yr avg P/E — 28.0x</td>
+          <td>$227</td><td class="up">+8%</td>
+          <td>$248</td><td class="up">+18%</td>
+        </tr>
+        <tr class="section-divider"><td colspan="5">P/FCF Multiple</td></tr>
+        <tr>
+          <td>10yr avg P/FCF — 25.0x</td>
+          <td>$184</td><td class="up">-12%</td>
+          <td>$202</td><td class="up">-4%</td>
+        </tr>
+        <tr>
+          <td>5yr avg P/FCF — 30.0x</td>
+          <td>$221</td><td class="up">+5%</td>
+          <td>$243</td><td class="up">+16%</td>
+        </tr>
+        <tr class="section-divider"><td colspan="5">EV/EBITDA Multiple</td></tr>
+        <tr>
+          <td>10yr avg EV/EBITDA — 18.0x</td>
+          <td>$185</td><td class="up">-12%</td>
+          <td>$201</td><td class="up">-4%</td>
+        </tr>
+        <tr>
+          <td>5yr avg EV/EBITDA — 22.0x</td>
+          <td>$226</td><td class="up">+8%</td>
+          <td>$246</td><td class="up">+17%</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:7.5pt;color:var(--ink-light);margin-top:8px;line-height:1.5;">
+      P/E and P/FCF are the primary valuation methods for Apple given the predictability of earnings and strong FCF conversion. EV/EBITDA provides a secondary cross-check. DCF is used for scenario analysis given Apple's mature, capital-return-oriented capital structure.
+    </p>
+    <p style="font-size:7.5pt;color:var(--ink-light);margin-top:6px;line-height:1.5;">
+      Does the Services-driven margin expansion justify a sustained re-rating above Apple's 10-year average multiples, or does sluggish revenue growth (1.8% CAGR FY22-FY25) limit the re-rating ceiling?
+    </p>
+    <div style="margin-top:8px;padding:7px 10px;background:var(--green-light);border-left:3px solid var(--green);font-size:8pt;line-height:1.5;">
+      <strong style="color:var(--green)">Composite Fair Value Range:</strong>
+      <span style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--green)"> $210-230</span>
+      on FY26E consensus (avg of 6 methods, historical multiples).<br>
+      <span style="color:var(--ink-light)">Composite Fair Value Range: $210-230 on FY26E consensus. 0% to +10% upside at current price. Multiple expansion requires AI upgrade cycle execution.</span>
+    </div>
+  </div>
+
+</div>
+</div><!-- end valuation-section -->
+
+<!-- ═══ ANALYST PRICE TARGETS ═══ -->
+<div class="section-label">Analyst Price Targets — AAPL (April 2026)</div>
+<div class="no-break">
+  <div class="analyst-consensus-bar">
+    <div class="cons-cell buy-cell">
+      <div class="cons-label">Buy / Strong Buy</div>
+      <div class="cons-val">62%</div>
+      <div class="cons-sub">34 of 55</div>
+    </div>
+    <div class="cons-cell hold-cell">
+      <div class="cons-label">Hold</div>
+      <div class="cons-val">31%</div>
+      <div class="cons-sub">17 of 55</div>
+    </div>
+    <div class="cons-cell sell-cell">
+      <div class="cons-label">Sell</div>
+      <div class="cons-val">7%</div>
+      <div class="cons-sub">4 of 55</div>
+    </div>
+  </div>
+  <table class="analyst-table">
+    <thead>
+      <tr>
+        <th style="width:20%">Analyst</th>
+        <th style="width:20%">Firm</th>
+        <th class="center" style="width:12%">Rating</th>
+        <th class="center" style="width:14%">Price Target</th>
+        <th class="center" style="width:12%">vs 210.0</th>
+        <th style="width:22%">Last Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- RATING PILL CLASS: rating-buy | rating-hold | rating-sell -->
+      <!-- PT CLASS: pt-above (green) | pt-flat (amber) | pt-below (red) -->
+      <tr>
+        <td class="analyst-name">Erik Woodring</td><td class="firm-name">Morgan Stanley</td>
+        <td class="center"><span class="rating-buy">Overweight</span></td>
+        <td class="center pt-val pt-above">$220</td>
+        <td class="center pt-above">+5%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Amit Daryanani</td><td class="firm-name">Evercore ISI</td>
+        <td class="center"><span class="rating-buy">Outperform</span></td>
+        <td class="center pt-val pt-above">$250</td>
+        <td class="center pt-above">+19%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Mike Ng</td><td class="firm-name">Goldman Sachs</td>
+        <td class="center"><span class="rating-buy">Buy</span></td>
+        <td class="center pt-val pt-above">$238</td>
+        <td class="center pt-above">+13%</td>
+        <td>Feb 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Shannon Cross</td><td class="firm-name">Cross Research</td>
+        <td class="center"><span class="rating-hold">Hold</span></td>
+        <td class="center pt-val pt-below">$195</td>
+        <td class="center pt-below">-7%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Jim Suva</td><td class="firm-name">Citigroup</td>
+        <td class="center"><span class="rating-buy">Buy</span></td>
+        <td class="center pt-val pt-above">$245</td>
+        <td class="center pt-above">+17%</td>
+        <td>Feb 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Wamsi Mohan</td><td class="firm-name">Bank of America</td>
+        <td class="center"><span class="rating-buy">Buy</span></td>
+        <td class="center pt-val pt-above">$230</td>
+        <td class="center pt-above">+10%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Aaron Rakers</td><td class="firm-name">Wells Fargo</td>
+        <td class="center"><span class="rating-buy">Overweight</span></td>
+        <td class="center pt-val pt-above">$260</td>
+        <td class="center pt-above">+24%</td>
+        <td>Jan 2026</td>
+      </tr>
+      <tr style="background:#f0f4fa !important; font-weight:600; border-top: 1px solid #a7d8d8;">
+        <td colspan="2" style="font-size:8pt; color:var(--accent);">Consensus Average (55 analysts)</td>
+        <td class="center" style="font-size:8pt; color:var(--green);">62% Buy</td>
+        <td class="center pt-val" style="color:var(--accent2);">~$228</td>
+        <td class="center" style="color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:8pt;">+9%</td>
+        <td style="font-size:7.5pt;color:var(--ink-muted);">Range: $165-$320</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="analyst-note">Analyst ratings and price targets approximate. Source: Yahoo Finance consensus (market data — not available in company filings). Verify current ratings with broker research.</p>
+</div>
+
+<!-- ═══ FOOTNOTES ═══ -->
+<div class="footnotes">
+  <div class="footnotes-title">Sources &amp; Footnotes</div>
+  <ol>
+    <li id="fn1">Credit ratings (AA+/Aaa/AA+) sourced from S&P Global, Moody's, and Fitch Ratings — not disclosed in 10-K.</li>
+    <li id="fn2">Historical financials sourced from Apple Inc. FY2025 10-K (fiscal year ended September 27, 2025) and FY2024 10-K (fiscal year ended September 28, 2024). All figures in USD millions. FY2022 balance sheet items marked N/A — not available in provided filings.</li>
+    <li id="fn3">Revenue CAGR calculated from FY2022 to FY2025 actuals (both from 10-K). FCF CAGR: same period. EBITDA = Operating Income + D&A per 10-K cash flow statements.</li>
+    <li id="fn4">Current share price (~$210) and historical price series sourced from Yahoo Finance (market data — not available in company filings). As of April 2026.</li>
+    <li id="fn5">ROIC = NOPAT / (Total Equity + Total Debt). NOPAT = Operating Income x (1 - effective tax rate from 10-K). FY2024 normalised for $10.2B one-time EU State Aid tax charge.</li>
+    <li id="fn6">10-year and 5-year average P/E, P/FCF, EV/EBITDA multiples sourced from Yahoo Finance / Macrotrends (market data — not available in company filings).</li>
+    <li id="fn7">Risk factors sourced from Apple Inc. FY2025 10-K, Part I, Item 1A — Risk Factors.</li>
+    <li id="fn8">DCF scenario prices use a Gordon Growth Model proxy anchored to FY2025 FCF of $98.8B. Bear/Base/Bull CAGR assumptions represent FCF growth rates through FY2030. Indicative only — cross-check against a full DCF model.</li>
+  </ol>
+</div>
+
+<div class="disclaimer">
+  <strong>Disclaimer:</strong> This report is for informational purposes only and does not constitute investment advice. All historical financial data is sourced from Apple Inc.'s SEC filings. Forward estimates are consensus-based. Market data (prices, multiples, analyst data) sourced from Yahoo Finance.
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 1 — SHARE PRICE (line)
+// PRICE_LABELS: JS array of ~monthly labels, e.g. ['Apr-21','Jul-21', ...]
+// PRICE_DATA: JS array of prices in CURRENCY_SYMBOL
+// ─────────────────────────────────────────────────────────────────────────────
+const priceLabels = ['Apr 22','Oct 22','Apr 23','Oct 23','Apr 24','Oct 24','Apr 25','Oct 25','Apr 26'];
+const priceData   = [178,138,165,177,171,230,198,224,210];
+const currencySymbol = '$';  // '$' or '€' or '£' etc.
+
+const priceCtx = document.getElementById('priceChart').getContext('2d');
+new Chart(priceCtx, {
+  type: 'line',
+  data: {
+    labels: priceLabels,
+    datasets: [{
+      data: priceData,
+      borderColor: '#0d6e6e',
+      backgroundColor: 'rgba(13,110,110,0.07)',
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => `${currencySymbol}${ctx.parsed.y.toFixed(0)}` },
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont:  { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#6b6b8a', maxTicksLimit: 8, maxRotation: 0 }, border: { color: '#d4cfc9' } },
+      y: { grid: { color: 'rgba(212,207,201,0.4)' }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${currencySymbol}${v}` }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 2 — FINANCIALS (stacked bar: Revenue/EBITDA/NI + OCF & FCF lines)
+// FIN_LABELS: JS array, e.g. ['FY20A','FY21A',...,'FY26E','FY27E']
+// N_ACTUALS: index where estimates begin (0-based), e.g. 6 means first 6 are actuals
+// All values in reporting currency billions
+// ─────────────────────────────────────────────────────────────────────────────
+const finLabels = ['FY2022','FY2023','FY2024','FY2025','FY2026E','FY2027E'];
+const nActuals  = 4;  // first N entries are actuals; rest are estimates
+
+const rev    = [394,383,391,416,445,476];
+const ebitda = [131,126,135,145,161,175];
+const ni     = [100,97,94,112,121,132];
+const ocfData = [122,111,118,111,120,130];
+const fcfData = [111,100,109,99,109,119];
+
+const seg1 = ni;
+const seg2 = rev.map((r,i) => Math.max(0, ebitda[i] - ni[i]));
+const seg3 = rev.map((r,i) => Math.max(0, r - ebitda[i]));
+
+const isEst = (ctx) => ctx.dataIndex >= nActuals;
+
+const finCtx = document.getElementById('financialChart').getContext('2d');
+new Chart(finCtx, {
+  type: 'bar',
+  data: {
+    labels: finLabels,
+    datasets: [
+      {
+        label: 'Net Income',
+        data: seg1,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(0,105,92,0.30)' : 'rgba(0,105,92,0.85)',
+        borderColor: 'transparent', borderWidth: 0,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'EBITDA − NI',
+        data: seg2,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.20)' : 'rgba(13,110,110,0.55)',
+        borderColor: 'transparent', borderWidth: 0,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'Revenue − EBITDA',
+        data: seg3,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.10)' : 'rgba(13,110,110,0.22)',
+        borderColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.3)' : '#0d6e6e',
+        borderWidth: ctx => isEst(ctx) ? 1 : 0.5,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'Op. Cash Flow',
+        data: ocfData,
+        type: 'line', borderColor: '#1e3a5f', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#1e3a5f',
+        tension: 0.3, yAxisID: 'yCF', order: 1, stack: undefined
+      },
+      {
+        label: 'Free Cash Flow',
+        data: fcfData,
+        type: 'line', borderColor: '#c8102e', backgroundColor: 'transparent',
+        borderWidth: 2, borderDash: [5,3], pointRadius: 3, pointBackgroundColor: '#c8102e',
+        tension: 0.3, yAxisID: 'yCF', order: 0, stack: undefined
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: {
+        display: true, position: 'top', align: 'end',
+        labels: {
+          font: { family: 'IBM Plex Mono', size: 7 }, color: '#3d3d5c',
+          usePointStyle: true, pointStyleWidth: 12, padding: 8, boxHeight: 6,
+          generateLabels: (chart) => {
+            const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+            const barLabel = { text: 'Revenue (stacked: NI / EBITDA / Rev)', fillStyle: 'rgba(13,110,110,0.6)', strokeStyle: 'transparent', lineWidth: 0, pointStyle: 'rect', hidden: false };
+            const lines = labels.filter(l => l.text === 'Op. Cash Flow' || l.text === 'Free Cash Flow');
+            return [barLabel, ...lines];
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            if (ctx.dataset.label === 'Net Income') return `Net Income: ${currencySymbol}${seg1[ctx.dataIndex].toFixed(2)}B`;
+            if (ctx.dataset.label === 'EBITDA − NI') return `EBITDA: ${currencySymbol}${ebitda[ctx.dataIndex].toFixed(2)}B`;
+            if (ctx.dataset.label === 'Revenue − EBITDA') return `Revenue: ${currencySymbol}${rev[ctx.dataIndex].toFixed(2)}B`;
+            return `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(2)}B`;
+          }
+        },
+        filter: item => !(item.dataset.label === 'EBITDA − NI' || item.dataset.label === 'Revenue − EBITDA'),
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      yRev: {
+        position: 'left', stacked: true,
+        grid: { color: 'rgba(212,207,201,0.4)' },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0d6e6e', callback: v => `${currencySymbol}${v}B` },
+        border: { color: '#d4cfc9' },
+        title: { display: true, text: 'Rev / EBITDA / NI', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0d6e6e' }
+      },
+      yCF: {
+        position: 'right', stacked: false,
+        grid: { display: false },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#1e3a5f', callback: v => `${currencySymbol}${v}B` },
+        border: { color: '#d4cfc9' },
+        title: { display: true, text: 'OCF / FCF', font: { size: 7, family: 'IBM Plex Mono' }, color: '#1e3a5f' }
+      },
+      x: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 },
+        border: { color: '#d4cfc9' }
+      }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 3 — ROIC (bars + WACC reference line)
+// ROIC_LABELS: JS array of year labels
+// ROIC_DATA: JS array of ROIC % values (bars green if >20, amber if ≤20)
+// WACC_VALUE: single number used for flat reference line, e.g. 8
+// ─────────────────────────────────────────────────────────────────────────────
+const roicLabels = ['FY2022','FY2023','FY2024','FY2025'];
+const roicData   = [65.2,61.8,63.4,68.3];
+const waccValue  = 9.0;
+const waccLine   = roicLabels.map(() => waccValue);
+
+const roicCtx = document.getElementById('roicChart').getContext('2d');
+new Chart(roicCtx, {
+  type: 'bar',
+  data: {
+    labels: roicLabels,
+    datasets: [
+      {
+        label: 'ROIC %',
+        data: roicData,
+        backgroundColor: roicData.map(v => v > 20 ? 'rgba(0,105,92,0.75)' : 'rgba(180,83,9,0.65)'),
+        borderColor: roicData.map(v => v > 20 ? '#00695c' : '#b45309'),
+        borderWidth: 1,
+        order: 2
+      },
+      {
+        label: `Est. WACC ~${waccValue}%`,
+        data: waccLine,
+        type: 'line',
+        borderColor: '#c8102e',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [6,3],
+        pointRadius: 0,
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end', labels: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#3d3d5c', usePointStyle: true, pointStyleWidth: 14, padding: 10, boxHeight: 6 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` }, backgroundColor: '#1a1a2e', titleFont: { family: 'IBM Plex Mono', size: 9 }, bodyFont: { family: 'IBM Plex Mono', size: 9 }, padding: 8 }
+    },
+    scales: {
+      y: {
+        grid: { color: 'rgba(212,207,201,0.4)' },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${v}%` },
+        border: { color: '#d4cfc9' },
+        min: 0, max: 45,
+        title: { display: true, text: 'ROIC %', font: { size: 7, family: 'IBM Plex Mono' }, color: '#6b6b8a' }
+      },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 4 — SHAREHOLDER RETURNS (buybacks bar + FCF/share line)
+// RET_LABELS: JS array of year labels
+// BUYBACK_JS: JS array of annual buybacks in reporting currency billions
+// FCF_PER_SHARE_JS: JS array of FCF per share values
+// ─────────────────────────────────────────────────────────────────────────────
+const retLabels   = ['FY2022','FY2023','FY2024','FY2025'];
+const buybackData = [89.4,77.6,94.9,90.7];
+const fcfPerShare = [6.86,6.31,7.06,6.58];
+
+const retCtx = document.getElementById('returnChart').getContext('2d');
+new Chart(retCtx, {
+  type: 'bar',
+  data: {
+    labels: retLabels,
+    datasets: [
+      {
+        label: `Buybacks (${currencySymbol}B)`,
+        data: buybackData,
+        backgroundColor: 'rgba(10,79,107,0.7)',
+        borderColor: '#0a4f6b',
+        borderWidth: 1,
+        yAxisID: 'yBuy',
+        order: 2
+      },
+      {
+        label: `FCF per Share (${currencySymbol})`,
+        data: fcfPerShare,
+        type: 'line',
+        borderColor: '#0d6e6e',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#0d6e6e',
+        tension: 0.3,
+        yAxisID: 'yFCF',
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end', labels: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#3d3d5c', usePointStyle: true, pointStyleWidth: 14, padding: 10, boxHeight: 6 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ctx.dataset.label.includes('FCF') ? `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(2)}` : `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(1)}B`
+        },
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      yBuy: { position: 'left', grid: { color: 'rgba(212,207,201,0.4)' }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0a4f6b', callback: v => `${currencySymbol}${v}B` }, border: { color: '#d4cfc9' }, title: { display: true, text: 'Buybacks', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0a4f6b' } },
+      yFCF: { position: 'right', grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0d6e6e', callback: v => `${currencySymbol}${v}` }, border: { color: '#d4cfc9' }, title: { display: true, text: 'FCF/Share', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0d6e6e' } },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

@@ -249,7 +249,8 @@ def _compute_css(d, current_price):
 
 def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                       wacc_val, dcf_prices, scorecard_metrics,
-                      manual_rating=None, current_price=None, market_cap=None):
+                      manual_rating=None, current_price=None, market_cap=None,
+                      biz_clarity=None, ltp=None, adj_score=None):
 
     is0, bs0, cf0 = is_data[-1], bs_data[-1], cf_data[-1]
     today = datetime.date.today().strftime("%B %Y")
@@ -378,12 +379,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_pe     = _tier_pe(trailing_pe, pe_5yr)
     t_pfcf   = _tier_pfcf(trailing_pfc, pfcf_5yr)
 
+    # Normalise manual qualitative tiers
+    VALID_TIERS = {"HIGH", "MOD-HIGH", "MOD-LOW", "LOW"}
+    t_bc  = (biz_clarity.upper() if biz_clarity and biz_clarity.upper() in VALID_TIERS else None)
+    t_ltp = (ltp.upper() if ltp and ltp.upper() in VALID_TIERS else None)
+
     P = TIER_PTS
-    p1 = round((P["MOD"]*2.5 + P["MOD"]*10.0 + P["MOD"]*10.0 + P["MOD"]*7.5) / 10, 1)
+    p1 = round((P[t_bc or "MOD"]*2.5 + P["MOD"]*10.0 + P[t_ltp or "MOD"]*10.0 + P["MOD"]*7.5) / 10, 1)
     p2 = round((P[t_rev]*10.0 + P[t_fcf_ni]*10.0 + P["MOD"]*5.0 + P[t_roic]*7.5) / 10, 1)
     p3 = round((P[t_debd]*5.0 + P[t_eint]*7.5 + P["MOD"]*2.5) / 10, 1)
     p4 = round((P[t_pe]*10.0 + P[t_pfcf]*10.0) / 10, 1)
-    final_score = auto_score or round(p1 + p2 + p3 + p4, 1)
+    # Use adj_score (Excel engine total + manual inputs) when available for accuracy
+    final_score = adj_score or auto_score or round(p1 + p2 + p3 + p4, 1)
 
     # ── 5-year financial table ─────────────────────────────────────────────────
     fin = {}
@@ -570,14 +577,14 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "BUYBACK_JS":      "[0,0,0,0,0]",
         "FCF_PER_SHARE_JS": "[0,0,0,0,0]",
 
-        # Scorecard
+        # Scorecard — totals use adj_score from Excel engine for consistency
         "P1_WEIGHTED":          str(p1),
-        "P1_BC_SCORE_TEXT":     "MOD", "P1_BC_WTD": "1.75",
-        "P1_BC_COMMENTARY":     "Review business segment clarity from 10-K.",
+        "P1_BC_SCORE_TEXT":     t_bc or "MOD", "P1_BC_WTD": str(round(P[t_bc or "MOD"]*2.5/10, 2)),
+        "P1_BC_COMMENTARY":     (f"Manual input: {t_bc}." if t_bc else "Review business segment clarity from 10-K."),
         "P1_MOAT_SCORE_TEXT":   "MOD", "P1_MOAT_WTD": "7.0",
         "P1_MOAT_COMMENTARY":   f"Auto-proxy: {_pct(gm0)} gross margin, {_pct(rev_cagr_v)} rev CAGR. Confirm with 10-K moat analysis.",
-        "P1_LTP_SCORE_TEXT":    "MOD", "P1_LTP_WTD": "7.0",
-        "P1_LTP_COMMENTARY":    "Review long-term positioning and TAM manually.",
+        "P1_LTP_SCORE_TEXT":    t_ltp or "MOD", "P1_LTP_WTD": str(round(P[t_ltp or "MOD"]*10.0/10, 1)),
+        "P1_LTP_COMMENTARY":    (f"Manual input: {t_ltp}." if t_ltp else "Review long-term positioning and TAM manually."),
         "P1_MGT_SCORE_TEXT":    "MOD", "P1_MGT_WTD": "5.25",
         "P1_MGT_COMMENTARY":    ceo_info + " Review track record and capital allocation.",
 

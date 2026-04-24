@@ -237,6 +237,17 @@
     .footer-logo span { color:var(--gold); }
     .footer-disc { font-size:7.5pt; color:var(--text-dim); max-width:520px; text-align:right; line-height:1.6; }
 
+    /* ── QUALITATIVE SELECTS ── */
+    .gen-select {
+      width:100%; padding:14px 16px; font-family:'IBM Plex Sans',sans-serif; font-size:9.5pt;
+      background:var(--surface2); border:1px solid var(--border2); border-radius:4px;
+      color:var(--text); appearance:none; cursor:pointer;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8499' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 14px center;
+    }
+    .gen-select:focus { outline:none; border-color:var(--gold); }
+    .gen-select option { background:#0e1520; }
+
     /* ── ANIMATIONS ── */
     @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
     @keyframes spin { to{transform:rotate(360deg)} }
@@ -272,10 +283,11 @@
   <div style="display:flex;align-items:center;gap:36px">
     <ul class="nav-links">
       <li><a href="#generate">Generate</a></li>
+      <li><a href="/dashboard.html">Dashboard</a></li>
       <li><a href="#coverage">Coverage</a></li>
       <li><a href="#methodology">Methodology</a></li>
     </ul>
-    <a class="nav-pill" href="#generate">Generate Report</a>
+    <a class="nav-pill" href="/dashboard.html">View Dashboard</a>
   </div>
 </nav>
 
@@ -290,7 +302,7 @@
   </h1>
   <p class="hero-sub">
     Enter any ticker. The engine fetches financials from FMP, runs WACC and DCF,
-    scores 11 criteria automatically, and generates a full Excel model + HTML report.
+    scores 13 criteria (11 auto + 2 manual qualitative), and generates a full Excel model + HTML report.
   </p>
 
   <div class="gen-outer">
@@ -304,6 +316,29 @@
         <div class="gen-field" style="flex:1">
           <label>S&P / Moody's Rating <span style="opacity:0.5">(optional)</span></label>
           <input type="text" id="ratingInput" placeholder="AA+  or  Aa1" maxlength="6" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="gen-row" style="margin-top:4px">
+        <div class="gen-field" style="flex:1">
+          <label>Business Clarity <span style="opacity:0.5">(optional)</span></label>
+          <select id="bizClarityInput" class="gen-select">
+            <option value="">— Not rated</option>
+            <option value="HIGH">HIGH — Clear, simple model</option>
+            <option value="MOD-HIGH">MOD-HIGH — Mostly clear</option>
+            <option value="MOD-LOW">MOD-LOW — Some complexity</option>
+            <option value="LOW">LOW — Hard to understand</option>
+          </select>
+        </div>
+        <div class="gen-field" style="flex:1">
+          <label>Long-Term Potential <span style="opacity:0.5">(optional)</span></label>
+          <select id="ltpInput" class="gen-select">
+            <option value="">— Not rated</option>
+            <option value="HIGH">HIGH — Large / growing TAM</option>
+            <option value="MOD-HIGH">MOD-HIGH — Solid runway</option>
+            <option value="MOD-LOW">MOD-LOW — Limited upside</option>
+            <option value="LOW">LOW — Structural headwinds</option>
+          </select>
         </div>
       </div>
 
@@ -361,7 +396,7 @@
 <div class="stats-bar reveal">
   <div class="stat-item"><div class="stat-val">FMP<span>+</span></div><div class="stat-label">Data Source</div></div>
   <div class="stat-item"><div class="stat-val">5</div><div class="stat-label">Year Financials</div></div>
-  <div class="stat-item"><div class="stat-val">11</div><div class="stat-label">Auto-Scored Criteria</div></div>
+  <div class="stat-item"><div class="stat-val">13</div><div class="stat-label">Scorecard Criteria</div></div>
   <div class="stat-item"><div class="stat-val">2</div><div class="stat-label">Output Formats</div></div>
 </div>
 
@@ -372,7 +407,7 @@
 
   <div class="cards-grid reveal-stagger">
 
-    <a class="card" href="/output/AAPL_report.html" target="_blank" rel="noopener" data-score="74">
+    <a class="card" href="/reports/AAPL_report.html" target="_blank" rel="noopener" data-score="74">
       <div class="card-head">
         <div>
           <div class="card-company">Apple Inc.</div>
@@ -401,7 +436,7 @@
       <div class="card-cta">View Report →</div>
     </a>
 
-    <a class="card" href="/output/MSFT_report.html" target="_blank" rel="noopener" data-score="75">
+    <a class="card" href="/reports/MSFT_report.html" target="_blank" rel="noopener" data-score="75">
       <div class="card-head">
         <div>
           <div class="card-company">Microsoft Corporation</div>
@@ -500,9 +535,11 @@
   let currentRid = null;
 
   async function runGenerate() {
-    const ticker   = document.getElementById('tickerInput').value.trim().toUpperCase();
-    const rating   = document.getElementById('ratingInput').value.trim();
-    const password = document.getElementById('passwordInput').value.trim();
+    const ticker      = document.getElementById('tickerInput').value.trim().toUpperCase();
+    const rating      = document.getElementById('ratingInput').value.trim();
+    const password    = document.getElementById('passwordInput').value.trim();
+    const biz_clarity = document.getElementById('bizClarityInput').value;
+    const ltp         = document.getElementById('ltpInput').value;
 
     if (!ticker) { showMsg('Enter a ticker symbol.', 'error'); return; }
 
@@ -521,7 +558,7 @@
       const res = await fetch('/generate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ ticker, rating, password }),
+        body: JSON.stringify({ ticker, rating, password, biz_clarity, ltp }),
       });
 
       clearInterval(logInterval);
@@ -542,8 +579,9 @@
 
       // Show results panel
       document.getElementById('resTicker').textContent = data.ticker;
+      const displayScore = data.adj_score != null ? data.adj_score : data.auto_score;
       document.getElementById('resScore').textContent =
-        data.auto_score != null ? data.auto_score.toFixed(1) : 'N/A';
+        displayScore != null ? displayScore.toFixed(1) : 'N/A';
 
       document.getElementById('excelBtn').href    = `/download/excel/${data.report_id}`;
       document.getElementById('htmlBtn').href     = `/download/html/${data.report_id}`;

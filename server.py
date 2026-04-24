@@ -54,6 +54,8 @@ def generate():
     ticker       = body.get("ticker", "").strip().upper()
     rating_raw   = body.get("rating", "").strip()
     password     = body.get("password", "").strip()
+    biz_clarity  = body.get("biz_clarity", "").strip().upper()
+    ltp          = body.get("ltp", "").strip().upper()
 
     if APP_PASSWORD and password != APP_PASSWORD:
         return jsonify({"error": "Incorrect password."}), 401
@@ -123,39 +125,56 @@ def generate():
         wb.save(buf)
         excel_bytes = buf.getvalue()
 
+        # ── Compute adjusted score first (need it for HTML report) ───────────
+        TIER_PTS    = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
+        auto_score  = scorecard_metrics.get("auto_score") or 0
+        bc_pts      = TIER_PTS.get(biz_clarity, 0) * 2.5 / 10   # max 2.5
+        ltp_pts     = TIER_PTS.get(ltp, 0) * 10.0 / 10           # max 10.0
+        adj_score   = round(auto_score + bc_pts + ltp_pts, 1)
+        floor_cap   = scorecard_metrics.get("floor_cap")
+        if floor_cap is not None:
+            adj_score = min(adj_score, floor_cap)
+
         # ── Build HTML report ─────────────────────────────────────────────────
         report_data = build_report_data(
-            ticker           = ticker,
-            profile          = profile,
-            is_data          = is_data,
-            bs_data          = bs_data,
-            cf_data          = cf_data,
-            years            = years,
-            wacc_val         = wacc_refs.get("wacc_val"),
-            dcf_prices       = (dcf_refs or {}).get("dcf_prices") or {},
-            scorecard_metrics= scorecard_metrics,
-            manual_rating    = manual_rating,
-            current_price    = current_price,
-            market_cap       = market_cap,
+            ticker            = ticker,
+            profile           = profile,
+            is_data           = is_data,
+            bs_data           = bs_data,
+            cf_data           = cf_data,
+            years             = years,
+            wacc_val          = wacc_refs.get("wacc_val"),
+            dcf_prices        = (dcf_refs or {}).get("dcf_prices") or {},
+            scorecard_metrics = scorecard_metrics,
+            manual_rating     = manual_rating,
+            current_price     = current_price,
+            market_cap        = market_cap,
+            biz_clarity       = biz_clarity or None,
+            ltp               = ltp or None,
+            adj_score         = adj_score,
         )
         html_content = render_html_report(report_data)
 
         # ── Store with short ID ───────────────────────────────────────────────
         rid = uuid.uuid4().hex[:10]
         _reports[rid] = {
-            "ticker":  ticker,
-            "html":    html_content,
-            "excel":   excel_bytes,
-            "year":    years[-1] if years else "2025",
-            "ts":      datetime.datetime.now(),
-            "score":   scorecard_metrics.get("auto_score"),
+            "ticker":    ticker,
+            "html":      html_content,
+            "excel":     excel_bytes,
+            "year":      years[-1] if years else "2025",
+            "ts":        datetime.datetime.now(),
+            "score":     adj_score,
+            "auto_score": auto_score,
         }
 
         return jsonify({
-            "report_id":  rid,
-            "ticker":     ticker,
-            "auto_score": scorecard_metrics.get("auto_score"),
-            "logs":       logs[-15:],
+            "report_id":   rid,
+            "ticker":      ticker,
+            "auto_score":  auto_score,
+            "adj_score":   adj_score,
+            "biz_clarity": biz_clarity or None,
+            "ltp":         ltp or None,
+            "logs":        logs[-15:],
         })
 
     except Exception as e:
@@ -196,6 +215,20 @@ def download_html(rid):
         mimetype="text/html",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
+
+
+@app.route("/api/reports")
+def api_reports():
+    _prune()
+    return jsonify([
+        {
+            "rid":    rid,
+            "ticker": r["ticker"],
+            "score":  r["score"],
+            "ts":     r["ts"].isoformat(),
+        }
+        for rid, r in sorted(_reports.items(), key=lambda x: x[1]["ts"], reverse=True)
+    ])
 
 
 # ── Dev entry point ────────────────────────────────────────────────────────────

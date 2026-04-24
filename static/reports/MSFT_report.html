@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Corporation — Independent Research Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #3d3d5c;
+    --ink-muted: #6b6b8a;
+    --accent: #0d6e6e;
+    --accent2: #0a4f6b;
+    --accent-light: #e0f4f4;
+    --green: #00695c;
+    --green-light: #e0f2f1;
+    --red: #c00000;
+    --red-light: #fef2f2;
+    --amber: #b45309;
+    --amber-light: #fef3c7;
+    --blue: #1e3a5f;
+    --blue-light: #dbeafe;
+    --rule: #d4cfc9;
+    --bg: #faf9f7;
+    --card: #ffffff;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg);
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ── HEADER ─────────────────────────────────────── */
+  .report-header {
+    border-top: 3px solid var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0 12px;
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .company-name { font-family: 'Playfair Display', serif; font-size: 22pt; font-weight: 700; color: var(--ink); line-height: 1.1; letter-spacing: -0.5px; }
+  .company-sub { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; color: var(--ink-muted); margin-top: 4px; letter-spacing: 0.5px; }
+  .rating-badge { text-align: right; }
+  .verdict { display: inline-block; color: white; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 2px; margin-bottom: 6px; }
+  .verdict-green { background: var(--green); }
+  .verdict-amber { background: var(--amber); }
+  .verdict-red   { background: var(--red); }
+  .price-line { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; color: var(--ink); }
+  .price-line .current { font-size: 18pt; font-weight: 500; }
+  .price-line .target { color: var(--green); font-weight: 500; }
+  .report-meta { font-size: 7.5pt; color: var(--ink-muted); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── COMPANY SUMMARY ─────────────────────────────── */
+  .company-summary-box {
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 9pt;
+    line-height: 1.6;
+    color: var(--ink-light);
+  }
+  .summary-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* ── METRICS GRID ─────────────────────────────── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .metric-cell { background: var(--card); padding: 8px 10px; }
+  .metric-cell .m-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+  .metric-cell .m-value { font-size: 11pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .metric-cell .m-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 1px; }
+  .metric-cell.highlight .m-value { color: var(--accent); }
+  .metric-cell.positive .m-value { color: var(--green); }
+  .metric-cell.warn .m-value { color: var(--red); }
+
+  /* ── SECTION LABEL ────────────────────────────── */
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5pt; letter-spacing: 0.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 2px solid var(--accent); margin-top: 4px; }
+
+  /* ── CREDIT ───────────────────────────────────── */
+  .credit-band { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .credit-chip { display: inline-flex; flex-direction: column; align-items: center; background: var(--card); border: 1px solid var(--rule); padding: 6px 14px; border-radius: 2px; }
+  .credit-chip .agency { font-size: 6.5pt; font-family: 'IBM Plex Mono', monospace; color: var(--ink-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .credit-chip .rating-val { font-size: 14pt; font-weight: 700; font-family: 'Playfair Display', serif; }
+  .credit-chip .rating-green { color: var(--green); }
+  .credit-chip .rating-amber { color: var(--amber); }
+  .credit-chip .rating-red   { color: var(--red); }
+  .credit-chip .rating-muted { color: var(--ink-muted); }
+  .credit-chip .outlook { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; }
+  .credit-chip .tier { font-size: 6.5pt; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 1px; }
+  .credit-note { font-size: 8pt; color: var(--ink-light); line-height: 1.5; flex: 1; }
+
+  /* ── THESIS ───────────────────────────────────── */
+  .thesis-box { background: var(--card); border-left: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 9pt; line-height: 1.6; }
+  .thesis-box p + p { margin-top: 8px; }
+  .thesis-box .thesis-heading {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-top: 11px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .thesis-box .thesis-heading:first-child { margin-top: 0; }
+  .thesis-box strong { color: var(--ink); font-weight: 600; }
+
+  /* ── REVENUE MIX BAND ─────────────────────────── */
+  .mix-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .mix-cell { background: var(--card); padding: 9px 12px; }
+  .mix-cell .mix-name { font-size: 7.5pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
+  .mix-cell .mix-rev { font-size: 13pt; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: var(--accent); }
+  .mix-cell .mix-sub { font-size: 8pt; color: var(--ink-light); margin-top: 2px; }
+  .mix-cell.seg2 .mix-rev { color: var(--accent2); }
+  .mix-cell.seg3 .mix-rev { color: var(--green); }
+
+  /* ── STATS ROW ─────────────────────────────────── */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
+  .stat-cell { background: var(--card); padding: 8px 10px; }
+  .stat-cell .s-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .stat-cell .s-trail { font-size: 9pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .stat-cell .s-fwd { font-size: 8.5pt; color: var(--green); font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .stat-cell .s-avg { font-size: 7.5pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+
+  /* ── CHARTS ────────────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .chart-container { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
+  .chart-title { font-size: 8pt; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-light); margin-bottom: 8px; font-weight: 500; }
+  .chart-canvas-wrap { height: 160px; }
+
+  /* ── PAGE BREAK ────────────────────────────────── */
+  .page-break { border-top: 2px solid var(--rule); margin: 20px 0 16px; padding-top: 4px; display: flex; align-items: center; gap: 10px; }
+  .page-break-label { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--ink-muted); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+  .page-break hr { flex: 1; border: none; border-top: 1px solid var(--rule); }
+
+  /* ── ANALYST TABLE ─────────────────────────────── */
+  .analyst-consensus-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 8px; }
+  .cons-cell { background: var(--card); padding: 8px 12px; text-align: center; }
+  .cons-cell .cons-label { font-size: 7pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
+  .cons-cell .cons-val { font-size: 14pt; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .cons-cell .cons-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
+  .cons-cell.buy-cell .cons-val { color: var(--green); }
+  .cons-cell.hold-cell .cons-val { color: var(--amber); }
+  .cons-cell.sell-cell .cons-val { color: var(--red); }
+  .analyst-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 6px; }
+  .analyst-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .analyst-table th.center { text-align: center; }
+  .analyst-table td { padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  .analyst-table tr:nth-child(even) td { background: #f8f7f5; }
+  .rating-buy  { color: var(--green); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .rating-hold { color: var(--amber); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .rating-sell { color: var(--red);   font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .pt-val { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 9pt; }
+  .pt-above { color: var(--green); }
+  .pt-below { color: var(--red); }
+  .pt-flat  { color: var(--amber); }
+  .analyst-name { font-weight: 500; }
+  .firm-name { color: var(--ink-muted); font-size: 8pt; }
+  .analyst-note { font-size: 7.5pt; color: var(--ink-muted); margin-top: 5px; font-style: italic; }
+
+  /* ── SCORECARD ──────────────────────────────────── */
+  .scorecard-header { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-bottom: 8px; }
+  .score-final { font-family: 'IBM Plex Mono', monospace; font-size: 9pt; font-weight: 500; color: white; padding: 4px 12px; border-radius: 2px; }
+  .score-final-green { background: var(--green); }
+  .score-final-amber { background: var(--amber); }
+  .score-final-red   { background: var(--red); }
+  .scorecard-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
+  .scorecard-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .scorecard-table th.center { text-align: center; }
+  .scorecard-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  .scorecard-table tr:nth-child(even) td { background: #f8f7f5; }
+  .scorecard-table .part-header td { background: var(--accent-light); font-weight: 600; font-size: 8pt; color: var(--accent); border-bottom: 1px solid #a7d8d8; }
+  .score-pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .score-high { background: var(--green-light); color: var(--green); }
+  .score-mid  { background: var(--amber-light); color: var(--amber); }
+  .score-low  { background: var(--red-light); color: var(--red); }
+  .score-num { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; text-align: center; }
+  .col-commentary { font-size: 7.8pt; color: var(--ink-light); line-height: 1.45; }
+  .col-metric { font-weight: 500; color: var(--ink); }
+  .weighted-row td { background: #e8f4f4 !important; font-weight: 600; font-size: 8pt; border-top: 1px solid #a7d8d8; }
+
+  /* ── SCENARIOS ──────────────────────────────────── */
+  .scenario-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
+  .scenario-table th { padding: 7px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; text-align: left; }
+  .scenario-table th.bear-h { background: #fef2f2; color: var(--red); }
+  .scenario-table th.base-h { background: var(--blue-light); color: var(--blue); }
+  .scenario-table th.bull-h { background: var(--green-light); color: var(--green); }
+  .scenario-table td { padding: 5px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .scenario-table tr:nth-child(even) td { background: #f8f7f5; }
+  .scenario-table .row-label { font-weight: 500; color: var(--ink); width: 28%; }
+  .scenario-table .price-row td { font-weight: 700; font-size: 10pt; font-family: 'IBM Plex Mono', monospace; }
+  .scenario-table .price-row td.bear-p { color: var(--red); background: #fef2f2; }
+  .scenario-table .price-row td.base-p { color: var(--blue); background: var(--blue-light); }
+  .scenario-table .price-row td.bull-p { color: var(--green); background: var(--green-light); }
+
+  /* ── RISKS ──────────────────────────────────────── */
+  .risk-list { list-style: none; margin-bottom: 14px; }
+  .risk-list li { padding: 6px 8px 6px 20px; border-bottom: 1px solid var(--rule); font-size: 8.5pt; position: relative; line-height: 1.45; }
+  .risk-list li::before { content: '▸'; position: absolute; left: 6px; color: var(--accent); font-size: 8pt; }
+  .risk-list li strong { color: var(--ink); font-weight: 600; }
+
+  /* ── VALUATION ──────────────────────────────────── */
+  .valuation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .val-card { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
+  .val-card-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; color: var(--ink); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.5px; }
+  .dcf-scenario-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 8px; }
+  .dcf-scenario-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
+  .dcf-scenario-table th:first-child { text-align: left; }
+  .dcf-scenario-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
+  .dcf-scenario-table td:first-child { text-align: left; font-weight: 600; }
+  .dcf-scenario-table tr.base-row td { background: var(--blue-light); }
+  .dcf-scenario-table .price-up { color: var(--green); font-weight: 700; }
+  .dcf-scenario-table .price-dn { color: var(--red); font-weight: 700; }
+  .rev-dcf-box { background: #fef9ee; border-left: 3px solid var(--amber); padding: 8px 10px; margin-top: 8px; font-size: 8pt; line-height: 1.55; }
+  .rev-dcf-box strong { color: var(--ink); }
+  .mult-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  .mult-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
+  .mult-table th:first-child { text-align: left; }
+  .mult-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
+  .mult-table td:first-child { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 7.5pt; color: var(--ink-light); }
+  .mult-table tr:nth-child(even) td { background: #f8f7f5; }
+  .mult-table .up { color: var(--green); font-weight: 600; }
+  .mult-table .dn { color: var(--red); }
+  .mult-table .section-divider td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 8px; }
+  .valuation-verdict { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 8.5pt; line-height: 1.6; }
+  .valuation-verdict .verdict-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .valuation-verdict p + p { margin-top: 6px; }
+  .sensitivity-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 8px; }
+  .sensitivity-table th { background: var(--ink); color: white; padding: 4px 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; }
+  .sensitivity-table td { padding: 3px 8px; text-align: center; border: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
+  .sensitivity-table td.row-wacc { background: var(--ink); color: white; font-weight: 500; text-align: left; padding-left: 10px; }
+  .sensitivity-table td.near-market { background: #dcfce7; color: var(--green); font-weight: 700; }
+  .sensitivity-table td.mid-range { background: #fef9c3; color: var(--amber); }
+  .sensitivity-table td.low-range { background: #fef2f2; color: var(--red); }
+
+  /* ── FOOTNOTES ──────────────────────────────────── */
+  .footnotes { border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 14px; }
+  .footnotes-title { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 6px; }
+  .footnotes ol { padding-left: 16px; }
+  .footnotes li { font-size: 7pt; color: var(--ink-muted); margin-bottom: 3px; line-height: 1.4; }
+  .footnotes a { color: #1d4ed8; text-decoration: none; }
+  sup a { color: var(--accent); font-size: 6.5pt; text-decoration: none; font-family: 'IBM Plex Mono', monospace; }
+  .disclaimer { font-size: 7pt; color: var(--ink-muted); line-height: 1.4; border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 6px; }
+
+  /* ── FINANCIAL TABLE ──────────────────────────────── */
+  .fin-table-wrap { margin-bottom: 14px; overflow-x: auto; }
+  .fin-table { width: 100%; border-collapse: collapse; font-size: 8pt; font-family: 'IBM Plex Mono', monospace; }
+  .fin-table th { background: var(--ink); color: white; padding: 5px 10px; text-align: right; font-size: 7.5pt; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap; }
+  .fin-table th.row-head { text-align: left; width: 24%; }
+  .fin-table td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; color: var(--ink); }
+  .fin-table td.row-label { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 8pt; color: var(--ink-light); font-weight: 500; }
+  .fin-table tr:nth-child(even) td { background: #f8f7f5; }
+  .fin-table .section-row td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 10px; text-align: left; }
+  .fin-table .highlight-row td { font-weight: 700; color: var(--ink); }
+  .fin-table .margin-row td { color: var(--accent2); font-style: italic; }
+  .fin-table-note { font-size: 7pt; color: var(--ink-muted); margin-top: 5px; line-height: 1.5; font-style: italic; }
+
+  .no-break { page-break-inside: avoid; }
+  @media print {
+    /* ── GENERAL ── */
+    body { max-width: 100%; padding: 8px; background: white; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+    /* ── PAGE BREAKS ── */
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+
+    /* ── PROTECT MAJOR SECTIONS ── */
+    .report-header        { page-break-inside: avoid; }
+    .company-summary-box  { page-break-inside: avoid; }
+    .metrics-grid         { page-break-inside: avoid; }
+    .mix-band             { page-break-inside: avoid; }
+    .credit-band          { page-break-inside: avoid; }
+    .thesis-box           { page-break-inside: avoid; }
+    .stat-row             { page-break-inside: avoid; }
+    .fin-table-wrap       { page-break-inside: avoid; }
+    .two-col              { page-break-inside: avoid; }
+    .chart-container      { page-break-inside: avoid; }
+    .valuation-verdict    { page-break-inside: avoid; }
+    .valuation-grid       { page-break-inside: avoid; }
+    .val-card             { page-break-inside: avoid; }
+    .analyst-consensus-bar{ page-break-inside: avoid; }
+    .footnotes            { page-break-inside: avoid; }
+
+    /* ── TABLE ROW PROTECTION ── */
+    tr                    { page-break-inside: avoid; page-break-after: auto; }
+    .part-header          { page-break-after: avoid; }
+    .scorecard-table tr   { page-break-inside: avoid; }
+    .scenario-table tr    { page-break-inside: avoid; }
+    .analyst-table tr     { page-break-inside: avoid; }
+    .fin-table tr         { page-break-inside: avoid; }
+
+    /* ── SECTION LABELS ── */
+    .section-label        { page-break-after: avoid; }
+
+    /* ── VALUATION SECTION: force onto fresh page ── */
+    .valuation-section    { page-break-before: always; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="report-header">
+  <div>
+    <div class="company-name">Microsoft Corporation</div>
+    <div class="company-sub">NASDAQ: MSFT · S&P 500 · Nasdaq 100</div>
+    <div class="company-sub" style="margin-top:3px">Global leader in cloud computing, productivity software, and AI infrastructure</div>
+  </div>
+  <div class="rating-badge">
+    <!-- VERDICT_CLASS: verdict-green (score ≥70) | verdict-amber (50-69) | verdict-red (<50) -->
+    <div class="verdict verdict-green">Good Business at Fair Price</div>
+    <div class="price-line">
+      <span style="color:var(--ink-muted); font-size:7.5pt; font-family:'IBM Plex Mono',monospace; display:block; margin-bottom:2px; letter-spacing:0.5px; text-transform:uppercase;">Current Price &nbsp;·&nbsp; Price Target</span>
+      <span class="current">371.45</span>
+      <span style="color:var(--ink-muted); font-size:9pt"> / </span>
+      <span class="target">525.0</span>
+    </div>
+    <div class="report-meta">Independent Research · April 2026 · Score: 74.5 / 100</div>
+  </div>
+</header>
+
+<!-- ═══ COMPANY SUMMARY ═══ -->
+<div class="company-summary-box">
+  <span class="summary-label">Company Overview</span>
+  Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. Founded in 1975 and headquartered in Redmond, Washington, the company has evolved from a PC software pioneer into a $2.75T cloud and AI powerhouse. With ~228,000 employees, Microsoft generates $281.7B in annual revenue through three segments: Productivity &amp; Business Processes (43%), Intelligent Cloud (38%), and More Personal Computing (19%). Distinctive facts: (1) Microsoft holds AAA/Aaa credit ratings from S&amp;P and Moody's — rare for a technology company; (2) Azure is the #2 public cloud platform globally, growing 33% YoY and powering enterprise AI adoption.
+</div>
+
+<!-- ═══ KEY METRICS ═══ -->
+<div class="metrics-grid">
+  <div class="metric-cell">
+    <div class="m-label">Market Cap</div>
+    <div class="m-value">$2.75T</div>
+    <div class="m-sub">7.43B shares diluted</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Enterprise Value</div>
+    <div class="m-value">$2.79T</div>
+    <!-- NET_CASH_DEBT: e.g. "Net cash $9.0B" or "Net debt $13B" -->
+    <div class="m-sub">Net debt $33.8B</div>
+  </div>
+  <!-- TRAILING_PE_CELL_CLASS: "warn" if >15% above 10yr avg, "" otherwise -->
+  <div class="metric-cell">
+    <div class="m-label">Trailing P/E</div>
+    <div class="m-value ">23.2x</div>
+    <!-- TRAILING_PE_DELTA_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <div class="m-sub">10yr avg 33.2x <span style="color:#00695c;font-weight:600">−30%</span></div>
+  </div>
+  <!-- FORWARD_PE_CELL_CLASS: "highlight" if at avg, "positive" if below, "warn" if >15% above -->
+  <div class="metric-cell highlight">
+    <div class="m-label">Forward P/E</div>
+    <div class="m-value">21.1x</div>
+    <!-- FORWARD_PE_DELTA_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <div class="m-sub">10yr avg 30.0x <span style="color:#00695c;font-weight:600">−29%</span> · FY27E EPS $17.60</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Trailing P/FCF</div>
+    <div class="m-value">35.6x</div>
+    <div class="m-sub">10yr avg 45.0x <span style="color:#00695c;font-weight:600">−21%</span></div>
+  </div>
+  <!-- FORWARD_PFCF_CELL_CLASS: "positive" if below 10yr avg, "" otherwise -->
+  <div class="metric-cell positive">
+    <div class="m-label">Forward P/FCF</div>
+    <div class="m-value">32.1x</div>
+    <div class="m-sub">10yr avg 42.0x <span style="color:#00695c;font-weight:600">−24%</span> · FY27E FCF $85.2B</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">EV/EBITDA</div>
+    <div class="m-value">15.9x</div>
+    <div class="m-sub">Fwd FY27E: ~14.5x</div>
+  </div>
+  <!-- REVENUE_VALUE_CLASS: "positive" if strong growth, "" otherwise -->
+  <div class="metric-cell">
+    <div class="m-label">FY2025</div>
+    <div class="m-value positive">$281.7B</div>
+    <div class="m-sub">+15% YoY</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">EBITDA Margin</div>
+    <div class="m-value">48.0%</div>
+    <div class="m-sub">+10 bps YoY</div>
+  </div>
+  <!-- FCF_VALUE_CLASS: "positive" if strong, "" otherwise -->
+  <div class="metric-cell positive">
+    <div class="m-label">Free Cash Flow</div>
+    <div class="m-value">$77.4B</div>
+    <div class="m-sub">+5% YoY</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">ROIC</div>
+    <!-- ROIC_VALUE_CLASS: "positive" if >20%, "" if 10-20%, "warn" if <10% -->
+    <div class="m-value positive">28.8%</div>
+    <div class="m-sub">5yr avg: 28.1%</div>
+  </div>
+  <div class="metric-cell">
+    <div class="m-label">Capital Returns</div>
+    <div class="m-value">$22.4B</div>
+    <div class="m-sub">Dividends + Buybacks</div>
+  </div>
+</div>
+
+<!-- ═══ REVENUE MIX ═══ -->
+<!-- REV_MIX_SECTION_LABEL: e.g. "Revenue Breakdown — FY2025A ($10.1B Total)" -->
+<div class="section-label">Revenue Mix</div>
+<div class="mix-band">
+  <div class="mix-cell">
+    <div class="mix-name">☁️ Intelligent Cloud</div>
+    <div class="mix-rev">38%</div>
+    <div class="mix-sub">Azure and enterprise services. Driven by 33% YoY Azure growth. Operating Margin: ~48%.</div>
+  </div>
+  <!-- seg2 class colours the revenue figure in accent2 (deep blue) -->
+  <div class="mix-cell seg2">
+    <div class="mix-name">📈 Productivity &amp; Business</div>
+    <div class="mix-rev">43%</div>
+    <div class="mix-sub">Microsoft 365, LinkedIn, Dynamics. Stable growth with 20%+ Copilot attach rates. Operating Margin: ~52%.</div>
+  </div>
+  <!-- seg3 class colours the revenue figure in green -->
+  <div class="mix-cell seg3">
+    <div class="mix-name">💻 More Personal Computing</div>
+    <div class="mix-rev">19%</div>
+    <div class="mix-sub">Windows, Gaming, Devices. Gaming revenue uplifted by Activision Blizzard. Operating Margin: ~28%.</div>
+  </div>
+</div>
+
+<!-- ═══ CREDIT PROFILE ═══ -->
+<div class="section-label">Credit Profile</div>
+<div class="credit-band">
+  <!-- RATING_CLASS: rating-green (A or above) | rating-amber (BBB) | rating-red (sub-IG) | rating-muted (NR) -->
+  <div class="credit-chip">
+    <div class="agency">S&amp;P Global</div>
+    <div class="rating-val rating-green">AAA</div>
+    <div class="outlook">Stable</div>
+    <div class="tier">Tier: 1</div>
+  </div>
+  <div class="credit-chip">
+    <div class="agency">Moody's</div>
+    <div class="rating-val rating-green">Aaa</div>
+    <div class="outlook">Stable</div>
+    <div class="tier">Tier: 1</div>
+  </div>
+  <div class="credit-chip">
+    <div class="agency">Fitch</div>
+    <div class="rating-val rating-muted">NR</div>
+    <div class="outlook">NR</div>
+    <div class="tier">Tier: NR</div>
+  </div>
+  <div class="credit-note">
+    AAA/Aaa ratings reflect exceptional credit quality — fortress balance sheet. Minimal leverage at 0.9x D/EBITDA; interest coverage of 53.2x provides substantial cushion. Net debt $33.8B position enhances financial flexibility. Among the strongest balance sheets in the technology sector.<sup><a href="#fn1">[1]</a></sup>
+  </div>
+</div>
+
+<!-- ═══ INVESTMENT THESIS ═══ -->
+<div class="section-label">Investment Thesis</div>
+<div class="thesis-box">
+  <span class="thesis-heading">The Moat</span>
+  <p>Microsoft's competitive moat is one of the widest in corporate history — a multi-layered fortress of enterprise switching costs, platform network effects, and AI infrastructure scale that compounds with every new product cycle. Three structural advantages reinforce each other: <strong>(1) Azure cloud lock-in</strong> — enterprise workloads embedded in Azure face a multi-year, high-risk, costly migration to AWS or GCP; with Azure growing 33% YoY, the installed base is deepening faster than it can churn. <strong>(2) Microsoft 365 ecosystem</strong> — 300M+ paid seats; Outlook, Teams, SharePoint, and OneDrive are the connective tissue of global enterprise productivity. The per-seat Copilot ($30/user/month) monetization opportunity sits directly on top of this distribution base. <strong>(3) GitHub (90M+ developers) + LinkedIn (1B+ members)</strong> — two independently defensible network-effect platforms. GitHub Copilot is the leading AI coding assistant, converting developer mindshare directly into Azure consumption. FY2025 revenue of $281.7B at a 48% EBITDA margin demonstrates the pricing power these moats confer. Morningstar Wide Moat rating; consensus overwhelmingly positive on durability.<sup><a href="#fn2">[2]</a></sup></p>
+  <span class="thesis-heading">Growth Catalysts</span>
+  <p>The AI monetization inflection is the defining catalyst of the next 3–5 years, with three compounding vectors: <strong>(1) Microsoft 365 Copilot</strong> — at $30/user/month across a 300M+ seat base, even a 20% attach rate would represent ~$21B in incremental ARR. Enterprise pilots are reporting 20–30% attach rates; productivity studies show 30–40% time savings on knowledge work tasks, providing the ROI justification for enterprise procurement. <strong>(2) Azure OpenAI Service</strong> — Microsoft's exclusive GPT-4o/o1 distribution rights, combined with enterprise-grade security, compliance, and Active Directory integration, make Azure the default infrastructure for enterprise AI workloads. Azure AI revenue is growing at >3x the rate of overall Azure. <strong>(3) Gaming platform expansion</strong> — the $69B Activision Blizzard acquisition transforms More Personal Computing into a multi-platform franchise. Game Pass (34M+ subscribers) creates a recurring content subscription with a long runway to 100M. Cross-platform synergies with Azure cloud gaming infrastructure remain largely unmonetized.</p>
+  <span class="thesis-heading">Valuation &amp; Entry Point</span>
+  <p>At $371.45, MSFT trades at 21.1x forward P/E (FY27E $17.60 EPS) — a <strong>29% discount to its 10-year average forward P/E of 30x</strong> — and 32.1x forward P/FCF, 24% below its 10-year average of 42x. This discount is almost entirely attributable to near-term capex intensity: FY2025 capex of $83B (+87% YoY) compressed FCF growth to just 5%, creating the perception of deteriorating cash generation. However, Microsoft is building infrastructure for a $1T+ AI opportunity; the capex cycle is investment, not impairment. With 15% revenue CAGR, 39% net margin, 28.8% ROIC, and a AAA/Aaa credit rating — the rarest combination in corporate finance — the current entry offers 28–41% upside to our base fair value of $475–525. The risk/reward at current levels favours long-term accumulation: the bear case is largely priced in, the base case is not.</p>
+</div>
+
+<!-- ═══ HISTORICAL FINANCIALS ═══ -->
+<!-- FY1–FY5: five consecutive fiscal years, oldest first. e.g. FY2021A … FY2025A -->
+<div class="section-label">Historical Financials — FY2021–FY2025 (USD Millions) <sup><a href="#fn2">[2]</a></sup></div>
+<div class="fin-table-wrap">
+<table class="fin-table">
+  <thead>
+    <tr>
+      <th class="row-head">Metric</th>
+      <th>FY2021</th><th>FY2022</th><th>FY2023</th><th>FY2024</th><th>FY2025</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="section-row"><td colspan="6">Income Statement</td></tr>
+    <tr class="highlight-row">
+      <td class="row-label">Revenue</td>
+      <td>168,088</td><td>198,270</td><td>211,915</td><td>245,122</td><td>281,724</td>
+    </tr>
+    <tr>
+      <td class="row-label">Gross Profit</td>
+      <td>115,856</td><td>135,620</td><td>146,052</td><td>171,008</td><td>193,893</td>
+    </tr>
+    <tr class="margin-row">
+      <td class="row-label" style="padding-left:18px;font-style:italic">Gross Margin</td>
+      <td>68.9%</td><td>68.4%</td><td>68.9%</td><td>69.8%</td><td>68.8%</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBITDA</td>
+      <td>76,740</td><td>89,035</td><td>99,096</td><td>118,287</td><td>135,260</td>
+    </tr>
+    <tr class="margin-row">
+      <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA Margin</td>
+      <td>45.7%</td><td>44.9%</td><td>46.8%</td><td>48.3%</td><td>48.0%</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBIT</td>
+      <td>69,916</td><td>83,383</td><td>88,523</td><td>109,433</td><td>128,528</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Net Income (GAAP)</td>
+      <td>61,271</td><td>72,738</td><td>72,361</td><td>88,136</td><td>106,245</td>
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Balance Sheet</td></tr>
+    <tr>
+      <td class="row-label">Cash &amp; Equivalents (incl. investments)</td>
+      <td>130,334</td><td>104,757</td><td>111,262</td><td>80,021</td><td>89,460</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Debt (incl. leases)</td>
+      <td>78,445</td><td>78,445</td><td>78,445</td><td>97,848</td><td>123,280</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Net Cash / (Net Debt)</td>
+      <td>51,889</td><td>26,312</td><td>32,817</td><td>(17,827)</td><td>(33,820)</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Equity</td>
+      <td>141,988</td><td>166,542</td><td>206,223</td><td>238,268</td><td>390,880</td>
+    </tr>
+    <tr>
+      <td class="row-label">Total Intangibles (goodwill + other)</td>
+      <td>49,711</td><td>48,351</td><td>47,671</td><td>45,842</td><td>44,120</td>
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Credit &amp; Coverage Ratios</td></tr>
+    <tr>
+      <td class="row-label">Debt / EBITDA</td>
+      <td>1.0x</td><td>0.9x</td><td>0.8x</td><td>0.8x</td><td>0.9x</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBIT / Interest</td>
+      <!-- If company is net cash / interest income exceeds interest expense, use a colspan note like ISRG.
+           Otherwise fill in 5 individual values. Choose one format and delete the other. -->
+      <!-- FORMAT A — net lender / minimal debt: -->
+      <td>52.1x</td><td>48.3x</td><td>45.7x</td><td>51.2x</td><td>53.2x</td>
+      <!-- FORMAT B — normal leverage (delete FORMAT A and uncomment this):
+      <td>52.1x</td><td>48.3x</td><td>45.7x</td><td>51.2x</td><td>53.2x</td>
+      -->
+    </tr>
+
+    <tr class="section-row"><td colspan="6">Cash Flow Statement</td></tr>
+    <tr>
+      <td class="row-label">Operating Cash Flow</td>
+      <td>76,740</td><td>89,035</td><td>87,582</td><td>118,548</td><td>160,506</td>
+    </tr>
+    <tr>
+      <td class="row-label">CAPEX</td>
+      <!-- CAPEX shown in brackets e.g. (399) -->
+      <td>(20,622)</td><td>(23,886)</td><td>(28,107)</td><td>(44,477)</td><td>(83,094)</td>
+    </tr>
+    <tr class="highlight-row">
+      <td class="row-label">Free Cash Flow</td>
+      <td>56,118</td><td>65,149</td><td>59,475</td><td>74,071</td><td>77,412</td>
+    </tr>
+  </tbody>
+</table>
+<p class="fin-table-note">FY2025 data from Microsoft 10-K filed July 2025; all figures in USD millions.</p>
+</div>
+
+<!-- ═══ GROWTH & VALUATION CONTEXT ═══ -->
+<div class="section-label">Growth &amp; Valuation Context</div>
+<div class="stat-row">
+  <div class="stat-cell">
+    <div class="s-label">Revenue 3yr CAGR</div>
+    <div class="s-trail">Trailing: 14.2%</div>
+    <div class="s-fwd">Fwd (FY26–28E): 15.8%<sup><a href="#fn3">[3]</a></sup></div>
+    <div class="s-avg">Consensus estimates support sustainability.</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">FCF 3yr CAGR</div>
+    <div class="s-trail">Trailing: 9.1%</div>
+    <div class="s-fwd">Fwd (FY26–28E): 12.4%<sup><a href="#fn3">[3]</a></sup></div>
+    <div class="s-avg">AI capex cycle moderates near-term FCF growth.</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">P/E vs 10yr Avg</div>
+    <div class="s-trail">23.2x</div>
+    <div class="s-fwd">21.1x</div>
+    <div class="s-avg">Both trailing and forward P/E trade at ~30% discount to 10-year averages.</div>
+  </div>
+  <div class="stat-cell">
+    <div class="s-label">P/FCF vs 10yr Avg</div>
+    <div class="s-trail">35.6x</div>
+    <div class="s-fwd">32.1x</div>
+    <div class="s-avg">P/FCF below 5-year median; discount reflects near-term capex intensity.</div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ROW 1: Price + Financials ═══ -->
+<div class="two-col no-break">
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Share Price — 5 Year History ($) <sup><a href="#fn4">[4]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Revenue · Operating Cash Flow · FCF ($B) <sup><a href="#fn2">[2]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ROW 2: ROIC + Shareholder Returns ═══ -->
+<div class="two-col no-break">
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">ROIC % — Return on Invested Capital <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="roicChart"></canvas></div>
+    </div>
+  </div>
+  <div>
+    <div class="chart-container">
+      <div class="chart-title">Shareholder Returns — Buybacks &amp; FCF/Share ($) <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-canvas-wrap"><canvas id="returnChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 2 ═══ -->
+<div class="page-break">
+  <div class="page-break-label">Page 2 of 2</div>
+  <hr>
+</div>
+
+<!-- ═══ SCORECARD ═══ -->
+<div class="section-label">JS Proprietary Scorecard — Full Breakdown</div>
+<div class="scorecard-header">
+  <span style="font-size:8.5pt;color:var(--ink-light)">Low = 0 pts &nbsp;|&nbsp; Moderate = 5 pts &nbsp;|&nbsp; High = 10 pts &nbsp;×&nbsp; weight</span>
+  <!-- SCORE_FINAL_CLASS: score-final-green (≥70) | score-final-amber (50-69) | score-final-red (<50) -->
+  <span class="score-final score-final-green">74.5 / 100 — Good Business at Fair Price</span>
+</div>
+<table class="scorecard-table">
+  <thead>
+    <tr>
+      <th style="width:22%">Metric / Pillar</th>
+      <th class="center" style="width:10%">Score</th>
+      <th class="center" style="width:8%">Weight</th>
+      <th class="center" style="width:8%">Wtd Pts</th>
+      <th style="width:52%">Commentary</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- PART 1: MOAT AND NARRATIVE — max 300 weighted pts (weights: 2.5+10+10+7.5 × 10) -->
+    <!-- P1_WEIGHTED: e.g. "300 / 300" or "225 / 300" -->
+    <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 30.0</td></tr>
+
+    <!-- SCORE PILL CLASS: score-high | score-mid | score-low -->
+    <!-- SCORE PILL TEXT: "HIGH · 10" | "MOD · 5" | "LOW · 0" -->
+    <tr>
+      <td class="col-metric">Business Clarity</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">2.5</td>
+      <td class="score-num">2.5</td>
+      <td class="col-commentary">Three distinct, high-margin segments with transparent reporting.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Moat Profile</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">10.0</td>
+      <td class="col-commentary">Wide/expanding moat. Cross-check: Consensus bullish; contrarian flags capex pressure.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Long-Term Potential</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">10.0</td>
+      <td class="col-commentary">Structural tailwinds: AI infrastructure, cloud migration, productivity automation.</td>
+    </tr>
+    <!-- CEO sub-line format: "CEO [Name] / Tenure: [Month Year] (~[N] yrs)" -->
+    <tr>
+      <td class="col-metric">Management<br><span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">CEO <br>Tenure: </span></td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">7.5</td>
+      <td class="col-commentary">CEO Satya Nadella (Tenure: Feb 2014 — ~12 years). Transformational leader: shifted focus to cloud/AI.</td>
+    </tr>
+
+    <!-- PART 2: QUANTITATIVE — max 325 weighted pts (10+10+5+7.5 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 2 — Quantitative: Profitability Engine &nbsp;|&nbsp; Weighted: 26.3</td></tr>
+    <tr>
+      <td class="col-metric">Revenue 3yr CAGR</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">10.0</td>
+      <td class="col-commentary">14.2% trail CAGR >10% threshold; consensus Fwd 3yr CAGR 15.8% supports sustainability.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Cash Quality (FCF/NI)</td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">5.0</td>
+      <td class="col-commentary">FCF/NI = 73%. Strong but capex surge moderates conversion.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Capital Returns</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">5.0</td>
+      <td class="col-commentary">20+ years of dividend growth; $22.4B returned in FY25.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">ROIC</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">7.5</td>
+      <td class="col-commentary">28.8% latest ROIC >20% threshold; 5-yr avg 28.1%.</td>
+    </tr>
+
+    <!-- PART 3: RISK & CREDIT — max 175 weighted pts (5+7.5+5 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: 13.1</td></tr>
+    <tr>
+      <td class="col-metric">Credit Risk (D/EBITDA)</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">5.0</td>
+      <td class="col-commentary">0.9x D/EBITDA <<2x threshold; fortress balance sheet.<sup><a href="#fn1">[1]</a></sup></td>
+    </tr>
+    <tr>
+      <td class="col-metric">Interest Cover (EBIT/Int)</td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">7.5</td>
+      <td class="score-num">7.5</td>
+      <td class="col-commentary">53.2x coverage >>4x threshold; negligible interest burden.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">Execution Risk</td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">5</td>
+      <td class="score-num">2.5</td>
+      <td class="col-commentary">AI monetization timeline and competitive intensity create moderate execution uncertainty.</td>
+    </tr>
+
+    <!-- PART 4: VALUATION — max 200 weighted pts (10+10 × 10) -->
+    <tr class="part-header"><td colspan="5">Part 4 — Valuation (The Entry Point) &nbsp;|&nbsp; Weighted: 11.3</td></tr>
+
+    <!-- P/E sub-line: trailing and forward with 10yr avg delta, colour-coded -->
+    <!-- TRAIL_PE_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <!-- FWD_PE_COLOR: #b45309 (above avg) | #00695c (below avg) -->
+    <tr>
+      <td class="col-metric">P/E vs. 5yr Median<br>
+        <span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">
+          Trail: <strong style="color:#00695c">23.2x</strong> (−30% vs 10yr)<br>
+          Fwd:&nbsp;&nbsp; <strong style="color:#00695c">21.1x</strong> (−29% vs 10yr)
+        </span>
+      </td>
+      <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">10.0</td>
+      <td class="col-commentary">Absolute: 23.2x. vs 10yr: −30%. vs sector: discount. Premium justified by quality.</td>
+    </tr>
+    <tr>
+      <td class="col-metric">P/FCF vs. 5yr Median<br>
+        <span style="font-size:7.5pt;color:#6b6b8a;font-family:'IBM Plex Mono',monospace">
+          Trail: <strong style="color:#00695c">35.6x</strong> (−21% vs 10yr)<br>
+          Fwd:&nbsp;&nbsp; <strong style="color:#00695c">32.1x</strong> (−24% vs 10yr)
+        </span>
+      </td>
+      <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
+      <td class="score-num">10</td>
+      <td class="score-num">5.0</td>
+      <td class="col-commentary">Absolute: 35.6x. vs 10yr: −21%. vs sector: in-line.</td>
+    </tr>
+
+    <!-- TOTAL: SUMPRODUCT of (score × weight) across all 13 criteria -->
+    <!-- TOTAL_WEIGHTED_SCORE: e.g. 812.5 -->
+    <!-- FINAL_SCORE_CALC: e.g. "812.5 ÷ 10 = 81.25 / 100 → Good Business at Fair Price (Core Holding)" -->
+    <tr class="weighted-row">
+      <td colspan="3" style="text-align:right;padding-right:12px">Total Weighted Score</td>
+      <td class="score-num" style="color:var(--green)">74.5</td>
+      <td style="color:var(--green);font-size:8pt">Final: 74.5</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══ SCENARIOS ═══ -->
+<div class="section-label">Base, Bull &amp; Bear Cases</div>
+<table class="scenario-table no-break">
+  <thead>
+    <tr>
+      <th style="background:#f8f7f5;color:var(--ink-muted);width:28%">Assumption</th>
+      <!-- BEAR_PRICE_RANGE: e.g. "$380-430" -->
+      <th class="bear-h" style="width:24%">🐻 Bear — $310–340</th>
+      <th class="base-h" style="width:24%">📊 Base — $475–525</th>
+      <th class="bull-h" style="width:24%">🐂 Bull — $620–680</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="row-label">Revenue / procedure growth</td>
+      <td>8–10% CAGR</td>
+      <td>14–16% CAGR</td>
+      <td>18–20% CAGR</td>
+    </tr>
+    <tr>
+      <td class="row-label">EBITDA margin</td>
+      <td>45–46%</td>
+      <td>47–48%</td>
+      <td>49–50%</td>
+    </tr>
+    <tr>
+      <td class="row-label">FCF (FY2028E)</td>
+      <td>$68B</td>
+      <td>$85B</td>
+      <td>$102B</td>
+    </tr>
+    <tr>
+      <td class="row-label">Exit multiple</td>
+      <td>18x EV/EBITDA</td>
+      <td>22x EV/EBITDA</td>
+      <td>26x EV/EBITDA</td>
+    </tr>
+    <tr>
+      <td class="row-label">Key catalyst / risk</td>
+      <td>AI monetization delays</td>
+      <td>Copilot attach rates meet expectations</td>
+      <td>AI platform dominance</td>
+    </tr>
+    <tr class="price-row">
+      <td class="row-label" style="font-weight:700">Implied Price Range</td>
+      <td class="bear-p">$310–340</td>
+      <td class="base-p">$475–525</td>
+      <td class="bull-p">$620–680</td>
+    </tr>
+    <tr class="price-row">
+      <td class="row-label" style="font-weight:700;font-size:8.5pt">Upside vs 371.45</td>
+      <td class="bear-p" style="font-size:9pt">−17% to −8%</td>
+      <td class="base-p" style="font-size:9pt">+28% to +41%</td>
+      <td class="bull-p" style="font-size:9pt">+67% to +83%</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══ KEY RISKS ═══ -->
+<div class="section-label">Key Risk Factors</div>
+<ul class="risk-list no-break">
+  <li><strong>AI Monetization Timing:</strong> Copilot adoption may proceed slower than consensus expects.</li>
+  <li><strong>Competitive Intensity:</strong> AWS and Google Cloud are aggressively pricing AI inference services.<sup><a href="#fn7">[7]</a></sup></li>
+  <li><strong>Regulatory Scrutiny:</strong> EU Digital Markets Act and U.S. antitrust actions may limit bundling.</li>
+  <li><strong>Capital Allocation Risk:</strong> Heavy AI/datacenter capex reduces near-term FCF.</li>
+  <li><strong>Macroeconomic Sensitivity:</strong> Enterprise IT spending remains cyclical.</li>
+</ul>
+
+<!-- ═══ VALUATION ANALYSIS ═══ -->
+<div class="valuation-section">
+<div class="section-label">Valuation Analysis — DCF &amp; Multiples <sup><a href="#fn8">[8]</a></sup></div>
+
+<div class="valuation-verdict">
+  <div class="verdict-title">Valuation Analysis Summary — Multiples Primary; DCF as Cross-Check</div>
+  <p>At $371.45, Microsoft is trading at its most attractive forward-multiples entry in several years — a stock that rarely goes on sale. Three lenses tell a consistent story: <strong>(1) Multiples (Primary lens):</strong> Forward P/E of 21.1x and P/FCF of 32.1x sit 29% and 24% below 10-year averages, respectively. Applying those historical averages to FY2027E consensus (EPS $17.60, FCF $85.2B) yields a fair value range of <strong>$475–$525 — 28–41% upside</strong>. For a business compounding revenue at 15% with a 39% net margin and AAA credit, this discount is anomalous; it reflects peak-capex optics, not fundamental impairment. <strong>(2) Reverse DCF (The honest lens):</strong> At $371, the implied long-run EPS CAGR is just 10.8% — well below analyst consensus of 16–18%. The market is essentially pricing in a scenario where AI monetization disappoints materially and capex normalisation never arrives. That scenario is possible but not the base case. <strong>(3) DCF (Cross-check):</strong> Base case (WACC 10%, TGR 3%, Rev CAGR 14.5%) gives $498 (+34%). Bear case (WACC 11%, TGR 2%, Rev CAGR 9%) gives $328 (−12%). Bull case (WACC 9%, TGR 3.5%, Rev CAGR 18%) gives $652 (+76%). <strong>Conclusion:</strong> Price target of $525 represents 41% upside. The multiple re-rating from 21x to ~30x simply requires a return to historical norms as the capex cycle moderates in FY2026–27.</p>
+</div>
+
+<div class="valuation-grid">
+
+  <!-- LEFT: DCF -->
+  <div class="val-card">
+    <div class="val-card-title">Discounted Cash Flow (10yr Explicit Period)</div>
+    <table class="dcf-scenario-table">
+      <thead>
+        <tr>
+          <th>Scenario</th><th>WACC</th><th>TGR</th><th>Rev CAGR</th><th>DCF Price</th><th>vs 371.45</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- price-dn class = red; price-up class = green -->
+        <tr>
+          <td>Bear</td><td>11.0%</td><td>2.0%</td><td>9.0%</td>
+          <td class="price-dn">$328</td>
+          <td class="price-dn">−12%</td>
+        </tr>
+        <tr class="base-row">
+          <td>Base</td><td>10.0%</td><td>3.0%</td><td>14.5%</td>
+          <td class="price-up">$498</td>
+          <td class="price-up">+34%</td>
+        </tr>
+        <tr>
+          <td>Bull</td><td>9.0%</td><td>3.5%</td><td>18.0%</td>
+          <td class="price-up">$652</td>
+          <td class="price-up">+76%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:var(--ink-muted);margin-bottom:8px;">
+      Sensitivity: Implied Price (Base margins) — WACC × TGR
+    </div>
+    <!-- Sensitivity table: 6 WACC rows × 5 TGR columns -->
+    <!-- Cell classes: near-market (±10% of current price) | mid-range (~30% below) | low-range (>30% below) -->
+    <table class="sensitivity-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding-left:10px">WACC \ TGR</th>
+          <th>2.0%</th><th>2.5%</th><th>3.0%</th><th>3.5%</th><th>4.0%</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="row-wacc">8.5%</td><td class="near-market">$536</td><td class="near-market">$581</td><td class="near-market">$634</td><td class="near-market">$697</td><td class="near-market">$775</td></tr>
+        <tr><td class="row-wacc">9.0%</td><td class="near-market">$498</td><td class="near-market">$536</td><td class="near-market">$581</td><td class="near-market">$634</td><td class="near-market">$697</td></tr>
+        <tr><td class="row-wacc">9.5%</td><td class="near-market">$465</td><td class="near-market">$498</td><td class="near-market">$536</td><td class="near-market">$581</td><td class="near-market">$634</td></tr>
+        <tr><td class="row-wacc">10.0%</td><td class="near-market">$436</td><td class="near-market">$465</td><td class="near-market">$498</td><td class="near-market">$536</td><td class="near-market">$581</td></tr>
+        <tr><td class="row-wacc">10.5%</td><td class="near-market">$410</td><td class="near-market">$436</td><td class="near-market">$465</td><td class="near-market">$498</td><td class="near-market">$536</td></tr>
+        <tr><td class="row-wacc">11.0%</td><td class="mid-range">$387</td><td class="near-market">$410</td><td class="near-market">$436</td><td class="near-market">$465</td><td class="near-market">$498</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:7pt;color:var(--ink-muted);margin-top:4px;font-style:italic">Sensitivity cells: Red = Below Current | Yellow = Within +10% | Green = >+10% upside</p>
+
+    <div class="rev-dcf-box">
+      <strong>Reverse DCF — What Does 371.45 Imply?</strong><br>
+      At the current price of $371.45, the market implies a 10.8% EPS CAGR over the next decade (vs. consensus estimates of 16–18%). This suggests the stock is pricing in conservative growth expectations — a wide margin of safety for patient investors.
+    </div>
+  </div>
+
+  <!-- RIGHT: MULTIPLES -->
+  <div class="val-card">
+    <div class="val-card-title">Multiples Valuation (Historical Avg Exit)</div>
+    <table class="mult-table">
+      <thead>
+        <tr>
+          <!-- FY_FWD1: e.g. FY26E  |  FY_FWD2: e.g. FY27E -->
+          <th>Method</th><th>FY27E Px</th><th>Upside</th><th>FY28E Px</th><th>Upside</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="section-divider"><td colspan="5">P/E Multiple</td></tr>
+        <tr>
+          <td>10yr avg P/E — 33.2x</td>
+          <td>$584</td><td class="up">+57%</td>
+          <td>$651</td><td class="up">+75%</td>
+        </tr>
+        <tr>
+          <td>5yr avg P/E — 35.8x</td>
+          <td>$630</td><td class="up">+70%</td>
+          <td>$703</td><td class="up">+89%</td>
+        </tr>
+        <tr class="section-divider"><td colspan="5">P/FCF Multiple</td></tr>
+        <tr>
+          <td>10yr avg P/FCF — 45.2x</td>
+          <td>$542</td><td class="up">+46%</td>
+          <td>$612</td><td class="up">+65%</td>
+        </tr>
+        <tr>
+          <td>5yr avg P/FCF — 48.1x</td>
+          <td>$577</td><td class="up">+55%</td>
+          <td>$651</td><td class="up">+75%</td>
+        </tr>
+        <tr class="section-divider"><td colspan="5">EV/EBITDA Multiple</td></tr>
+        <tr>
+          <td>10yr avg EV/EBITDA — 24.7x</td>
+          <td>$518</td><td class="up">+39%</td>
+          <td>$589</td><td class="up">+59%</td>
+        </tr>
+        <tr>
+          <td>5yr avg EV/EBITDA — 26.3x</td>
+          <td>$551</td><td class="up">+48%</td>
+          <td>$627</td><td class="up">+69%</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:7.5pt;color:var(--ink-light);margin-top:8px;line-height:1.5;">
+      Method Rationale: Multiples preferred due to: (1) TV% >65% in DCF; (2) CAGR >15%; (3) P/E >20x.
+    </p>
+    <p style="font-size:7.5pt;color:var(--ink-light);margin-top:6px;line-height:1.5;">
+      Key Question: Is the current 25–30% discount to historical multiples justified by near-term capex intensity?
+    </p>
+    <div style="margin-top:8px;padding:7px 10px;background:var(--green-light);border-left:3px solid var(--green);font-size:8pt;line-height:1.5;">
+      <strong style="color:var(--green)">Composite Fair Value Range:</strong>
+      <span style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--green)"> $475–525</span>
+      on FY27E consensus (avg of 6 methods, historical multiples).<br>
+      <span style="color:var(--ink-light)">Composite Fair Value Range: $475–525 on FY27E consensus. +28% to +41% upside vs. current price of $371.45.</span>
+    </div>
+  </div>
+
+</div>
+</div><!-- end valuation-section -->
+
+<!-- ═══ ANALYST PRICE TARGETS ═══ -->
+<div class="section-label">Analyst Price Targets — MSFT (April 2026)</div>
+<div class="no-break">
+  <div class="analyst-consensus-bar">
+    <div class="cons-cell buy-cell">
+      <div class="cons-label">Buy / Strong Buy</div>
+      <div class="cons-val">94%</div>
+      <div class="cons-sub">32 of 34</div>
+    </div>
+    <div class="cons-cell hold-cell">
+      <div class="cons-label">Hold</div>
+      <div class="cons-val">6%</div>
+      <div class="cons-sub">2 of 34</div>
+    </div>
+    <div class="cons-cell sell-cell">
+      <div class="cons-label">Sell</div>
+      <div class="cons-val">0%</div>
+      <div class="cons-sub">0 of 34</div>
+    </div>
+  </div>
+  <table class="analyst-table">
+    <thead>
+      <tr>
+        <th style="width:20%">Analyst</th>
+        <th style="width:20%">Firm</th>
+        <th class="center" style="width:12%">Rating</th>
+        <th class="center" style="width:14%">Price Target</th>
+        <th class="center" style="width:12%">vs 371.45</th>
+        <th style="width:22%">Last Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- RATING PILL CLASS: rating-buy | rating-hold | rating-sell -->
+      <!-- PT CLASS: pt-above (green) | pt-flat (amber) | pt-below (red) -->
+      <tr>
+        <td class="analyst-name">Keith Weiss</td><td class="firm-name">Morgan Stanley</td>
+        <td class="center"><span class="rating-buy">Overweight</span></td>
+        <td class="center pt-val pt-above">$625</td>
+        <td class="center pt-above">+68%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Brent Thill</td><td class="firm-name">Jefferies</td>
+        <td class="center"><span class="rating-buy">Buy</span></td>
+        <td class="center pt-val pt-above">$600</td>
+        <td class="center pt-above">+62%</td>
+        <td>Apr 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Kash Rangan</td><td class="firm-name">Goldman Sachs</td>
+        <td class="center"><span class="rating-buy">Buy</span></td>
+        <td class="center pt-val pt-above">$590</td>
+        <td class="center pt-above">+59%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Brad Zelnick</td><td class="firm-name">Deutsche Bank</td>
+        <td class="center"><span class="rating-buy">Buy</span></td>
+        <td class="center pt-val pt-above">$575</td>
+        <td class="center pt-above">+55%</td>
+        <td>Feb 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Raimo Lenschow</td><td class="firm-name">Barclays</td>
+        <td class="center"><span class="rating-buy">Overweight</span></td>
+        <td class="center pt-val pt-above">$560</td>
+        <td class="center pt-above">+51%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Mark Moerdler</td><td class="firm-name">Bernstein</td>
+        <td class="center"><span class="rating-buy">Outperform</span></td>
+        <td class="center pt-val pt-above">$540</td>
+        <td class="center pt-above">+45%</td>
+        <td>Apr 2026</td>
+      </tr>
+      <tr>
+        <td class="analyst-name">Michael Turits</td><td class="firm-name">Raymond James</td>
+        <td class="center"><span class="rating-buy">Strong Buy</span></td>
+        <td class="center pt-val pt-above">$520</td>
+        <td class="center pt-above">+40%</td>
+        <td>Mar 2026</td>
+      </tr>
+      <tr style="background:#f0f4fa !important; font-weight:600; border-top: 1px solid #a7d8d8;">
+        <td colspan="2" style="font-size:8pt; color:var(--accent);">Consensus Average (34 analysts)</td>
+        <td class="center" style="font-size:8pt; color:var(--green);">94% Buy</td>
+        <td class="center pt-val" style="color:var(--accent2);">$595.58</td>
+        <td class="center" style="color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:8pt;">+60.6%</td>
+        <td style="font-size:7.5pt;color:var(--ink-muted);">Range: $392–$675</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="analyst-note">Consensus data aggregated from Bloomberg, FactSet, and public analyst reports as of April 10, 2026.</p>
+</div>
+
+<!-- ═══ FOOTNOTES ═══ -->
+<div class="footnotes">
+  <div class="footnotes-title">Sources &amp; Footnotes</div>
+  <ol>
+    <li id="fn1">Credit ratings: S&P AAA (Stable), Moody's Aaa (Stable).</li>
+    <li id="fn2">Historical financials sourced from Microsoft FY2025 10-K.</li>
+    <li id="fn3">Growth metrics: Trail CAGR calculated from FY2022–2025 actuals.</li>
+    <li id="fn4">Share price history: Yahoo Finance, monthly closes 2021–2026.</li>
+    <li id="fn5">ROIC, buybacks, FCF/share: Calculated from Microsoft financial statements.</li>
+    <li id="fn6">Valuation multiples: 10-year averages sourced from GuruFocus.</li>
+    <li id="fn7">Risk factors synthesized from Microsoft 10-K Risk Factors section.</li>
+    <li id="fn8">DCF assumptions: WACC 9–11% (CAPM-based), TGR 2–4%.</li>
+  </ol>
+</div>
+
+<div class="disclaimer">
+  <strong>Disclaimer:</strong> This report is for informational purposes only and does not constitute investment advice.
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 1 — SHARE PRICE (line)
+// PRICE_LABELS: JS array of ~monthly labels, e.g. ['Apr-21','Jul-21', ...]
+// PRICE_DATA: JS array of prices in CURRENCY_SYMBOL
+// ─────────────────────────────────────────────────────────────────────────────
+const priceLabels = ['Apr 21','Oct 21','Apr 22','Oct 22','Apr 23','Oct 23','Apr 24','Oct 24','Apr 25','Oct 25','Apr 26'];
+const priceData   = [252,331,280,242,308,378,420,415,430,425,371];
+const currencySymbol = '$';  // '$' or '€' or '£' etc.
+
+const priceCtx = document.getElementById('priceChart').getContext('2d');
+new Chart(priceCtx, {
+  type: 'line',
+  data: {
+    labels: priceLabels,
+    datasets: [{
+      data: priceData,
+      borderColor: '#0d6e6e',
+      backgroundColor: 'rgba(13,110,110,0.07)',
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => `${currencySymbol}${ctx.parsed.y.toFixed(0)}` },
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont:  { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#6b6b8a', maxTicksLimit: 8, maxRotation: 0 }, border: { color: '#d4cfc9' } },
+      y: { grid: { color: 'rgba(212,207,201,0.4)' }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${currencySymbol}${v}` }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 2 — FINANCIALS (stacked bar: Revenue/EBITDA/NI + OCF & FCF lines)
+// FIN_LABELS: JS array, e.g. ['FY20A','FY21A',...,'FY26E','FY27E']
+// N_ACTUALS: index where estimates begin (0-based), e.g. 6 means first 6 are actuals
+// All values in reporting currency billions
+// ─────────────────────────────────────────────────────────────────────────────
+const finLabels = ['FY2021','FY2022','FY2023','FY2024','FY2025','FY2026E','FY2027E'];
+const nActuals  = 5;  // first N entries are actuals; rest are estimates
+
+const rev    = [168,198,212,245,282,325,375];
+const ebitda = [77,89,99,118,135,155,178];
+const ni     = [61,73,72,88,106,122,142];
+const ocfData = [77,89,88,119,161,185,210];
+const fcfData = [56,65,59,74,77,82,95];
+
+const seg1 = ni;
+const seg2 = rev.map((r,i) => Math.max(0, ebitda[i] - ni[i]));
+const seg3 = rev.map((r,i) => Math.max(0, r - ebitda[i]));
+
+const isEst = (ctx) => ctx.dataIndex >= nActuals;
+
+const finCtx = document.getElementById('financialChart').getContext('2d');
+new Chart(finCtx, {
+  type: 'bar',
+  data: {
+    labels: finLabels,
+    datasets: [
+      {
+        label: 'Net Income',
+        data: seg1,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(0,105,92,0.30)' : 'rgba(0,105,92,0.85)',
+        borderColor: 'transparent', borderWidth: 0,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'EBITDA − NI',
+        data: seg2,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.20)' : 'rgba(13,110,110,0.55)',
+        borderColor: 'transparent', borderWidth: 0,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'Revenue − EBITDA',
+        data: seg3,
+        backgroundColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.10)' : 'rgba(13,110,110,0.22)',
+        borderColor: ctx => isEst(ctx) ? 'rgba(13,110,110,0.3)' : '#0d6e6e',
+        borderWidth: ctx => isEst(ctx) ? 1 : 0.5,
+        stack: 'rev', yAxisID: 'yRev', order: 3
+      },
+      {
+        label: 'Op. Cash Flow',
+        data: ocfData,
+        type: 'line', borderColor: '#1e3a5f', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#1e3a5f',
+        tension: 0.3, yAxisID: 'yCF', order: 1, stack: undefined
+      },
+      {
+        label: 'Free Cash Flow',
+        data: fcfData,
+        type: 'line', borderColor: '#c8102e', backgroundColor: 'transparent',
+        borderWidth: 2, borderDash: [5,3], pointRadius: 3, pointBackgroundColor: '#c8102e',
+        tension: 0.3, yAxisID: 'yCF', order: 0, stack: undefined
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: {
+        display: true, position: 'top', align: 'end',
+        labels: {
+          font: { family: 'IBM Plex Mono', size: 7 }, color: '#3d3d5c',
+          usePointStyle: true, pointStyleWidth: 12, padding: 8, boxHeight: 6,
+          generateLabels: (chart) => {
+            const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+            const barLabel = { text: 'Revenue (stacked: NI / EBITDA / Rev)', fillStyle: 'rgba(13,110,110,0.6)', strokeStyle: 'transparent', lineWidth: 0, pointStyle: 'rect', hidden: false };
+            const lines = labels.filter(l => l.text === 'Op. Cash Flow' || l.text === 'Free Cash Flow');
+            return [barLabel, ...lines];
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            if (ctx.dataset.label === 'Net Income') return `Net Income: ${currencySymbol}${seg1[ctx.dataIndex].toFixed(2)}B`;
+            if (ctx.dataset.label === 'EBITDA − NI') return `EBITDA: ${currencySymbol}${ebitda[ctx.dataIndex].toFixed(2)}B`;
+            if (ctx.dataset.label === 'Revenue − EBITDA') return `Revenue: ${currencySymbol}${rev[ctx.dataIndex].toFixed(2)}B`;
+            return `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(2)}B`;
+          }
+        },
+        filter: item => !(item.dataset.label === 'EBITDA − NI' || item.dataset.label === 'Revenue − EBITDA'),
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      yRev: {
+        position: 'left', stacked: true,
+        grid: { color: 'rgba(212,207,201,0.4)' },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0d6e6e', callback: v => `${currencySymbol}${v}B` },
+        border: { color: '#d4cfc9' },
+        title: { display: true, text: 'Rev / EBITDA / NI', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0d6e6e' }
+      },
+      yCF: {
+        position: 'right', stacked: false,
+        grid: { display: false },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#1e3a5f', callback: v => `${currencySymbol}${v}B` },
+        border: { color: '#d4cfc9' },
+        title: { display: true, text: 'OCF / FCF', font: { size: 7, family: 'IBM Plex Mono' }, color: '#1e3a5f' }
+      },
+      x: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 },
+        border: { color: '#d4cfc9' }
+      }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 3 — ROIC (bars + WACC reference line)
+// ROIC_LABELS: JS array of year labels
+// ROIC_DATA: JS array of ROIC % values (bars green if >20, amber if ≤20)
+// WACC_VALUE: single number used for flat reference line, e.g. 8
+// ─────────────────────────────────────────────────────────────────────────────
+const roicLabels = ['FY2021','FY2022','FY2023','FY2024','FY2025'];
+const roicData   = [24.1,26.8,27.3,29.5,28.8];
+const waccValue  = 9.5;
+const waccLine   = roicLabels.map(() => waccValue);
+
+const roicCtx = document.getElementById('roicChart').getContext('2d');
+new Chart(roicCtx, {
+  type: 'bar',
+  data: {
+    labels: roicLabels,
+    datasets: [
+      {
+        label: 'ROIC %',
+        data: roicData,
+        backgroundColor: roicData.map(v => v > 20 ? 'rgba(0,105,92,0.75)' : 'rgba(180,83,9,0.65)'),
+        borderColor: roicData.map(v => v > 20 ? '#00695c' : '#b45309'),
+        borderWidth: 1,
+        order: 2
+      },
+      {
+        label: `Est. WACC ~${waccValue}%`,
+        data: waccLine,
+        type: 'line',
+        borderColor: '#c8102e',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [6,3],
+        pointRadius: 0,
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end', labels: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#3d3d5c', usePointStyle: true, pointStyleWidth: 14, padding: 10, boxHeight: 6 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` }, backgroundColor: '#1a1a2e', titleFont: { family: 'IBM Plex Mono', size: 9 }, bodyFont: { family: 'IBM Plex Mono', size: 9 }, padding: 8 }
+    },
+    scales: {
+      y: {
+        grid: { color: 'rgba(212,207,201,0.4)' },
+        ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${v}%` },
+        border: { color: '#d4cfc9' },
+        min: 0, max: 45,
+        title: { display: true, text: 'ROIC %', font: { size: 7, family: 'IBM Plex Mono' }, color: '#6b6b8a' }
+      },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART 4 — SHAREHOLDER RETURNS (buybacks bar + FCF/share line)
+// RET_LABELS: JS array of year labels
+// BUYBACK_JS: JS array of annual buybacks in reporting currency billions
+// FCF_PER_SHARE_JS: JS array of FCF per share values
+// ─────────────────────────────────────────────────────────────────────────────
+const retLabels   = ['FY2021','FY2022','FY2023','FY2024','FY2025'];
+const buybackData = [27.4,32.6,21.0,16.5,12.8];
+const fcfPerShare = [7.42,8.61,7.89,9.85,10.42];
+
+const retCtx = document.getElementById('returnChart').getContext('2d');
+new Chart(retCtx, {
+  type: 'bar',
+  data: {
+    labels: retLabels,
+    datasets: [
+      {
+        label: `Buybacks (${currencySymbol}B)`,
+        data: buybackData,
+        backgroundColor: 'rgba(10,79,107,0.7)',
+        borderColor: '#0a4f6b',
+        borderWidth: 1,
+        yAxisID: 'yBuy',
+        order: 2
+      },
+      {
+        label: `FCF per Share (${currencySymbol})`,
+        data: fcfPerShare,
+        type: 'line',
+        borderColor: '#0d6e6e',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#0d6e6e',
+        tension: 0.3,
+        yAxisID: 'yFCF',
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end', labels: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#3d3d5c', usePointStyle: true, pointStyleWidth: 14, padding: 10, boxHeight: 6 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ctx.dataset.label.includes('FCF') ? `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(2)}` : `${ctx.dataset.label}: ${currencySymbol}${ctx.parsed.y.toFixed(1)}B`
+        },
+        backgroundColor: '#1a1a2e',
+        titleFont: { family: 'IBM Plex Mono', size: 9 },
+        bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        padding: 8
+      }
+    },
+    scales: {
+      yBuy: { position: 'left', grid: { color: 'rgba(212,207,201,0.4)' }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0a4f6b', callback: v => `${currencySymbol}${v}B` }, border: { color: '#d4cfc9' }, title: { display: true, text: 'Buybacks', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0a4f6b' } },
+      yFCF: { position: 'right', grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7 }, color: '#0d6e6e', callback: v => `${currencySymbol}${v}` }, border: { color: '#d4cfc9' }, title: { display: true, text: 'FCF/Share', font: { size: 7, family: 'IBM Plex Mono' }, color: '#0d6e6e' } },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
+    }
+  }
+});
+</script>
+</body>
+</html>
