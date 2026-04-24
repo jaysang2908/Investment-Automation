@@ -3,326 +3,610 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Walmart Inc. — Independent Research Report</title>
+<title>{{COMPANY_NAME}} — Equity Research</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* ===== Foundations ===== */
+:root {
+  --bg: #FAFAF7;
+  --bg-card: #FFFFFF;
+  --bg-elev: #F4F3EE;
+  --ink: #111111;
+  --ink-2: #2A2A27;
+  --muted: #7A7A75;
+  --muted-2: #9E9D96;
+  --line: #E8E6E0;
+  --line-strong: #D6D3CC;
+  --up: #0F6B4E;
+  --down: #B4472E;
+  --amber: #B8690E;
+  --accent: #0F6B4E;
+  --accent-soft: #E6F0EC;
+  --accent-ink: #083524;
+  --red-soft: #F7E3DD;
+  --amber-soft: #F6ECDB;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(17,17,17,0.04);
+  --shadow-md: 0 4px 20px -6px rgba(17,17,17,0.08);
+}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; }
+table { border-collapse: collapse; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.pos { color: var(--up); }
+.neg { color: var(--down); }
+.amb { color: var(--amber); }
+.muted { color: var(--muted); }
+.eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 
-  :root {
-    --ink: #1a1a2e;
-    --ink-light: #3d3d5c;
-    --ink-muted: #6b6b8a;
-    --accent: #0d6e6e;
-    --accent2: #0a4f6b;
-    --accent-light: #e0f4f4;
-    --green: #00695c;
-    --green-light: #e0f2f1;
-    --red: #c00000;
-    --red-light: #fef2f2;
-    --amber: #b45309;
-    --amber-light: #fef3c7;
-    --blue: #1e3a5f;
-    --blue-light: #dbeafe;
-    --rule: #d4cfc9;
-    --bg: #faf9f7;
-    --card: #ffffff;
-  }
+/* ===== Topbar ===== */
+.topbar {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  position: sticky; top: 0; z-index: 30;
+  backdrop-filter: blur(8px);
+}
+.topbar-inner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 12px 32px;
+  display: flex; align-items: center; gap: 20px;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--ink); color: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; font-family: var(--font-mono); letter-spacing: 0.05em;
+}
+.brand-text { display: flex; flex-direction: column; }
+.brand-name { font-weight: 600; font-size: 12px; line-height: 1.2; color: var(--ink); }
+.brand-sub { font-size: 10px; color: var(--muted); line-height: 1.2; }
+.topbar-ticker {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 5px 12px; background: var(--bg-elev); border-radius: 999px;
+}
+.ticker-symbol { font-weight: 600; color: var(--ink); }
+.ticker-sep { color: var(--muted-2); }
+.ticker-price { font-weight: 500; color: var(--ink-2); }
+.topbar-date { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 
-  body {
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 9.5pt;
-    line-height: 1.5;
-    color: var(--ink);
-    background: var(--bg);
-    max-width: 1020px;
-    margin: 0 auto;
-    padding: 24px 20px;
-  }
+/* ===== Hero ===== */
+.hero {
+  max-width: 1180px; margin: 0 auto;
+  padding: 48px 32px 40px;
+}
+.hero-eyebrow { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.pill {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em;
+}
+.pill-solid { background: var(--ink); color: var(--bg); }
+.pill-ghost { background: transparent; color: var(--muted); border: 1px solid var(--line-strong); }
+.hero-title {
+  font-size: clamp(36px, 5vw, 60px); font-weight: 700;
+  letter-spacing: -0.025em; line-height: 1.02; margin: 0 0 10px;
+  color: var(--ink);
+}
+.hero-tagline {
+  font-size: 17px; color: var(--ink-2); max-width: 720px;
+  margin: 0 0 32px; line-height: 1.6;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 16px;
+}
+.hero-verdict {
+  grid-column: 1; grid-row: 1 / 3;
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  min-height: 220px;
+}
+/* verdict classes set by report_bridge.py */
+.verdict-green { background: var(--ink); }
+.verdict-amber { background: #2A1E0A; }
+.verdict-red   { background: #2A0F0A; }
+.verdict-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted-2); }
+.verdict-value {
+  font-size: 28px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1;
+  margin-top: 8px; color: #fff;
+}
+.verdict-score-row { display: flex; align-items: baseline; gap: 6px; margin-top: 28px; }
+.verdict-score-num { font-size: 42px; font-weight: 700; color: #fff; line-height: 1; font-family: var(--font-mono); }
+.verdict-score-den { color: var(--muted-2); font-size: 16px; font-family: var(--font-mono); }
+.verdict-score-sub { font-family: var(--font-mono); font-size: 10px; color: var(--muted-2); margin-top: 4px; }
+.hero-price {
+  grid-column: 2; grid-row: 1;
+  background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px 28px;
+  display: flex; align-items: center; gap: 20px;
+}
+.price-block { flex: 1; }
+.price-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.price-value {
+  font-size: 32px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;
+  color: var(--ink); font-family: var(--font-mono);
+}
+.price-target { color: var(--accent); }
+.price-arrow { font-size: 24px; color: var(--muted-2); }
+.price-upside {
+  display: inline-block; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 3px 8px; border-radius: 4px;
+}
+.price-upside.dn { color: var(--down); background: var(--red-soft); }
+.hero-meta-card {
+  grid-column: 2; grid-row: 2;
+  background: var(--bg-elev); border-radius: var(--radius);
+  padding: 18px 24px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.hero-meta-line { font-family: var(--font-mono); font-size: 11px; color: var(--muted-2); }
+.hero-meta-line strong { color: var(--ink-2); font-weight: 500; }
 
-  /* ── HEADER ─────────────────────────────────────── */
-  .report-header {
-    border-top: 3px solid var(--accent);
-    border-bottom: 1px solid var(--rule);
-    padding: 14px 0 12px;
-    margin-bottom: 14px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 12px;
-    align-items: end;
-  }
-  .company-name { font-family: 'Playfair Display', serif; font-size: 22pt; font-weight: 700; color: var(--ink); line-height: 1.1; letter-spacing: -0.5px; }
-  .company-sub { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; color: var(--ink-muted); margin-top: 4px; letter-spacing: 0.5px; }
-  .rating-badge { text-align: right; }
-  .verdict { display: inline-block; color: white; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 2px; margin-bottom: 6px; }
-  .verdict-green { background: var(--green); }
-  .verdict-amber { background: var(--amber); }
-  .verdict-red   { background: var(--red); }
-  .price-line { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; color: var(--ink); }
-  .price-line .current { font-size: 18pt; font-weight: 500; }
-  .price-line .target { color: var(--green); font-weight: 500; }
-  .report-meta { font-size: 7.5pt; color: var(--ink-muted); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+@media (max-width: 860px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-verdict, .hero-price, .hero-meta-card { grid-column: 1; grid-row: auto; }
+}
 
-  /* ── COMPANY SUMMARY ─────────────────────────────── */
-  .company-summary-box {
-    background: var(--card);
-    border-left: 3px solid var(--accent);
-    padding: 10px 14px;
-    margin-bottom: 14px;
-    font-size: 9pt;
-    line-height: 1.6;
-    color: var(--ink-light);
-  }
-  .summary-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 7.5pt;
-    font-weight: 600;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 6px;
-    display: block;
-  }
+/* ===== Tab nav (anchor links) ===== */
+.tab-nav {
+  position: sticky; top: 55px; z-index: 20;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-nav-inner {
+  max-width: 1180px; margin: 0 auto; padding: 0 32px;
+  display: flex; align-items: center; gap: 2px; height: 50px;
+  white-space: nowrap;
+}
+.tab-link {
+  display: inline-block; padding: 14px 14px;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  text-decoration: none; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: color 0.12s;
+}
+.tab-link:hover { color: var(--ink); }
 
-  /* ── METRICS GRID ─────────────────────────────── */
-  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
-  .metric-cell { background: var(--card); padding: 8px 10px; }
-  .metric-cell .m-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
-  .metric-cell .m-value { font-size: 11pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
-  .metric-cell .m-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 1px; }
-  .metric-cell.highlight .m-value { color: var(--accent); }
-  .metric-cell.positive .m-value { color: var(--green); }
-  .metric-cell.warn .m-value { color: var(--red); }
+/* ===== Main layout ===== */
+.main { max-width: 1180px; margin: 0 auto; padding: 48px 32px 80px; }
+.stack > * + * { margin-top: 56px; }
 
-  /* ── SECTION LABEL ────────────────────────────── */
-  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5pt; letter-spacing: 0.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 2px solid var(--accent); margin-top: 4px; }
+/* ===== Section headers ===== */
+.section-header {
+  display: flex; align-items: baseline; gap: 16px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 24px;
+}
+.section-num { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 0.1em; min-width: 24px; }
+.section-title { font-size: 24px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; color: var(--ink); }
+.section-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
-  /* ── CREDIT ───────────────────────────────────── */
-  .credit-band { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
-  .credit-chip { display: inline-flex; flex-direction: column; align-items: center; background: var(--card); border: 1px solid var(--rule); padding: 6px 14px; border-radius: 2px; }
-  .credit-chip .agency { font-size: 6.5pt; font-family: 'IBM Plex Mono', monospace; color: var(--ink-muted); letter-spacing: 0.5px; text-transform: uppercase; }
-  .credit-chip .rating-val { font-size: 14pt; font-weight: 700; font-family: 'Playfair Display', serif; }
-  .credit-chip .rating-green { color: var(--green); }
-  .credit-chip .rating-amber { color: var(--amber); }
-  .credit-chip .rating-red   { color: var(--red); }
-  .credit-chip .rating-muted { color: var(--ink-muted); }
-  .credit-chip .outlook { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; }
-  .credit-chip .tier { font-size: 6.5pt; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 1px; }
-  .credit-note { font-size: 8pt; color: var(--ink-light); line-height: 1.5; flex: 1; }
+/* ===== Metric grid ===== */
+.metric-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.metric-card { background: var(--bg-card); padding: 20px 22px; }
+.metric-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.metric-value {
+  font-size: 24px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.1;
+  font-variant-numeric: tabular-nums; font-family: var(--font-mono);
+}
+.metric-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); margin-top: 5px; }
+.metric-card.highlight .metric-value { color: var(--accent); }
+.metric-card.positive .metric-value { color: var(--up); }
+.metric-card.warn .metric-value { color: var(--down); }
 
-  /* ── THESIS ───────────────────────────────────── */
-  .thesis-box { background: var(--card); border-left: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 9pt; line-height: 1.6; }
-  .thesis-box p + p { margin-top: 8px; }
-  .thesis-box .thesis-heading {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 7.5pt;
-    font-weight: 600;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-top: 11px;
-    margin-bottom: 4px;
-    display: block;
-  }
-  .thesis-box .thesis-heading:first-child { margin-top: 0; }
-  .thesis-box strong { color: var(--ink); font-weight: 600; }
+/* keep old class names used by report_bridge */
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.metric-cell { background: var(--bg-card); padding: 20px 22px; }
+.metric-cell .m-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.metric-cell .m-value { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.1; font-variant-numeric: tabular-nums; font-family: var(--font-mono); color: var(--ink); }
+.metric-cell .m-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); margin-top: 5px; }
+.metric-cell.highlight .m-value { color: var(--accent); }
+.metric-cell.positive .m-value { color: var(--up); }
+.metric-cell.warn .m-value { color: var(--down); }
 
-  /* ── REVENUE MIX BAND ─────────────────────────── */
-  .mix-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
-  .mix-cell { background: var(--card); padding: 9px 12px; }
-  .mix-cell .mix-name { font-size: 7.5pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
-  .mix-cell .mix-rev { font-size: 13pt; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: var(--accent); }
-  .mix-cell .mix-sub { font-size: 8pt; color: var(--ink-light); margin-top: 2px; }
-  .mix-cell.seg2 .mix-rev { color: var(--accent2); }
-  .mix-cell.seg3 .mix-rev { color: var(--green); }
+@media (max-width: 860px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
 
-  /* ── STATS ROW ─────────────────────────────────── */
-  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 14px; }
-  .stat-cell { background: var(--card); padding: 8px 10px; }
-  .stat-cell .s-label { font-size: 7pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-  .stat-cell .s-trail { font-size: 9pt; font-weight: 600; color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
-  .stat-cell .s-fwd { font-size: 8.5pt; color: var(--green); font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
-  .stat-cell .s-avg { font-size: 7.5pt; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+/* ===== Revenue mix (segments) ===== */
+.mix-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.mix-cell { background: var(--bg-card); padding: 22px 24px; }
+.mix-cell .mix-name { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; }
+.mix-cell .mix-rev { font-size: 26px; font-weight: 700; font-family: var(--font-mono); letter-spacing: -0.01em; color: var(--accent); }
+.mix-cell .mix-sub { font-size: 13px; color: var(--ink-2); margin-top: 4px; line-height: 1.4; }
+.mix-cell.seg2 .mix-rev { color: #1E5A9C; }
+.mix-cell.seg3 .mix-rev { color: var(--up); }
 
-  /* ── CHARTS ────────────────────────────────────── */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-  .chart-container { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
-  .chart-title { font-size: 8pt; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-light); margin-bottom: 8px; font-weight: 500; }
-  .chart-canvas-wrap { height: 160px; }
+/* ===== Credit profile ===== */
+.credit-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
+.credit-chip {
+  background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px 22px; text-align: center; min-width: 130px;
+}
+.credit-chip .agency { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.credit-chip .rating-val { font-size: 32px; font-weight: 700; font-family: var(--font-mono); line-height: 1; margin: 4px 0; }
+.credit-chip .rating-green { color: var(--up); }
+.credit-chip .rating-amber { color: var(--amber); }
+.credit-chip .rating-red   { color: var(--down); }
+.credit-chip .rating-muted { color: var(--muted-2); }
+.credit-chip .outlook { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+.credit-chip .tier { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 3px; }
+.credit-note {
+  flex: 1; background: var(--accent-soft); border-radius: var(--radius);
+  padding: 20px 22px; font-size: 14px; line-height: 1.6; color: var(--accent-ink);
+  min-width: 220px;
+}
 
-  /* ── PAGE BREAK ────────────────────────────────── */
-  .page-break { border-top: 2px solid var(--rule); margin: 20px 0 16px; padding-top: 4px; display: flex; align-items: center; gap: 10px; }
-  .page-break-label { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; color: var(--ink-muted); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
-  .page-break hr { flex: 1; border: none; border-top: 1px solid var(--rule); }
+/* ===== Investment Thesis ===== */
+.thesis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.thesis-card {
+  background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px 26px 28px; display: flex; flex-direction: column;
+}
+.thesis-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--accent-soft); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; margin-bottom: 16px;
+}
+.thesis-label { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--ink); }
+.thesis-body { font-size: 14px; line-height: 1.65; color: var(--ink-2); }
+.thesis-body strong { color: var(--ink); }
+@media (max-width: 860px) { .thesis-grid { grid-template-columns: 1fr; } }
 
-  /* ── ANALYST TABLE ─────────────────────────────── */
-  .analyst-consensus-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 8px; }
-  .cons-cell { background: var(--card); padding: 8px 12px; text-align: center; }
-  .cons-cell .cons-label { font-size: 7pt; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-muted); margin-bottom: 3px; }
-  .cons-cell .cons-val { font-size: 14pt; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
-  .cons-cell .cons-sub { font-size: 7pt; color: var(--ink-muted); margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
-  .cons-cell.buy-cell .cons-val { color: var(--green); }
-  .cons-cell.hold-cell .cons-val { color: var(--amber); }
-  .cons-cell.sell-cell .cons-val { color: var(--red); }
-  .analyst-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 6px; }
-  .analyst-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
-  .analyst-table th.center { text-align: center; }
-  .analyst-table td { padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
-  .analyst-table tr:nth-child(even) td { background: #f8f7f5; }
-  .rating-buy  { color: var(--green); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
-  .rating-hold { color: var(--amber); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
-  .rating-sell { color: var(--red);   font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
-  .pt-val { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 9pt; }
-  .pt-above { color: var(--green); }
-  .pt-below { color: var(--red); }
-  .pt-flat  { color: var(--amber); }
-  .analyst-name { font-weight: 500; }
-  .firm-name { color: var(--ink-muted); font-size: 8pt; }
-  .analyst-note { font-size: 7.5pt; color: var(--ink-muted); margin-top: 5px; font-style: italic; }
+/* Kept for legacy: thesis-box just renders as a card stack */
+.thesis-box { display: flex; flex-direction: column; gap: 16px; }
+.thesis-box p { font-size: 14px; line-height: 1.65; color: var(--ink-2); }
+.thesis-box strong { color: var(--ink); }
+.thesis-heading {
+  display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--accent); margin-top: 16px; margin-bottom: 4px;
+  font-weight: 600;
+}
+.thesis-heading:first-child { margin-top: 0; }
 
-  /* ── SCORECARD ──────────────────────────────────── */
-  .scorecard-header { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-bottom: 8px; }
-  .score-final { font-family: 'IBM Plex Mono', monospace; font-size: 9pt; font-weight: 500; color: white; padding: 4px 12px; border-radius: 2px; }
-  .score-final-green { background: var(--green); }
-  .score-final-amber { background: var(--amber); }
-  .score-final-red   { background: var(--red); }
-  .scorecard-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
-  .scorecard-table th { background: var(--ink); color: white; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 8px; text-align: left; font-weight: 500; }
-  .scorecard-table th.center { text-align: center; }
-  .scorecard-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--rule); }
-  .scorecard-table tr:nth-child(even) td { background: #f8f7f5; }
-  .scorecard-table .part-header td { background: var(--accent-light); font-weight: 600; font-size: 8pt; color: var(--accent); border-bottom: 1px solid #a7d8d8; }
-  .score-pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-  .score-high { background: var(--green-light); color: var(--green); }
-  .score-mid  { background: var(--amber-light); color: var(--amber); }
-  .score-low  { background: var(--red-light); color: var(--red); }
-  .score-num { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; text-align: center; }
-  .col-commentary { font-size: 7.8pt; color: var(--ink-light); line-height: 1.45; }
-  .col-metric { font-weight: 500; color: var(--ink); }
-  .weighted-row td { background: #e8f4f4 !important; font-weight: 600; font-size: 8pt; border-top: 1px solid #a7d8d8; }
+/* ===== Financial table ===== */
+.fin-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); }
+.fin-table { width: 100%; font-size: 13px; }
+.fin-table th, .fin-table td {
+  padding: 11px 14px; text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.fin-table th { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--bg-elev); font-weight: 500; }
+.fin-table th:not(.row-head) { text-align: right; }
+.fin-table td { font-family: var(--font-mono); color: var(--ink-2); }
+.fin-table td.row-label { font-family: var(--font-body); font-size: 13px; color: var(--ink-2); font-weight: 500; text-align: left; }
+.fin-table td:not(.row-label) { text-align: right; }
+.fin-table tbody tr:hover { background: var(--bg-elev); }
+.fin-table tbody tr:last-child td { border-bottom: none; }
+.fin-table .section-row td {
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 8px 14px; text-align: left;
+}
+.fin-table .highlight-row td { font-weight: 700; color: var(--ink); }
+.fin-table .margin-row td { color: var(--muted); font-style: italic; }
+.fin-table th.row-head { width: 26%; }
+.fin-table-note { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 
-  /* ── SCENARIOS ──────────────────────────────────── */
-  .scenario-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 14px; }
-  .scenario-table th { padding: 7px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; text-align: left; }
-  .scenario-table th.bear-h { background: #fef2f2; color: var(--red); }
-  .scenario-table th.base-h { background: var(--blue-light); color: var(--blue); }
-  .scenario-table th.bull-h { background: var(--green-light); color: var(--green); }
-  .scenario-table td { padding: 5px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  .scenario-table tr:nth-child(even) td { background: #f8f7f5; }
-  .scenario-table .row-label { font-weight: 500; color: var(--ink); width: 28%; }
-  .scenario-table .price-row td { font-weight: 700; font-size: 10pt; font-family: 'IBM Plex Mono', monospace; }
-  .scenario-table .price-row td.bear-p { color: var(--red); background: #fef2f2; }
-  .scenario-table .price-row td.base-p { color: var(--blue); background: var(--blue-light); }
-  .scenario-table .price-row td.bull-p { color: var(--green); background: var(--green-light); }
+/* ===== Growth / stat row ===== */
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.stat-cell { background: var(--bg-card); padding: 20px 22px; }
+.stat-cell .s-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 8px; }
+.stat-cell .s-trail { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--ink); }
+.stat-cell .s-fwd { font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--up); margin-top: 2px; }
+.stat-cell .s-avg { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 5px; }
 
-  /* ── RISKS ──────────────────────────────────────── */
-  .risk-list { list-style: none; margin-bottom: 14px; }
-  .risk-list li { padding: 6px 8px 6px 20px; border-bottom: 1px solid var(--rule); font-size: 8.5pt; position: relative; line-height: 1.45; }
-  .risk-list li::before { content: '▸'; position: absolute; left: 6px; color: var(--accent); font-size: 8pt; }
-  .risk-list li strong { color: var(--ink); font-weight: 600; }
+/* ===== Charts ===== */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-card { background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; }
+.chart-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.chart-canvas-wrap { height: 170px; }
+/* legacy alias */
+.chart-container { background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; }
+@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
 
-  /* ── VALUATION ──────────────────────────────────── */
-  .valuation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-  .val-card { background: var(--card); border: 1px solid var(--rule); padding: 12px; }
-  .val-card-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 600; color: var(--ink); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.5px; }
-  .dcf-scenario-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 8px; }
-  .dcf-scenario-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
-  .dcf-scenario-table th:first-child { text-align: left; }
-  .dcf-scenario-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
-  .dcf-scenario-table td:first-child { text-align: left; font-weight: 600; }
-  .dcf-scenario-table tr.base-row td { background: var(--blue-light); }
-  .dcf-scenario-table .price-up { color: var(--green); font-weight: 700; }
-  .dcf-scenario-table .price-dn { color: var(--red); font-weight: 700; }
-  .rev-dcf-box { background: #fef9ee; border-left: 3px solid var(--amber); padding: 8px 10px; margin-top: 8px; font-size: 8pt; line-height: 1.55; }
-  .rev-dcf-box strong { color: var(--ink); }
-  .mult-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
-  .mult-table th { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; color: var(--ink-muted); padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--rule); text-transform: uppercase; letter-spacing: 0.3px; }
-  .mult-table th:first-child { text-align: left; }
-  .mult-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 8pt; }
-  .mult-table td:first-child { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 7.5pt; color: var(--ink-light); }
-  .mult-table tr:nth-child(even) td { background: #f8f7f5; }
-  .mult-table .up { color: var(--green); font-weight: 600; }
-  .mult-table .dn { color: var(--red); }
-  .mult-table .section-divider td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 8px; }
-  .valuation-verdict { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 14px; font-size: 8.5pt; line-height: 1.6; }
-  .valuation-verdict .verdict-title { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .valuation-verdict p + p { margin-top: 6px; }
-  .sensitivity-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 8px; }
-  .sensitivity-table th { background: var(--ink); color: white; padding: 4px 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 500; }
-  .sensitivity-table td { padding: 3px 8px; text-align: center; border: 1px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; }
-  .sensitivity-table td.row-wacc { background: var(--ink); color: white; font-weight: 500; text-align: left; padding-left: 10px; }
-  .sensitivity-table td.near-market { background: #dcfce7; color: var(--green); font-weight: 700; }
-  .sensitivity-table td.mid-range { background: #fef9c3; color: var(--amber); }
-  .sensitivity-table td.low-range { background: #fef2f2; color: var(--red); }
+/* ===== Page divider ===== */
+.page-break { border-top: 1px solid var(--line); margin: 16px 0 0; padding-top: 16px; display: flex; align-items: center; gap: 12px; }
+.page-break-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.page-break hr { flex: 1; border: none; border-top: 1px solid var(--line); }
 
-  /* ── FOOTNOTES ──────────────────────────────────── */
-  .footnotes { border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 14px; }
-  .footnotes-title { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 6px; }
-  .footnotes ol { padding-left: 16px; }
-  .footnotes li { font-size: 7pt; color: var(--ink-muted); margin-bottom: 3px; line-height: 1.4; }
-  .footnotes a { color: #1d4ed8; text-decoration: none; }
-  sup a { color: var(--accent); font-size: 6.5pt; text-decoration: none; font-family: 'IBM Plex Mono', monospace; }
-  .disclaimer { font-size: 7pt; color: var(--ink-muted); line-height: 1.4; border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 6px; }
+/* ===== Scorecard ===== */
+.scorecard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.scorecard-header span:first-child { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.score-final { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: white; padding: 5px 14px; border-radius: 6px; }
+.score-final-green { background: var(--up); }
+.score-final-amber { background: var(--amber); }
+.score-final-red   { background: var(--down); }
 
-  /* ── FINANCIAL TABLE ──────────────────────────────── */
-  .fin-table-wrap { margin-bottom: 14px; overflow-x: auto; }
-  .fin-table { width: 100%; border-collapse: collapse; font-size: 8pt; font-family: 'IBM Plex Mono', monospace; }
-  .fin-table th { background: var(--ink); color: white; padding: 5px 10px; text-align: right; font-size: 7.5pt; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap; }
-  .fin-table th.row-head { text-align: left; width: 24%; }
-  .fin-table td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; color: var(--ink); }
-  .fin-table td.row-label { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-size: 8pt; color: var(--ink-light); font-weight: 500; }
-  .fin-table tr:nth-child(even) td { background: #f8f7f5; }
-  .fin-table .section-row td { background: var(--accent-light) !important; font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 10px; text-align: left; }
-  .fin-table .highlight-row td { font-weight: 700; color: var(--ink); }
-  .fin-table .margin-row td { color: var(--accent2); font-style: italic; }
-  .fin-table-note { font-size: 7pt; color: var(--ink-muted); margin-top: 5px; line-height: 1.5; font-style: italic; }
+.scorecard-table { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.scorecard-table th {
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 10px 14px; text-align: left; font-weight: 500;
+}
+.scorecard-table th.center { text-align: center; }
+.scorecard-table td { padding: 11px 14px; vertical-align: top; border-bottom: 1px solid var(--line); }
+.scorecard-table tbody tr:last-child td { border-bottom: none; }
+.scorecard-table .part-header td {
+  background: var(--bg-elev); font-family: var(--font-mono); font-weight: 600;
+  font-size: 10.5px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.score-pill {
+  display: inline-block; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 4px; letter-spacing: 0.06em; white-space: nowrap;
+}
+.score-high { background: var(--accent-soft); color: var(--accent); }
+.score-mid  { background: var(--amber-soft); color: var(--amber); }
+.score-low  { background: var(--red-soft); color: var(--down); }
+.score-num { font-family: var(--font-mono); font-size: 13px; font-weight: 600; text-align: center; color: var(--ink); }
+.col-commentary { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+.col-metric { font-weight: 600; font-size: 13px; color: var(--ink); }
+.weighted-row td { background: var(--accent-soft) !important; font-weight: 700; font-size: 13px; border-top: 1px solid var(--line-strong); }
 
-  .no-break { page-break-inside: avoid; }
-  @media print {
-    /* ── GENERAL ── */
-    body { max-width: 100%; padding: 8px; background: white; }
-    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+/* ===== Scenarios ===== */
+.scenario-table { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.scenario-table th { padding: 10px 14px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; text-align: left; }
+.scenario-table th.bear-h { background: var(--red-soft); color: var(--down); }
+.scenario-table th.base-h { background: var(--accent-soft); color: var(--accent); }
+.scenario-table th.bull-h { background: #E8F0EC; color: var(--up); }
+.scenario-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); font-size: 13.5px; }
+.scenario-table tbody tr:last-child td { border-bottom: none; }
+.scenario-table .row-label { font-weight: 600; color: var(--ink); width: 28%; }
+.scenario-table .price-row td { font-weight: 700; font-size: 15px; font-family: var(--font-mono); }
+.scenario-table .price-row td.bear-p { color: var(--down); background: var(--red-soft); }
+.scenario-table .price-row td.base-p { color: var(--accent); background: var(--accent-soft); }
+.scenario-table .price-row td.bull-p { color: var(--up); background: #E8F0EC; }
+.scenario-table thead tr th:first-child { background: var(--bg-elev); color: var(--muted); }
 
-    /* ── PAGE BREAKS ── */
-    .page-break { page-break-before: always; }
-    .no-break { page-break-inside: avoid; }
+/* ===== Key risks ===== */
+.risks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.risk-card {
+  background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px 22px;
+}
+.risk-num { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 6px; }
+.risk-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink); }
+.risk-body { font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+@media (max-width: 860px) { .risks-grid { grid-template-columns: 1fr; } }
 
-    /* ── PROTECT MAJOR SECTIONS ── */
-    .report-header        { page-break-inside: avoid; }
-    .company-summary-box  { page-break-inside: avoid; }
-    .metrics-grid         { page-break-inside: avoid; }
-    .mix-band             { page-break-inside: avoid; }
-    .credit-band          { page-break-inside: avoid; }
-    .thesis-box           { page-break-inside: avoid; }
-    .stat-row             { page-break-inside: avoid; }
-    .fin-table-wrap       { page-break-inside: avoid; }
-    .two-col              { page-break-inside: avoid; }
-    .chart-container      { page-break-inside: avoid; }
-    .valuation-verdict    { page-break-inside: avoid; }
-    .valuation-grid       { page-break-inside: avoid; }
-    .val-card             { page-break-inside: avoid; }
-    .analyst-consensus-bar{ page-break-inside: avoid; }
-    .footnotes            { page-break-inside: avoid; }
+/* ===== Valuation ===== */
+.valuation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.val-card { background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; }
+.val-card-title { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.dcf-scenario-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 16px; }
+.dcf-scenario-table th { font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: var(--muted); padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.08em; }
+.dcf-scenario-table th:first-child { text-align: left; }
+.dcf-scenario-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); }
+.dcf-scenario-table td:first-child { text-align: left; font-weight: 600; color: var(--ink); }
+.dcf-scenario-table tr.base-row td { background: var(--accent-soft); color: var(--accent-ink); }
+.dcf-scenario-table .price-dn { color: var(--down); font-weight: 700; }
+.dcf-scenario-table .price-up { color: var(--up); font-weight: 700; }
 
-    /* ── TABLE ROW PROTECTION ── */
-    tr                    { page-break-inside: avoid; page-break-after: auto; }
-    .part-header          { page-break-after: avoid; }
-    .scorecard-table tr   { page-break-inside: avoid; }
-    .scenario-table tr    { page-break-inside: avoid; }
-    .analyst-table tr     { page-break-inside: avoid; }
-    .fin-table tr         { page-break-inside: avoid; }
+.sensitivity-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 10px; }
+.sensitivity-table th { background: var(--ink); color: white; padding: 7px 8px; text-align: center; font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: 0.06em; }
+.sensitivity-table td { padding: 6px 8px; text-align: center; border: 1px solid var(--line); font-family: var(--font-mono); font-size: 11.5px; }
+.sensitivity-table td.row-wacc { background: var(--ink); color: white; font-weight: 500; text-align: left; padding-left: 10px; }
+.sensitivity-table td.near-market { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.sensitivity-table td.mid-range { background: var(--amber-soft); color: var(--amber); }
+.sensitivity-table td.low-range { background: var(--red-soft); color: var(--down); }
 
-    /* ── SECTION LABELS ── */
-    .section-label        { page-break-after: avoid; }
+.rev-dcf-box { background: var(--amber-soft); border-left: 3px solid var(--amber); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 14px 16px; margin-top: 12px; font-size: 13px; line-height: 1.6; color: var(--ink-2); }
+.rev-dcf-box strong { color: var(--ink); }
 
-    /* ── VALUATION SECTION: force onto fresh page ── */
-    .valuation-section    { page-break-before: always; page-break-inside: avoid; }
-  }
+.valuation-verdict { background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 26px; margin-bottom: 16px; }
+.valuation-verdict .verdict-title { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+.valuation-verdict p { font-size: 14px; line-height: 1.65; color: var(--ink-2); }
+.valuation-verdict p + p { margin-top: 8px; }
+
+.mult-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.mult-table th { font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: var(--muted); padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.08em; }
+.mult-table th:first-child { text-align: left; }
+.mult-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); }
+.mult-table td:first-child { text-align: left; font-family: var(--font-body); font-size: 13px; color: var(--ink-2); }
+.mult-table .up { color: var(--up); font-weight: 600; }
+.mult-table .dn { color: var(--down); }
+.mult-table .section-divider td { background: var(--bg-elev) !important; font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+
+@media (max-width: 860px) { .valuation-grid { grid-template-columns: 1fr; } }
+
+/* ===== Analyst section ===== */
+.analyst-consensus-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+.cons-cell { background: var(--bg-card); padding: 16px 18px; text-align: center; }
+.cons-cell .cons-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; }
+.cons-cell .cons-val { font-family: var(--font-mono); font-size: 28px; font-weight: 700; }
+.cons-cell .cons-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 3px; }
+.cons-cell.buy-cell .cons-val { color: var(--up); }
+.cons-cell.hold-cell .cons-val { color: var(--amber); }
+.cons-cell.sell-cell .cons-val { color: var(--down); }
+
+.analyst-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.analyst-table th { background: var(--ink); color: white; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 14px; text-align: left; font-weight: 500; }
+.analyst-table th.center { text-align: center; }
+.analyst-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--ink-2); }
+.analyst-table tbody tr:last-child td { border-bottom: none; }
+.analyst-table tbody tr:nth-child(even) td { background: var(--bg-elev); }
+.rating-buy  { color: var(--up); font-weight: 700; font-family: var(--font-mono); font-size: 11px; }
+.rating-hold { color: var(--amber); font-weight: 700; font-family: var(--font-mono); font-size: 11px; }
+.rating-sell { color: var(--down); font-weight: 700; font-family: var(--font-mono); font-size: 11px; }
+.pt-val { font-family: var(--font-mono); font-weight: 700; font-size: 13px; }
+.pt-above { color: var(--up); }
+.pt-below { color: var(--down); }
+.pt-flat  { color: var(--amber); }
+.analyst-name { font-weight: 600; color: var(--ink); }
+.firm-name { color: var(--muted); font-size: 12px; }
+.analyst-note { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 10px; }
+
+/* ===== Footnotes ===== */
+.footnotes { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 10px; }
+.footnotes-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.footnotes ol { padding-left: 18px; }
+.footnotes li { font-size: 12px; color: var(--muted); margin-bottom: 4px; line-height: 1.5; font-family: var(--font-mono); }
+.footnotes a { color: var(--accent); text-decoration: none; }
+sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family: var(--font-mono); }
+.disclaimer { font-family: var(--font-mono); font-size: 11px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 10px; }
+
+/* ===== Backward-compat: old header class names (for swapped CSS on pre-rendered reports) ===== */
+.report-header {
+  max-width: 1180px; margin: 0 auto;
+  padding: 0 32px 32px;
+  border-bottom: 1px solid var(--line);
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;
+}
+.company-name { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); line-height: 1.1; }
+.company-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: 0.06em; }
+.rating-badge { text-align: right; }
+.verdict { display: inline-block; color: white; font-family: var(--font-mono); font-weight: 700; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 14px; border-radius: 6px; margin-bottom: 8px; }
+.verdict-green { background: var(--up); }
+.verdict-amber { background: var(--amber); }
+.verdict-red   { background: var(--down); }
+.price-line { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
+.price-line .current { font-size: 28px; font-weight: 700; }
+.price-line .target { color: var(--accent); font-weight: 700; }
+.report-meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+.company-summary-box {
+  max-width: 1180px; margin: 24px auto;
+  padding: 20px 24px; border-radius: var(--radius);
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-size: 14px; line-height: 1.65;
+}
+.summary-label { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; display: block; }
+.page-break-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+
+/* ===== No-break & misc ===== */
+.no-break { page-break-inside: avoid; }
+.section-label {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600; margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent); margin-top: 0;
+}
+
+/* ===== Print ===== */
+@media print {
+  body { background: white; }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .topbar, .tab-nav { display: none; }
+  .main { padding: 0; }
+  .page-break { page-break-before: always; }
+  .no-break, .metrics-grid, .mix-band, .credit-row, .thesis-grid, .stat-row,
+  .two-col, .chart-card, .chart-container, .valuation-grid, .val-card,
+  .analyst-consensus-bar { page-break-inside: avoid; }
+  tr { page-break-inside: avoid; }
+  .section-label { page-break-after: avoid; }
+  .valuation-section { page-break-before: always; }
+}
 </style>
 </head>
 <body>
+<!-- ═══ TOPBAR ═══ -->
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" style="text-decoration:none">
+      <div class="brand-mark">ER</div>
+      <div class="brand-text">
+        <div class="brand-name">Equity Research</div>
+        <div class="brand-sub">Independent Analysis</div>
+      </div>
+    </a>
+    <div class="topbar-ticker">
+      <span class="ticker-symbol">{{TICKER_SHORT}}</span>
+      <span class="ticker-sep">/</span>
+      <span class="ticker-price">{{CURRENT_PRICE}}</span>
+    </div>
+    <div class="topbar-date">{{REPORT_DATE}}</div>
+  </div>
+</nav>
 
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <div class="hero-eyebrow">
+    <span class="pill pill-solid">{{TICKER_SHORT}}</span>
+    <span class="pill pill-ghost">{{DESCRIPTION_LINE}}</span>
+  </div>
+  <h1 class="hero-title">{{COMPANY_NAME}}</h1>
+  <p class="hero-tagline">{{COMPANY_SUMMARY_TEXT}}</p>
+
+  <div class="hero-grid">
+    <!-- Verdict card -->
+    <div class="hero-verdict {{VERDICT_CLASS}}">
+      <div>
+        <div class="verdict-label">Research Verdict</div>
+        <div class="verdict-value">{{VERDICT_TEXT}}</div>
+      </div>
+      <div>
+        <div class="verdict-score-row">
+          <span class="verdict-score-num">{{FINAL_SCORE}}</span>
+          <span class="verdict-score-den">/100</span>
+        </div>
+        <div class="verdict-score-sub">JS Proprietary Score · {{REPORT_DATE}}</div>
+      </div>
+    </div>
+
+    <!-- Price card -->
+    <div class="hero-price">
+      <div class="price-block">
+        <div class="price-label">Current Price</div>
+        <div class="price-value">{{CURRENT_PRICE}}</div>
+      </div>
+      <div class="price-arrow">→</div>
+      <div class="price-block">
+        <div class="price-label">Price Target</div>
+        <div class="price-value price-target">{{PRICE_TARGET}}</div>
+        <span class="price-upside">Base case target</span>
+      </div>
+    </div>
+
+    <!-- Meta card -->
+    <div class="hero-meta-card">
+      <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;{{MARKET_CAP}} &nbsp;·&nbsp; <strong>EV</strong> &nbsp;{{ENTERPRISE_VALUE}}</div>
+      <div class="hero-meta-line"><strong>{{NET_CASH_DEBT}}</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;{{ROIC_VALUE}}</div>
+      <div class="hero-meta-line">Score: <strong>{{FINAL_SCORE}}/100</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB NAV ═══ -->
+<nav class="tab-nav">
+  <div class="tab-nav-inner">
+    <a class="tab-link" href="#section-metrics">Metrics</a>
+    <a class="tab-link" href="#section-thesis">Thesis</a>
+    <a class="tab-link" href="#section-financials">Financials</a>
+    <a class="tab-link" href="#section-charts">Charts</a>
+    <a class="tab-link" href="#section-scorecard">Scorecard</a>
+    <a class="tab-link" href="#section-scenarios">Scenarios</a>
+    <a class="tab-link" href="#section-risks">Risks</a>
+    <a class="tab-link" href="#section-valuation">Valuation</a>
+    <a class="tab-link" href="#section-analysts">Analysts</a>
+  </div>
+</nav>
+
+
+<div class="main">
 <!-- ═══ HEADER ═══ -->
 <header class="report-header">
   <div>
@@ -1405,5 +1689,7 @@ new Chart(retCtx, {
   }
 });
 </script>
+
+</div><!-- end main -->
 </body>
 </html>

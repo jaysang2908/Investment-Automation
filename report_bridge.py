@@ -356,6 +356,28 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     bear_px = _dcf_px(base_px, w_bear, tgr_bear)
     bull_px = _dcf_px(base_px, w_bull, tgr_bull)
 
+    # ── WACC components (approximate from available data) ──────────────────────
+    RF_APPROX  = 0.043   # 10yr Treasury approx
+    ERP_APPROX = 0.045   # Damodaran avg
+    beta_v = float(profile.get("beta") or 1.0) or 1.0
+    ke_approx = RF_APPROX + beta_v * ERP_APPROX
+    # Kd approximate: wacc = E/V * Ke + D/V * Kd*(1-t); solve for Kd
+    pti0 = is0.get("incomeBeforeTax") or is0.get("pretaxIncome") or 0
+    te0  = abs(is0.get("incomeTaxExpense") or 0)
+    eff_tax0 = te0 / pti0 if pti0 > 0 else 0.21
+    cap_total = market_cap + debt0 if market_cap else max(debt0, 1)
+    ew_v = market_cap / cap_total if market_cap else 1.0
+    dw_v = debt0 / cap_total if debt0 else 0.0
+    kd_pre = (wacc_b - ew_v * ke_approx) / (dw_v * (1 - eff_tax0)) if dw_v > 0.001 else RF_APPROX * 0.75
+
+    # ── EV Bridge (approximate from base_px × shares + net debt) ──────────────
+    shares_v = float(profile.get("sharesOutstanding") or 0)
+    eq_val_approx  = (base_px or 0) * shares_v if base_px and shares_v else None
+    ev_approx      = (eq_val_approx + net_cash_val * -1) if eq_val_approx is not None else None
+    # TV typically ~60-70% of EV in most DCF; rough 65%
+    pv_tv_approx   = eq_val_approx * 0.65 if eq_val_approx else None
+    pv_fcfs_approx = (ev_approx - pv_tv_approx) if ev_approx and pv_tv_approx else None
+
     pt_vals = [p for p in [gg_px, em_px] if p]
     price_target = round(sum(pt_vals) / len(pt_vals), 0) if pt_vals else current_price
 
@@ -441,6 +463,22 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         fin[f"OCF_FY{i}"]     = _m(ocf)
         fin[f"CAPEX_FY{i}"]   = f"({_m(cpx)})"
         fin[f"FCF_FY{i}"]     = _m(fcf)
+
+        # New: net margin, D&A, FCF bridge
+        fin[f"NM_FY{i}"]      = _pct(ni/rev if rev else None)
+        da = max(0, ebd - ebit)   # D&A ≈ EBITDA − EBIT
+        fin[f"DA_FY{i}"]      = _m(da)
+        # Approximate effective tax rate from NI / pre-tax income
+        pti = is_.get("incomeBeforeTax") or is_.get("pretaxIncome") or 0
+        te  = abs(is_.get("incomeTaxExpense") or 0)
+        eff_tax = te / pti if pti > 0 else 0.21  # fallback 21%
+        nopat = ebit * (1 - eff_tax)
+        ufcf  = nopat + da - cpx          # simplified (no ΔNWC from API)
+        fin[f"NOPAT_FY{i}"]   = _m(nopat)
+        fin[f"UFCF_FY{i}"]    = _m(ufcf)
+        fin[f"UFCFM_FY{i}"]   = _pct(ufcf/rev if rev else None)
+        fin[f"LFCFM_FY{i}"]   = _pct(fcf/rev if rev else None)
+        fin[f"FCF_CONV_FY{i}"] = _x(fcf/ni if ni else None)
 
     # ── Chart arrays ──────────────────────────────────────────────────────────
     yr_labels  = [f"FY{y}" for y in years]
@@ -693,6 +731,29 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"vs. trailing 3yr CAGR of {_pct(rev_cagr_v)}. "
             "Add reverse-DCF implied growth from Excel DCF tab."
         ),
+
+        # WACC Summary
+        "WACC_RF":        f"{RF_APPROX*100:.1f}%",
+        "WACC_BETA":      f"{beta_v:.2f}",
+        "WACC_BETA_SOURCE": "FMP 5yr vs S&P500",
+        "WACC_ERP":       f"{ERP_APPROX*100:.1f}%",
+        "WACC_KE":        f"{ke_approx*100:.1f}%",
+        "WACC_KD_PRETAX": f"{max(0,kd_pre)*100:.1f}%",
+        "WACC_TAX_RATE":  f"{eff_tax0*100:.1f}%",
+        "WACC_EW":        f"{ew_v*100:.0f}%",
+        "WACC_DW":        f"{dw_v*100:.0f}%",
+        "WACC_NOTE":      (f"WACC = {ew_v*100:.0f}% × {ke_approx*100:.1f}% (Ke) + {dw_v*100:.0f}% × {max(0,kd_pre)*100:.1f}% × (1 − {eff_tax0*100:.0f}% tax) ≈ {wacc_b*100:.1f}%. "
+                           f"Beta: FMP 5yr monthly. ERP: Damodaran avg implied/historical. Rf: FRED DGS10. Review Excel WACC tab for full derivation."),
+
+        # EV Bridge
+        "DCF_PV_FCFS":   _b(pv_fcfs_approx) if pv_fcfs_approx else "—",
+        "DCF_PV_TV":      _b(pv_tv_approx) if pv_tv_approx else "—",
+        "DCF_TV_PCT":     "~65% (est.)" if pv_tv_approx else "—",
+        "DCF_TV_METHOD":  "Gordon Growth",
+        "DCF_EV":         _b(ev_approx) if ev_approx else "—",
+        "DCF_NET_DEBT_B": (_b(abs(net_cash_val)) if net_cash_val < 0 else f"+{_b(net_cash_val)}"),
+        "DCF_EQUITY_VAL": _b(eq_val_approx) if eq_val_approx else "—",
+        "DCF_SHARES_B":   f"{shares_v/1e6:.1f}mm" if shares_v > 1e6 else str(int(shares_v)),
 
         # Multiples
         "FY_FWD1": f"FY{int(years[-1])+1}E" if years else "FY+1E",
