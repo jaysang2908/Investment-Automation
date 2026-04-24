@@ -881,7 +881,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
       <tr>
         <td class="row-label">EBIT / Interest</td>
-        <td colspan="5" style="text-align:center;color:var(--up);font-weight:600">{{EBITINT_NOTE}}</td>
+        <td colspan="5" style="text-align:center;color:var(--up);font-weight:600">FY2021: 32.6x · FY2022: 4.7x · FY2023: 0.1x · FY2024: 14.2x · FY2025: 0.0x</td>
       </tr>
 
       <tr class="section-row"><td colspan="6">Cash Flow Statement</td></tr>
@@ -1656,7 +1656,7 @@ new Chart(roicCtx, {
       tooltip: { ...tooltipDefaults, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } }
     },
     scales: {
-      y: { grid: { color: 'rgba(232,230,224,0.6)' }, ticks: { font: tickFont, color: C_MUTED, callback: v => `${v}%` }, border: { color: C_LINE }, min: 0, max: 45, title: { display: true, text: 'ROIC %', font: { size: 9, family: 'JetBrains Mono' }, color: C_MUTED } },
+      y: { grid: { color: 'rgba(232,230,224,0.6)' }, ticks: { font: tickFont, color: C_MUTED, callback: v => `${v}%` }, border: { color: C_LINE }, min: 0, suggestedMax: Math.ceil(Math.max(...roicData, waccValue) * 1.25 / 10) * 10, title: { display: true, text: 'ROIC %', font: { size: 9, family: 'JetBrains Mono' }, color: C_MUTED } },
       x: { grid: { display: false }, ticks: { font: tickFont, color: C_MUTED, maxRotation: 0 }, border: { color: C_LINE } }
     }
   }

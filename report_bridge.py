@@ -803,6 +803,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     }
 
     D.update(fin)
+
+    # EBIT/Interest note (template uses a single colspan=5 cell for this row)
+    ebitint_vals = [fin.get(f"EBITINT_FY{i}", "N/A") for i in range(1, len(years) + 1)]
+    non_na = [(years[i], v) for i, v in enumerate(ebitint_vals) if v != "N/A"]
+    D["EBITINT_NOTE"] = " · ".join(f"FY{yr}: {v}" for yr, v in non_na) if non_na else "N/A — interest data not available"
+
     return D
 
 

@@ -1656,7 +1656,7 @@ new Chart(roicCtx, {
       tooltip: { ...tooltipDefaults, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } }
     },
     scales: {
-      y: { grid: { color: 'rgba(232,230,224,0.6)' }, ticks: { font: tickFont, color: C_MUTED, callback: v => `${v}%` }, border: { color: C_LINE }, min: 0, max: 45, title: { display: true, text: 'ROIC %', font: { size: 9, family: 'JetBrains Mono' }, color: C_MUTED } },
+      y: { grid: { color: 'rgba(232,230,224,0.6)' }, ticks: { font: tickFont, color: C_MUTED, callback: v => `${v}%` }, border: { color: C_LINE }, min: 0, suggestedMax: Math.ceil(Math.max(...roicData, waccValue) * 1.25 / 10) * 10, title: { display: true, text: 'ROIC %', font: { size: 9, family: 'JetBrains Mono' }, color: C_MUTED } },
       x: { grid: { display: false }, ticks: { font: tickFont, color: C_MUTED, maxRotation: 0 }, border: { color: C_LINE } }
     }
   }

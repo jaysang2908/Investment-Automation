@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{COMPANY_NAME}} — Equity Research</title>
+<title>AMD — Equity Research</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -534,63 +534,13 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </div>
     </a>
     <div class="topbar-ticker">
-      <span class="ticker-symbol">{{TICKER_SHORT}}</span>
+      <span class="ticker-symbol">AMD</span>
       <span class="ticker-sep">/</span>
-      <span class="ticker-price">{{CURRENT_PRICE}}</span>
+      <span class="ticker-price">305.33</span>
     </div>
-    <div class="topbar-date">{{REPORT_DATE}}</div>
+    <div class="topbar-date">April 2026</div>
   </div>
 </nav>
-
-<!-- ═══ HERO ═══ -->
-<div class="hero">
-  <div class="hero-eyebrow">
-    <span class="pill pill-solid">{{TICKER_SHORT}}</span>
-    <span class="pill pill-ghost">{{DESCRIPTION_LINE}}</span>
-  </div>
-  <h1 class="hero-title">{{COMPANY_NAME}}</h1>
-  <p class="hero-tagline">{{COMPANY_SUMMARY_TEXT}}</p>
-
-  <div class="hero-grid">
-    <!-- Verdict card -->
-    <div class="hero-verdict {{VERDICT_CLASS}}">
-      <div>
-        <div class="verdict-label">Research Verdict</div>
-        <div class="verdict-value">{{VERDICT_TEXT}}</div>
-      </div>
-      <div>
-        <div class="verdict-score-row">
-          <span class="verdict-score-num">{{FINAL_SCORE}}</span>
-          <span class="verdict-score-den">/100</span>
-        </div>
-        <div class="verdict-score-sub">JS Proprietary Score · {{REPORT_DATE}}</div>
-      </div>
-    </div>
-
-    <!-- Price card -->
-    <div class="hero-price">
-      <div class="price-block">
-        <div class="price-label">Current Price</div>
-        <div class="price-value">{{CURRENT_PRICE}}</div>
-      </div>
-      <div class="price-arrow">→</div>
-      <div class="price-block">
-        <div class="price-label">Price Target</div>
-        <div class="price-value price-target">{{PRICE_TARGET}}</div>
-        <span class="price-upside">Base case target</span>
-      </div>
-    </div>
-
-    <!-- Meta card -->
-    <div class="hero-meta-card">
-      <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;{{MARKET_CAP}} &nbsp;·&nbsp; <strong>EV</strong> &nbsp;{{ENTERPRISE_VALUE}}</div>
-      <div class="hero-meta-line"><strong>{{NET_CASH_DEBT}}</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;{{ROIC_VALUE}}</div>
-      <div class="hero-meta-line">Score: <strong>{{FINAL_SCORE}}/100</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ TAB NAV ═══ -->
 <nav class="tab-nav">
   <div class="tab-nav-inner">
     <a class="tab-link" href="#section-metrics">Metrics</a>
@@ -604,8 +554,6 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <a class="tab-link" href="#section-analysts">Analysts</a>
   </div>
 </nav>
-
-
 <div class="main">
 <!-- ═══ HEADER ═══ -->
 <header class="report-header">
@@ -841,7 +789,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <!-- If company is net cash / interest income exceeds interest expense, use a colspan note like ISRG.
            Otherwise fill in 5 individual values. Choose one format and delete the other. -->
       <!-- FORMAT A — net lender / minimal debt: -->
-      <td colspan="5" style="text-align:center;color:var(--green);font-weight:600">{{EBITINT_NOTE}}</td>
+      <td colspan="5" style="text-align:center;color:var(--green);font-weight:600">See annual report — interest coverage varies by year</td>
       <!-- FORMAT B — normal leverage (delete FORMAT A and uncomment this):
       <td>107.3x</td><td>14.4x</td><td>3.8x</td><td>20.7x</td><td>28.2x</td>
       -->
@@ -1618,7 +1566,7 @@ new Chart(roicCtx, {
         grid: { color: 'rgba(212,207,201,0.4)' },
         ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', callback: v => `${v}%` },
         border: { color: '#d4cfc9' },
-        min: 0, max: 45,
+        min: 0, suggestedMax: Math.ceil(Math.max(...roicData, waccValue) * 1.25 / 10) * 10,
         title: { display: true, text: 'ROIC %', font: { size: 7, family: 'IBM Plex Mono' }, color: '#6b6b8a' }
       },
       x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 7.5 }, color: '#6b6b8a', maxRotation: 0 }, border: { color: '#d4cfc9' } }
