@@ -2717,6 +2717,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     Manual only:  Business Clarity (needs segment data), Long-Term Potential
     Scoring engine follows Master Prompt v2 thresholds.
     """
+    # is_bank is set later via profile fetch; initialise here so equity_assets
+    # block (which runs before the fetch) can reference it safely.
+    is_bank = False
     ws = wb.create_sheet("Scorecard")
     NC = 8   # columns A–H
 

@@ -377,12 +377,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_roic   = _tier_roic(roic_v)
     t_fcf_ni = _tier_fcf_ni(fcf_ni_v)
     t_eint   = _tier_ebit_int(ebit_int)
-    # Bank-aware leverage tier
+    # Bank-aware leverage tier (report_bridge uses 3-tier: HIGH/MOD/LOW)
     if is_bank_v:
         ea = equity_assets_v
         t_debd = ("HIGH" if ea and ea > 0.10 else
-                  "MOD-HIGH" if ea and ea > 0.08 else
-                  "MOD-LOW" if ea and ea > 0.06 else "MOD")
+                  "MOD"  if ea and ea > 0.06 else "LOW")
     else:
         t_debd = _tier_d_ebitda(d_ebd)
     t_pe     = _tier_pe(trailing_pe, pe_5yr)
@@ -775,7 +774,11 @@ def render_html_report(data):
             html = html.replace(f"{{{{{k}}}}}", str(v))
 
     # 5. Sensitivity grid (6x5)
-    base_px = float(str(data.get("DCF_BASE_PX", "0")).lstrip("$").replace(",", "") or 0)
+    _bpx_raw = str(data.get("DCF_BASE_PX", "0")).lstrip("$").replace(",", "")
+    try:
+        base_px = float(_bpx_raw) if _bpx_raw not in ("N/A", "", "—", "-") else 0.0
+    except ValueError:
+        base_px = 0.0
     base_wacc = float(str(data.get("DCF_BASE_WACC", "9.0%")).rstrip("%")) / 100
     base_tgr  = float(str(data.get("DCF_BASE_TGR",  "3.0%")).rstrip("%")) / 100
     base_spread = (base_wacc - base_tgr) if (base_wacc - base_tgr) > 0 else 0.07
