@@ -186,7 +186,7 @@ for ticker, biz_clarity, ltp in TICKERS:
         traceback.print_exc()
         results.append({"ticker": ticker, "adj_score": None, "error": str(e)})
 
-    time.sleep(2)   # avoid rate-limiting
+    time.sleep(8)   # avoid rate-limiting (5 API calls per ticker)
 
 
 # ── Summary ───────────────────────────────────────────────────────────────────
