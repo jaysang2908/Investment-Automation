@@ -246,6 +246,17 @@ def dcf_data(ticker):
             return jsonify(_build_dcf_response(stored))
 
         # ── Unknown ticker: fetch from FMP (costs quota) ──────────────────────
+        # If this ticker has an existing report, its data should be in the store.
+        # If not seeded yet, fetch from FMP.
+        report_path = os.path.join(os.path.dirname(__file__), "static", "reports",
+                                   f"{ticker}_report.html")
+        if os.path.exists(report_path):
+            return jsonify({
+                "error": f"Data for {ticker} is not yet cached. "
+                         f"Please re-run batch_reports.py or seed_data_store.py to populate the data store.",
+                "hint": "report_exists_but_not_seeded"
+            }), 503
+
         is_data = mdl.fetch("income-statement",        ticker)[:5][::-1]
         bs_data = mdl.fetch("balance-sheet-statement", ticker)[:5][::-1]
         cf_data = mdl.fetch("cash-flow-statement",     ticker)[:5][::-1]
