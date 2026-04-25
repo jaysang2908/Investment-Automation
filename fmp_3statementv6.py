@@ -2707,6 +2707,85 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SECTOR-AWARE SCORING — bucket classification + threshold tables
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _sector_bucket(sector_str, ticker):
+    """Map company to one of 4 scoring buckets based on sector/industry string and ticker."""
+    s = (sector_str or "").lower()
+    t = (ticker or "").upper()
+
+    # Banks/financials get special treatment (already have is_bank flag)
+    if any(x in s for x in ["bank", "financial service", "insurance", "capital market"]):
+        return "bank"
+    if t in {"JPM","BAC","WFC","C","GS","MS","SOFI","BLK","SCHW","AXP","COF","USB","PNC"}:
+        return "bank"
+
+    # Tech/growth: high ROIC acceptable at higher threshold, high rev growth expected
+    if any(x in s for x in ["software", "semiconductor", "technology", "internet", "media"]):
+        return "tech_growth"
+    if t in {"NVDA","MSFT","AAPL","ADBE","AMD","META","NFLX","TSLA","SOFI","GOOGL","AMZN",
+             "ORCL","CRM","NOW","SNOW","PANW","CRWD","INTU","AMAT","KLAC","LRCX","MU","AVGO",
+             "QCOM","TSM","DDOG","TEAM","NET","MDB"}:
+        return "tech_growth"
+
+    # Cyclical: lower thresholds, higher leverage tolerance
+    if any(x in s for x in ["auto", "airline", "aerospace", "industrial", "steel", "mining",
+                              "oil", "energy", "chemical"]):
+        return "cyclical"
+    if t in {"F","UAL","INTC","BA","GE","CAT","DE","XOM","CVX","COP","SLB","OXY","RCL","CCL"}:
+        return "cyclical"
+
+    # Default: stable compounder (consumer staples, healthcare, retail, utilities, etc.)
+    return "stable_compounder"
+
+
+# Per-metric thresholds: (HIGH, MOD-HIGH, MOD-LOW).  Values below MOD-LOW → LOW.
+# d_ebitda is inverted (lower = better).
+SECTOR_THRESHOLDS = {
+    "tech_growth": {
+        "rev_cagr":    (0.15, 0.10, 0.06),   # HIGH, MOD-HIGH, MOD-LOW
+        "roic":        (0.25, 0.15, 0.08),
+        "fcf_ni":      (0.80, 0.60, 0.40),
+        "d_ebitda":    (1.0,  2.0,  3.5),     # lower = better (inverted)
+    },
+    "stable_compounder": {
+        "rev_cagr":    (0.08, 0.05, 0.03),
+        "roic":        (0.20, 0.12, 0.06),
+        "fcf_ni":      (0.90, 0.70, 0.50),
+        "d_ebitda":    (1.5,  3.0,  4.5),
+    },
+    "cyclical": {
+        "rev_cagr":    (0.10, 0.05, 0.02),
+        "roic":        (0.15, 0.10, 0.05),
+        "fcf_ni":      (0.70, 0.50, 0.30),
+        "d_ebitda":    (2.0,  3.5,  5.0),
+    },
+    "bank": {
+        "rev_cagr":    (0.06, 0.03, 0.01),
+        "roic":        (0.12, 0.08, 0.04),    # ROE for banks
+        "fcf_ni":      (1.20, 0.90, 0.60),    # less meaningful for banks
+        "d_ebitda":    (5.0,  8.0,  12.0),    # banks have high leverage by nature
+    },
+}
+
+
+def _tier(value, thresholds, inverted=False):
+    """Map a metric value to HIGH/MOD-HIGH/MOD-LOW/LOW based on thresholds."""
+    h, mh, ml = thresholds
+    if inverted:  # lower is better (e.g. D/EBITDA)
+        if value <= h:  return "HIGH"
+        if value <= mh: return "MOD-HIGH"
+        if value <= ml: return "MOD-LOW"
+        return "LOW"
+    else:
+        if value >= h:  return "HIGH"
+        if value >= mh: return "MOD-HIGH"
+        if value >= ml: return "MOD-LOW"
+        return "LOW"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SCORECARD
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
@@ -2940,21 +3019,22 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         i = TIER_ORDER.index(t)
         return TIER_ORDER[max(i - 1, 0)]
 
+    # Determine sector bucket for threshold lookups
+    _bucket = _sector_bucket(sector_str, ticker)
+    _thresholds = SECTOR_THRESHOLDS[_bucket]
+    print(f"  Sector bucket: {_bucket!r}  (thresholds: {_thresholds})")
+
     def _t_rev(v):
         if v is None:
             return None, "N/A — insufficient data"
-        t = ("HIGH"     if v > 0.12 else
-             "MOD-HIGH" if v > 0.08 else
-             "MOD-LOW"  if v > 0.05 else "LOW")
+        t = _tier(v, _thresholds["rev_cagr"])
         return t, f"{v:.1%}"
 
     def _t_fcf(v, pen):
         if v is None:
             return None, "N/A — insufficient data"
         v2 = abs(v)
-        t  = ("HIGH"     if v2 > 0.85 else
-              "MOD-HIGH" if v2 > 0.65 else
-              "MOD-LOW"  if v2 > 0.50 else "LOW")
+        t  = _tier(v2, _thresholds["fcf_ni"])
         s  = f"{v:.0%}"
         if pen:
             t = down_tier(t)
@@ -2975,9 +3055,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     def _t_roic(v, pen):
         if v is None:
             return None, "N/A — insufficient data"
-        t = ("HIGH"     if v > 0.25 else
-             "MOD-HIGH" if v > 0.15 else
-             "MOD-LOW"  if v > 0.08 else "LOW")
+        t = _tier(v, _thresholds["roic"])
         s = f"{v:.1%}"
         if pen:
             t = down_tier(t)
@@ -2989,9 +3067,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
             return "HIGH", f"Net cash ${nc / 1e6:,.0f}mm — no net leverage"
         if de is None:
             return None, "N/A"
-        t = ("LOW"      if de > 4.0 else
-             "MOD-LOW"  if de > 2.5 else
-             "MOD-HIGH" if de > 1.0 else "HIGH")
+        t = _tier(de, _thresholds["d_ebitda"], inverted=True)
         return t, f"{de:.1f}x"
 
     def _t_ei(v):
@@ -3229,7 +3305,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     ws.row_dimensions[row].height = 24
     row = merge_row(row,
                     f"JS SCORECARD — {ticker}  |  Master Prompt v2  |  "
-                    f"{datetime.date.today():%d %b %Y}",
+                    f"{datetime.date.today():%d %b %Y}  |  "
+                    f"Sector bucket: {_bucket.replace('_', ' ').title()}",
                     bold=True, size=12, bg=C_TITLE)
 
     # Subtitle / instructions
@@ -3482,6 +3559,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         "d_ebitda":      d_ebitda,        # None for banks (meaningless)
         "equity_assets": equity_assets,   # CET1 proxy; only set for banks
         "is_bank":       is_bank,
+        "sector_bucket": _bucket,
         "auto_score":    _auto_score,
         "floor_cap":     floor_cap,
         "pe_current":    pe_current,

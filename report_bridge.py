@@ -126,6 +126,194 @@ def _tier_pfcf(current, avg):
 
 TIER_PTS = {"HIGH": 10, "MOD": 7, "LOW": 0}
 
+# ── Thesis builder ────────────────────────────────────────────────────────────
+
+def _build_thesis(ticker, metrics, years, is_data, cf_data):
+    """
+    Build a 3-sentence investment thesis from computed metrics.
+    Returns a dict with keys: moat, valuation, risk
+    Each value is one sentence (~25-40 words).
+    """
+    roic = metrics.get("roic")
+    rev_cagr = metrics.get("rev_cagr")
+    fcf_ni = metrics.get("fcf_ni")
+    pe_current = metrics.get("pe_current")
+    pe_5yr = metrics.get("pe_5yr")
+    dcf_base_px = metrics.get("dcf_base_px")
+    current_price = metrics.get("current_price")
+    d_ebitda = metrics.get("d_ebitda")
+    ebit_interest = metrics.get("ebit_interest")
+    gm_trend = metrics.get("gm_trend", 0)
+    fcf_margin = metrics.get("fcf_margin")
+    pfcf_current = metrics.get("pfcf_current")
+    pfcf_5yr = metrics.get("pfcf_5yr")
+
+    result = {}
+
+    # ── Sentence 1: Business quality / moat ──────────────────────────────────
+    if roic is not None and rev_cagr is not None:
+        if roic > 0.20 and rev_cagr > 0.10:
+            result["moat"] = (
+                f"{ticker} is a high-quality compounder generating {roic:.0%} ROIC on "
+                f"{rev_cagr:.0%} revenue CAGR, indicating durable competitive advantages "
+                f"and strong reinvestment economics."
+            )
+        elif roic > 0.20 and rev_cagr <= 0.10:
+            result["moat"] = (
+                f"{ticker} generates exceptional returns on capital ({roic:.0%} ROIC) with "
+                f"moderate growth — a capital-light franchise with pricing power in a maturing market."
+            )
+        elif roic >= 0.12 and rev_cagr > 0.08:
+            result["moat"] = (
+                f"{ticker} combines solid capital returns ({roic:.0%} ROIC) with {rev_cagr:.0%} "
+                f"revenue growth, suggesting an expanding competitive position."
+            )
+        elif roic >= 0.12 and rev_cagr <= 0.08:
+            result["moat"] = (
+                f"{ticker} produces steady returns ({roic:.0%} ROIC) in a low-growth environment "
+                f"— valuation discipline and capital allocation are key."
+            )
+        elif roic < 0.12 and rev_cagr > 0.10:
+            result["moat"] = (
+                f"{ticker} is a high-growth business ({rev_cagr:.0%} revenue CAGR) with returns "
+                f"still below cost of capital ({roic:.0%} ROIC) — profitability inflection is the "
+                f"key watchpoint."
+            )
+        else:
+            result["moat"] = (
+                f"{ticker} operates with below-cost-of-capital returns ({roic:.0%} ROIC) "
+                f"— value creation depends on margin expansion or capital efficiency improvement."
+            )
+    elif roic is not None:
+        # Have ROIC but no rev_cagr
+        if roic > 0.20:
+            result["moat"] = (
+                f"{ticker} generates exceptional returns on capital ({roic:.0%} ROIC) "
+                f"— a capital-efficient franchise with durable competitive advantages."
+            )
+        elif roic >= 0.12:
+            result["moat"] = (
+                f"{ticker} produces solid returns on capital ({roic:.0%} ROIC) "
+                f"— valuation discipline and capital allocation are key."
+            )
+        else:
+            result["moat"] = (
+                f"{ticker} operates with below-cost-of-capital returns ({roic:.0%} ROIC) "
+                f"— value creation depends on margin expansion or capital efficiency improvement."
+            )
+    elif fcf_margin is not None and rev_cagr is not None:
+        result["moat"] = (
+            f"{ticker} generates {fcf_margin:.0%} FCF margins on {rev_cagr:.0%} revenue CAGR "
+            f"— cash generation profile suggests competitive durability worth monitoring."
+        )
+    else:
+        result["moat"] = None  # fallback to existing text
+
+    # ── Sentence 2: Valuation vs history ─────────────────────────────────────
+    _has_pe = pe_current is not None and pe_5yr is not None and pe_5yr > 0
+    _has_dcf = (dcf_base_px is not None and current_price is not None
+                and current_price > 0 and dcf_base_px > 0)
+    _dcf_upside = ((dcf_base_px / current_price) - 1) if _has_dcf else None
+
+    if _has_pe:
+        _ratio = pe_current / pe_5yr
+        _discount = 1 - _ratio   # positive means discount
+        _premium = _ratio - 1    # positive means premium
+
+        if _ratio < 0.85 and _has_dcf and _dcf_upside > 0:
+            result["valuation"] = (
+                f"Trading at {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x 5-year average "
+                f"({_discount:.0%} discount), with DCF base case implying {_dcf_upside:.0%} upside "
+                f"— potentially undemanding if earnings hold."
+            )
+        elif _ratio < 0.85:
+            result["valuation"] = (
+                f"Trading at {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x 5-year average "
+                f"— a {_discount:.0%} discount to history suggesting the market is pricing in "
+                f"deterioration."
+            )
+        elif _ratio > 1.15 and _has_dcf and _dcf_upside < 0:
+            result["valuation"] = (
+                f"At {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x 5-year average (+{_premium:.0%} "
+                f"premium), DCF base case implies {_dcf_upside:.0%} downside — premium only "
+                f"justified if growth reaccelerates."
+            )
+        elif _ratio > 1.15:
+            result["valuation"] = (
+                f"At {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x history, the stock trades at a "
+                f"{_premium:.0%} premium — growth execution must remain flawless."
+            )
+        else:
+            result["valuation"] = (
+                f"Valuation appears broadly in line with history at {pe_current:.1f}x P/E vs. "
+                f"{pe_5yr:.1f}x 5-year average — returns will likely track earnings rather than "
+                f"multiple expansion."
+            )
+    elif pfcf_current is not None and pfcf_5yr is not None and pfcf_5yr > 0:
+        _pf_ratio = pfcf_current / pfcf_5yr
+        if _pf_ratio < 0.85:
+            result["valuation"] = (
+                f"Trading at {pfcf_current:.1f}x P/FCF vs. {pfcf_5yr:.1f}x 5-year average "
+                f"— a discount to history that may reflect underappreciated cash generation."
+            )
+        elif _pf_ratio > 1.15:
+            result["valuation"] = (
+                f"At {pfcf_current:.1f}x P/FCF vs. {pfcf_5yr:.1f}x 5-year average, "
+                f"the stock commands a premium — sustained FCF growth must validate the multiple."
+            )
+        else:
+            result["valuation"] = (
+                f"P/FCF of {pfcf_current:.1f}x vs. {pfcf_5yr:.1f}x 5-year average appears "
+                f"broadly fair — returns will likely track cash flow growth."
+            )
+    else:
+        result["valuation"] = None  # fallback to existing text
+
+    # ── Sentence 3: Key risk or catalyst ─────────────────────────────────────
+    if (d_ebitda is not None and d_ebitda > 3.5
+            and ebit_interest is not None and ebit_interest < 3):
+        result["risk"] = (
+            f"Leverage of {d_ebitda:.1f}x EBITDA with {ebit_interest:.1f}x interest coverage "
+            f"represents the primary downside risk in a higher-rate environment."
+        )
+    elif fcf_ni is not None and fcf_ni < 0.5:
+        result["risk"] = (
+            f"FCF conversion of {fcf_ni:.0%} of net income warrants monitoring — sustained "
+            f"below-average conversion may signal earnings quality or heavy reinvestment needs."
+        )
+    elif gm_trend < -0.03:
+        result["risk"] = (
+            f"Gross margin compression of {abs(gm_trend)*100:.1f}pp over the review period is "
+            f"the key risk — pricing power or input cost dynamics will determine whether "
+            f"compression is cyclical or structural."
+        )
+    elif rev_cagr is not None and rev_cagr > 0.15:
+        result["risk"] = (
+            f"At {rev_cagr:.0%} revenue CAGR, execution risk and competitive response are key "
+            f"watchpoints — premium valuation leaves little room for growth deceleration."
+        )
+    elif (d_ebitda is not None and fcf_ni is not None and rev_cagr is not None):
+        result["risk"] = (
+            f"With {d_ebitda:.1f}x leverage, {fcf_ni:.0%} FCF conversion, and {rev_cagr:.0%} "
+            f"revenue CAGR, the base case is stable compounding — key upside optionality lies "
+            f"in capital returns acceleration."
+        )
+    elif rev_cagr is not None and fcf_ni is not None:
+        result["risk"] = (
+            f"With {fcf_ni:.0%} FCF conversion and {rev_cagr:.0%} revenue CAGR, the business "
+            f"offers a stable earnings profile — monitor for capital allocation catalysts."
+        )
+    elif d_ebitda is not None and d_ebitda > 3.5:
+        result["risk"] = (
+            f"Leverage of {d_ebitda:.1f}x EBITDA is elevated — debt reduction or refinancing "
+            f"risk is the primary watchpoint in the current rate environment."
+        )
+    else:
+        result["risk"] = None  # fallback to existing text
+
+    return result
+
+
 # ── Credit ────────────────────────────────────────────────────────────────────
 
 def _credit_tier(rating):
@@ -704,6 +892,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"EV/EBITDA: {_x(ev_ebitda)}. See DCF tab."
         ),
 
+        # Thesis risk (placeholder — overridden by _build_thesis below)
+        "THESIS_RISK_TEXT": "",
+
         # Financials
         "CURRENCY_NAME":   "USD",
         "CURRENCY_SYMBOL": "$",
@@ -955,6 +1146,31 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     }
 
     D.update(fin)
+
+    # ── Auto-generated thesis sentences ──────────────────────────────────────
+    _fcf_margin_v = fcf0 / rev0 if rev0 > 0 else None
+    _thesis_metrics = {
+        "roic": roic_v,
+        "rev_cagr": rev_cagr_v,
+        "fcf_ni": fcf_ni_v,
+        "pe_current": trailing_pe,
+        "pe_5yr": pe_5yr,
+        "dcf_base_px": base_px,
+        "current_price": current_price,
+        "d_ebitda": d_ebd,
+        "ebit_interest": ebit_int,
+        "gm_trend": _gm_trend,
+        "fcf_margin": _fcf_margin_v,
+        "pfcf_current": trailing_pfc,
+        "pfcf_5yr": pfcf_5yr,
+    }
+    _thesis = _build_thesis(ticker, _thesis_metrics, years, is_data, cf_data)
+    if _thesis.get("moat"):
+        D["THESIS_MOAT_TEXT"] = _thesis["moat"]
+    if _thesis.get("valuation"):
+        D["THESIS_VALUATION_TEXT"] = _thesis["valuation"]
+    if _thesis.get("risk"):
+        D["THESIS_CATALYSTS_TEXT"] = _thesis["risk"]
 
     # EBIT/Interest note (template uses a single colspan=5 cell for this row)
     ebitint_vals = [fin.get(f"EBITINT_FY{i}", "N/A") for i in range(1, len(years) + 1)]
