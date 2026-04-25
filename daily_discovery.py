@@ -323,18 +323,18 @@ def main():
         success, result = try_generate(ticker)
 
         if success:
-            print(f"✓  score={result['score']}")
+            print(f"OK  score={result['score']}")
             successes.append((ticker, result))
             quota_count = 0
             if len(successes) < MAX_DAILY:
                 time.sleep(3)   # polite gap between API calls
 
         elif result == "quota":
-            print("⚠  402 rate limit")
+            print("WARN  402 rate limit")
             quota_count += 1
             time.sleep(5)
         else:
-            print(f"✗  {result}")
+            print(f"FAIL  {result}")
             quota_count = 0
             time.sleep(2)
 
@@ -345,13 +345,13 @@ def main():
         _write_csv_rows(successes)
 
         pushed = _git_push_all(tickers_done, today)
-        status = "pushed to GitHub → live on Render" if pushed else "saved locally (push manually)"
+        status = "pushed to GitHub -> live on Render" if pushed else "saved locally (push manually)"
 
         scores_str = "  ".join(f"{t}={d['score']}" for t, d in successes)
         msg = (f"{today} | {len(successes)}/{MAX_DAILY} reports: {', '.join(tickers_done)} | "
                f"scores: {scores_str} | tried: {tried} | {status}")
-        print(f"\n  ✓ {len(successes)} report(s): {', '.join(tickers_done)}")
-        print(f"  → {status}")
+        print(f"\n  OK {len(successes)} report(s): {', '.join(tickers_done)}")
+        print(f"  -> {status}")
         _log(msg)
     else:
         msg = f"{today} | 0 reports generated. Tried: {tried}"
