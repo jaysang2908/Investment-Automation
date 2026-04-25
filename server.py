@@ -303,122 +303,190 @@ def dcf_data(ticker):
 
 
 def _build_dcf_response(stored):
-    """Build the DCF API response from a stored data dict (no FMP calls)."""
-    is_data  = stored["is_data"]
-    bs_data  = stored["bs_data"]
-    cf_data  = stored["cf_data"]
+    """Build the DCF API response from stored data (no FMP calls).
+    Prefers Excel model data (excel_dcf key) when available — exact assumptions.
+    Falls back to FMP-derived data for new tickers not yet in Excel models.
+    """
+    excel    = stored.get("excel_dcf")           # present when read from Excel
     profile  = stored.get("profile") or {}
-    years    = stored.get("years") or []
-    wacc_val = stored.get("wacc_val")
-    dcf_px   = stored.get("dcf_prices") or {}
     ae_raw   = stored.get("analyst_ests") or []
+    dcf_px   = stored.get("dcf_prices") or {}
+    ticker   = stored["ticker"]
 
-    ticker        = stored["ticker"]
-    current_price = float(profile.get("price") or 0) or None
-    market_cap    = float(profile.get("mktCap") or 0) or None
-    shares        = float(profile.get("sharesOutstanding") or 0)
-    beta          = float(profile.get("beta") or 1.0) or 1.0
+    # ── Excel path: use exact model assumptions ────────────────────────────
+    if excel:
+        hist_rows = excel.get("hist") or []
+        proj_rows = excel.get("proj") or []
+        wi        = excel.get("wacc_inputs") or {}
 
-    # Build history rows
-    history = []
-    for is_, bs_, cf_ in zip(is_data, bs_data, cf_data):
-        rev        = is_.get("revenue") or 0
-        da         = abs(is_.get("depreciationAndAmortization") or
-                         cf_.get("depreciationAndAmortization") or 0)
-        ebit       = is_.get("operatingIncome") or 0
-        ebitda_raw = is_.get("ebitda") or (ebit + da)
-        capex      = abs(cf_.get("capitalExpenditure") or 0)
-        ocf        = cf_.get("operatingCashFlow") or 0
-        fcf        = cf_.get("freeCashFlow") or (ocf - capex)
-        pti        = is_.get("incomeBeforeTax") or is_.get("pretaxIncome") or 0
-        te         = abs(is_.get("incomeTaxExpense") or 0)
-        tax_r      = min(te / pti, 0.50) if pti > 0 else 0.21
-        history.append({
-            "year":          is_.get("fiscalYear") or is_.get("calendarYear") or is_["date"][:4],
-            "revenue_m":     round(rev / 1e6, 1),
-            "rev_growth":    None,
-            "ebitda_margin": round(ebitda_raw / rev, 4) if rev else 0,
-            "da_pct":        round(da / rev, 4)     if rev else 0,
-            "capex_pct":     round(capex / rev, 4)  if rev else 0,
-            "tax_rate":      round(tax_r, 4),
-            "fcf_m":         round(fcf / 1e6, 1),
-        })
-    for i in range(1, len(history)):
-        prev = history[i-1]["revenue_m"]
-        curr = history[i]["revenue_m"]
-        history[i]["rev_growth"] = round(curr / prev - 1, 4) if prev else None
+        history = []
+        for i, h in enumerate(hist_rows):
+            history.append({
+                "year":          h.get("year", ""),
+                "revenue_m":     round(h["rev_mm"], 1) if h.get("rev_mm") else 0,
+                "rev_growth":    h.get("rev_growth"),
+                "ebitda_margin": h.get("ebitda_margin") or 0,
+                "da_pct":        h.get("da_pct") or 0,
+                "capex_pct":     h.get("capex_pct") or 0,
+                "tax_rate":      h.get("tax_rate") or 0.21,
+                "fcf_m":         round(h["ufcf_mm"], 1) if h.get("ufcf_mm") else 0,
+            })
+        # Fill in rev_growth for first year if missing
+        for i in range(1, len(history)):
+            if history[i]["rev_growth"] is None:
+                prev = history[i-1]["revenue_m"]
+                curr = history[i]["revenue_m"]
+                history[i]["rev_growth"] = round(curr / prev - 1, 4) if prev else None
 
-    # Net debt
-    bs0      = bs_data[-1]
-    cash     = bs0.get("cashAndCashEquivalents") or 0
-    debt     = (bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)
-    net_debt = debt - cash
+        # Projection defaults — exact from Excel
+        def_rev    = [p.get("rev_growth")    or 0.05 for p in proj_rows]
+        def_margin = [p.get("ebitda_margin") or (history[-1]["ebitda_margin"] if history else 0.20) for p in proj_rows]
+        def_da     = [p.get("da_pct")        or (history[-1]["da_pct"] if history else 0.03) for p in proj_rows]
+        def_cx     = [p.get("capex_pct")     or (history[-1]["capex_pct"] if history else 0.03) for p in proj_rows]
+        def_nwc    = [p.get("nwc_pct")       or 0.005 for p in proj_rows]
+        def_tax    = [p.get("tax_rate")       or 0.21  for p in proj_rows]
+        # Pad to 5 if fewer projection years
+        while len(def_rev) < 5:
+            def_rev.append(0.05); def_margin.append(def_margin[-1] if def_margin else 0.20)
+            def_da.append(def_da[-1] if def_da else 0.03); def_cx.append(def_cx[-1] if def_cx else 0.03)
+            def_nwc.append(0.005); def_tax.append(0.21)
 
-    # WACC components
-    RF  = 0.043
-    ERP = 0.045
-    ke  = RF + beta * ERP
-    cap_total = (market_cap + debt) if market_cap else max(debt, 1)
-    ew  = market_cap / cap_total if market_cap else 1.0
-    dw  = debt / cap_total if debt else 0.0
-    is0     = is_data[-1]
-    pti0    = is0.get("incomeBeforeTax") or is0.get("pretaxIncome") or 0
-    te0     = abs(is0.get("incomeTaxExpense") or 0)
-    eff_tax = min(te0 / pti0, 0.50) if pti0 > 0 else 0.21
-    int_exp = abs(is0.get("interestExpense") or 0)
-    kd_pre  = max(0.02, min(int_exp / debt if debt > 0 else RF * 0.8, 0.15))
-    wacc    = wacc_val or (ew * ke + dw * kd_pre * (1 - eff_tax))
+        wacc = wi.get("wacc") or stored.get("wacc_val") or 0.09
+        defaults = {
+            "rev_growth":    [round(v, 4) for v in def_rev[:5]],
+            "ebitda_margin": [round(v, 4) for v in def_margin[:5]],
+            "da_pct":        [round(v, 4) for v in def_da[:5]],
+            "capex_pct":     [round(v, 4) for v in def_cx[:5]],
+            "nwc_pct":       [round(v, 4) for v in def_nwc[:5]],
+            "tax_rate":      [round(v, 4) for v in def_tax[:5]],
+            "tgr":           excel.get("tgr") or 0.03,
+            "exit_multiple": excel.get("exit_multiple") or 15.0,
+            "rf":            wi.get("rf")       or 0.043,
+            "beta":          wi.get("beta")      or 1.0,
+            "erp":           wi.get("erp")       or 0.045,
+            "kd_pretax":     wi.get("kd_pretax") or 0.04,
+            "eff_tax":       wi.get("tax_rate")  or 0.21,
+            "equity_weight": wi.get("equity_weight") or 0.90,
+            "wacc":          round(wacc, 4),
+        }
 
-    # Default projections — anchor to the Excel-engine WACC and DCF prices
-    last_g  = history[-1]["rev_growth"] or 0.05
-    last_m  = history[-1]["ebitda_margin"] or 0.20
-    last_da = history[-1]["da_pct"] or 0.03
-    last_cx = history[-1]["capex_pct"] or 0.04
+        current_price = excel.get("current_price") or float(profile.get("price") or 0) or None
+        shares_m      = excel.get("shares_mm") or (float(profile.get("sharesOutstanding") or 0) / 1e6)
+        net_debt_m    = excel.get("net_debt_mm") or 0
+        last_year     = int(str(hist_rows[-1].get("year", 2024))[:4]) if hist_rows else 2024
+        gg_price      = dcf_px.get("gg_price")
+        source        = "excel"
 
-    analyst_ests = ae_raw
-    def_rev = []
-    for i in range(5):
-        if i < len(analyst_ests):
-            er  = analyst_ests[i].get("estimatedRevenueAvg") or 0
-            epr = (analyst_ests[i-1].get("estimatedRevenueAvg")
-                   if i > 0 else history[-1]["revenue_m"] * 1e6) or 0
-            if er and epr:
-                def_rev.append(round(er / epr - 1, 4))
-                continue
-        tgt = 0.05
-        g   = last_g + (tgt - last_g) * (i / 4) if last_g != tgt else tgt
-        def_rev.append(round(max(-0.10, min(g, 0.60)), 4))
+    # ── FMP fallback: derive from raw 3-statement data ─────────────────────
+    else:
+        is_data  = stored["is_data"]
+        bs_data  = stored["bs_data"]
+        cf_data  = stored["cf_data"]
+        years    = stored.get("years") or []
+        wacc_val = stored.get("wacc_val")
+        beta     = float(profile.get("beta") or 1.0) or 1.0
+        market_cap = float(profile.get("mktCap") or 0) or None
+        shares     = float(profile.get("sharesOutstanding") or 0)
 
-    defaults = {
-        "rev_growth":    def_rev,
-        "ebitda_margin": [round(last_m, 4)]  * 5,
-        "da_pct":        [round(last_da, 4)] * 5,
-        "capex_pct":     [round(last_cx, 4)] * 5,
-        "nwc_pct":       [0.005] * 5,
-        "tax_rate":      [round(eff_tax, 4)] * 5,
-        "tgr":           0.030,
-        "exit_multiple": 15.0,
-        "rf":            RF,
-        "beta":          round(beta, 3),
-        "erp":           ERP,
-        "kd_pretax":     round(kd_pre, 4),
-        "eff_tax":       round(eff_tax, 4),
-        "equity_weight": round(ew, 4),
-        "wacc":          round(wacc, 4),
-    }
+        history = []
+        for is_, bs_, cf_ in zip(is_data, bs_data, cf_data):
+            rev        = is_.get("revenue") or 0
+            da         = abs(is_.get("depreciationAndAmortization") or
+                             cf_.get("depreciationAndAmortization") or 0)
+            ebit       = is_.get("operatingIncome") or 0
+            ebitda_raw = is_.get("ebitda") or (ebit + da)
+            capex      = abs(cf_.get("capitalExpenditure") or 0)
+            ocf        = cf_.get("operatingCashFlow") or 0
+            fcf        = cf_.get("freeCashFlow") or (ocf - capex)
+            pti        = is_.get("incomeBeforeTax") or is_.get("pretaxIncome") or 0
+            te         = abs(is_.get("incomeTaxExpense") or 0)
+            tax_r      = min(te / pti, 0.50) if pti > 0 else 0.21
+            history.append({
+                "year":          is_.get("fiscalYear") or is_.get("calendarYear") or is_["date"][:4],
+                "revenue_m":     round(rev / 1e6, 1),
+                "rev_growth":    None,
+                "ebitda_margin": round(ebitda_raw / rev, 4) if rev else 0,
+                "da_pct":        round(da / rev, 4)     if rev else 0,
+                "capex_pct":     round(capex / rev, 4)  if rev else 0,
+                "tax_rate":      round(tax_r, 4),
+                "fcf_m":         round(fcf / 1e6, 1),
+            })
+        for i in range(1, len(history)):
+            prev = history[i-1]["revenue_m"]
+            curr = history[i]["revenue_m"]
+            history[i]["rev_growth"] = round(curr / prev - 1, 4) if prev else None
 
-    last_year = int(years[-1]) if years else 2024
+        bs0      = bs_data[-1]
+        cash     = bs0.get("cashAndCashEquivalents") or 0
+        debt     = (bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)
+        net_debt = debt - cash
+
+        RF  = 0.043; ERP = 0.045
+        ke  = RF + beta * ERP
+        cap_total = (market_cap + debt) if market_cap else max(debt, 1)
+        ew  = market_cap / cap_total if market_cap else 1.0
+        dw  = debt / cap_total if debt else 0.0
+        is0     = is_data[-1]
+        pti0    = is0.get("incomeBeforeTax") or is0.get("pretaxIncome") or 0
+        te0     = abs(is0.get("incomeTaxExpense") or 0)
+        eff_tax = min(te0 / pti0, 0.50) if pti0 > 0 else 0.21
+        int_exp = abs(is0.get("interestExpense") or 0)
+        kd_pre  = max(0.02, min(int_exp / debt if debt > 0 else RF * 0.8, 0.15))
+        wacc    = wacc_val or (ew * ke + dw * kd_pre * (1 - eff_tax))
+
+        last_g  = history[-1]["rev_growth"] or 0.05
+        last_m  = history[-1]["ebitda_margin"] or 0.20
+        last_da = history[-1]["da_pct"] or 0.03
+        last_cx = history[-1]["capex_pct"] or 0.04
+
+        def_rev = []
+        for i in range(5):
+            if i < len(ae_raw):
+                er  = ae_raw[i].get("estimatedRevenueAvg") or 0
+                epr = (ae_raw[i-1].get("estimatedRevenueAvg")
+                       if i > 0 else history[-1]["revenue_m"] * 1e6) or 0
+                if er and epr:
+                    def_rev.append(round(er / epr - 1, 4)); continue
+            tgt = 0.05
+            g   = last_g + (tgt - last_g) * (i / 4) if last_g != tgt else tgt
+            def_rev.append(round(max(-0.10, min(g, 0.60)), 4))
+
+        defaults = {
+            "rev_growth":    def_rev,
+            "ebitda_margin": [round(last_m, 4)]  * 5,
+            "da_pct":        [round(last_da, 4)] * 5,
+            "capex_pct":     [round(last_cx, 4)] * 5,
+            "nwc_pct":       [0.005] * 5,
+            "tax_rate":      [round(eff_tax, 4)] * 5,
+            "tgr":           0.030,
+            "exit_multiple": 15.0,
+            "rf":            RF,
+            "beta":          round(beta, 3),
+            "erp":           ERP,
+            "kd_pretax":     round(kd_pre, 4),
+            "eff_tax":       round(eff_tax, 4),
+            "equity_weight": round(ew, 4),
+            "wacc":          round(wacc, 4),
+        }
+
+        current_price = float(profile.get("price") or 0) or None
+        shares_m      = round(shares / 1e6, 2)
+        net_debt_m    = round(net_debt / 1e6, 1)
+        last_year     = int(years[-1]) if years else 2024
+        gg_price      = dcf_px.get("gg_price")
+        source        = "fmp"
 
     return {
         "ticker":         ticker,
         "name":           profile.get("companyName") or ticker,
         "price":          current_price,
-        "shares_m":       round(shares / 1e6, 2),
-        "net_debt_m":     round(net_debt / 1e6, 1),
+        "shares_m":       round(shares_m, 2),
+        "net_debt_m":     round(net_debt_m, 1),
         "last_year":      last_year,
         "history":        history,
         "defaults":       defaults,
-        "dcf_base_price": dcf_px.get("gg_price"),
+        "dcf_base_price": gg_price,
+        "data_source":    source,
         "fetched_date":   stored.get("fetched", ""),
         "analyst_ests": [
             {
@@ -427,7 +495,7 @@ def _build_dcf_response(stored):
                 "eps_avg":   round(e.get("estimatedEpsAvg") or 0, 2),
                 "ebitda_m":  round((e.get("estimatedEbitdaAvg") or 0) / 1e6, 1),
             }
-            for e in analyst_ests
+            for e in ae_raw
         ],
     }
 
