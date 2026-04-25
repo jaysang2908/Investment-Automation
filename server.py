@@ -11,6 +11,7 @@ Endpoints:
 """
 
 import io
+import json
 import os
 import uuid
 import builtins
@@ -517,6 +518,46 @@ def discovered_reports():
                 if t not in CORE:
                     result.append({"ticker": t, "url": f"/reports/{fname}"})
     return jsonify(result)
+
+
+@app.route("/news")
+def news_page():
+    return app.send_static_file("news.html")
+
+
+@app.route("/api/news")
+def api_news():
+    ticker = request.args.get("ticker", "").upper().strip()
+    cache_path = os.path.join(os.path.dirname(__file__), "static", "data", "news_cache.json")
+
+    if not os.path.exists(cache_path):
+        return jsonify({"articles": [], "tickers": [], "fetched": None, "stale": True})
+
+    try:
+        with open(cache_path, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return jsonify({"articles": [], "tickers": [], "fetched": None, "stale": True})
+
+    fetched = cache.get("fetched")
+    stale = True
+    if fetched:
+        try:
+            fetched_dt = datetime.datetime.fromisoformat(fetched)
+            stale = (datetime.datetime.utcnow() - fetched_dt).total_seconds() > 26 * 3600
+        except (ValueError, TypeError):
+            stale = True
+
+    articles = cache.get("articles", [])
+    if ticker:
+        articles = [a for a in articles if (a.get("symbol") or "").upper() == ticker]
+
+    return jsonify({
+        "articles": articles,
+        "tickers":  cache.get("tickers", []),
+        "fetched":  fetched,
+        "stale":    stale,
+    })
 
 
 @app.route("/api/reports")

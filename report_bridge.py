@@ -11,7 +11,10 @@ import re
 import os
 import datetime
 
+from data_validation import validate_fmp_data, persist_anomalies
+
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "Report_Template.html")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "static", "data")
 
 # ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -1079,12 +1082,93 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             print(f"[report_bridge] WARNING: {ticker} {k} mismatch — D has {got!r}, expected {exp!r}",
                   file=sys.stderr)
 
+    # ── Data anomaly detection ────────────────────────────────────────────────
+    try:
+        anomalies = validate_fmp_data(ticker, is_data, bs_data, cf_data)
+    except Exception:
+        anomalies = []
+
+    D["DATA_ANOMALIES"] = anomalies
+    D["HAS_ANOMALIES"] = len([a for a in anomalies if a["severity"] in ("ERROR", "WARNING")]) > 0
+
+    # Persist anomalies to static/data/anomalies.json (best-effort)
+    if anomalies:
+        try:
+            persist_anomalies(ticker, anomalies, DATA_DIR)
+        except Exception:
+            pass
+
     return D
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # RENDER HTML
 # ══════════════════════════════════════════════════════════════════════════════
+
+def _build_anomaly_banner(data):
+    """Build HTML for data quality anomaly banner. Returns empty string if no issues."""
+    anomalies = data.get("DATA_ANOMALIES", [])
+    has_anomalies = data.get("HAS_ANOMALIES", False)
+    if not has_anomalies or not anomalies:
+        return ""
+
+    items_html = []
+    for a in anomalies:
+        sev = a.get("severity", "INFO")
+        if sev not in ("ERROR", "WARNING"):
+            continue
+        yr = a.get("year", "")
+        msg = a.get("message", "")
+        items_html.append(
+            f'<div class="anomaly-item anomaly-{sev.lower()}">'
+            f'[{sev}] {yr}: {msg}</div>'
+        )
+
+    if not items_html:
+        return ""
+
+    return (
+        '<div class="data-quality-banner">\n'
+        '  <strong>Data Quality Notes</strong>\n'
+        '  ' + '\n  '.join(items_html) + '\n'
+        '</div>\n'
+    )
+
+
+_ANOMALY_CSS = """
+/* ===== Data Quality Banner ===== */
+.data-quality-banner {
+  max-width: 1180px; margin: 0 auto 16px;
+  padding: 16px 24px;
+  background: #FFFBF0;
+  border-left: 4px solid var(--amber);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.data-quality-banner strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+.anomaly-item {
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.anomaly-error {
+  color: var(--down);
+  font-weight: 600;
+}
+.anomaly-warning {
+  color: var(--amber);
+}
+.anomaly-info {
+  color: var(--muted);
+}
+"""
+
 
 def render_html_report(data):
     """Fill Report_Template.html with data dict, return HTML string."""
@@ -1093,6 +1177,25 @@ def render_html_report(data):
         html = f.read()
 
     current_price = data.get("CURRENT_PRICE", 0) or 0
+
+    # 0. Inject anomaly CSS and banner
+    # CSS: insert before closing </style>
+    if data.get("HAS_ANOMALIES"):
+        html = html.replace("</style>", _ANOMALY_CSS + "</style>", 1)
+
+    # Banner: insert between hero and tab nav
+    anomaly_banner = _build_anomaly_banner(data)
+    if anomaly_banner:
+        # Primary: insert before the TAB NAV comment
+        tab_marker = '<!-- ═══ TAB NAV ═══ -->'
+        tab_pos = html.find(tab_marker)
+        if tab_pos != -1:
+            html = html[:tab_pos] + anomaly_banner + '\n' + html[tab_pos:]
+        else:
+            # Fallback: insert before <main
+            main_pos = html.find('<main')
+            if main_pos != -1:
+                html = html[:main_pos] + anomaly_banner + '\n' + html[main_pos:]
 
     # 1. Colorize SCORE_TEXT placeholders before main replacement
     for k in [k for k in data if "SCORE_TEXT" in k]:

@@ -9,7 +9,8 @@ import os, json, datetime
 DATA_DIR = os.path.join(os.path.dirname(__file__), "static", "data")
 
 def save_ticker_data(ticker, is_data, bs_data, cf_data, profile, years,
-                     wacc_val, dcf_prices, scorecard_metrics, analyst_ests=None):
+                     wacc_val, dcf_prices, scorecard_metrics, analyst_ests=None,
+                     anomalies=None):
     os.makedirs(DATA_DIR, exist_ok=True)
     payload = {
         "ticker":            ticker,
@@ -23,6 +24,7 @@ def save_ticker_data(ticker, is_data, bs_data, cf_data, profile, years,
         "dcf_prices":        dcf_prices or {},
         "scorecard_metrics": scorecard_metrics or {},
         "analyst_ests":      analyst_ests or [],
+        "anomalies":         anomalies or [],
     }
     path = os.path.join(DATA_DIR, f"{ticker}_data.json")
     with open(path, "w", encoding="utf-8") as f:
