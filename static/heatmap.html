@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heatmap — Investment Utopia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg:         #0d0f13;
+      --surface:    #13161d;
+      --border:     rgba(255,255,255,0.06);
+      --border2:    rgba(255,255,255,0.10);
+      --text:       #e8eaf0;
+      --text-muted: #8a8f9e;
+      --text-dim:   #545966;
+      --gold:       #c9a84c;
+      --green:      #10b981;
+      --red:        #ef4444;
+      --blue:       #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; }
+
+    /* ── NAV ── */
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
+    .nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 10.5pt; font-weight: 500; letter-spacing: 3.5px; color: var(--text); text-transform: uppercase; text-decoration: none; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { list-style: none; display: flex; gap: 28px; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 9pt; letter-spacing: 0.5px; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+
+    /* ── TOOLBAR ── */
+    .toolbar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .toolbar-label { font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-right: 4px; }
+    .metric-group, .size-group { display: flex; gap: 4px; align-items: center; }
+    .sep { width: 1px; height: 24px; background: var(--border2); margin: 0 8px; }
+
+    .btn-metric {
+      font-family: 'IBM Plex Mono', monospace; font-size: 8pt; letter-spacing: 0.5px;
+      padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border2);
+      background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-metric:hover { color: var(--text); border-color: var(--gold); }
+    .btn-metric.active { background: rgba(201,168,76,0.12); color: var(--gold); border-color: var(--gold); }
+
+    /* ── CHART ── */
+    #chartWrap { padding: 0; }
+    #heatmap { width: 100%; height: calc(100vh - 130px); min-height: 520px; }
+
+    /* ── LEGEND BAR ── */
+    .legend-bar { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 10px 24px; border-top: 1px solid var(--border); font-size: 8pt; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
+    .legend-grad { width: 140px; height: 10px; border-radius: 4px; background: linear-gradient(to right, #ef4444, #eab308, #10b981); }
+
+    /* ── LOADING ── */
+    #loadingMsg { display: flex; align-items: center; justify-content: center; height: 400px; font-family: 'IBM Plex Mono', monospace; font-size: 9pt; color: var(--text-dim); letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">Investment<span>.</span>Utopia</a>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/dashboard.html">Dashboard</a></li>
+    <li><a href="/heatmap" class="active">Heatmap</a></li>
+    <li><a href="/dcf">DCF</a></li>
+    <li><a href="/news">News</a></li>
+  </ul>
+</nav>
+
+<div class="toolbar">
+  <span class="toolbar-label">Metric</span>
+  <div class="metric-group">
+    <button class="btn-metric active" data-metric="score">Score</button>
+    <button class="btn-metric" data-metric="gg_upside">GG Upside</button>
+    <button class="btn-metric" data-metric="em_upside">EM Upside</button>
+    <button class="btn-metric" data-metric="roic">ROIC</button>
+    <button class="btn-metric" data-metric="rev_cagr">Rev CAGR</button>
+    <button class="btn-metric" data-metric="pe">P/E</button>
+    <button class="btn-metric" data-metric="pfcf">P/FCF</button>
+    <button class="btn-metric" data-metric="d_ebitda">D/EBITDA</button>
+    <button class="btn-metric" data-metric="fcf_ni">FCF/NI</button>
+  </div>
+  <div class="sep"></div>
+  <span class="toolbar-label">Size</span>
+  <div class="size-group">
+    <button class="btn-metric active" data-size="mktcap_b" id="sizeMkt">Mkt Cap</button>
+    <button class="btn-metric" data-size="revenue_b" id="sizeRev">Revenue</button>
+  </div>
+</div>
+
+<div id="chartWrap">
+  <div id="loadingMsg">LOADING...</div>
+  <div id="heatmap" style="display:none"></div>
+</div>
+
+<div class="legend-bar">
+  <span id="legendLow">Low</span>
+  <div class="legend-grad"></div>
+  <span id="legendHigh">High</span>
+  <span style="margin-left:16px;color:var(--text-dim)">·  Size = </span>
+  <span id="legendSize" style="color:var(--text-muted);margin-left:4px">Market Cap</span>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const METRICS = {
+  score:      { label: 'Investment Score',     fmt: v => v.toFixed(1),       unit: '',    invert: false, mid: 5,    lo: 'Low Score',   hi: 'High Score'   },
+  gg_upside:  { label: 'GG DCF Upside',        fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 0,    lo: 'Overvalued',  hi: 'Undervalued'  },
+  em_upside:  { label: 'Exit Multiple Upside', fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 0,    lo: 'Overvalued',  hi: 'Undervalued'  },
+  roic:       { label: 'ROIC',                 fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 15,   lo: 'Low ROIC',    hi: 'High ROIC'    },
+  rev_cagr:   { label: 'Revenue CAGR',         fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 5,    lo: 'Low Growth',  hi: 'High Growth'  },
+  pe:         { label: 'P/E (Current)',         fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 20,   lo: 'Cheap',       hi: 'Expensive'    },
+  pfcf:       { label: 'P/FCF (Current)',       fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 20,   lo: 'Cheap',       hi: 'Expensive'    },
+  d_ebitda:   { label: 'Debt / EBITDA',        fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 2,    lo: 'Low Debt',    hi: 'High Debt'    },
+  fcf_ni:     { label: 'FCF / Net Income',     fmt: v => v.toFixed(2),       unit: '',    invert: false, mid: 1,    lo: 'Low Conv.',   hi: 'High Conv.'   },
+};
+
+let DATA      = [];
+let curMetric = 'score';
+let curSize   = 'mktcap_b';
+
+// ── Fetch data ────────────────────────────────────────────────────────────────
+async function init() {
+  const res  = await fetch('/api/heatmap-data');
+  const json = await res.json();
+  DATA = json.tickers || [];
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('heatmap').style.display = 'block';
+  render();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const cfg   = METRICS[curMetric];
+  const rows  = DATA.filter(d => d[curMetric] !== null && d[curMetric] !== undefined);
+
+  // Collect unique sectors
+  const sectors = [...new Set(rows.map(r => r.sector))].sort();
+
+  // Build flat treemap arrays
+  const labels   = [];
+  const parents  = [];
+  const values   = [];
+  const colors   = [];
+  const custom   = [];
+
+  // Root
+  labels.push('Coverage');  parents.push('');  values.push(0);  colors.push(null);  custom.push(null);
+
+  // Sector nodes
+  sectors.forEach(sec => {
+    labels.push(sec);  parents.push('Coverage');  values.push(0);
+    colors.push(null);  custom.push(null);
+  });
+
+  // Ticker leaf nodes
+  rows.forEach(d => {
+    const sz = d[curSize] || d.mktcap_b || d.revenue_b || 5;
+    labels.push(d.ticker);
+    parents.push(d.sector);
+    values.push(Math.max(sz, 0.1));
+    colors.push(d[curMetric]);
+    custom.push(d);
+  });
+
+  // Color scale: invert for P/E, D/EBITDA etc
+  const colorscale = cfg.invert
+    ? [[0,'#10b981'],[0.5,'#eab308'],[1,'#ef4444']]
+    : [[0,'#ef4444'],[0.5,'#eab308'],[1,'#10b981']];
+
+  const metricVals = rows.map(d => d[curMetric]).filter(v => v !== null);
+  const cmin = Math.min(...metricVals);
+  const cmax = Math.max(...metricVals);
+
+  const trace = {
+    type: 'treemap',
+    labels,
+    parents,
+    values,
+    branchvalues: 'total',
+    marker: {
+      colors,
+      colorscale,
+      cmin,
+      cmax,
+      showscale: false,
+      line: { width: 1.5, color: '#0d0f13' },
+    },
+    texttemplate: '<b>%{label}</b>',
+    hovertemplate: buildHover(cfg),
+    customdata: custom,
+    textfont: { family: 'IBM Plex Mono, monospace', size: 13, color: '#ffffff' },
+    pathbar: { visible: false },
+    tiling: { packing: 'squarify', pad: 2 },
+    root: { color: 'transparent' },
+  };
+
+  const layout = {
+    paper_bgcolor: '#0d0f13',
+    plot_bgcolor:  '#0d0f13',
+    margin: { l: 0, r: 0, t: 0, b: 0 },
+    font: { family: 'IBM Plex Mono, monospace', color: '#e8eaf0' },
+  };
+
+  const config = {
+    displayModeBar: false,
+    responsive: true,
+  };
+
+  Plotly.react('heatmap', [trace], layout, config);
+
+  // Click to open report
+  document.getElementById('heatmap').on('plotly_click', function(ev) {
+    const pt = ev.points[0];
+    if (pt && pt.customdata && pt.customdata.ticker) {
+      const t = pt.customdata.ticker;
+      window.open(`/report/${t}`, '_blank');
+    }
+  });
+
+  // Update legend labels
+  document.getElementById('legendLow').textContent  = cfg.lo;
+  document.getElementById('legendHigh').textContent = cfg.hi;
+  document.getElementById('legendSize').textContent = curSize === 'mktcap_b' ? 'Market Cap' : 'Revenue';
+}
+
+function buildHover(cfg) {
+  return [
+    '<b>%{label}</b>',
+    `<b>${cfg.label}:</b> %{marker.color:.2f}${cfg.unit}`,
+    '<extra></extra>',
+  ].join('<br>');
+}
+
+// ── Tooltip override with full data ──────────────────────────────────────────
+function fmt(v, digits, suffix) {
+  if (v === null || v === undefined) return '—';
+  return v.toFixed(digits) + (suffix || '');
+}
+
+// ── Button wiring ─────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-metric]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-metric]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    curMetric = btn.dataset.metric;
+    render();
+  });
+});
+
+document.querySelectorAll('[data-size]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    curSize = btn.dataset.size;
+    render();
+  });
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

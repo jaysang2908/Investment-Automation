@@ -625,6 +625,93 @@ def api_compare_scenarios():
     return jsonify(scenarios)
 
 
+# ── Heatmap ───────────────────────────────────────────────────────────────────
+
+# Static sector buckets for the core coverage universe
+_SECTORS = {
+    "AAPL":  "Technology",  "ADBE":  "Technology",   "AMD":   "Technology",
+    "CSCO":  "Technology",  "INTC":  "Technology",   "MSFT":  "Technology",
+    "NVDA":  "Technology",  "TSM":   "Technology",
+    "META":  "Comm & Media","NFLX":  "Comm & Media",
+    "BAC":   "Financials",  "C":     "Financials",   "JPM":   "Financials",
+    "SOFI":  "Financials",  "V":     "Financials",   "WFC":   "Financials",
+    "ABBV":  "Healthcare",  "JNJ":   "Healthcare",
+    "F":     "Consumer",    "TSLA":  "Consumer",     "UAL":   "Consumer",
+    "COST":  "Staples",     "KO":    "Staples",      "WMT":   "Staples",
+}
+
+_COMPANY_NAMES = {
+    "AAPL":"Apple","ADBE":"Adobe","AMD":"AMD","CSCO":"Cisco","INTC":"Intel",
+    "MSFT":"Microsoft","NVDA":"NVIDIA","TSM":"TSMC","META":"Meta","NFLX":"Netflix",
+    "BAC":"BofA","C":"Citigroup","JPM":"JPMorgan","SOFI":"SoFi","V":"Visa","WFC":"Wells Fargo",
+    "ABBV":"AbbVie","JNJ":"J&J","F":"Ford","TSLA":"Tesla","UAL":"United Airlines",
+    "COST":"Costco","KO":"Coca-Cola","WMT":"Walmart",
+}
+
+@app.route("/heatmap")
+def heatmap_page():
+    return app.send_static_file("heatmap.html")
+
+
+@app.route("/api/heatmap-data")
+def api_heatmap_data():
+    csv_path = os.path.join(os.path.dirname(__file__), "outputs.csv")
+    if not os.path.exists(csv_path):
+        return jsonify({"tickers": []})
+
+    import csv as _csv
+    def _f(v):
+        try: return float(v) if v not in ("", None) else None
+        except: return None
+
+    tickers = []
+    with open(csv_path, "r", encoding="utf-8") as f:
+        for row in _csv.DictReader(f):
+            t = row.get("Ticker", "").strip().upper()
+            if not t:
+                continue
+            mktcap  = _f(row.get("MktCap_B"))
+            rev     = _f(row.get("Revenue_B"))
+            price   = _f(row.get("Price"))
+            score   = _f(row.get("Auto_Score"))
+            gg_up   = _f(row.get("GG_Upside"))
+            em_up   = _f(row.get("EM_Upside"))
+            roic    = _f(row.get("ROIC"))
+            cagr    = _f(row.get("Rev_CAGR"))
+            pe      = _f(row.get("PE_Current"))
+            pfcf    = _f(row.get("PFCF_Current"))
+            d_eb    = _f(row.get("D_EBITDA"))
+            fcf_ni  = _f(row.get("FCF_NI"))
+            gg_px   = _f(row.get("GG_Price"))
+            em_px   = _f(row.get("EM_Price"))
+
+            # Size fallback: use revenue if no mktcap
+            size = mktcap or rev or 10.0
+
+            tickers.append({
+                "ticker":    t,
+                "name":      _COMPANY_NAMES.get(t, t),
+                "sector":    _SECTORS.get(t, "Other"),
+                "size":      size,
+                "mktcap_b":  mktcap,
+                "revenue_b": rev,
+                "price":     price,
+                "gg_px":     gg_px,
+                "em_px":     em_px,
+                "score":     score,
+                "gg_upside": round(gg_up * 100, 1) if gg_up is not None else None,
+                "em_upside": round(em_up * 100, 1) if em_up is not None else None,
+                "roic":      round(roic * 100, 1) if roic is not None else None,
+                "rev_cagr":  round(cagr * 100, 1) if cagr is not None else None,
+                "pe":        pe,
+                "pfcf":      pfcf,
+                "d_ebitda":  d_eb,
+                "fcf_ni":    fcf_ni,
+            })
+
+    return jsonify({"tickers": tickers})
+
+
 # ── Dev entry point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
