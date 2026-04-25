@@ -8,9 +8,11 @@ Usage: python excel_reports.py
 
 import os, sys, re
 import openpyxl
+import requests as _req
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from report_bridge import build_report_data, render_html_report
+import fmp_3statementv6 as _fmp
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "static", "reports")
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -454,6 +456,21 @@ for ticker, path in FILES.items():
         if floor_cap is not None:
             adj_score = min(adj_score, floor_cap)
 
+        # Analyst estimates for forward multiples
+        analyst_ests = []
+        try:
+            _ae = _req.get(
+                f"https://financialmodelingprep.com/stable/analyst-estimates"
+                f"?symbol={ticker}&period=annual&limit=4&apikey={_fmp.API_KEY}", timeout=8
+            ).json()
+            if isinstance(_ae, list):
+                analyst_ests = sorted(
+                    [e for e in _ae if e.get("date", "")[:4] > str(years[-1])],
+                    key=lambda x: x.get("date", "")
+                )[:2]
+        except Exception:
+            pass
+
         report_data = build_report_data(
             ticker            = ticker,
             profile           = profile,
@@ -470,6 +487,7 @@ for ticker, path in FILES.items():
             biz_clarity       = None,
             ltp               = None,
             adj_score         = adj_score,
+            analyst_ests      = analyst_ests,
         )
 
         # ── Override WACC keys with actual Excel WACC tab values ──────────────

@@ -86,6 +86,22 @@ for ticker, biz_clarity, ltp in TICKERS:
             for d in is_data
         ]
 
+        # Analyst estimates for forward multiples (FY+1, FY+2)
+        analyst_ests = []
+        try:
+            _ae = _req.get(
+                f"https://financialmodelingprep.com/stable/analyst-estimates"
+                f"?symbol={ticker}&period=annual&limit=4&apikey={mdl.API_KEY}", timeout=8
+            ).json()
+            if isinstance(_ae, list):
+                # Keep only estimates dated after last historical year
+                analyst_ests = sorted(
+                    [e for e in _ae if e.get("date", "")[:4] > str(years[-1])],
+                    key=lambda x: x.get("date", "")
+                )[:2]
+        except Exception:
+            pass
+
         wb = Workbook()
         pl_refs  = mdl.build_pl(wb, is_data, years, ticker)
         mdl.build_cover(wb, ticker, years, is_data)
@@ -125,6 +141,7 @@ for ticker, biz_clarity, ltp in TICKERS:
             biz_clarity       = biz_clarity or None,
             ltp               = ltp or None,
             adj_score         = adj_score,
+            analyst_ests      = analyst_ests,
         )
         html_content = render_html_report(report_data)
 

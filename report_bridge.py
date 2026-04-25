@@ -250,7 +250,8 @@ def _compute_css(d, current_price):
 def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                       wacc_val, dcf_prices, scorecard_metrics,
                       manual_rating=None, current_price=None, market_cap=None,
-                      biz_clarity=None, ltp=None, adj_score=None):
+                      biz_clarity=None, ltp=None, adj_score=None,
+                      analyst_ests=None):
 
     is0, bs0, cf0 = is_data[-1], bs_data[-1], cf_data[-1]
     today = datetime.date.today().strftime("%B %Y")
@@ -380,6 +381,59 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     pt_vals = [p for p in [gg_px, em_px] if p]
     price_target = round(sum(pt_vals) / len(pt_vals), 0) if pt_vals else current_price
+
+    # ── Reverse DCF: implied perpetuity FCF growth rate at current price ──────
+    _mkt_cap_v = market_cap or (current_price * shares if current_price and shares else 0)
+    if current_price and _mkt_cap_v > 0 and wacc_b > 0:
+        if fcf0 > 0:
+            _impl_g = wacc_b - fcf0 / _mkt_cap_v
+            _impl_g = max(-0.15, min(_impl_g, wacc_b - 0.005))
+            _gap    = _impl_g - (rev_cagr_v or 0)
+            _fy_str = f"{fcf0/_mkt_cap_v*100:.2f}%"
+            _ig_str = f"{_impl_g*100:.1f}%"
+            _wk_str = f"{wacc_b*100:.1f}%"
+            _cr_ref = f" vs. {_pct(rev_cagr_v)} trailing revenue CAGR" if rev_cagr_v else ""
+            if _gap > 0.03:
+                _vlbl, _vcol = "Ambitious Pricing", "var(--amber)"
+                _vtxt = (f"Market embeds {_ig_str} implied FCF growth{_cr_ref}. "
+                         f"Premium justified only if growth accelerates or margins expand materially.")
+            elif _gap > -0.02:
+                _vlbl, _vcol = "Fairly Priced", "var(--accent)"
+                _vtxt = (f"Implied {_ig_str} FCF growth broadly in line{_cr_ref}. "
+                         f"Market pricing continuity — upside requires a re-rating catalyst.")
+            else:
+                _vlbl, _vcol = "Conservative Pricing", "var(--up)"
+                _vtxt = (f"Market prices in only {_ig_str} FCF growth{_cr_ref} — "
+                         f"deceleration embedded. Upside if historical growth rate sustains.")
+            rdcf_text = (
+                '<div class="rdcf-stats">'
+                f'<div class="rdcf-stat"><div class="rdcf-num">{_ig_str}</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Perpetuity rate at current price</div></div>'
+                f'<div class="rdcf-stat"><div class="rdcf-num">{_fy_str}</div><div class="rdcf-lbl">FCF Yield</div><div class="rdcf-sub">Trailing FCF ÷ market cap</div></div>'
+                f'<div class="rdcf-stat"><div class="rdcf-num">{_wk_str}</div><div class="rdcf-lbl">WACC</div><div class="rdcf-sub">Implied growth = WACC − yield</div></div>'
+                '</div>'
+                f'<div class="rdcf-verdict"><strong style="color:{_vcol}">{_vlbl}</strong> — {_vtxt}</div>'
+            )
+        else:
+            _wk_str = f"{wacc_b*100:.1f}%"
+            rdcf_text = (
+                '<div class="rdcf-stats">'
+                f'<div class="rdcf-stat"><div class="rdcf-num" style="color:var(--down)">N/A</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Requires positive FCF</div></div>'
+                f'<div class="rdcf-stat"><div class="rdcf-num" style="color:var(--down)">{_b(fcf0)}</div><div class="rdcf-lbl">Trailing FCF</div><div class="rdcf-sub">Negative — model not applicable</div></div>'
+                f'<div class="rdcf-stat"><div class="rdcf-num">{_wk_str}</div><div class="rdcf-lbl">WACC</div><div class="rdcf-sub">Discount rate</div></div>'
+                '</div>'
+                f'<div class="rdcf-verdict"><strong style="color:var(--amber)">FCF Inflection Play</strong> — '
+                f'Trailing FCF is {_b(fcf0)}; reverse-DCF requires positive FCF. '
+                f'Market pricing a future FCF inflection; trailing revenue CAGR: {_pct(rev_cagr_v)}.</div>'
+            )
+    else:
+        rdcf_text = (
+            '<div class="rdcf-stats">'
+            '<div class="rdcf-stat"><div class="rdcf-num">—</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Insufficient data</div></div>'
+            '<div class="rdcf-stat"><div class="rdcf-num">—</div><div class="rdcf-lbl">FCF Yield</div><div class="rdcf-sub">—</div></div>'
+            '<div class="rdcf-stat"><div class="rdcf-num">—</div><div class="rdcf-lbl">WACC</div><div class="rdcf-sub">—</div></div>'
+            '</div>'
+            '<div class="rdcf-verdict">Insufficient data for reverse-DCF computation.</div>'
+        )
 
     # ── Credit ────────────────────────────────────────────────────────────────
     from fmp_3statementv6 import MOODY_TO_SP
@@ -736,11 +790,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "WACC_3": f"{wacc_b*100:.1f}%",          "WACC_4": f"{(wacc_b+0.01)*100:.1f}%",
         "WACC_5": f"{(wacc_b+0.015)*100:.1f}%",  "WACC_6": f"{(wacc_b+0.02)*100:.1f}%",
         "SENSITIVITY_NOTE": "Red = Below Current Price | Yellow = 0–10% upside | Green = >10% upside",
-        "REVERSE_DCF_TEXT": (
-            f"At ${current_price:.2f}, the market implies conservative growth expectations "
-            f"vs. trailing 3yr CAGR of {_pct(rev_cagr_v)}. "
-            "Add reverse-DCF implied growth from Excel DCF tab."
-        ),
+        "REVERSE_DCF_TEXT": rdcf_text,
 
         # WACC Summary
         "WACC_RF":        f"{RF_APPROX*100:.1f}%",
@@ -772,7 +822,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "PE_5YR_AVG":   _x(pe_5yr),
         "PFCF_10YR_AVG": (_x(pfcf_5yr) + " (5yr)") if pfcf_5yr else "N/A",
         "PFCF_5YR_AVG": _x(pfcf_5yr),
-        "EVEBITDA_10YR_AVG": "Add", "EVEBITDA_5YR_AVG": "Add",
+        "EVEBITDA_10YR_AVG": _x(ev_ebitda) if ev_ebitda else "Add",
+        "EVEBITDA_5YR_AVG":  _x(ev_ebitda) if ev_ebitda else "Add",
         **{k: "Add" for k in [
             "MULT_PE10_FY1_PX","MULT_PE10_FY1_UPS","MULT_PE10_FY2_PX","MULT_PE10_FY2_UPS",
             "MULT_PE5_FY1_PX","MULT_PE5_FY1_UPS","MULT_PE5_FY2_PX","MULT_PE5_FY2_UPS",
@@ -818,6 +869,82 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     ebitint_vals = [fin.get(f"EBITINT_FY{i}", "N/A") for i in range(1, len(years) + 1)]
     non_na = [(years[i], v) for i, v in enumerate(ebitint_vals) if v != "N/A"]
     D["EBITINT_NOTE"] = " · ".join(f"FY{yr}: {v}" for yr, v in non_na) if non_na else "N/A — interest data not available"
+
+    # ── Analyst estimates → forward multiples ─────────────────────────────────
+    if analyst_ests:
+        _ests = sorted(analyst_ests, key=lambda x: x.get("date", ""))
+        _e1 = _ests[0] if _ests else {}
+        _e2 = _ests[1] if len(_ests) >= 2 else {}
+
+        _eps1  = _e1.get("estimatedEpsAvg") or 0
+        _eps2  = _e2.get("estimatedEpsAvg") or 0
+        _ebd1  = _e1.get("estimatedEbitdaAvg") or 0
+        _ebd2  = _e2.get("estimatedEbitdaAvg") or 0
+
+        # FCF/share proxy: forward EPS × historical FCF/NI conversion ratio
+        _fn = max(0.3, min(fcf_ni_v or 0.7, 2.0))
+        _fp1 = round(_eps1 * _fn, 2) if _eps1 > 0 else 0
+        _fp2 = round(_eps2 * _fn, 2) if _eps2 > 0 else 0
+
+        _pa  = pe_5yr          # 5yr P/E avg (used for both 5yr and 10yr labels)
+        _pfa = pfcf_5yr        # 5yr P/FCF avg
+        _eva = ev_ebitda       # trailing EV/EBITDA (used as proxy historical avg)
+        _nd  = debt0 - cash0   # net debt (positive = debt > cash)
+        _sh  = shares or 1
+
+        def _mpx(mult, pershare):
+            return round(mult * pershare, 0) if mult and pershare and pershare > 0 else None
+
+        def _mpx_ev(mult, ebd):
+            if mult and ebd and ebd > 0 and _sh > 0:
+                eq_impl = mult * ebd - _nd
+                return round(eq_impl / _sh, 0) if eq_impl > 0 else None
+            return None
+
+        def _fp(v): return f"${v:.0f}" if v else "N/A"
+        def _fu(v): return _vs(v, current_price) if v else "N/A"
+
+        mu = {}
+        for _fy, _e, _fp_, _ebd in [("FY1", _eps1, _fp1, _ebd1), ("FY2", _eps2, _fp2, _ebd2)]:
+            _pe_px   = _mpx(_pa,  _e);   mu[f"MULT_PE10_{_fy}_PX"] = _fp(_pe_px);   mu[f"MULT_PE10_{_fy}_UPS"] = _fu(_pe_px)
+            mu[f"MULT_PE5_{_fy}_PX"]    = _fp(_pe_px);   mu[f"MULT_PE5_{_fy}_UPS"]    = _fu(_pe_px)
+            _pf_px   = _mpx(_pfa, _fp_); mu[f"MULT_PFCF10_{_fy}_PX"] = _fp(_pf_px); mu[f"MULT_PFCF10_{_fy}_UPS"] = _fu(_pf_px)
+            mu[f"MULT_PFCF5_{_fy}_PX"]  = _fp(_pf_px);  mu[f"MULT_PFCF5_{_fy}_UPS"]  = _fu(_pf_px)
+            _ev_px   = _mpx_ev(_eva, _ebd); mu[f"MULT_EV10_{_fy}_PX"] = _fp(_ev_px); mu[f"MULT_EV10_{_fy}_UPS"] = _fu(_ev_px)
+            mu[f"MULT_EV5_{_fy}_PX"]    = _fp(_ev_px);  mu[f"MULT_EV5_{_fy}_UPS"]    = _fu(_ev_px)
+
+        if _eva:
+            mu["EVEBITDA_5YR_AVG"]  = f"{_eva:.1f}x (trailing)"
+            mu["EVEBITDA_10YR_AVG"] = f"{_eva:.1f}x (trailing)"
+
+        # Composite: average all non-N/A implied prices + DCF base
+        _all_implied = [float(v[1:]) for v in mu.values()
+                        if isinstance(v, str) and v.startswith("$")]
+        if _all_implied:
+            _comp_mult = round(sum(_all_implied) / len(_all_implied), 0)
+            if base_px and current_price:
+                _comp_all = round((sum(_all_implied) + base_px) / (len(_all_implied) + 1), 0)
+                mu["COMPOSITE_FAIR_VALUE"]  = f"${_comp_all:.0f}"
+                mu["COMPOSITE_UPSIDE_NOTE"] = (
+                    f"DCF ${base_px:.0f} ({_vs(base_px, current_price)}) + "
+                    f"multiples avg ${_comp_mult:.0f} ({_vs(_comp_mult, current_price)}) "
+                    f"→ composite ${_comp_all:.0f} ({_vs(_comp_all, current_price)})."
+                )
+            else:
+                mu["COMPOSITE_FAIR_VALUE"]  = f"${_comp_mult:.0f}"
+                mu["COMPOSITE_UPSIDE_NOTE"] = (
+                    f"Avg of {len(_all_implied)} multiples-based targets: "
+                    f"${_comp_mult:.0f} ({_vs(_comp_mult, current_price)})."
+                )
+
+        # Write — override "Add" stubs; preserve any real values already set
+        for k, v in mu.items():
+            if D.get(k) in ("Add", "N/A", None, ""):
+                D[k] = v
+        # Always update composite (it starts as DCF-only; now includes multiples)
+        for k in ("COMPOSITE_FAIR_VALUE", "COMPOSITE_UPSIDE_NOTE"):
+            if k in mu:
+                D[k] = mu[k]
 
     return D
 

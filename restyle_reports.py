@@ -146,7 +146,58 @@ for fname in sorted(os.listdir(REPORTS_DIR)):
         except Exception:
             pass
 
-    # ── 11. Fix price chart: show stub when data is [0] ──────────────────────
+    # ── 11. Inject structured Reverse DCF (compute from rendered data) ───────
+    if '<div class="rdcf-stats">' not in html:   # skip if already structured
+        m_wacc_v = re.search(r'const waccValue\s*=\s*([\d.]+)', html)
+        wacc_pct = float(m_wacc_v.group(1)) if m_wacc_v else 9.0   # already in % units
+        wacc_dec = wacc_pct / 100
+        if m_fcf and m_shares and price_match and wacc_dec > 0:
+            try:
+                import json as _json
+                fcf_bvals = _json.loads(m_fcf.group(1))
+                fcf_last_b = fcf_bvals[-1] if fcf_bvals else 0
+                price_v   = float(price_match.group(1))
+                sh_n      = float(m_shares.group(1))
+                sh_m      = 1e9 if m_shares.group(2) == 'B' else 1e6
+                mkt_cap_v = price_v * sh_n * sh_m
+                fcf0_v    = fcf_last_b * 1e9
+                if mkt_cap_v > 0 and fcf0_v > 0:
+                    impl_g   = wacc_dec - fcf0_v / mkt_cap_v
+                    impl_g   = max(-0.15, min(impl_g, wacc_dec - 0.005))
+                    fcf_yld  = fcf0_v / mkt_cap_v
+                    ig_str   = f"{impl_g*100:.1f}%"
+                    fy_str   = f"{fcf_yld*100:.2f}%"
+                    wk_str   = f"{wacc_pct:.1f}%"
+                    if impl_g > 0.05:
+                        vlbl, vcol = "Ambitious Pricing", "var(--amber)"
+                        vtxt = (f"Market embeds {ig_str} implied FCF growth. "
+                                f"Premium justified only if growth accelerates or margins expand materially.")
+                    elif impl_g > 0.01:
+                        vlbl, vcol = "Fairly Priced", "var(--accent)"
+                        vtxt = (f"Implied {ig_str} FCF growth prices in steady-state continuity. "
+                                f"Upside requires a re-rating catalyst.")
+                    else:
+                        vlbl, vcol = "Conservative Pricing", "var(--up)"
+                        vtxt = (f"Market prices in only {ig_str} FCF growth — "
+                                f"deceleration is embedded. Upside if historical growth rate sustains.")
+                    rdcf_inner = (
+                        f'<div class="rdcf-title">Reverse DCF — What Does ${price_v:.2f} Imply?</div>'
+                        '<div class="rdcf-stats">'
+                        f'<div class="rdcf-stat"><div class="rdcf-num">{ig_str}</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Perpetuity rate at current price</div></div>'
+                        f'<div class="rdcf-stat"><div class="rdcf-num">{fy_str}</div><div class="rdcf-lbl">FCF Yield</div><div class="rdcf-sub">Trailing FCF ÷ market cap</div></div>'
+                        f'<div class="rdcf-stat"><div class="rdcf-num">{wk_str}</div><div class="rdcf-lbl">WACC</div><div class="rdcf-sub">Implied growth = WACC − yield</div></div>'
+                        '</div>'
+                        f'<div class="rdcf-verdict"><strong style="color:{vcol}">{vlbl}</strong> — {vtxt}</div>'
+                    )
+                    html = re.sub(
+                        r'<div class="rev-dcf-box">.*?</div>',
+                        f'<div class="rev-dcf-box">\n{rdcf_inner}\n</div>',
+                        html, count=1, flags=re.DOTALL
+                    )
+            except Exception:
+                pass
+
+    # ── 12. Fix price chart: show stub when data is [0] ──────────────────────
     # Replace flat [0] line with no-data handler (inject JS check)
     html = re.sub(
         r'(const priceCtx = document\.getElementById\(\'priceChart\'\)\.getContext\(\'2d\'\);)',
@@ -159,7 +210,7 @@ for fname in sorted(os.listdir(REPORTS_DIR)):
         r'else {',
         html
     )
-    # Close the else block before the next chart init
+    # Close the else block before the next chart init (step 12 continued)
     html = re.sub(
         r'(const financialCtx = document\.getElementById)',
         r'}\nconst financialCtx = document.getElementById',
