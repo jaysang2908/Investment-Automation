@@ -490,6 +490,22 @@
 
 <hr class="rule">
 
+<!-- DAILY DISCOVERIES -->
+<section class="section" id="discoveries">
+  <div class="section-eyebrow">Auto-Research Engine</div>
+  <h2 class="section-heading">Daily Discoveries</h2>
+  <p style="color:var(--text-dim);font-size:12pt;margin-top:-36px;margin-bottom:44px;max-width:560px;line-height:1.65">
+    Up to 5 new company reports are generated automatically each day. Reports include full DCF, WACC, reverse-DCF, and forward multiples.
+  </p>
+  <div class="cards-grid" id="discoveryGrid" style="min-height:80px">
+    <div id="disc-loading" style="color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:9pt;letter-spacing:1px;grid-column:1/-1;padding:20px 0">
+      Loading discoveries…
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
 <!-- METHODOLOGY -->
 <section class="section" id="methodology">
   <div class="section-eyebrow">Framework</div>
@@ -636,6 +652,42 @@
   document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => obs.observe(el));
 
   animateRings();
+
+  /* ── Daily Discoveries ── */
+  async function loadDiscoveries() {
+    const grid = document.getElementById('discoveryGrid');
+    const loading = document.getElementById('disc-loading');
+    try {
+      const r = await fetch('/api/reports/discovered');
+      const items = await r.json();
+      loading.remove();
+      if (!items.length) {
+        grid.innerHTML = '<p style="color:var(--text-dim);font-size:11pt;font-family:\'IBM Plex Mono\',monospace;grid-column:1/-1">No discoveries yet — check back tomorrow.</p>';
+        return;
+      }
+      items.forEach(({ticker, url}) => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.className = 'card';
+        a.style.cssText = 'text-decoration:none';
+        a.innerHTML = `
+          <div class="card-head">
+            <div>
+              <div class="card-company" style="font-size:17pt">${ticker}</div>
+              <div class="card-ticker">Auto-Generated · Daily Discovery</div>
+            </div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:2px;color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);padding:4px 8px;border-radius:3px;height:fit-content;white-space:nowrap">NEW</div>
+          </div>
+          <div class="card-cta" style="margin-top:auto">View Report →</div>`;
+        grid.appendChild(a);
+      });
+    } catch(e) {
+      if (loading) loading.textContent = 'Discovery reports unavailable.';
+    }
+  }
+  loadDiscoveries();
 </script>
 </body>
 </html>

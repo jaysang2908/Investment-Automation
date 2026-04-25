@@ -217,6 +217,25 @@ def download_html(rid):
     )
 
 
+@app.route("/api/reports/discovered")
+def discovered_reports():
+    """Returns discovery tickers (not in core 24) that have rendered reports."""
+    CORE = {
+        "NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V",
+        "KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI",
+        "JPM","C","BAC","UAL",
+    }
+    reports_dir = os.path.join(os.path.dirname(__file__), "static", "reports")
+    result = []
+    if os.path.isdir(reports_dir):
+        for fname in sorted(os.listdir(reports_dir), reverse=True):
+            if fname.endswith("_report.html"):
+                t = fname.replace("_report.html", "")
+                if t not in CORE:
+                    result.append({"ticker": t, "url": f"/reports/{fname}"})
+    return jsonify(result)
+
+
 @app.route("/api/reports")
 def api_reports():
     _prune()

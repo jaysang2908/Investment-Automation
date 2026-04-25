@@ -1,8 +1,8 @@
 """
 daily_discovery.py
-Generates one new research report per day from a discovery pool.
-Handles FMP 402 quota errors gracefully — tries the next random ticker
-until one succeeds, then commits + pushes to GitHub/Render.
+Generates up to 5 new research reports per day from a discovery pool.
+Handles FMP 402 quota errors — retries with the next random ticker.
+On success: writes to outputs.csv + commits + pushes to GitHub/Render.
 
 Usage:  python daily_discovery.py
 Cron:   scheduled daily at 7:17 AM via Claude Code.
@@ -14,52 +14,56 @@ from openpyxl import Workbook
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fmp_3statementv6 as mdl
+import csv_schema as _schema
 from report_bridge import build_report_data, render_html_report
 
-OUT_DIR  = os.path.join(os.path.dirname(__file__), "static", "reports")
-LOG_FILE = os.path.join(os.path.dirname(__file__), "discovery_log.txt")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR  = os.path.join(BASE_DIR, "static", "reports")
+CSV_PATH = os.path.join(BASE_DIR, "outputs.csv")
+LOG_FILE = os.path.join(BASE_DIR, "discovery_log.txt")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# ── Tickers already covered — never regenerate these ─────────────────────────
+MAX_DAILY     = 5    # reports to generate per run
+QUOTA_STRIKES = 3    # consecutive 402s before giving up
+
+# ── Tickers already in core coverage ─────────────────────────────────────────
 EXISTING = {
     "NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V",
     "KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI",
     "JPM","C","BAC","UAL",
 }
 
-# ── Discovery pool — high-quality liquid US equities (expand as needed) ───────
+# ── Discovery pool — high-quality liquid US equities ─────────────────────────
 POOL = [
     # Mega-cap tech / software
     "GOOGL","AMZN","ORCL","CRM","NOW","SNOW","PANW","CRWD","INTU",
-    "AMAT","KLAC","LRCX","MU","AVGO","QCOM","TXN","HPQ","DELL","SMCI",
-    "ZM","DOCU","OKTA","DDOG","TEAM","ATLASSIAN",
+    "AMAT","KLAC","LRCX","MU","AVGO","QCOM","TXN","HPQ","DELL",
+    "DDOG","TEAM","ZM","OKTA","NET","MDB","GTLB",
     # Financials
     "GS","MS","BLK","SCHW","AXP","COF","USB","PNC","TFC","MET","PRU",
-    "ICE","CME","SPGI","MCO","MSCI",
+    "ICE","CME","SPGI","MCO","MSCI","FDS",
     # Healthcare / Biotech
     "UNH","LLY","BMY","MRK","AMGN","GILD","REGN","VRTX","TMO","DHR",
-    "MDT","SYK","BSX","ABT","ISRG","HCA","CI","CVS","ZTS",
+    "MDT","SYK","BSX","ABT","ISRG","HCA","CI","CVS","ZTS","DXCM",
     # Consumer / Retail / Travel
     "PG","PEP","MCD","SBUX","NKE","TGT","HD","LOW","TJX","BKNG",
-    "MAR","HLT","CMG","YUM","DASH","ABNB","RCL","CCL",
+    "MAR","HLT","CMG","YUM","DASH","ABNB","RCL","CCL","LVS",
     # Industrials / Aerospace / Energy
     "CAT","DE","HON","UPS","FDX","RTX","LMT","BA","GE","EMR","ETN",
-    "XOM","CVX","COP","SLB","OXY","NEE","DUK","SO",
+    "XOM","CVX","COP","SLB","OXY","NEE","DUK","SO","AEP",
     # Communication / Media
-    "DIS","CMCSA","NFLX","T","VZ","CHTR","WBD","PARA","SPOT","TTD",
+    "DIS","CMCSA","T","VZ","CHTR","SPOT","TTD","PINS","SNAP",
     # REITs
-    "PLD","AMT","EQIX","CCI","SPG","O","WELL","DLR",
-    # International ADRs / Global
-    "BABA","JD","PDD","SE","GRAB","NU","MELI","SHOP","ASML","SAP","TM","SONY",
+    "PLD","AMT","EQIX","CCI","SPG","O","WELL","DLR","EXR",
+    # International ADRs
+    "BABA","JD","SE","MELI","SHOP","ASML","SAP","TM","SONY","NVO","NOVO-B",
 ]
 
-# Remove existing + deduplicate
 POOL = list(dict.fromkeys([t for t in POOL if t not in EXISTING]))
 
 
 # ── Quota check ───────────────────────────────────────────────────────────────
 def _quota_ok():
-    """Quick check: returns False if FMP quota is clearly exhausted."""
     try:
         r = _req.get(
             f"https://financialmodelingprep.com/stable/profile"
@@ -72,16 +76,16 @@ def _quota_ok():
             return False
         return True
     except Exception:
-        return True   # unclear — let it try
+        return True
 
 
 # ── Report generator ──────────────────────────────────────────────────────────
 def try_generate(ticker):
     """
-    Attempt full report generation for ticker.
-    Returns (True, score)  on success.
-    Returns (False, "quota") on 402 / rate-limit.
-    Returns (False, reason) on any other failure.
+    Attempt full report generation.
+    Returns (True, data_dict) on success.
+    Returns (False, "quota")  on 402 / rate-limit.
+    Returns (False, reason)   on other failures.
     """
     logs = []
     _orig = builtins.print
@@ -163,7 +167,19 @@ def try_generate(ticker):
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
-        return True, score
+        dcf_p = (dcf_refs or {}).get("dcf_prices") or {}
+        return True, {
+            "score":      score,
+            "metrics":    scorecard_metrics,
+            "dcf_prices": dcf_p,
+            "price":      current_price,
+            "mkt_cap":    market_cap,
+            "revenue_b":  (is_data[-1].get("revenue") or 0) / 1e9,
+            "ocf_b":      (cf_data[-1].get("operatingCashFlow") or 0) / 1e9,
+            "fcf_b":      (cf_data[-1].get("freeCashFlow") or
+                           (cf_data[-1].get("operatingCashFlow") or 0) -
+                           abs(cf_data[-1].get("capitalExpenditure") or 0)) / 1e9,
+        }
 
     except Exception as e:
         msg = str(e).lower()
@@ -173,23 +189,77 @@ def try_generate(ticker):
         builtins.print = _orig
 
 
-# ── Git push ──────────────────────────────────────────────────────────────────
-def _git_push(ticker, today):
-    base = os.path.dirname(os.path.abspath(__file__))
+# ── CSV write ─────────────────────────────────────────────────────────────────
+def _write_csv_rows(rows):
+    """Append/update rows in outputs.csv. rows = list of (ticker, data_dict)."""
+    if os.path.exists(CSV_PATH):
+        with open(CSV_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+    else:
+        content = _schema.HEADER
+
+    content = _schema.migrate(content)
+
+    def _f(v, dp=4):
+        return "" if v is None else f"{v:.{dp}f}"
+
+    for ticker, data in rows:
+        metrics = data.get("metrics", {})
+        dp_     = data.get("dcf_prices", {})
+        price   = data.get("price")
+        mkt_b   = (data.get("mkt_cap") or 0) / 1e9 or None
+        gg_px   = dp_.get("gg_price")
+        em_px   = dp_.get("em_price")
+        gg_up   = round((gg_px - price) / price, 4) if gg_px and price else None
+        em_up   = round((em_px - price) / price, 4) if em_px and price else None
+
+        row = {
+            "Ticker":         ticker,
+            "Price":          _f(price, 2),
+            "MktCap_B":       _f(mkt_b, 2),
+            "GG_Price":       _f(gg_px, 2),
+            "GG_Upside":      _f(gg_up, 4),
+            "EM_Price":       _f(em_px, 2),
+            "EM_Upside":      _f(em_up, 4),
+            "PE_Current":     _f(metrics.get("pe_current"), 1),
+            "PE_5yr":         _f(metrics.get("pe_5yr_avg"), 1),
+            "PFCF_Current":   _f(metrics.get("pfcf_current"), 1),
+            "PFCF_5yr":       _f(metrics.get("pfcf_5yr_avg"), 1),
+            "ROIC":           _f(metrics.get("roic")),
+            "Rev_CAGR":       _f(metrics.get("rev_cagr")),
+            "FCF_NI":         _f(metrics.get("fcf_ni")),
+            "D_EBITDA":       _f(metrics.get("d_ebitda"), 2),
+            "Revenue_B":      _f(data.get("revenue_b"), 2),
+            "OCF_B":          _f(data.get("ocf_b"), 2),
+            "FCF_B":          _f(data.get("fcf_b"), 2),
+            "Auto_Score":     str(metrics.get("auto_score") or ""),
+            "Floor_Cap":      str(metrics.get("floor_cap") or ""),
+            "Manual_Clarity": "",
+            "Manual_LTP":     "",
+            "Date":           datetime.date.today().isoformat(),
+        }
+        content += ",".join(row.get(c, "") for c in _schema.COLUMNS) + "\n"
+
+    with open(CSV_PATH, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
+# ── Git commit + push (all files at once) ─────────────────────────────────────
+def _git_push_all(html_tickers, today):
     try:
+        files = [f"static/reports/{t}_report.html" for t in html_tickers] + ["outputs.csv"]
+        subprocess.run(["git", "add"] + files, cwd=BASE_DIR, check=True, capture_output=True)
+        names = ", ".join(html_tickers)
         subprocess.run(
-            ["git", "add", f"static/reports/{ticker}_report.html"],
-            cwd=base, check=True, capture_output=True
+            ["git", "commit", "-m",
+             f"Daily discovery ({today}): {names}\n\n"
+             f"Auto-generated {len(html_tickers)} report(s) via daily_discovery.py"],
+            cwd=BASE_DIR, check=True, capture_output=True
         )
-        subprocess.run(
-            ["git", "commit", "-m", f"Daily discovery: {ticker} — {today}"],
-            cwd=base, check=True, capture_output=True
-        )
-        subprocess.run(["git", "push"], cwd=base, check=True, capture_output=True)
+        subprocess.run(["git", "push"], cwd=BASE_DIR, check=True, capture_output=True)
         return True
     except subprocess.CalledProcessError as e:
-        stderr = e.stderr.decode() if e.stderr else str(e)
-        print(f"  Git push failed: {stderr}")
+        print(f"  Git push failed: {e.stderr.decode() if e.stderr else e}")
         return False
 
 
@@ -202,9 +272,9 @@ def _log(msg):
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     today = datetime.date.today().strftime("%Y-%m-%d")
-    print(f"\n{'='*60}")
-    print(f"  Daily Discovery — {today}")
-    print(f"{'='*60}\n")
+    print(f"\n{'='*65}")
+    print(f"  Daily Discovery — {today}  (target: {MAX_DAILY} reports)")
+    print(f"{'='*65}\n")
 
     # Skip tickers already reported on
     already_done = {
@@ -225,45 +295,61 @@ def main():
         _log(msg)
         return
 
-    # Reproducible daily shuffle (same order for a given date → no duplicates on retry)
+    # Reproducible daily shuffle (same seed = same order = idempotent retries)
     rng = random.Random(today)
     rng.shuffle(candidates)
 
-    quota_strikes = 0
-    tried = []
+    successes    = []   # list of (ticker, data_dict)
+    quota_count  = 0
+    tried        = []
 
     for ticker in candidates:
-        if quota_strikes >= 3:
-            msg = f"{today} | 3 consecutive quota errors — FMP limit hit. Tried: {tried}"
-            print(f"\n  {msg}")
-            _log(msg)
+        if len(successes) >= MAX_DAILY:
+            break
+        if quota_count >= QUOTA_STRIKES:
+            print(f"\n  {QUOTA_STRIKES} consecutive quota errors — FMP limit hit for today.")
             break
 
-        print(f"  Trying {ticker}...", end=" ", flush=True)
+        n = len(successes) + 1
+        print(f"  [{n}/{MAX_DAILY}] {ticker}...", end=" ", flush=True)
         tried.append(ticker)
         success, result = try_generate(ticker)
 
         if success:
-            print(f"✓  score={result}")
-            pushed = _git_push(ticker, today)
-            status = "pushed" if pushed else "saved locally"
-            msg = f"{today} | SUCCESS {ticker}  score={result}  {status}  (tried: {tried})"
-            print(f"\n  ✓ {ticker}_report.html generated and {status}.")
-            _log(msg)
-            return
+            print(f"✓  score={result['score']}")
+            successes.append((ticker, result))
+            quota_count = 0
+            if len(successes) < MAX_DAILY:
+                time.sleep(3)   # polite gap between API calls
 
-        if result == "quota":
+        elif result == "quota":
             print("⚠  402 rate limit")
-            quota_strikes += 1
-            time.sleep(4)
+            quota_count += 1
+            time.sleep(5)
         else:
             print(f"✗  {result}")
-            quota_strikes = 0
+            quota_count = 0
             time.sleep(2)
 
-    msg = f"{today} | No report generated. Tried: {tried}"
-    print(f"\n  {msg}")
-    _log(msg)
+    # ── Persist all results ───────────────────────────────────────────────────
+    if successes:
+        tickers_done = [t for t, _ in successes]
+
+        _write_csv_rows(successes)
+
+        pushed = _git_push_all(tickers_done, today)
+        status = "pushed to GitHub → live on Render" if pushed else "saved locally (push manually)"
+
+        scores_str = "  ".join(f"{t}={d['score']}" for t, d in successes)
+        msg = (f"{today} | {len(successes)}/{MAX_DAILY} reports: {', '.join(tickers_done)} | "
+               f"scores: {scores_str} | tried: {tried} | {status}")
+        print(f"\n  ✓ {len(successes)} report(s): {', '.join(tickers_done)}")
+        print(f"  → {status}")
+        _log(msg)
+    else:
+        msg = f"{today} | 0 reports generated. Tried: {tried}"
+        print(f"\n  {msg}")
+        _log(msg)
 
 
 if __name__ == "__main__":
