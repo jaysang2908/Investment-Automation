@@ -217,6 +217,167 @@ def download_html(rid):
     )
 
 
+@app.route("/dcf")
+def dcf_page():
+    return app.send_static_file("dcf.html")
+
+
+@app.route("/api/dcf-data/<ticker>")
+def dcf_data(ticker):
+    ticker = ticker.upper().strip()
+    try:
+        is_data = mdl.fetch("income-statement",        ticker)[:5][::-1]
+        bs_data = mdl.fetch("balance-sheet-statement", ticker)[:5][::-1]
+        cf_data = mdl.fetch("cash-flow-statement",     ticker)[:5][::-1]
+        if not is_data:
+            return jsonify({"error": f"No data for {ticker}"}), 404
+
+        profile = {}
+        try:
+            _p = _req.get(
+                f"https://financialmodelingprep.com/stable/profile"
+                f"?symbol={ticker}&apikey={mdl.API_KEY}", timeout=8
+            ).json()
+            profile = _p[0] if isinstance(_p, list) and _p else _p or {}
+        except Exception:
+            pass
+
+        current_price = float(profile.get("price") or 0) or None
+        market_cap    = float(profile.get("mktCap") or 0) or None
+        shares        = float(profile.get("sharesOutstanding") or 0)
+        beta          = float(profile.get("beta") or 1.0) or 1.0
+
+        years_hist = [
+            d.get("fiscalYear") or d.get("calendarYear") or d["date"][:4]
+            for d in is_data
+        ]
+
+        # Analyst estimates
+        analyst_ests = []
+        try:
+            _ae = _req.get(
+                f"https://financialmodelingprep.com/stable/analyst-estimates"
+                f"?symbol={ticker}&period=annual&limit=5&apikey={mdl.API_KEY}", timeout=8
+            ).json()
+            if isinstance(_ae, list):
+                analyst_ests = sorted(
+                    [e for e in _ae if str(e.get("date",""))[:4] > str(years_hist[-1])],
+                    key=lambda x: x.get("date","")
+                )[:5]
+        except Exception:
+            pass
+
+        # Build history rows
+        history = []
+        for is_, bs_, cf_ in zip(is_data, bs_data, cf_data):
+            rev   = is_.get("revenue") or 0
+            da    = abs(is_.get("depreciationAndAmortization") or
+                        cf_.get("depreciationAndAmortization") or 0)
+            ebit  = is_.get("operatingIncome") or 0
+            ebitda_raw = is_.get("ebitda") or (ebit + da)
+            capex = abs(cf_.get("capitalExpenditure") or 0)
+            ocf   = cf_.get("operatingCashFlow") or 0
+            fcf   = cf_.get("freeCashFlow") or (ocf - capex)
+            pti   = is_.get("incomeBeforeTax") or is_.get("pretaxIncome") or 0
+            te    = abs(is_.get("incomeTaxExpense") or 0)
+            tax_r = min(te / pti, 0.50) if pti > 0 else 0.21
+            history.append({
+                "year":          is_.get("fiscalYear") or is_.get("calendarYear") or is_["date"][:4],
+                "revenue_m":     round(rev / 1e6, 1),
+                "rev_growth":    None,
+                "ebitda_margin": round(ebitda_raw / rev, 4) if rev else 0,
+                "da_pct":        round(da / rev, 4) if rev else 0,
+                "capex_pct":     round(capex / rev, 4) if rev else 0,
+                "tax_rate":      round(tax_r, 4),
+                "fcf_m":         round(fcf / 1e6, 1),
+            })
+        for i in range(1, len(history)):
+            prev = history[i-1]["revenue_m"]
+            curr = history[i]["revenue_m"]
+            history[i]["rev_growth"] = round(curr / prev - 1, 4) if prev else None
+
+        # Balance sheet for net debt
+        bs0      = bs_data[-1]
+        cash     = bs0.get("cashAndCashEquivalents") or 0
+        debt     = (bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)
+        net_debt = debt - cash
+
+        # WACC components
+        RF  = 0.043
+        ERP = 0.045
+        ke  = RF + beta * ERP
+        cap_total = (market_cap + debt) if market_cap else max(debt, 1)
+        ew  = market_cap / cap_total if market_cap else 1.0
+        dw  = debt / cap_total if debt else 0.0
+
+        is0   = is_data[-1]
+        pti0  = is0.get("incomeBeforeTax") or is0.get("pretaxIncome") or 0
+        te0   = abs(is0.get("incomeTaxExpense") or 0)
+        eff_tax = min(te0 / pti0, 0.50) if pti0 > 0 else 0.21
+        int_exp = abs(is0.get("interestExpense") or 0)
+        kd_pre  = max(0.02, min(int_exp / debt if debt > 0 else RF * 0.8, 0.15))
+        wacc    = ew * ke + dw * kd_pre * (1 - eff_tax)
+
+        # Default projections: taper toward 5% from last rev growth
+        last_g  = history[-1]["rev_growth"] or 0.05
+        last_m  = history[-1]["ebitda_margin"] or 0.20
+        last_da = history[-1]["da_pct"] or 0.03
+        last_cx = history[-1]["capex_pct"] or 0.04
+
+        def_rev = []
+        for i in range(5):
+            if i < len(analyst_ests):
+                er  = analyst_ests[i].get("estimatedRevenueAvg") or 0
+                epr = (analyst_ests[i-1].get("estimatedRevenueAvg")
+                       if i > 0 else history[-1]["revenue_m"] * 1e6) or 0
+                if er and epr:
+                    def_rev.append(round(er / epr - 1, 4))
+                    continue
+            tgt = 0.05
+            g   = last_g + (tgt - last_g) * (i / 4) if last_g != tgt else tgt
+            def_rev.append(round(max(-0.10, min(g, 0.60)), 4))
+
+        defaults = {
+            "rev_growth":    def_rev,
+            "ebitda_margin": [round(last_m, 4)] * 5,
+            "da_pct":        [round(last_da, 4)] * 5,
+            "capex_pct":     [round(last_cx, 4)] * 5,
+            "nwc_pct":       [0.005] * 5,
+            "tax_rate":      [round(eff_tax, 4)] * 5,
+            "tgr":           0.030,
+            "exit_multiple": 15.0,
+            "rf":            RF,
+            "beta":          round(beta, 3),
+            "erp":           ERP,
+            "kd_pretax":     round(kd_pre, 4),
+            "eff_tax":       round(eff_tax, 4),
+            "equity_weight": round(ew, 4),
+            "wacc":          round(wacc, 4),
+        }
+
+        return jsonify({
+            "ticker":       ticker,
+            "name":         profile.get("companyName") or ticker,
+            "price":        current_price,
+            "shares_m":     round(shares / 1e6, 2),
+            "net_debt_m":   round(net_debt / 1e6, 1),
+            "last_year":    int(years_hist[-1]) if years_hist else 2024,
+            "history":      history,
+            "defaults":     defaults,
+            "analyst_ests": [
+                {
+                    "year":       str(e.get("date",""))[:4],
+                    "rev_avg_m":  round((e.get("estimatedRevenueAvg") or 0) / 1e6, 1),
+                    "eps_avg":    round(e.get("estimatedEpsAvg") or 0, 2),
+                    "ebitda_m":   round((e.get("estimatedEbitdaAvg") or 0) / 1e6, 1),
+                }
+                for e in analyst_ests
+            ],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
 @app.route("/api/reports/discovered")
 def discovered_reports():
     """Returns discovery tickers (not in core 24) that have rendered reports."""
