@@ -382,6 +382,38 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     pt_vals = [p for p in [gg_px, em_px] if p]
     price_target = round(sum(pt_vals) / len(pt_vals), 0) if pt_vals else current_price
 
+    # ── Pre-compute scenario and risk metrics ─────────────────────────────────
+    _gm_vals = [(is_.get("grossProfit") or 0) / max(1, is_.get("revenue") or 1) for is_ in is_data]
+    _gm_trend = _gm_vals[-1] - _gm_vals[0] if len(_gm_vals) >= 2 else 0
+    _capex_intensity = capex0 / rev0 if rev0 > 0 else None
+
+    # FCF trailing CAGR
+    _fcf_first_raw = (cf_data[0].get("freeCashFlow") or
+                      ((cf_data[0].get("operatingCashFlow") or 0) -
+                       abs(cf_data[0].get("capitalExpenditure") or 0)))
+    _n_fcf = len(cf_data) - 1
+    fcf_cagr_v = (
+        (fcf0 / _fcf_first_raw) ** (1 / _n_fcf) - 1
+        if _fcf_first_raw and _fcf_first_raw > 0 and fcf0 > 0 and _n_fcf > 0
+        else None
+    )
+
+    # Scenario growth parameters (BEAR/BASE/BULL)
+    _bear_rev_g  = max(-0.05, (rev_cagr_v or 0.03) * 0.4)
+    _base_rev_g  = rev_cagr_v or 0.05
+    _bull_rev_g  = min(0.30, (rev_cagr_v or 0.05) * 1.4)
+    _bear_margin = max(0.01, (ebitdam0 or 0.15) - 0.03)
+    _bull_margin = min(0.60, (ebitdam0 or 0.15) + 0.02)
+    _n_fwd       = 3
+
+    _bear_fcf_fwd = (fcf0 * (1 + _bear_rev_g) ** _n_fwd) if fcf0 > 0 else None
+    _base_fcf_fwd = (fcf0 * (1 + _base_rev_g) ** _n_fwd) if fcf0 > 0 else None
+    _bull_fcf_fwd = (fcf0 * (1 + _bull_rev_g) ** _n_fwd) if fcf0 > 0 else None
+
+    _bear_mult_pe = round((trailing_pe or 15) * 0.80, 1)
+    _base_mult_pe = round(pe_5yr or (trailing_pe or 18), 1)
+    _bull_mult_pe = round((trailing_pe or 18) * 1.15, 1)
+
     # ── Reverse DCF: implied perpetuity FCF growth rate at current price ──────
     _mkt_cap_v = market_cap or (current_price * shares if current_price and shares else 0)
     if current_price and _mkt_cap_v > 0 and wacc_b > 0:
@@ -540,14 +572,23 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     ebd_b_lst  = [_ebitda(is_, cf_)/1e9 for is_, cf_ in zip(is_data, cf_data)]
     ni_b_lst   = [(is_.get("netIncome") or 0)/1e9 for is_ in is_data]
     ocf_b_lst  = [(cf_.get("operatingCashFlow") or 0)/1e9 for cf_ in cf_data]
-    fcf_b_lst  = [(cf_.get("freeCashFlow") or 0)/1e9 for cf_ in cf_data]
+    fcf_b_lst  = [(cf_.get("freeCashFlow") or
+                   ((cf_.get("operatingCashFlow") or 0) - abs(cf_.get("capitalExpenditure") or 0))
+                  ) / 1e9 for cf_ in cf_data]
     roic_lst   = [_roic(is_, bs_) for is_, bs_ in zip(is_data, bs_data)]
     roic_pct   = [round((r or 0)*100, 1) for r in roic_lst]
 
     # Shareholder returns: real data from CF statement
-    buyback_b_lst = [abs(cf_.get("commonStockRepurchased") or
-                         cf_.get("repurchaseOfCommonStock") or 0) / 1e9
-                     for cf_ in cf_data]
+    # FMP uses different field names across API versions — try all known variants
+    def _buyback(cf_):
+        for key in ("commonStockRepurchased", "repurchaseOfCommonStock",
+                    "stockRepurchase", "purchasesOfCommonStock"):
+            v = cf_.get(key)
+            if v and v != 0:
+                return abs(v) / 1e9
+        return 0.0
+
+    buyback_b_lst = [_buyback(cf_) for cf_ in cf_data]
     fcf_ps_lst    = [round(
         (cf_.get("freeCashFlow") or
          (cf_.get("operatingCashFlow") or 0) - abs(cf_.get("capitalExpenditure") or 0))
@@ -584,18 +625,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "TRAILING_PE_10YR":     (_x(pe_5yr) + " (5yr avg)") if pe_5yr else "N/A",
         "TRAILING_PE_DELTA":    pe_delta,
         "FORWARD_PE":           "N/A",
-        "FORWARD_PE_EST":       "Add analyst EPS estimate",
+        "FORWARD_PE_EST":       "Awaiting analyst estimates",
         "FORWARD_PE_10YR":      _x(pe_5yr),
         "FORWARD_PE_DELTA":     pe_delta,
         "TRAILING_PFCF":        _x(trailing_pfc),
         "TRAILING_PFCF_10YR":   (_x(pfcf_5yr) + " (5yr avg)") if pfcf_5yr else "N/A",
         "TRAILING_PFCF_DELTA":  pfcf_delta,
         "FORWARD_PFCF":         "N/A",
-        "FORWARD_PFCF_EST":     "Add analyst FCF estimate",
+        "FORWARD_PFCF_EST":     "Awaiting analyst estimates",
         "FORWARD_PFCF_10YR":    _x(pfcf_5yr),
         "FORWARD_PFCF_DELTA":   pfcf_delta,
         "EV_EBITDA_TRAILING":   _x(ev_ebitda),
-        "EV_EBITDA_FWD_NOTE":   "Add fwd estimate",
+        "EV_EBITDA_FWD_NOTE":   f"Trailing: {_x(ev_ebitda)}; fwd pending analyst estimates",
 
         # Key metrics
         "REVENUE_YEAR_LABEL":   f"FY{years[-1]}",
@@ -632,24 +673,32 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FITCH_TIER_LABEL": "Tier: NR",
         "CREDIT_NOTE_TEXT": credit_commentary,
 
-        # Thesis (smart stubs with real numbers embedded)
+        # Thesis (auto-generated from financial data)
         "THESIS_MOAT_TEXT": (
-            f"<strong>Auto-generated draft — add qualitative moat analysis.</strong> "
-            f"{company_name} ({ticker}) operates in {industry} with FY{years[-1]} ROIC of {_pct(roic_v)}, "
-            f"gross margin of {_pct(gm0)}, and revenue CAGR of {_pct(rev_cagr_v)} over three years. "
-            f"Review the 10-K competitive dynamics section and update this field."
+            f"{company_name} ({ticker}) operates in {industry}. "
+            f"FY{years[-1]} ROIC: {_pct(roic_v)} ({'above' if (roic_v or 0) > 0.15 else 'below'} 15% threshold), "
+            f"gross margin: {_pct(gm0)}"
+            + (f" ({'improving' if _gm_trend > 0.01 else 'declining' if _gm_trend < -0.01 else 'stable'} over review period)." if len(is_data) >= 2 else ".")
+            + f" Revenue CAGR: {_pct(rev_cagr_v)}; FCF conversion: {_pct(fcf_ni_v)}."
         ),
         "THESIS_CATALYSTS_TEXT": (
-            "Add 2–3 specific catalysts. Review company guidance, product pipeline, M&A activity, "
-            "and market expansion opportunities in the 10-K Management Discussion section."
+            f"Base case: {_pct(_base_rev_g)} revenue growth with {_pct(ebitdam0)} EBITDA margins sustained. "
+            f"Bear: growth slows to {_pct(_bear_rev_g)} with margin compression to {_pct(_bear_margin)}. "
+            f"Bull: {_pct(_bull_rev_g)} revenue acceleration with margin expansion to {_pct(_bull_margin)}. "
+            f"DCF range: ${bear_px:.0f}–${bull_px:.0f} (bear–bull)."
+            if base_px else
+            f"Review FY{years[-1]} fundamentals: revenue {_b(rev0)}, EBITDA margin {_pct(ebitdam0)}, FCF {_b(fcf0)}."
         ),
         "THESIS_VALUATION_TEXT": (
             f"At ${current_price:.2f}, {ticker} trades at {_x(trailing_pe)} trailing P/E "
-            f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}). "
-            f"DCF (Gordon Growth model): base ${base_px:.0f} ({_vs(base_px, current_price)}). "
-            f"<strong>Add qualitative valuation commentary after reviewing the Excel DCF model.</strong>"
+            f"({pe_delta} vs {_x(pe_5yr)} 5yr avg) and {_x(trailing_pfc)} P/FCF "
+            f"({pfcf_delta} vs {_x(pfcf_5yr)} 5yr avg). "
+            f"Gordon Growth DCF (WACC {wacc_b*100:.1f}%): base ${base_px:.0f} ({_vs(base_px, current_price)}), "
+            f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})."
             if base_px and current_price else
-            "Review the Excel DCF model and add valuation commentary here."
+            f"Trailing P/E {_x(trailing_pe)} vs 5yr avg {_x(pe_5yr)}. "
+            f"P/FCF {_x(trailing_pfc)} vs 5yr avg {_x(pfcf_5yr)}. "
+            f"EV/EBITDA: {_x(ev_ebitda)}. See DCF tab."
         ),
 
         # Financials
@@ -658,12 +707,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FIN_TABLE_NOTE":  f"FY{years[-1]} data from {company_name} annual report via FMP API; figures in USD millions.",
 
         # Growth context
-        "REV_CAGR_TRAIL": f"Trailing 3yr: {_pct(rev_cagr_v)}",
-        "REV_CAGR_FWD":   "Add consensus forward estimate",
-        "REV_CAGR_NOTE":  "Source: FMP API.",
-        "FCF_CAGR_TRAIL": "Add manually",
-        "FCF_CAGR_FWD":   "Add consensus estimate",
-        "FCF_CAGR_NOTE":  "",
+        "REV_CAGR_TRAIL": f"Trailing {_n_fcf}yr: {_pct(rev_cagr_v)}",
+        "REV_CAGR_FWD":   "Pending analyst estimates",
+        "REV_CAGR_NOTE":  f"Source: FMP API. FY{years[0]}–{years[-1]}.",
+        "FCF_CAGR_TRAIL": f"Trailing {_n_fcf}yr: {_pct(fcf_cagr_v)}" if fcf_cagr_v else "—",
+        "FCF_CAGR_FWD":   "Pending analyst estimates",
+        "FCF_CAGR_NOTE":  f"FCF: {_b(fcf0)} in FY{years[-1]}.",
         "PE_TRAIL_STAT":  _x(trailing_pe),
         "PE_FWD_STAT":    "N/A",
         "PE_AVG_NOTE":    f"5-yr avg: {_x(pe_5yr)}",
@@ -731,15 +780,19 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "BEAR_PRICE_RANGE": f"${bear_px:.0f}" if bear_px else "N/A",
         "BASE_PRICE_RANGE": f"${base_px:.0f}" if base_px else "N/A",
         "BULL_PRICE_RANGE": f"${bull_px:.0f}" if bull_px else "N/A",
-        "BEAR_REVENUE_GROWTH": "Add manually",
-        "BASE_REVENUE_GROWTH": f"{_pct(rev_cagr_v)} CAGR (trailing)",
-        "BULL_REVENUE_GROWTH": "Add manually",
-        "BEAR_MARGIN":   "Add manually",
-        "BASE_MARGIN":   f"{_pct(ebitdam0)} EBITDA",
-        "BULL_MARGIN":   "Add manually",
-        "FCF_YEAR_LABEL": f"FY{int(years[-1])+3}E" if years else "Fwd",
-        "BEAR_FCF": "Add", "BASE_FCF": "Add", "BULL_FCF": "Add",
-        "BEAR_MULTIPLE": "Add", "BASE_MULTIPLE": "Add", "BULL_MULTIPLE": "Add",
+        "BEAR_REVENUE_GROWTH": f"{_pct(_bear_rev_g)} (stress — 40% of {_pct(rev_cagr_v)} trailing CAGR)",
+        "BASE_REVENUE_GROWTH": f"{_pct(_base_rev_g)} CAGR (matches trailing {_n_fcf}yr)",
+        "BULL_REVENUE_GROWTH": f"{_pct(_bull_rev_g)} (~140% of trailing CAGR — acceleration case)",
+        "BEAR_MARGIN":   f"{_pct(_bear_margin)} EBITDA (−3pp compression)",
+        "BASE_MARGIN":   f"{_pct(ebitdam0)} EBITDA (current rate maintained)",
+        "BULL_MARGIN":   f"{_pct(_bull_margin)} EBITDA (+2pp expansion)",
+        "FCF_YEAR_LABEL": f"FY{int(years[-1])+_n_fwd}E" if years else "Fwd",
+        "BEAR_FCF": _b(_bear_fcf_fwd) if _bear_fcf_fwd else f"FCF neg (last: {_b(fcf0)})",
+        "BASE_FCF": _b(_base_fcf_fwd) if _base_fcf_fwd else f"FCF neg (last: {_b(fcf0)})",
+        "BULL_FCF": _b(_bull_fcf_fwd) if _bull_fcf_fwd else f"FCF neg (last: {_b(fcf0)})",
+        "BEAR_MULTIPLE": f"{_bear_mult_pe:.1f}x P/E (de-rating to −20%)",
+        "BASE_MULTIPLE": f"{_base_mult_pe:.1f}x P/E (5yr historical avg)",
+        "BULL_MULTIPLE": f"{_bull_mult_pe:.1f}x P/E (re-rating to +15%)",
         "BEAR_CATALYST": "Execution miss, margin compression, macro headwinds",
         "BASE_CATALYST": "Consensus estimates met, stable macro",
         "BULL_CATALYST": "Revenue acceleration, margin expansion, multiple re-rating",
@@ -747,23 +800,56 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "BASE_UPSIDE": _vs(base_px, current_price),
         "BULL_UPSIDE": _vs(bull_px, current_price),
 
-        # Risks (sector-generic — add specifics from 10-K)
-        "RISK_1_TITLE": "Competitive Risk",
-        "RISK_1_TEXT":  "Add specific competitive risks from 10-K Risk Factors section.",
-        "RISK_2_TITLE": "Execution Risk",
-        "RISK_2_TEXT":  "Add execution risks — margin, capex intensity, integration.",
-        "RISK_3_TITLE": "Regulatory / Macro Risk",
-        "RISK_3_TEXT":  "Add regulatory and macroeconomic sensitivity risks.",
-        "RISK_4_TITLE": "Capital Allocation Risk",
-        "RISK_4_TEXT":  (
-            f"Capital Adequacy (Equity/Assets): {_pct(equity_assets_v)}. Monitor regulatory capital ratios."
-            if is_bank_v else f"D/EBITDA: {d_ebd_str}. Review capital allocation discipline."
+        # Risks (auto-generated from computed metrics)
+        "RISK_1_TITLE": "Competitive / Pricing Risk",
+        "RISK_1_TEXT": (
+            f"Gross margin {_pct(gm0)} in FY{years[-1]}"
+            + (f", {'down ' if _gm_trend < -0.005 else 'up '}{_pct(abs(_gm_trend))} vs FY{years[0]}"
+               if abs(_gm_trend) > 0.005 else ", stable over review period")
+            + f". Revenue CAGR {_pct(rev_cagr_v)} — "
+            + ("strong growth trajectory may attract competitive entry or invite pricing pressure."
+               if (rev_cagr_v or 0) > 0.12
+               else "moderate growth; monitor market share and pricing power in annual filings.")
         ),
-        "RISK_5_TITLE": "Valuation Risk",
-        "RISK_5_TEXT":  f"At {_x(trailing_pe)} trailing P/E, material multiple compression possible in risk-off environments.",
+        "RISK_2_TITLE": "Execution / Operating Risk",
+        "RISK_2_TEXT": (
+            f"CapEx {_pct(_capex_intensity)} of revenue ({_b(capex0)}). "
+            f"EBITDA margin {_pct(ebitdam0)}; FCF conversion {_pct(fcf_ni_v)}."
+            + (" FCF/NI below 50% — watch working capital and capex discipline."
+               if (fcf_ni_v or 1) < 0.5
+               else " Healthy FCF conversion suggests strong operational execution.")
+        ),
+        "RISK_3_TITLE": "Macro / Rate Risk",
+        "RISK_3_TEXT": (
+            f"Beta {beta_v:.2f}"
+            + (" — elevated market sensitivity; material drawdown risk in risk-off periods."
+               if beta_v > 1.3
+               else " — moderate market correlation; relatively resilient to broad selloffs.")
+            + f" {net_cash_str}."
+            + (" Net debt increases refinancing exposure if rates remain elevated."
+               if net_cash_val < 0
+               else " Net cash provides strong macro buffer and optionality.")
+        ),
+        "RISK_4_TITLE": "Capital Allocation Risk",
+        "RISK_4_TEXT": (
+            f"Capital Adequacy (Equity/Assets): {_pct(equity_assets_v)}. Monitor regulatory CET1 ratio trends."
+            if is_bank_v else
+            f"D/EBITDA: {d_ebd_str}; interest coverage: {ebit_int_str}."
+            + (" High leverage constrains financial flexibility and amplifies downside in a downturn."
+               if (d_ebd or 0) > 3.5
+               else " Conservative leverage with ample capacity for returns or strategic deployment.")
+        ),
+        "RISK_5_TITLE": "Valuation / Multiple Risk",
+        "RISK_5_TEXT": (
+            f"Trailing P/E {_x(trailing_pe)} vs. 5yr avg {_x(pe_5yr)} ({pe_delta}); "
+            f"P/FCF {_x(trailing_pfc)} vs. 5yr avg {_x(pfcf_5yr)} ({pfcf_delta})."
+            + (" Trading above historical averages — vulnerable to de-rating if earnings miss."
+               if (trailing_pe and pe_5yr and trailing_pe > pe_5yr * 1.05)
+               else " Valuation broadly in line with history — limited multiple compression risk absent a shock.")
+        ),
 
         # Valuation verdict
-        "VALUATION_VERDICT_TITLE": "Valuation Analysis — Auto-Generated Draft (Review Excel Model)",
+        "VALUATION_VERDICT_TITLE": "Valuation Analysis",
         "VALUATION_VERDICT_TEXT": (
             f"At ${current_price:.2f}, {company_name} ({ticker}) trades at {_x(trailing_pe)} trailing P/E "
             f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}), and {_x(trailing_pfc)} P/FCF "
@@ -774,14 +860,16 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         ) if base_px and current_price else "Review DCF in Excel model and add valuation commentary.",
 
         "DCF_BEAR_WACC": f"{w_bear*100:.1f}%", "DCF_BEAR_TGR": f"{tgr_bear*100:.1f}%",
-        "DCF_BEAR_CAGR": "Add", "DCF_BEAR_PX": f"${bear_px:.0f}" if bear_px else "N/A",
+        "DCF_BEAR_CAGR": _pct(_bear_rev_g) + " (bear — 40% of trailing)",
+        "DCF_BEAR_PX":   f"${bear_px:.0f}" if bear_px else "N/A",
         "DCF_BEAR_VS":   _vs(bear_px, current_price),
         "DCF_BASE_WACC": f"{w_base*100:.1f}%", "DCF_BASE_TGR": f"{tgr_base*100:.1f}%",
-        "DCF_BASE_CAGR": _pct(rev_cagr_v) + " (trailing)",
+        "DCF_BASE_CAGR": _pct(_base_rev_g) + " (base — trailing CAGR)",
         "DCF_BASE_PX":   f"${base_px:.0f}" if base_px else "N/A",
         "DCF_BASE_VS":   _vs(base_px, current_price),
         "DCF_BULL_WACC": f"{w_bull*100:.1f}%", "DCF_BULL_TGR": f"{tgr_bull*100:.1f}%",
-        "DCF_BULL_CAGR": "Add", "DCF_BULL_PX": f"${bull_px:.0f}" if bull_px else "N/A",
+        "DCF_BULL_CAGR": _pct(_bull_rev_g) + " (bull — 140% of trailing)",
+        "DCF_BULL_PX":   f"${bull_px:.0f}" if bull_px else "N/A",
         "DCF_BULL_VS":   _vs(bull_px, current_price),
 
         # Sensitivity headers
@@ -822,9 +910,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "PE_5YR_AVG":   _x(pe_5yr),
         "PFCF_10YR_AVG": (_x(pfcf_5yr) + " (5yr)") if pfcf_5yr else "N/A",
         "PFCF_5YR_AVG": _x(pfcf_5yr),
-        "EVEBITDA_10YR_AVG": _x(ev_ebitda) if ev_ebitda else "Add",
-        "EVEBITDA_5YR_AVG":  _x(ev_ebitda) if ev_ebitda else "Add",
-        **{k: "Add" for k in [
+        "EVEBITDA_10YR_AVG": _x(ev_ebitda) if ev_ebitda else "—",
+        "EVEBITDA_5YR_AVG":  _x(ev_ebitda) if ev_ebitda else "—",
+        **{k: "—" for k in [
             "MULT_PE10_FY1_PX","MULT_PE10_FY1_UPS","MULT_PE10_FY2_PX","MULT_PE10_FY2_UPS",
             "MULT_PE5_FY1_PX","MULT_PE5_FY1_UPS","MULT_PE5_FY2_PX","MULT_PE5_FY2_UPS",
             "MULT_PFCF10_FY1_PX","MULT_PFCF10_FY1_UPS","MULT_PFCF10_FY2_PX","MULT_PFCF10_FY2_UPS",
@@ -837,19 +925,19 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "COMPOSITE_FAIR_VALUE":       f"${base_px:.0f}" if base_px else "N/A",
         "COMPOSITE_UPSIDE_NOTE":      f"DCF base: ${base_px:.0f} ({_vs(base_px, current_price)}). Add multiples-based range." if base_px else "See Excel model.",
 
-        # Analysts (stubs)
+        # Analysts (auto-fetched where available via analyst_ests param)
         "TICKER_SHORT":   ticker,
-        "BUY_PCT":        "N/A", "BUY_COUNT":  "Add manually",
-        "HOLD_PCT":       "N/A", "HOLD_COUNT": "Add manually",
-        "SELL_PCT":       "N/A", "SELL_COUNT": "Add manually",
+        "BUY_PCT":        "—", "BUY_COUNT":  "—",
+        "HOLD_PCT":       "—", "HOLD_COUNT": "—",
+        "SELL_PCT":       "—", "SELL_COUNT": "—",
         **{f"A{i}_{k}": "—" for i in range(1,8)
            for k in ["NAME","FIRM","PT","PT_VS","DATE"]},
-        **{f"A{i}_RATING_TEXT": "N/A" for i in range(1,8)},
-        "ANALYST_COUNT":      "N/A",
-        "CONSENSUS_PT":       "Add manually",
-        "CONSENSUS_PT_VS":    "Add manually",
-        "PT_RANGE":           "Add manually",
-        "ANALYST_TABLE_NOTE": "Add analyst consensus data from Bloomberg / FactSet / sell-side reports.",
+        **{f"A{i}_RATING_TEXT": "—" for i in range(1,8)},
+        "ANALYST_COUNT":      "—",
+        "CONSENSUS_PT":       "—",
+        "CONSENSUS_PT_VS":    "—",
+        "PT_RANGE":           "—",
+        "ANALYST_TABLE_NOTE": f"Analyst data not fetched. Pass analyst_ests= to build_report_data() for forward multiples.",
 
         # Footnotes
         "FN1": f"Credit ratings: S&P {sp_rating} — manual input or Damodaran ICR model.",
@@ -880,11 +968,39 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _eps2  = _e2.get("estimatedEpsAvg") or 0
         _ebd1  = _e1.get("estimatedEbitdaAvg") or 0
         _ebd2  = _e2.get("estimatedEbitdaAvg") or 0
+        _rev1  = _e1.get("estimatedRevenueAvg") or 0
+        _rev2  = _e2.get("estimatedRevenueAvg") or 0
 
         # FCF/share proxy: forward EPS × historical FCF/NI conversion ratio
         _fn = max(0.3, min(fcf_ni_v or 0.7, 2.0))
         _fp1 = round(_eps1 * _fn, 2) if _eps1 > 0 else 0
         _fp2 = round(_eps2 * _fn, 2) if _eps2 > 0 else 0
+
+        # Forward P/E and P/FCF
+        if _eps1 > 0 and current_price:
+            _fwd_pe   = round(current_price / _eps1, 1)
+            _fwd_pe_d = _delta(_fwd_pe, pe_5yr)
+            D["FORWARD_PE"]        = _x(_fwd_pe)
+            D["FORWARD_PE_EST"]    = f"Based on FY+1E EPS ${_eps1:.2f}"
+            D["FORWARD_PE_DELTA"]  = _fwd_pe_d
+            D["PE_FWD_STAT"]       = _x(_fwd_pe)
+        if _fp1 > 0 and current_price:
+            _fwd_pfc  = round(current_price / _fp1, 1)
+            _fwd_pf_d = _delta(_fwd_pfc, pfcf_5yr)
+            D["FORWARD_PFCF"]      = _x(_fwd_pfc)
+            D["FORWARD_PFCF_EST"]  = f"Based on FY+1E FCF/sh ${_fp1:.2f} (EPS × {_fn:.2f} conv.)"
+            D["FORWARD_PFCF_DELTA"] = _fwd_pf_d
+            D["PFCF_FWD_STAT"]     = _x(_fwd_pfc)
+
+        # Forward revenue CAGR from estimates
+        if _rev1 > 0 and rev0 > 0:
+            _rev_fwd_cagr = (_rev1 / rev0) - 1
+            D["REV_CAGR_FWD"]  = f"FY+1E: {_pct(_rev_fwd_cagr)} (vs {_pct(rev_cagr_v)} trailing)"
+        if _rev2 > 0 and rev0 > 0 and _rev2 != _rev1:
+            _rev_fwd2_cagr = (_rev2 / rev0) ** 0.5 - 1
+            D["REV_CAGR_FWD"]  = f"FY+1E: {_pct((_rev1/rev0)-1 if _rev1 else 0)}, FY+2E 2yr CAGR: {_pct(_rev_fwd2_cagr)}"
+        if _eps1 > 0:
+            D["FCF_CAGR_FWD"] = f"FY+1E EPS ${_eps1:.2f} → FCF/sh ${_fp1:.2f} (×{_fn:.2f} conv.)"
 
         _pa  = pe_5yr          # 5yr P/E avg (used for both 5yr and 10yr labels)
         _pfa = pfcf_5yr        # 5yr P/FCF avg
@@ -937,14 +1053,31 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                     f"${_comp_mult:.0f} ({_vs(_comp_mult, current_price)})."
                 )
 
-        # Write — override "Add" stubs; preserve any real values already set
+        # Write — override stub values; preserve any real values already set
         for k, v in mu.items():
-            if D.get(k) in ("Add", "N/A", None, ""):
+            if D.get(k) in ("—", "Add", "N/A", None, ""):
                 D[k] = v
         # Always update composite (it starts as DCF-only; now includes multiples)
         for k in ("COMPOSITE_FAIR_VALUE", "COMPOSITE_UPSIDE_NOTE"):
             if k in mu:
                 D[k] = mu[k]
+
+    # ── Consistency check: key displayed values vs source data ────────────────
+    # All financial data flows from FMP (is_data / bs_data / cf_data).
+    # The checks below verify the summary metrics match the financial table rows
+    # so that the HTML report and Excel model (same FMP source) stay in sync.
+    _checks = {
+        "Revenue": (D.get("REVENUE_VALUE"), _b(rev0)),
+        "FCF":     (D.get("FCF_VALUE"),     _b(fcf0)),
+        "EBITDA_margin": (D.get("EBITDA_MARGIN"), _pct(ebitdam0)),
+        "ROIC":    (D.get("ROIC_VALUE"),    _pct(roic_v)),
+    }
+    _mismatches = [(k, a, b) for k, (a, b) in _checks.items() if a and b and a != b]
+    if _mismatches:
+        import sys
+        for k, got, exp in _mismatches:
+            print(f"[report_bridge] WARNING: {ticker} {k} mismatch — D has {got!r}, expected {exp!r}",
+                  file=sys.stderr)
 
     return D
 
