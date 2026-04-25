@@ -1,9 +1,11 @@
 """
-daily_news.py — Fetch latest news for all tickers with reports via FMP API.
+daily_news.py — Fetch latest news for all tickers via Yahoo Finance RSS.
 
 Reads tickers dynamically from static/reports/*_report.html.
 Saves to static/data/news_cache.json.
 Designed to run standalone (cron / scheduler) — never called from request handlers.
+
+No API key required. Uses Yahoo Finance public RSS feeds.
 """
 
 import os
@@ -12,25 +14,19 @@ import json
 import glob
 import logging
 import datetime
+import xml.etree.ElementTree as ET
 
 import requests
 
-# ── Resolve paths relative to this script ─────────────────────────────────────
 SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR  = os.path.join(SCRIPT_DIR, "static", "reports")
 CACHE_PATH   = os.path.join(SCRIPT_DIR, "static", "data", "news_cache.json")
-
-# ── API key — same source as the financial model ──────────────────────────────
-sys.path.insert(0, SCRIPT_DIR)
-import fmp_3statementv6 as mdl
-
-API_KEY = os.environ.get("FMP_API_KEY", mdl.API_KEY)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
 
 
-def discover_tickers() -> list[str]:
+def discover_tickers() -> list:
     """Scan static/reports/ for *_report.html and return sorted ticker list."""
     pattern = os.path.join(REPORTS_DIR, "*_report.html")
     tickers = []
@@ -42,71 +38,81 @@ def discover_tickers() -> list[str]:
     return sorted(set(tickers))
 
 
-def fetch_news(tickers: list[str], limit: int = 100) -> list[dict]:
-    """Single FMP API call for all tickers. Returns list of article dicts."""
-    if not tickers:
-        log.warning("No tickers found — nothing to fetch.")
-        return []
-
-    url = "https://financialmodelingprep.com/stable/news"
-    params = {
-        "tickers": ",".join(tickers),
-        "limit": limit,
-        "apikey": API_KEY,
-    }
-
+def fetch_yahoo_rss(ticker: str, limit: int = 8) -> list:
+    """Fetch news articles for a single ticker via Yahoo Finance RSS."""
+    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
     try:
-        resp = requests.get(url, params=params, timeout=30)
-    except requests.RequestException as e:
-        log.error("Network error fetching news: %s", e)
+        resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        if resp.status_code != 200:
+            log.warning("%s: Yahoo RSS returned %d", ticker, resp.status_code)
+            return []
+
+        root = ET.fromstring(resp.text)
+        articles = []
+        ns = {"media": "http://search.yahoo.com/mrss/"}
+
+        for item in root.findall(".//item")[:limit]:
+            title       = item.findtext("title", "").strip()
+            link        = item.findtext("link", "").strip()
+            pub_date    = item.findtext("pubDate", "").strip()
+            description = item.findtext("description", "").strip()
+            source_el   = item.find("source")
+            source      = source_el.text.strip() if source_el is not None and source_el.text else "Yahoo Finance"
+
+            # Normalise pubDate → ISO format
+            published = pub_date
+            try:
+                from email.utils import parsedate_to_datetime
+                published = parsedate_to_datetime(pub_date).isoformat()
+            except Exception:
+                pass
+
+            articles.append({
+                "title":         title,
+                "url":           link,
+                "publishedDate": published,
+                "site":          source,
+                "text":          description,
+                "symbol":        ticker,
+                "image":         "",
+            })
+
+        return articles
+
+    except Exception as e:
+        log.warning("%s: RSS error — %s", ticker, e)
         return []
-
-    if resp.status_code in (429, 402):
-        log.warning("FMP rate-limit / payment issue (HTTP %d). Skipping.", resp.status_code)
-        return []
-
-    if resp.status_code != 200:
-        log.error("FMP returned HTTP %d: %s", resp.status_code, resp.text[:300])
-        return []
-
-    data = resp.json()
-    if not isinstance(data, list):
-        log.error("Unexpected response shape: %s", type(data))
-        return []
-
-    # Normalise to consistent keys
-    articles = []
-    for item in data:
-        articles.append({
-            "title":         item.get("title", ""),
-            "url":           item.get("url", ""),
-            "publishedDate": item.get("publishedDate", ""),
-            "site":          item.get("site") or item.get("source", ""),
-            "text":          item.get("text", ""),
-            "symbol":        item.get("symbol") or item.get("ticker", ""),
-            "image":         item.get("image", ""),
-        })
-
-    return articles
 
 
 def run():
     tickers = discover_tickers()
     log.info("Tickers (%d): %s", len(tickers), ", ".join(tickers))
 
-    articles = fetch_news(tickers)
+    all_articles = []
+    for ticker in tickers:
+        articles = fetch_yahoo_rss(ticker)
+        log.info("  %s: %d articles", ticker, len(articles))
+        all_articles.extend(articles)
+
+    # Sort newest first
+    def _sort_key(a):
+        try:
+            return a["publishedDate"]
+        except Exception:
+            return ""
+    all_articles.sort(key=_sort_key, reverse=True)
 
     cache = {
         "fetched":  datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
         "tickers":  tickers,
-        "articles": articles,
+        "articles": all_articles,
     }
 
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False)
 
-    print(f"Fetched {len(articles)} articles for {len(tickers)} tickers")
+    print(f"Fetched {len(all_articles)} articles for {len(tickers)} tickers -> {CACHE_PATH}")
 
 
 if __name__ == "__main__":
