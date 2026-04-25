@@ -142,6 +142,11 @@
     .rc-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 9pt; }
     .rc-row:last-child { border-bottom: none; }
     .rc-key { color: var(--text-muted); font-family: 'IBM Plex Mono',monospace; font-size: 8.5pt; }
+    .val-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'IBM Plex Mono',monospace; font-size: 7.5pt; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px; margin-top: 4px; }
+    .val-badge.match { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
+    .val-badge.close { background: rgba(234,179,8,0.12); color: #ca8a04; border: 1px solid rgba(234,179,8,0.25); }
+    .val-badge.diverge { background: rgba(239,68,68,0.10); color: #ef4444; border: 1px solid rgba(239,68,68,0.20); }
+    .val-badge.na { background: rgba(107,114,128,0.12); color: var(--text-dim); border: 1px solid var(--border); }
     .rc-val { font-family: 'IBM Plex Mono',monospace; font-size: 8.5pt; color: var(--text); }
 
     /* ── SENSITIVITY ── */
@@ -372,6 +377,7 @@
     <div class="result-card">
       <div class="rc-title">Gordon Growth Model</div>
       <div class="rc-main"><span class="rc-price" id="rc_ggm_price">—</span><span class="result-upside" id="rc_ggm_up"></span></div>
+      <div id="valBadge"></div>
       <div class="rc-rows" id="rc_ggm_rows"></div>
     </div>
     <div class="result-card">
@@ -411,6 +417,12 @@
     <p style="color:var(--text-dim)">Supports: DCF (Gordon Growth + Exit Multiple) · WACC derivation · Scenario saving · Sensitivity analysis</p>
   </div>
 
+  <!-- ── PORTFOLIO VIEW (cross-ticker) ── -->
+  <div class="compare-section" id="portfolioSection" style="display:none">
+    <div class="panel-header">Portfolio View — All Saved Scenarios</div>
+    <table class="compare-table" id="portfolioTable"></table>
+  </div>
+
 </div><!-- /page -->
 
 <script>
@@ -444,6 +456,8 @@ const QUICK_TICKERS = [
     document.getElementById('tickerInput').value = u.get('t').toUpperCase();
     loadTicker();
   }
+  // Always render portfolio view on page load
+  renderPortfolio();
 })();
 
 // ═══════════════════════════════════════════════════════════════
@@ -527,8 +541,10 @@ async function loadTicker() {
     history.replaceState(null,'',`/dcf?t=${ticker}`);
 
     recalcWacc();
-    renderScenarioChips();
-    renderCompare();
+    await migrateLocalStorage(ticker);
+    await renderScenarioChips();
+    await renderCompare();
+    await renderPortfolio();
 
   } catch(e) {
     showError(`Failed to load ${ticker}: ${e.message}`);
@@ -749,6 +765,28 @@ function calculate() {
   setTxt('rc_em_price',  `$${pEM.toFixed(2)}`);
   setUpside('rc_ggm_up', pGGM, price);
   setUpside('rc_em_up',  pEM, price);
+
+  // ── Validation badge: compare client GGM vs Excel engine price ──
+  (function updateValBadge() {
+    const badge = document.getElementById('valBadge');
+    if (!badge) return;
+    const serverPx = STATE.data && STATE.data.dcf_base_price;
+    if (!serverPx || !pGGM) {
+      badge.innerHTML = '<span class="val-badge na">No server price to compare</span>';
+      return;
+    }
+    const diff = (pGGM - serverPx) / serverPx;
+    const pct  = (diff * 100).toFixed(1);
+    const sign = diff >= 0 ? '+' : '';
+    const absDiff = Math.abs(diff);
+    if (absDiff < 0.03) {
+      badge.innerHTML = `<span class="val-badge match">Matches Excel model (${sign}${pct}%)</span>`;
+    } else if (absDiff < 0.10) {
+      badge.innerHTML = `<span class="val-badge close">Close to Excel model (${sign}${pct}%)</span>`;
+    } else {
+      badge.innerHTML = `<span class="val-badge diverge">Diverges from Excel: ${sign}${pct}%</span>`;
+    }
+  })();
   document.getElementById('rc_ggm_rows').innerHTML =
     rcRow('EV (DCF)',      fmtM(evGGM)) +
     rcRow('− Net Debt',    fmtM(netDebt)) +
@@ -844,19 +882,21 @@ function getCell(px, price) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SCENARIO MANAGEMENT (localStorage)
+// SCENARIO MANAGEMENT (server-side SQLite)
 // ═══════════════════════════════════════════════════════════════
-function getScenarioKey() { return `dcf_scenarios_${STATE.ticker}`; }
 
-function getAllScenarios() {
-  try { return JSON.parse(localStorage.getItem(getScenarioKey()) || '[]'); } catch { return []; }
+async function fetchScenarios(ticker) {
+  try {
+    const res = await fetch(`/api/scenarios?ticker=${encodeURIComponent(ticker)}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
 }
 
-function saveScenario() {
+async function saveScenario() {
   if (!STATE.ticker) return;
   const raw = document.getElementById('scenarioNameInput').value.trim();
   const name = raw || `Scenario ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}`;
-  const scenarios = getAllScenarios();
 
   const inputs = readAllInputs();
   const price_ggm = parseFloat(document.getElementById('rc_ggm_price').textContent.replace('$','')) || null;
@@ -864,19 +904,27 @@ function saveScenario() {
   const wacc_txt  = document.getElementById('wWacc').textContent;
   const wacc_v    = parseFloat(wacc_txt) || null;
 
-  const existing = scenarios.findIndex(s => s.name === name);
-  const entry = { name, created: new Date().toISOString().split('T')[0], inputs, results: { price_ggm, price_em, wacc: wacc_v } };
-  if (existing >= 0) scenarios[existing] = entry;
-  else scenarios.push(entry);
+  try {
+    await fetch('/api/scenarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticker: STATE.ticker,
+        name,
+        inputs,
+        outputs: { price_ggm, price_em, wacc: wacc_v }
+      })
+    });
+  } catch(e) { console.error('Save scenario failed', e); }
 
-  localStorage.setItem(getScenarioKey(), JSON.stringify(scenarios));
   document.getElementById('scenarioNameInput').value = '';
-  renderScenarioChips();
-  renderCompare();
+  await renderScenarioChips();
+  await renderCompare();
+  await renderPortfolio();
 }
 
-function loadScenario(name) {
-  const scenarios = getAllScenarios();
+async function loadScenario(name) {
+  const scenarios = await fetchScenarios(STATE.ticker);
   const s = scenarios.find(x => x.name === name);
   if (!s) return;
   const inp = s.inputs;
@@ -898,29 +946,40 @@ function loadScenario(name) {
   setVal('wEw', inp.equity_weight);
   document.getElementById('scenarioNameInput').value = name;
   recalcWacc();
-  renderScenarioChips(name);
+  await renderScenarioChips(name);
 }
 
-function deleteScenario(name) {
-  const scenarios = getAllScenarios().filter(s => s.name !== name);
-  localStorage.setItem(getScenarioKey(), JSON.stringify(scenarios));
-  renderScenarioChips();
-  renderCompare();
+async function deleteScenario(name) {
+  try {
+    await fetch('/api/scenarios', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker: STATE.ticker, name })
+    });
+  } catch(e) { console.error('Delete scenario failed', e); }
+  await renderScenarioChips();
+  await renderCompare();
+  await renderPortfolio();
 }
 
-function renderScenarioChips(activeName) {
+async function renderScenarioChips(activeName) {
   const chips = document.getElementById('scenarioChips');
-  const scenarios = getAllScenarios();
+  if (!STATE.ticker) { chips.innerHTML = ''; return; }
+  const scenarios = await fetchScenarios(STATE.ticker);
   if (!scenarios.length) { chips.innerHTML = '<span style="font-family:IBM Plex Mono,monospace;font-size:8pt;color:var(--text-dim)">No saved scenarios</span>'; return; }
-  chips.innerHTML = scenarios.map(s => `
+  chips.innerHTML = scenarios.map(s => {
+    const o = s.outputs || {};
+    return `
     <span class="s-chip ${s.name===activeName?'active':''}" onclick="loadScenario(${JSON.stringify(s.name)})">
-      ${s.name} <span style="color:var(--text-dim);font-size:7pt">${s.results.price_ggm?'$'+s.results.price_ggm.toFixed(0):''}</span>
+      ${s.name} <span style="color:var(--text-dim);font-size:7pt">${o.price_ggm?'$'+o.price_ggm.toFixed(0):''}</span>
       <span class="del" onclick="event.stopPropagation();deleteScenario(${JSON.stringify(s.name)})" title="Delete">×</span>
-    </span>`).join('');
+    </span>`;
+  }).join('');
 }
 
-function renderCompare() {
-  const scenarios = getAllScenarios();
+async function renderCompare() {
+  if (!STATE.ticker) return;
+  const scenarios = await fetchScenarios(STATE.ticker);
   const sec = document.getElementById('compareSection');
   document.getElementById('compareTicker').textContent = STATE.ticker || '';
   if (scenarios.length < 2) { sec.style.display = 'none'; return; }
@@ -929,20 +988,76 @@ function renderCompare() {
   let html = '<thead><tr>' + cols.map(c => `<th class="${c==='Scenario'?'label-col':''}">${c}</th>`).join('') + '</tr></thead><tbody>';
   scenarios.forEach(s => {
     const i = s.inputs;
+    const o = s.outputs || {};
+    const created = (s.created_at || '').split('T')[0];
     html += `<tr>
-      <td class="label-col">${s.name}<br><span style="font-size:7.5pt;color:var(--text-dim)">${s.created}</span></td>
+      <td class="label-col">${s.name}<br><span style="font-size:7.5pt;color:var(--text-dim)">${created}</span></td>
       <td>${i.rf || '—'}%<br><span style="font-size:7.5pt;color:var(--text-dim)">β${i.beta||'—'}</span></td>
       <td>${i.tgr}%</td>
       <td>${i.exit_multiple}×</td>
       <td>${i.rev_growth[0]}%</td>
       <td>${i.rev_growth[2]}%</td>
       <td>${i.ebitda_margin[0]}%</td>
-      <td class="highlight">${s.results.price_ggm ? '$'+s.results.price_ggm.toFixed(2) : '—'}</td>
-      <td class="highlight">${s.results.price_em  ? '$'+s.results.price_em.toFixed(2)  : '—'}</td>
+      <td class="highlight">${o.price_ggm ? '$'+o.price_ggm.toFixed(2) : '—'}</td>
+      <td class="highlight">${o.price_em  ? '$'+o.price_em.toFixed(2)  : '—'}</td>
     </tr>`;
   });
   html += '</tbody>';
   document.getElementById('compareTable').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PORTFOLIO VIEW (cross-ticker)
+// ═══════════════════════════════════════════════════════════════
+async function renderPortfolio() {
+  const sec = document.getElementById('portfolioSection');
+  try {
+    const scenarios = await fetchScenarios('ALL');
+    if (!scenarios.length) { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const cols = ['Ticker','Scenario Name','GGM Price','EM Price','WACC','Saved Date',''];
+    let html = '<thead><tr>' + cols.map(c => `<th class="${c===''?'':'label-col'}">${c}</th>`).join('') + '</tr></thead><tbody>';
+    scenarios.forEach(s => {
+      const o = s.outputs || {};
+      const date = (s.updated_at || '').split('T')[0];
+      html += `<tr>
+        <td class="label-col" style="font-weight:600;color:var(--gold)">${s.ticker}</td>
+        <td class="label-col">${s.name}</td>
+        <td class="highlight">${o.price_ggm ? '$'+o.price_ggm.toFixed(2) : '—'}</td>
+        <td class="highlight">${o.price_em  ? '$'+o.price_em.toFixed(2)  : '—'}</td>
+        <td>${o.wacc ? o.wacc.toFixed(2)+'%' : '—'}</td>
+        <td>${date}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="document.getElementById('tickerInput').value='${s.ticker}';loadTicker().then(()=>loadScenario(${JSON.stringify(s.name)}))">Load</button></td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    document.getElementById('portfolioTable').innerHTML = html;
+  } catch { sec.style.display = 'none'; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOCALSTORAGE MIGRATION (one-time, silent)
+// ═══════════════════════════════════════════════════════════════
+async function migrateLocalStorage(ticker) {
+  const lsKey = `dcf_scenarios_${ticker}`;
+  let stored;
+  try { stored = JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return; }
+  if (!stored.length) return;
+  for (const s of stored) {
+    try {
+      await fetch('/api/scenarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker,
+          name: s.name,
+          inputs: s.inputs,
+          outputs: s.results || {}
+        })
+      });
+    } catch { /* best-effort */ }
+  }
+  localStorage.removeItem(lsKey);
 }
 
 // ═══════════════════════════════════════════════════════════════

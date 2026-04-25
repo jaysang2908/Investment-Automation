@@ -24,6 +24,7 @@ import requests as _req
 import fmp_3statementv6 as mdl
 from report_bridge import build_report_data, render_html_report
 from data_store import save_ticker_data, load_ticker_data
+from scenarios_db import init_db, save_scenario, list_scenarios, delete_scenario, get_scenario
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -31,6 +32,9 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 # ── Config from environment ───────────────────────────────────────────────────
 mdl.API_KEY  = os.environ.get("FMP_API_KEY", mdl.API_KEY)
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
+# ── Initialise scenario database ─────────────────────────────────────────────
+init_db()
 
 # ── In-memory report store (2-hour TTL) ───────────────────────────────────────
 _reports: dict = {}
@@ -572,6 +576,53 @@ def api_reports():
         }
         for rid, r in sorted(_reports.items(), key=lambda x: x[1]["ts"], reverse=True)
     ])
+
+
+# ── Scenario API ──────────────────────────────────────────────────────────────
+
+@app.route("/api/scenarios", methods=["GET"])
+def api_list_scenarios():
+    ticker = request.args.get("ticker", "").strip().upper()
+    if not ticker:
+        return jsonify({"error": "ticker query param required"}), 400
+    return jsonify(list_scenarios(ticker))
+
+
+@app.route("/api/scenarios", methods=["POST"])
+def api_save_scenario():
+    body = request.get_json(force=True) or {}
+    ticker  = (body.get("ticker") or "").strip().upper()
+    name    = (body.get("name") or "").strip()
+    inputs  = body.get("inputs") or {}
+    outputs = body.get("outputs") or {}
+    if not ticker or not name:
+        return jsonify({"error": "ticker and name required"}), 400
+    sid = save_scenario(ticker, name, inputs, outputs)
+    return jsonify({"id": sid, "ok": True})
+
+
+@app.route("/api/scenarios", methods=["DELETE"])
+def api_delete_scenario():
+    body = request.get_json(force=True) or {}
+    ticker = (body.get("ticker") or "").strip().upper()
+    name   = (body.get("name") or "").strip()
+    if not ticker or not name:
+        return jsonify({"error": "ticker and name required"}), 400
+    delete_scenario(ticker, name)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/scenarios/compare", methods=["GET"])
+def api_compare_scenarios():
+    ticker = request.args.get("ticker", "").strip().upper()
+    names  = request.args.get("names", "")
+    if not ticker:
+        return jsonify({"error": "ticker query param required"}), 400
+    scenarios = list_scenarios(ticker)
+    if names and ticker != "ALL":
+        name_set = set(n.strip() for n in names.split(",") if n.strip())
+        scenarios = [s for s in scenarios if s["name"] in name_set]
+    return jsonify(scenarios)
 
 
 # ── Dev entry point ────────────────────────────────────────────────────────────
