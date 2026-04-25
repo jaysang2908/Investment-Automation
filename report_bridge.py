@@ -490,6 +490,16 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     roic_lst   = [_roic(is_, bs_) for is_, bs_ in zip(is_data, bs_data)]
     roic_pct   = [round((r or 0)*100, 1) for r in roic_lst]
 
+    # Shareholder returns: real data from CF statement
+    buyback_b_lst = [abs(cf_.get("commonStockRepurchased") or
+                         cf_.get("repurchaseOfCommonStock") or 0) / 1e9
+                     for cf_ in cf_data]
+    fcf_ps_lst    = [round(
+        (cf_.get("freeCashFlow") or
+         (cf_.get("operatingCashFlow") or 0) - abs(cf_.get("capitalExpenditure") or 0))
+        / shares, 2) if shares > 0 else 0
+        for cf_ in cf_data]
+
     # ── Assemble DATA dict ─────────────────────────────────────────────────────
     D = {
         # Header
@@ -620,8 +630,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "PRICE_LABELS_JS": _js_str_arr(yr_labels),
         "PRICE_DATA_JS":   "[0]",
         "RET_LABELS_JS":   _js_str_arr(yr_labels),
-        "BUYBACK_JS":      "[0,0,0,0,0]",
-        "FCF_PER_SHARE_JS": "[0,0,0,0,0]",
+        "BUYBACK_JS":      _js_arr(buyback_b_lst, 2),
+        "FCF_PER_SHARE_JS": _js_arr(fcf_ps_lst, 2),
 
         # Scorecard — totals use adj_score from Excel engine for consistency
         "P1_WEIGHTED":          str(p1),

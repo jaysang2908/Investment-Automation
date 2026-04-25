@@ -112,11 +112,59 @@ for fname in sorted(os.listdir(REPORTS_DIR)):
 
     # ── 8. Fix EBITINT_NOTE placeholder if still unresolved ──────────────────
     if "{{EBITINT_NOTE}}" in html:
-        # Try to extract per-year EBIT/Int values already rendered in the old content
-        # Look for DEBITDA rows to infer the structure (EBIT/Int was rendered per-year in old template)
-        # Fallback: show "See annual report for interest coverage by year"
         html = html.replace("{{EBITINT_NOTE}}",
                             "See annual report — interest coverage varies by year")
+
+    # ── 9. Fix credit section: replace old stacked credit-row with 3-col grid ─
+    # Old reports use .credit-row containing credit-chips + credit-note in one flex row
+    # New design: .credit-chips grid + .credit-note below
+    html = re.sub(
+        r'<div class="credit-row">\s*(<div class="credit-chip">.*?</div>)\s*'
+        r'(<div class="credit-chip">.*?</div>)\s*'
+        r'(<div class="credit-chip">.*?</div>)\s*'
+        r'(<div class="credit-note">.*?</div>)\s*</div>',
+        r'<div class="credit-chips">\1\2\3</div>\4',
+        html, flags=re.DOTALL
+    )
+
+    # ── 10. Fix shareholder returns chart: compute FCF/share from existing fcfData ─
+    # Extract fcfData ($B) already rendered in this report
+    m_fcf = re.search(r'const fcfData\s*=\s*(\[[^\]]+\])', html)
+    m_shares = re.search(r'SHARES_DILUTED[^>]*>\s*([\d.]+)([BM])\s*shares', html)
+    if m_fcf and m_shares:
+        try:
+            import json
+            fcf_vals = json.loads(m_fcf.group(1))   # list of $B values
+            sh_num   = float(m_shares.group(1))
+            sh_mult  = 1e9 if m_shares.group(2) == 'B' else 1e6
+            sh_total = sh_num * sh_mult               # raw share count
+            # FCF per share = FCF_B * 1e9 / shares
+            fcf_ps = [round(v * 1e9 / sh_total, 2) if sh_total > 0 else 0 for v in fcf_vals]
+            fcf_ps_js = "[" + ",".join(str(v) for v in fcf_ps) + "]"
+            html = re.sub(r'const fcfPerShare\s*=\s*\[[^\]]+\]',
+                          f'const fcfPerShare = {fcf_ps_js}', html)
+        except Exception:
+            pass
+
+    # ── 11. Fix price chart: show stub when data is [0] ──────────────────────
+    # Replace flat [0] line with no-data handler (inject JS check)
+    html = re.sub(
+        r'(const priceCtx = document\.getElementById\(\'priceChart\'\)\.getContext\(\'2d\'\);)',
+        r'const priceCtx = document.getElementById(\'priceChart\').getContext(\'2d\');\n'
+        r'if (!priceData || priceData.length <= 1 && priceData[0] == 0) { '
+        r'priceCtx.canvas.parentElement.innerHTML = \'<div style="height:100%;display:flex;align-items:center;'
+        r'justify-content:center;flex-direction:column;gap:6px;">'
+        r'<span style=\\\'font-family:monospace;font-size:11px;color:#9E9D96;text-transform:uppercase;letter-spacing:0.08em;\\\'>Price History</span>'
+        r'<span style=\\\'font-family:monospace;font-size:10px;color:#9E9D96;\\\'>Add via API refresh or Excel price tab</span></div>\'; }\n'
+        r'else {',
+        html
+    )
+    # Close the else block before the next chart init
+    html = re.sub(
+        r'(const financialCtx = document\.getElementById)',
+        r'}\nconst financialCtx = document.getElementById',
+        html, count=1
+    )
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
