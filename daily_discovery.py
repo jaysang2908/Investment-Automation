@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fmp_3statementv6 as mdl
 import csv_schema as _schema
 from report_bridge import build_report_data, render_html_report
+from data_store import save_ticker_data
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR  = os.path.join(BASE_DIR, "static", "reports")
@@ -167,7 +168,13 @@ def try_generate(ticker):
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
+        # Save raw data so DCF calculator can load without re-hitting FMP
         dcf_p = (dcf_refs or {}).get("dcf_prices") or {}
+        save_ticker_data(
+            ticker, is_data, bs_data, cf_data, profile, years,
+            wacc_refs.get("wacc_val"), dcf_p, scorecard_metrics, analyst_ests
+        )
+
         return True, {
             "score":      score,
             "metrics":    scorecard_metrics,

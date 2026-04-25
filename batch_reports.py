@@ -10,6 +10,7 @@ import builtins
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fmp_3statementv6 as mdl
 from report_bridge import build_report_data, render_html_report
+from data_store import save_ticker_data
 import requests as _req
 from openpyxl import Workbook
 
@@ -149,7 +150,12 @@ for ticker, biz_clarity, ltp in TICKERS:
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
+        # Save raw data so DCF calculator can load without re-hitting FMP
         dcf_prices = (dcf_refs or {}).get("dcf_prices") or {}
+        save_ticker_data(
+            ticker, is_data, bs_data, cf_data, profile, years,
+            wacc_refs.get("wacc_val"), dcf_prices, scorecard_metrics, analyst_ests
+        )
         gg_px  = dcf_prices.get("gg_price")
         em_px  = dcf_prices.get("em_price")
         gg_up  = round((gg_px - current_price) / current_price, 3) if gg_px and current_price else None
