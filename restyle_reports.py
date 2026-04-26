@@ -50,7 +50,7 @@ for fname in sorted(os.listdir(REPORTS_DIR)):
     existing_title = title_match.group(1) if title_match else ticker
     company_part = (existing_title
                     .replace(" — Independent Research Report", "")
-                    .replace(" — Equity Research", "")
+                    .replace(" — Investment Utopia", "")
                     .strip())
     # If it's already a placeholder (failed earlier restyle), fall back to ticker
     if "{{" in company_part:
@@ -59,7 +59,7 @@ for fname in sorted(os.listdir(REPORTS_DIR)):
     # ── 2. Replace <head> with new CSS ────────────────────────────────────
     html = re.sub(r"<head>.*?</head>", f"<head>{new_head_inner}</head>", html, flags=re.DOTALL)
     html = re.sub(r"<title>.*?</title>",
-                  f"<title>{company_part} — Equity Research</title>", html)
+                  f"<title>{company_part} — Investment Utopia</title>", html)
 
     # ── 3. Extract values from old rendered content for nav placeholders ──
     # CURRENT_PRICE: <span class="current">273.43</span>
