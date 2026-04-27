@@ -648,8 +648,8 @@ _COMPANY_NAMES = {
     "COST":"Costco","KO":"Coca-Cola","WMT":"Walmart",
 }
 
-@app.route("/download/excel/<ticker>")
-def download_excel(ticker):
+@app.route("/download/model/<ticker>")
+def download_excel_model(ticker):
     ticker = ticker.upper().strip()
     excel_dir = os.path.join(os.path.dirname(__file__), "static", "excel")
     path = os.path.join(excel_dir, f"{ticker}_model.xlsx")
