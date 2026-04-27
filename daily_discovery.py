@@ -25,7 +25,7 @@ LOG_FILE = os.path.join(BASE_DIR, "discovery_log.txt")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 MAX_DAILY     = 5    # reports to generate per run
-QUOTA_STRIKES = 3    # consecutive 402s before giving up
+QUOTA_STRIKES = 15   # total 402s before assuming true quota exhaustion
 
 # ── Tickers already in core coverage ─────────────────────────────────────────
 EXISTING = {
@@ -306,15 +306,15 @@ def main():
     rng = random.Random(today)
     rng.shuffle(candidates)
 
-    successes    = []   # list of (ticker, data_dict)
-    quota_count  = 0
-    tried        = []
+    successes   = []   # list of (ticker, data_dict)
+    quota_total = 0    # total 402s this run (true exhaustion indicator)
+    tried       = []
 
     for ticker in candidates:
         if len(successes) >= MAX_DAILY:
             break
-        if quota_count >= QUOTA_STRIKES:
-            print(f"\n  {QUOTA_STRIKES} consecutive quota errors — FMP limit hit for today.")
+        if quota_total >= QUOTA_STRIKES:
+            print(f"\n  {quota_total} total 402s — FMP quota truly exhausted for today.")
             break
 
         n = len(successes) + 1
@@ -325,17 +325,16 @@ def main():
         if success:
             print(f"OK  score={result['score']}")
             successes.append((ticker, result))
-            quota_count = 0
             if len(successes) < MAX_DAILY:
                 time.sleep(3)   # polite gap between API calls
 
         elif result == "quota":
-            print("WARN  402 rate limit")
-            quota_count += 1
-            time.sleep(5)
+            # Free tier: this ticker needs premium — skip it, keep trying others
+            print("SKIP  402 (free tier limit for this ticker)")
+            quota_total += 1
+            time.sleep(2)
         else:
             print(f"FAIL  {result}")
-            quota_count = 0
             time.sleep(2)
 
     # ── Persist all results ───────────────────────────────────────────────────

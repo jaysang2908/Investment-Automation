@@ -87,6 +87,7 @@
     .al{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;border-radius:2px;text-decoration:none;transition:all .2s;white-space:nowrap}
     .alv{color:var(--gold);border:1px solid rgba(201,168,76,.3)}.alv:hover{background:var(--gold-dim)}
     .alg{color:var(--text-muted);border:1px solid var(--border2)}.alg:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+    .alx{color:#10b981;border:1px solid rgba(16,185,129,.3)}.alx:hover{background:rgba(16,185,129,.08)}
     .aln{color:var(--text-dim);border:1px solid var(--border);pointer-events:none}
 
     .tnotes{font-size:7pt;color:var(--text-dim);padding:8px 0 0;line-height:1.8}
@@ -239,10 +240,13 @@ function scoreCell(c){
   const fc=c.score>=75?'fg':c.score>=60?'fa':'fr';
   return`<div class="scc"><span class="snum ${sc}">${c.score.toFixed(1)}</span><span class="sbar"><span class="sfill ${fc}" data-w="${c.score}"></span></span>${c.sn?`<span class="sn">${c.sn}</span>`:''}</div>`;
 }
+// Tickers that have an Excel model available for download
+const EXCEL_TICKERS=new Set(["AAPL","ABBV","ADBE","AMD","BAC","C","COST","CSCO","F","INTC","JNJ","JPM","KO","META","MSFT","NVDA","SOFI","TSLA","TSM","V","WMT"]);
 function actions(c){
   if(c.pending) return`<div class="acts"><span class="al aln">Pending</span></div>`;
   const v=c.url?`<a class="al alv" href="${c.url}" target="_blank">Report</a>`:'';
-  return`<div class="acts">${v}<a class="al alg" href="/" title="Re-run ${c.t}">Re-run →</a></div>`;
+  const xl=EXCEL_TICKERS.has(c.t)?`<a class="al alx" href="/download/excel/${c.t}" title="Download Excel model">Model</a>`:'';
+  return`<div class="acts">${v}${xl}<a class="al alg" href="/" title="Re-run ${c.t}">Re-run →</a></div>`;
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────

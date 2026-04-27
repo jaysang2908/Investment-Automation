@@ -18,7 +18,7 @@ import builtins
 import datetime
 import traceback
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_file
 import requests as _req
 
 import fmp_3statementv6 as mdl
@@ -647,6 +647,18 @@ _COMPANY_NAMES = {
     "ABBV":"AbbVie","JNJ":"J&J","F":"Ford","TSLA":"Tesla","UAL":"United Airlines",
     "COST":"Costco","KO":"Coca-Cola","WMT":"Walmart",
 }
+
+@app.route("/download/excel/<ticker>")
+def download_excel(ticker):
+    ticker = ticker.upper().strip()
+    excel_dir = os.path.join(os.path.dirname(__file__), "static", "excel")
+    path = os.path.join(excel_dir, f"{ticker}_model.xlsx")
+    if not os.path.exists(path):
+        return jsonify({"error": f"No Excel model for {ticker}"}), 404
+    return send_file(path, as_attachment=True,
+                     download_name=f"{ticker}_FinancialModel.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 @app.route("/heatmap")
 def heatmap_page():
