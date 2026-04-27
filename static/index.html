@@ -602,9 +602,10 @@
       document.getElementById('resScore').textContent =
         displayScore != null ? displayScore.toFixed(1) : 'N/A';
 
-      document.getElementById('excelBtn').href    = `/download/excel/${data.report_id}`;
-      document.getElementById('htmlBtn').href     = `/download/html/${data.report_id}`;
-      document.getElementById('viewBtn').href     = `/report/${data.report_id}`;
+      // Use permanent disk-based URLs (survive server restarts)
+      document.getElementById('excelBtn').href    = data.excel_url  || `/download/excel/${data.report_id}`;
+      document.getElementById('htmlBtn').href     = data.report_url || `/download/html/${data.report_id}`;
+      document.getElementById('viewBtn').href     = data.report_url || `/report/${data.report_id}`;
 
       document.getElementById('resultsPanel').style.display = 'block';
       showMsg('Done! Both files are ready.', 'ok');

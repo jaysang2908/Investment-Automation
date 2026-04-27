@@ -174,7 +174,21 @@ def generate():
         except Exception:
             pass
 
-        # ── Store with short ID ───────────────────────────────────────────────
+        # ── Save HTML report to disk (permanent, survives server restarts) ──────
+        reports_dir = os.path.join(os.path.dirname(__file__), "static", "reports")
+        excel_dir   = os.path.join(os.path.dirname(__file__), "static", "excel")
+        os.makedirs(reports_dir, exist_ok=True)
+        os.makedirs(excel_dir,   exist_ok=True)
+
+        html_path  = os.path.join(reports_dir, f"{ticker}_report.html")
+        excel_path = os.path.join(excel_dir,   f"{ticker}_model.xlsx")
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        with open(excel_path, "wb") as f:
+            f.write(excel_bytes)
+
+        # Also keep in-memory for session (legacy dashboard live-reports panel)
         rid = uuid.uuid4().hex[:10]
         _reports[rid] = {
             "ticker":    ticker,
@@ -187,13 +201,15 @@ def generate():
         }
 
         return jsonify({
-            "report_id":   rid,
-            "ticker":      ticker,
-            "auto_score":  auto_score,
-            "adj_score":   adj_score,
-            "biz_clarity": biz_clarity or None,
-            "ltp":         ltp or None,
-            "logs":        logs[-15:],
+            "report_id":      rid,
+            "ticker":         ticker,
+            "auto_score":     auto_score,
+            "adj_score":      adj_score,
+            "biz_clarity":    biz_clarity or None,
+            "ltp":            ltp or None,
+            "logs":           logs[-15:],
+            "report_url":     f"/reports/{ticker}_report.html",
+            "excel_url":      f"/download/model/{ticker}",
         })
 
     except Exception as e:
