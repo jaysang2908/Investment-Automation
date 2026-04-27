@@ -60,8 +60,15 @@ def generate():
     ticker       = body.get("ticker", "").strip().upper()
     rating_raw   = body.get("rating", "").strip()
     password     = body.get("password", "").strip()
-    biz_clarity  = body.get("biz_clarity", "").strip().upper()
-    ltp          = body.get("ltp", "").strip().upper()
+    # Normalise MOD-HIGH / MOD-LOW → MOD (report_bridge TIER_PTS uses HIGH/MOD/LOW)
+    def _norm_tier(v):
+        v = (v or "").strip().upper()
+        if v in ("MOD-HIGH", "MOD-LOW", "MOD"): return "MOD"
+        if v == "HIGH": return "HIGH"
+        if v == "LOW":  return "LOW"
+        return ""
+    biz_clarity  = _norm_tier(body.get("biz_clarity", ""))
+    ltp          = _norm_tier(body.get("ltp", ""))
 
     if APP_PASSWORD and password != APP_PASSWORD:
         return jsonify({"error": "Incorrect password."}), 401
