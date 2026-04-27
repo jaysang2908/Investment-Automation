@@ -611,7 +611,7 @@
       showMsg('Done! Both files are ready.', 'ok');
 
     } catch (e) {
-      showMsg('Network error — check the server is running.', 'error');
+      showMsg(`Network error: ${e.message} — server may be starting up, try again in 30s.`, 'error');
     }
 
     setLoading(false);
