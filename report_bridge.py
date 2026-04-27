@@ -686,10 +686,15 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_pe     = _tier_pe(trailing_pe, pe_5yr)
     t_pfcf   = _tier_pfcf(trailing_pfc, pfcf_5yr)
 
-    # Normalise manual qualitative tiers
-    VALID_TIERS = {"HIGH", "MOD-HIGH", "MOD-LOW", "LOW"}
-    t_bc  = (biz_clarity.upper() if biz_clarity and biz_clarity.upper() in VALID_TIERS else None)
-    t_ltp = (ltp.upper() if ltp and ltp.upper() in VALID_TIERS else None)
+    # Normalise manual qualitative tiers (MOD-HIGH / MOD-LOW both → MOD)
+    def _norm(v):
+        v = (v or "").strip().upper()
+        if v in ("MOD-HIGH", "MOD-LOW", "MOD"): return "MOD"
+        if v == "HIGH": return "HIGH"
+        if v == "LOW":  return "LOW"
+        return None
+    t_bc  = _norm(biz_clarity)
+    t_ltp = _norm(ltp)
 
     P = TIER_PTS
     p1 = round((P[t_bc or "MOD"]*2.5 + P["MOD"]*10.0 + P[t_ltp or "MOD"]*10.0 + P["MOD"]*7.5) / 10, 1)
