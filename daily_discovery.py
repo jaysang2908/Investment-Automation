@@ -18,11 +18,15 @@ import csv_schema as _schema
 from report_bridge import build_report_data, render_html_report
 from data_store import save_ticker_data
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR  = os.path.join(BASE_DIR, "static", "reports")
-CSV_PATH = os.path.join(BASE_DIR, "outputs.csv")
-LOG_FILE = os.path.join(BASE_DIR, "discovery_log.txt")
+import json
+
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR      = os.path.join(BASE_DIR, "static", "reports")
+CSV_PATH     = os.path.join(BASE_DIR, "outputs.csv")
+LOG_FILE     = os.path.join(BASE_DIR, "discovery_log.txt")
+BLOCKED_PATH = os.path.join(BASE_DIR, "static", "data", "free_tier_blocked.json")
 os.makedirs(OUT_DIR, exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "static", "data"), exist_ok=True)
 
 MAX_DAILY     = 5    # reports to generate per run
 QUOTA_STRIKES = 15   # total 402s before assuming true quota exhaustion
@@ -61,6 +65,22 @@ POOL = [
 ]
 
 POOL = list(dict.fromkeys([t for t in POOL if t not in EXISTING]))
+
+
+# ── Free-tier blocked ticker tracker ─────────────────────────────────────────
+def _load_blocked():
+    """Return set of tickers known to return 402 on the free tier."""
+    try:
+        with open(BLOCKED_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return set(data.get("blocked", []))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+def _save_blocked(blocked_set):
+    """Persist the blocked set to disk."""
+    with open(BLOCKED_PATH, "w", encoding="utf-8") as f:
+        json.dump({"blocked": sorted(blocked_set)}, f, indent=2)
 
 
 # ── Quota check ───────────────────────────────────────────────────────────────
@@ -254,7 +274,10 @@ def _write_csv_rows(rows):
 # ── Git commit + push (all files at once) ─────────────────────────────────────
 def _git_push_all(html_tickers, today):
     try:
-        files = [f"static/reports/{t}_report.html" for t in html_tickers] + ["outputs.csv"]
+        files = (
+            [f"static/reports/{t}_report.html" for t in html_tickers]
+            + ["outputs.csv", "static/data/free_tier_blocked.json"]
+        )
         subprocess.run(["git", "add"] + files, cwd=BASE_DIR, check=True, capture_output=True)
         names = ", ".join(html_tickers)
         subprocess.run(
@@ -283,15 +306,20 @@ def main():
     print(f"  Daily Discovery — {today}  (target: {MAX_DAILY} reports)")
     print(f"{'='*65}\n")
 
-    # Skip tickers already reported on
+    # Skip tickers already reported on OR known to be blocked on free tier
     already_done = {
         f.replace("_report.html", "")
         for f in os.listdir(OUT_DIR) if f.endswith("_report.html")
     }
-    candidates = [t for t in POOL if t not in already_done]
+    blocked = _load_blocked()
+    skip_set = already_done | blocked
+    candidates = [t for t in POOL if t not in skip_set]
+
+    print(f"  Pool: {len(POOL)} total | {len(already_done)} reported | "
+          f"{len(blocked)} free-tier blocked | {len(candidates)} remaining\n")
 
     if not candidates:
-        msg = f"{today} | Pool exhausted — all discovery tickers already have reports."
+        msg = f"{today} | Pool exhausted — all discovery tickers already have reports or are blocked."
         print(f"  {msg}")
         _log(msg)
         return
@@ -306,9 +334,10 @@ def main():
     rng = random.Random(today)
     rng.shuffle(candidates)
 
-    successes   = []   # list of (ticker, data_dict)
-    quota_total = 0    # total 402s this run (true exhaustion indicator)
-    tried       = []
+    successes      = []   # list of (ticker, data_dict)
+    quota_total    = 0    # total 402s this run (true exhaustion indicator)
+    newly_blocked  = set()
+    tried          = []
 
     for ticker in candidates:
         if len(successes) >= MAX_DAILY:
@@ -329,13 +358,21 @@ def main():
                 time.sleep(3)   # polite gap between API calls
 
         elif result == "quota":
-            # Free tier: this ticker needs premium — skip it, keep trying others
-            print("SKIP  402 (free tier limit for this ticker)")
+            # Free tier: this ticker needs premium — permanently block it
+            print("SKIP  402 (free tier — adding to blocked list)")
+            newly_blocked.add(ticker)
             quota_total += 1
             time.sleep(2)
         else:
             print(f"FAIL  {result}")
             time.sleep(2)
+
+    # Persist newly blocked tickers
+    if newly_blocked:
+        blocked |= newly_blocked
+        _save_blocked(blocked)
+        print(f"\n  Blocked list updated: +{len(newly_blocked)} tickers "
+              f"({', '.join(sorted(newly_blocked))}) → {len(blocked)} total blocked")
 
     # ── Persist all results ───────────────────────────────────────────────────
     if successes:
