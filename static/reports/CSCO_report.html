@@ -667,9 +667,19 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="m-sub">10yr avg N/A <span style="color:#b45309;font-weight:600">N/A</span> · Awaiting analyst estimates</div>
     </div>
     <div class="metric-cell">
-      <div class="m-label">EV/EBITDA</div>
+      <div class="m-label">EV/EBITDA (LTM)</div>
       <div class="m-value">23.4x</div>
       <div class="m-sub">Trailing: 23.4x; fwd pending analyst estimates</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Revenue (LTM)</div>
+      <div class="m-value">6.4x</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Revenue</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Gross Profit (LTM)</div>
+      <div class="m-value">23.4x</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Gross Profit</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">FY2025</div>
@@ -1227,7 +1237,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 
   <div class="valuation-verdict">
     <div class="verdict-title">Valuation Analysis</div>
-    <p>At $86.25, CSCO (CSCO) trades at N/A trailing P/E vs. N/A 5-year average (N/A), and N/A P/FCF vs. N/A 5-year average (N/A). DCF base case (Gordon Growth, WACC 8.4%): <strong>$78 (−10%)</strong>. Bear: $57 (−34%) | Bull: $108 (+25%).</p>
+    <p>At $86.25, CSCO (CSCO) trades at EV/Revenue: 6.4x; EV/EBITDA: 23.4x. DCF (Gordon Growth) base case: <strong>$78 (−10%)</strong>. Bear: $57 (−34%) | Bull: $108 (+25%).</p>
   </div>
 
   <div class="valuation-grid">
@@ -1364,6 +1374,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
             <td>—</td><td class="up">—</td>
             <td>—</td><td class="up">—</td>
           </tr>
+          <tr class="section-divider"><td colspan="5">LTM Revenue Multiples</td></tr>
+          <tr>
+            <td>EV/Revenue (LTM) — 6.4x</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
+          <tr>
+            <td>EV/Gross Profit (LTM) — 23.4x</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
         </tbody>
       </table>
       <p style="font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.55">Method: P/E (N/A vs 5yr avg N/A), P/FCF (N/A vs 5yr avg N/A), EV/EBITDA 23.4x. Forward multiples pending analyst estimates (FMP free tier).</p>
@@ -1371,8 +1392,8 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.55">
         <strong style="color:var(--accent-ink)">Composite Fair Value Range:</strong>
         <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)"> $78</span>
-        on FY2026E consensus (avg of 6 methods, historical multiples).<br>
-        <span style="color:var(--ink-2)">DCF base: $78 (−10%); bear $57 (−34%), bull $108 (+25%).</span>
+        &nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg-card);border:1px solid var(--line);padding:2px 8px;border-radius:3px">DCF (Gordon Growth)</span><br>
+        <span style="color:var(--ink-2)">DCF (Gordon Growth) base: $78 (−10%); bear $57 (−34%), bull $108 (+25%).</span>
       </div>
     </div>
   </div>

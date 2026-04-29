@@ -708,9 +708,19 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="m-sub">10yr avg 15.2x <span style="color:#00695c;font-weight:600">−8%</span> · Awaiting analyst estimates</div>
     </div>
     <div class="metric-cell">
-      <div class="m-label">EV/EBITDA</div>
+      <div class="m-label">EV/EBITDA (LTM)</div>
       <div class="m-value">N/A</div>
       <div class="m-sub">Trailing: N/A; fwd pending analyst estimates</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Revenue (LTM)</div>
+      <div class="m-value">N/A</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Revenue</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Gross Profit (LTM)</div>
+      <div class="m-value">N/A</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Gross Profit</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">FY2025</div>
@@ -1268,7 +1278,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 
   <div class="valuation-verdict">
     <div class="verdict-title">Valuation Analysis</div>
-    <p>At $431.92, HCA Healthcare, Inc. (HCA) trades at 15.9x trailing P/E vs. 13.5x 5-year average (+18%), and 14.0x P/FCF vs. 15.2x 5-year average (−8%). DCF base case (Gordon Growth, WACC 8.3%): <strong>$499 (+16%)</strong>. Bear: $362 (−16%) | Bull: $698 (+62%).</p>
+    <p>At $431.92, HCA Healthcare, Inc. (HCA) trades at 15.9x trailing P/E vs. 13.5x 5-year average (+18%), and 14.0x P/FCF vs. 15.2x 5-year average (−8%). EV/Revenue: N/A; EV/EBITDA: N/A. DCF (Gordon Growth) base case: <strong>$499 (+16%)</strong>. Bear: $362 (−16%) | Bull: $698 (+62%).</p>
   </div>
 
   <div class="valuation-grid">
@@ -1405,6 +1415,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
             <td>N/A</td><td class="up">N/A</td>
             <td>N/A</td><td class="up">N/A</td>
           </tr>
+          <tr class="section-divider"><td colspan="5">LTM Revenue Multiples</td></tr>
+          <tr>
+            <td>EV/Revenue (LTM) — N/A</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
+          <tr>
+            <td>EV/Gross Profit (LTM) — N/A</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
         </tbody>
       </table>
       <p style="font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.55">Method: P/E (+18% vs 5yr avg 13.5x), P/FCF (−8% vs 5yr avg 15.2x), EV/EBITDA N/A. Forward multiples pending analyst estimates (FMP free tier).</p>
@@ -1412,8 +1433,8 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.55">
         <strong style="color:var(--accent-ink)">Composite Fair Value Range:</strong>
         <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)"> $499</span>
-        on FY2026E consensus (avg of 6 methods, historical multiples).<br>
-        <span style="color:var(--ink-2)">DCF base: $499 (+16%); bear $362 (−16%), bull $698 (+62%).</span>
+        &nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg-card);border:1px solid var(--line);padding:2px 8px;border-radius:3px">DCF (Gordon Growth)</span><br>
+        <span style="color:var(--ink-2)">DCF (Gordon Growth) base: $499 (+16%); bear $362 (−16%), bull $698 (+62%).</span>
       </div>
     </div>
   </div>

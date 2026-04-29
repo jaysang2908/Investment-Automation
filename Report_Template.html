@@ -667,9 +667,19 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="m-sub">10yr avg {{FORWARD_PFCF_10YR}} <span style="color:{{FORWARD_PFCF_DELTA_COLOR}};font-weight:600">{{FORWARD_PFCF_DELTA}}</span> · {{FORWARD_PFCF_EST}}</div>
     </div>
     <div class="metric-cell">
-      <div class="m-label">EV/EBITDA</div>
+      <div class="m-label">EV/EBITDA (LTM)</div>
       <div class="m-value">{{EV_EBITDA_TRAILING}}</div>
       <div class="m-sub">{{EV_EBITDA_FWD_NOTE}}</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Revenue (LTM)</div>
+      <div class="m-value">{{EV_REV_LTM}}</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Revenue</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Gross Profit (LTM)</div>
+      <div class="m-value">{{EV_GP_LTM}}</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Gross Profit</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">{{REVENUE_YEAR_LABEL}}</div>
@@ -1364,6 +1374,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
             <td>{{MULT_EV5_FY1_PX}}</td><td class="up">{{MULT_EV5_FY1_UPS}}</td>
             <td>{{MULT_EV5_FY2_PX}}</td><td class="up">{{MULT_EV5_FY2_UPS}}</td>
           </tr>
+          <tr class="section-divider"><td colspan="5">LTM Revenue Multiples</td></tr>
+          <tr>
+            <td>EV/Revenue (LTM) — {{EV_REV_LTM}}</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
+          <tr>
+            <td>EV/Gross Profit (LTM) — {{EV_GP_LTM}}</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
         </tbody>
       </table>
       <p style="font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.55">{{MULTIPLES_METHOD_RATIONALE}}</p>
@@ -1371,7 +1392,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.55">
         <strong style="color:var(--accent-ink)">Composite Fair Value Range:</strong>
         <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)"> {{COMPOSITE_FAIR_VALUE}}</span>
-        on {{FY_FWD1}} consensus (avg of 6 methods, historical multiples).<br>
+        &nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg-card);border:1px solid var(--line);padding:2px 8px;border-radius:3px">{{VALUATION_METHOD}}</span><br>
         <span style="color:var(--ink-2)">{{COMPOSITE_UPSIDE_NOTE}}</span>
       </div>
     </div>

@@ -667,9 +667,19 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="m-sub">10yr avg 32.6x <span style="color:#00695c;font-weight:600">−21%</span> · Awaiting analyst estimates</div>
     </div>
     <div class="metric-cell">
-      <div class="m-label">EV/EBITDA</div>
+      <div class="m-label">EV/EBITDA (LTM)</div>
       <div class="m-value">N/A</div>
       <div class="m-sub">Trailing: N/A; fwd pending analyst estimates</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Revenue (LTM)</div>
+      <div class="m-value">N/A</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Revenue</div>
+    </div>
+    <div class="metric-cell">
+      <div class="m-label">EV/Gross Profit (LTM)</div>
+      <div class="m-value">N/A</div>
+      <div class="m-sub">Enterprise Value ÷ LTM Gross Profit</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">FY2025</div>
@@ -1227,7 +1237,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 
   <div class="valuation-verdict">
     <div class="verdict-title">Valuation Analysis</div>
-    <p>At $154.10, PepsiCo, Inc. (PEP) trades at 23.9x trailing P/E vs. 26.2x 5-year average (−9%), and 25.6x P/FCF vs. 32.6x 5-year average (−21%). DCF base case (Gordon Growth, WACC 6.7%): <strong>$142 (−8%)</strong>. Bear: $92 (−40%) | Bull: $237 (+54%).</p>
+    <p>At $154.10, PepsiCo, Inc. (PEP) trades at 23.9x trailing P/E vs. 26.2x 5-year average (−9%), and 25.6x P/FCF vs. 32.6x 5-year average (−21%). EV/Revenue: N/A; EV/EBITDA: N/A. DCF (Gordon Growth) base case: <strong>$142 (−8%)</strong>. Bear: $92 (−40%) | Bull: $237 (+54%).</p>
   </div>
 
   <div class="valuation-grid">
@@ -1364,6 +1374,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
             <td>N/A</td><td class="up">N/A</td>
             <td>N/A</td><td class="up">N/A</td>
           </tr>
+          <tr class="section-divider"><td colspan="5">LTM Revenue Multiples</td></tr>
+          <tr>
+            <td>EV/Revenue (LTM) — N/A</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
+          <tr>
+            <td>EV/Gross Profit (LTM) — N/A</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
+            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          </tr>
         </tbody>
       </table>
       <p style="font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.55">Method: P/E (−9% vs 5yr avg 26.2x), P/FCF (−21% vs 5yr avg 32.6x), EV/EBITDA N/A. Forward multiples pending analyst estimates (FMP free tier).</p>
@@ -1371,8 +1392,8 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.55">
         <strong style="color:var(--accent-ink)">Composite Fair Value Range:</strong>
         <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)"> $142</span>
-        on FY2026E consensus (avg of 6 methods, historical multiples).<br>
-        <span style="color:var(--ink-2)">DCF base: $142 (−8%); bear $92 (−40%), bull $237 (+54%).</span>
+        &nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg-card);border:1px solid var(--line);padding:2px 8px;border-radius:3px">DCF (Gordon Growth)</span><br>
+        <span style="color:var(--ink-2)">DCF (Gordon Growth) base: $142 (−8%); bear $92 (−40%), bull $237 (+54%).</span>
       </div>
     </div>
   </div>

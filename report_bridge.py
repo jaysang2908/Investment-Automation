@@ -524,8 +524,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 ) if len(cf_data) >= 2 else None
     fcf_yoy  = (fcf0 / fcf_prev - 1) if fcf_prev else None
 
-    # ── Valuation multiples ────────────────────────────────────────────────────
+    # ── Valuation multiples (LTM) ─────────────────────────────────────────────
     ev_ebitda = (ev / ebd0) if ev and ebd0 > 0 else None
+    ev_rev    = (ev / rev0) if ev and rev0 > 0 else None
+    ev_gp     = (ev / gp0)  if ev and gp0  > 0 else None
     pe_delta  = _delta(trailing_pe, pe_5yr)
     pfcf_delta = _delta(trailing_pfc, pfcf_5yr)
 
@@ -547,6 +549,56 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     bear_px = _dcf_px(base_px, w_bear, tgr_bear)
     bull_px = _dcf_px(base_px, w_bull, tgr_bull)
+
+    # ── Revenue-based valuation fallback (for negative/zero FCF companies) ────
+    # When DCF yields no price (negative FCF), use growth-adjusted EV/Revenue
+    # multiples to produce a realistic fair-value range.
+    _val_method = "DCF (Gordon Growth)"
+    _rev_val_note = ""
+    _need_rev_val = (base_px is None) and (rev0 > 0) and (shares > 0)
+
+    if _need_rev_val and ev is not None:
+        # Current observed EV/Revenue (market-implied)
+        _ev_rev_obs = ev / rev0
+
+        # Growth-calibrated target multiples
+        _rc = rev_cagr_v or 0.0
+        if _rc > 0.30:
+            _rm_bear, _rm_base, _rm_bull = 3.0, 6.0, 10.0
+            _rm_tier = "High growth (>30% CAGR)"
+        elif _rc > 0.15:
+            _rm_bear, _rm_base, _rm_bull = 2.0, 4.0, 7.0
+            _rm_tier = "Growth (15–30% CAGR)"
+        elif _rc > 0.05:
+            _rm_bear, _rm_base, _rm_bull = 1.0, 2.5, 4.0
+            _rm_tier = "Moderate growth (5–15% CAGR)"
+        else:
+            _rm_bear, _rm_base, _rm_bull = 0.5, 1.5, 2.5
+            _rm_tier = "Low/negative growth"
+
+        # Apply multiples to next-year forward revenue estimate
+        _fwd_rev1 = rev0 * (1 + max(0, _rc))
+        net_debt0 = debt0 - cash0   # positive = net debt; negative = net cash
+
+        def _rev_px(mult):
+            _eq = mult * _fwd_rev1 - net_debt0
+            px  = _eq / shares if shares > 0 else None
+            return round(px, 0) if px and px > 0 else None
+
+        bear_px = _rev_px(_rm_bear)
+        base_px = _rev_px(_rm_base)
+        bull_px = _rev_px(_rm_bull)
+
+        _val_method = "EV/Revenue (revenue multiple)"
+        _rev_val_note = (
+            f"DCF not applicable (trailing FCF negative: {_b(fcf0)}). "
+            f"Valuation based on EV/Revenue multiples calibrated to {_pct(_rc)} revenue CAGR "
+            f"({_rm_tier}). "
+            f"Applied to FY{int(years[-1])+1}E revenue estimate ({_b(_fwd_rev1)}): "
+            f"bear {_rm_bear:.1f}x, base {_rm_base:.1f}x, bull {_rm_bull:.1f}x EV/Revenue. "
+            f"Current market-implied EV/Revenue: {_ev_rev_obs:.1f}x."
+        )
+        price_target = base_px or current_price
 
     # ── WACC components (approximate from available data) ──────────────────────
     RF_APPROX  = 0.043   # 10yr Treasury approx
@@ -964,6 +1016,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FORWARD_PFCF_DELTA":   pfcf_delta,
         "EV_EBITDA_TRAILING":   _x(ev_ebitda),
         "EV_EBITDA_FWD_NOTE":   f"Trailing: {_x(ev_ebitda)}; fwd pending analyst estimates",
+        "EV_REV_LTM":           _x(ev_rev),
+        "EV_GP_LTM":            _x(ev_gp),
+        "VALUATION_METHOD":     _val_method,
+        "REV_VAL_NOTE":         _rev_val_note,
 
         # Key metrics
         "REVENUE_YEAR_LABEL":   f"FY{years[-1]}",
@@ -1182,17 +1238,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         # Valuation verdict
         "VALUATION_VERDICT_TITLE": "Valuation Analysis",
         "VALUATION_VERDICT_TEXT": (
-            f"At ${current_price:.2f}, {company_name} ({ticker}) trades at {_x(trailing_pe)} trailing P/E "
-            f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}), and {_x(trailing_pfc)} P/FCF "
-            f"vs. {_x(pfcf_5yr)} 5-year average ({pfcf_delta}). "
-            f"DCF base case (Gordon Growth, WACC {wacc_b*100:.1f}%): <strong>${base_px:.0f} ({_vs(base_px, current_price)})</strong>. "
-            + (f"Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) | Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else "")
-        ) if base_px and current_price else (
-            f"At ${current_price:.2f}, " if current_price else ""
-        ) + (
-            f"{company_name} trades at {_x(trailing_pe)} trailing P/E "
-            f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}) and {_x(trailing_pfc)} P/FCF. "
-            f"DCF price not computed — insufficient FCF history or negative base cash flow."
+            f"At ${current_price:.2f}, {company_name} ({ticker}) trades at "
+            + (f"{_x(trailing_pe)} trailing P/E vs. {_x(pe_5yr)} 5-year average ({pe_delta}), "
+               f"and {_x(trailing_pfc)} P/FCF vs. {_x(pfcf_5yr)} 5-year average ({pfcf_delta}). "
+               if (trailing_pe or trailing_pfc) else "")
+            + f"EV/Revenue: {_x(ev_rev)}; EV/EBITDA: {_x(ev_ebitda)}. "
+            + (f"{_val_method} base case: <strong>${base_px:.0f} ({_vs(base_px, current_price)})</strong>. "
+               + (f"Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) | Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else "")
+               + (f"<br><em style='font-size:12px;color:var(--muted)'>{_rev_val_note}</em>" if _rev_val_note else "")
+               if base_px else "Fair value not computable.")
+        ) if current_price else (
+            f"Valuation: EV/Revenue {_x(ev_rev)}, EV/EBITDA {_x(ev_ebitda)}, "
+            f"P/E {_x(trailing_pe)}, P/FCF {_x(trailing_pfc)}."
         ),
 
         "DCF_BEAR_WACC": f"{w_bear*100:.1f}%", "DCF_BEAR_TGR": f"{tgr_bear*100:.1f}%",
@@ -1268,10 +1325,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "COMPOSITE_FAIR_VALUE":       f"${base_px:.0f}" if base_px else "N/A",
         "COMPOSITE_UPSIDE_NOTE":      (
             (
-                f"DCF base: ${base_px:.0f} ({_vs(base_px, current_price)}); "
-                + (f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else "bear/bull scenarios not computed (negative FCF).")
+                f"{_val_method} base: ${base_px:.0f} ({_vs(base_px, current_price)}); "
+                + (f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else "bear/bull scenarios not computed.")
+                + (f" {_rev_val_note}" if _rev_val_note else "")
             ) if base_px else
-            f"DCF not computed — FCF base insufficient. Multiples: P/E {_x(trailing_pe)}, P/FCF {_x(trailing_pfc)}, EV/EBITDA {_x(ev_ebitda)}."
+            f"No DCF price computed — FCF negative. Multiples: EV/Revenue {_x(ev_rev)}, P/E {_x(trailing_pe)}, EV/EBITDA {_x(ev_ebitda)}."
         ),
 
         # Analysts (auto-fetched where available via analyst_ests param)
