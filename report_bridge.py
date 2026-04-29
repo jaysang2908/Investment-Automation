@@ -456,7 +456,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     description  = profile.get("description") or ""
     ceo_info     = f"CEO: {ceo}."
 
-    current_price = current_price or float(profile.get("price") or 0) or 0.0
+    current_price = float(current_price or profile.get("price") or 0) or 0.0
     market_cap    = market_cap    or float(profile.get("mktCap") or 0) or 0.0
 
     shares = float(profile.get("sharesOutstanding") or 0)
@@ -1012,16 +1012,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"Base case: {_pct(_base_rev_g)} revenue growth with {_pct(ebitdam0)} EBITDA margins sustained. "
             f"Bear: growth slows to {_pct(_bear_rev_g)} with margin compression to {_pct(_bear_margin)}. "
             f"Bull: {_pct(_bull_rev_g)} revenue acceleration with margin expansion to {_pct(_bull_margin)}. "
-            f"DCF range: ${bear_px:.0f}–${bull_px:.0f} (bear–bull)."
+            + (f"DCF range: ${bear_px:.0f}–${bull_px:.0f} (bear–bull)." if bear_px and bull_px else
+               f"DCF base: ${base_px:.0f} (bear/bull not computed)." if base_px else "DCF range unavailable.")
             if base_px else
-            f"Review FY{years[-1]} fundamentals: revenue {_b(rev0)}, EBITDA margin {_pct(ebitdam0)}, FCF {_b(fcf0)}."
+            f"FY{years[-1]} fundamentals: revenue {_b(rev0)}, EBITDA margin {_pct(ebitdam0)}, FCF {_b(fcf0)}."
         ),
         "THESIS_VALUATION_TEXT": (
             f"At ${current_price:.2f}, {ticker} trades at {_x(trailing_pe)} trailing P/E "
             f"({pe_delta} vs {_x(pe_5yr)} 5yr avg) and {_x(trailing_pfc)} P/FCF "
             f"({pfcf_delta} vs {_x(pfcf_5yr)} 5yr avg). "
-            f"Gordon Growth DCF (WACC {wacc_b*100:.1f}%): base ${base_px:.0f} ({_vs(base_px, current_price)}), "
-            f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})."
+            f"Gordon Growth DCF (WACC {wacc_b*100:.1f}%): base ${base_px:.0f} ({_vs(base_px, current_price)})"
+            + (f", bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else ".")
             if base_px and current_price else
             f"Trailing P/E {_x(trailing_pe)} vs 5yr avg {_x(pe_5yr)}. "
             f"P/FCF {_x(trailing_pfc)} vs 5yr avg {_x(pfcf_5yr)}. "
@@ -1185,9 +1186,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}), and {_x(trailing_pfc)} P/FCF "
             f"vs. {_x(pfcf_5yr)} 5-year average ({pfcf_delta}). "
             f"DCF base case (Gordon Growth, WACC {wacc_b*100:.1f}%): <strong>${base_px:.0f} ({_vs(base_px, current_price)})</strong>. "
-            f"Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) | Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}). "
+            + (f"Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) | Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else "")
         ) if base_px and current_price else (
-            f"At ${current_price:.2f}, {company_name} trades at {_x(trailing_pe)} trailing P/E "
+            f"At ${current_price:.2f}, " if current_price else ""
+        ) + (
+            f"{company_name} trades at {_x(trailing_pe)} trailing P/E "
             f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}) and {_x(trailing_pfc)} P/FCF. "
             f"DCF price not computed — insufficient FCF history or negative base cash flow."
         ),
@@ -1264,9 +1267,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         ),
         "COMPOSITE_FAIR_VALUE":       f"${base_px:.0f}" if base_px else "N/A",
         "COMPOSITE_UPSIDE_NOTE":      (
-            f"DCF base: ${base_px:.0f} ({_vs(base_px, current_price)}); "
-            f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})."
-            if base_px else
+            (
+                f"DCF base: ${base_px:.0f} ({_vs(base_px, current_price)}); "
+                + (f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})." if bear_px and bull_px else "bear/bull scenarios not computed (negative FCF).")
+            ) if base_px else
             f"DCF not computed — FCF base insufficient. Multiples: P/E {_x(trailing_pe)}, P/FCF {_x(trailing_pfc)}, EV/EBITDA {_x(ev_ebitda)}."
         ),
 
