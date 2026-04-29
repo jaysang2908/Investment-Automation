@@ -692,6 +692,32 @@ def api_update_qualitative(ticker):
     scorecard_metrics = stored.get("scorecard_metrics") or {}
     auto_score = float(scorecard_metrics.get("auto_score") or 0)
 
+    # Self-heal: if scorecard_metrics is empty, recompute from stored financials
+    if not auto_score and stored.get("is_data"):
+        try:
+            from openpyxl import Workbook as _WB
+            _wb = _WB()
+            _, recomputed = mdl.build_scorecard(
+                _wb, ticker,
+                stored["is_data"], stored["bs_data"], stored["cf_data"],
+                stored.get("years") or []
+            )
+            auto_score = float(recomputed.get("auto_score") or 0)
+            scorecard_metrics = recomputed
+            # Persist so future calls are instant
+            save_ticker_data(
+                ticker, stored["is_data"], stored["bs_data"], stored["cf_data"],
+                stored.get("profile") or {}, stored.get("years") or [],
+                stored.get("wacc_val"), stored.get("dcf_prices") or {},
+                recomputed, stored.get("analyst_ests") or []
+            )
+        except Exception:
+            pass
+
+    # Final fallback: use the auto_score hint the dashboard sent (from hardcoded D array)
+    if not auto_score:
+        auto_score = float(body.get("auto_score") or 0)
+
     TIER_PTS  = {"HIGH": 10, "MOD": 7, "LOW": 0}
     bc_pts    = TIER_PTS.get(biz_clarity, 0) * 2.5 / 10
     ltp_pts   = TIER_PTS.get(ltp,         0) * 10.0 / 10

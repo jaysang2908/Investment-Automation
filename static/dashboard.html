@@ -103,10 +103,12 @@
     .lbtns{display:flex;gap:7px}
     .el{font-size:8.5pt;color:var(--text-dim);padding:16px 0;font-style:italic}
 
-    /* Qualitative dropdowns */
+    /* Qualitative dropdowns + Apply button */
     .qsel{font-family:'IBM Plex Mono',monospace;font-size:7pt;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border2);border-radius:2px;padding:3px 5px;cursor:pointer;width:56px;appearance:none;-webkit-appearance:none;outline:none;transition:border-color .15s,color .15s}
     .qsel:hover{border-color:rgba(201,168,76,.4)}.qsel:focus{border-color:var(--gold)}
     .qsel.sH{color:var(--green);border-color:rgba(16,185,129,.4)}.qsel.sM{color:var(--amber);border-color:rgba(245,158,11,.4)}.qsel.sL{color:var(--red);border-color:rgba(239,68,68,.4)}
+    .qbtn{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:3px 7px;border-radius:2px;border:1px solid rgba(201,168,76,.35);background:transparent;color:var(--gold);cursor:pointer;transition:all .15s;white-space:nowrap}
+    .qbtn:hover{background:var(--gold-dim)}.qbtn:active{opacity:.7}
     .toast{position:fixed;bottom:28px;right:28px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:8pt;padding:10px 18px;border-radius:3px;z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
     .toast.show{opacity:1;transform:translateY(0)}
 
@@ -246,19 +248,22 @@ const D = [
 // ── Qualitative helpers ───────────────────────────────────────────────────────
 function qualCell(c){
   if(c.pending) return'<span class="cd" style="font-size:7pt">—</span>';
-  return`<div style="display:flex;gap:5px;justify-content:center">
-    <select class="qsel" title="Business Clarity (adds up to 2.5 pts)" onchange="updateQual('${c.t}')">
+  // c._auto is frozen at render time — the original auto_score before any qual adjustments
+  const hint=c._auto||0;
+  return`<div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap">
+    <select class="qsel" title="Business Clarity (adds up to 2.5 pts to score)">
       <option value="">BC</option>
       <option value="HIGH">HIGH</option>
       <option value="MOD">MOD</option>
       <option value="LOW">LOW</option>
     </select>
-    <select class="qsel" title="Long-Term Positioning (adds up to 10 pts)" onchange="updateQual('${c.t}')">
+    <select class="qsel" title="Long-Term Positioning (adds up to 10 pts to score)">
       <option value="">LTP</option>
       <option value="HIGH">HIGH</option>
       <option value="MOD">MOD</option>
       <option value="LOW">LOW</option>
     </select>
+    <button class="qbtn" onclick="updateQual('${c.t}',${hint})" title="Apply qualitative inputs and update score + report">Apply</button>
   </div>`;
 }
 
@@ -276,22 +281,25 @@ function _applySelStyle(sel){
   if(sel.value) sel.classList.add('s'+sel.value[0]);
 }
 
-async function updateQual(ticker){
+async function updateQual(ticker, autoScoreHint){
   const row=document.querySelector(`tr[data-ticker="${ticker}"]`);
   if(!row) return;
   const sels=row.querySelectorAll('.qsel');
   if(sels.length<2) return;
   const bc=sels[0].value, ltp=sels[1].value;
 
+  const btn=row.querySelector('.qbtn');
+  if(btn){btn.textContent='...';btn.disabled=true;}
   const scoreEl=document.getElementById(`sc-${ticker}`);
   if(scoreEl) scoreEl.innerHTML=`<span style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)">updating…</span>`;
 
   try{
     const r=await fetch(`/api/qualitative/${ticker}`,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({biz_clarity:bc,ltp:ltp})
+      body:JSON.stringify({biz_clarity:bc,ltp:ltp,auto_score:autoScoreHint||0})
     });
     const d=await r.json();
+    if(btn){btn.textContent='Apply';btn.disabled=false;}
     if(!r.ok){alert(d.error||'Update failed');_restoreScore(ticker);return;}
 
     const entry=D.find(x=>x.t===ticker);
@@ -303,9 +311,9 @@ async function updateQual(ticker){
     }
     [sels[0],sels[1]].forEach(s=>_applySelStyle(s));
     _updateStats();
-    const note=d.warning?` ⚠`:'';
-    showToast(`${ticker} score → ${d.adj_score.toFixed(1)}${note}`);
-  }catch(e){_restoreScore(ticker);}
+    const note=d.warning?' (report regen failed — score saved)':' — report updated';
+    showToast(`${ticker} score -> ${d.adj_score.toFixed(1)}${note}`);
+  }catch(e){if(btn){btn.textContent='Apply';btn.disabled=false;}_restoreScore(ticker);}
 }
 
 function _restoreScore(ticker){
@@ -385,6 +393,8 @@ function actions(c){
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function render(){
+  // Freeze original auto_score before any qual overrides mutate entry.score
+  D.forEach(c=>{ c._auto = c.score; });
   const tb=document.getElementById('tb');
   const notes=[];
   D.forEach(c=>{
