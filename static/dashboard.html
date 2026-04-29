@@ -52,7 +52,7 @@
     .ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
     .tscroll{overflow-x:auto;border:1px solid var(--border);border-radius:4px}
-    table{width:100%;border-collapse:collapse;font-size:8.5pt;min-width:1060px}
+    table{width:100%;border-collapse:collapse;font-size:8.5pt;min-width:1200px}
     thead th{font-family:'IBM Plex Mono',monospace;font-size:5.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);font-weight:400;padding:11px 13px;white-space:nowrap;background:var(--surface);border-bottom:2px solid var(--border2);text-align:left}
     thead th.c{text-align:center}
     tbody td{padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--bg);white-space:nowrap}
@@ -102,6 +102,13 @@
     .lts{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
     .lbtns{display:flex;gap:7px}
     .el{font-size:8.5pt;color:var(--text-dim);padding:16px 0;font-style:italic}
+
+    /* Qualitative dropdowns */
+    .qsel{font-family:'IBM Plex Mono',monospace;font-size:7pt;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border2);border-radius:2px;padding:3px 5px;cursor:pointer;width:56px;appearance:none;-webkit-appearance:none;outline:none;transition:border-color .15s,color .15s}
+    .qsel:hover{border-color:rgba(201,168,76,.4)}.qsel:focus{border-color:var(--gold)}
+    .qsel.sH{color:var(--green);border-color:rgba(16,185,129,.4)}.qsel.sM{color:var(--amber);border-color:rgba(245,158,11,.4)}.qsel.sL{color:var(--red);border-color:rgba(239,68,68,.4)}
+    .toast{position:fixed;bottom:28px;right:28px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:8pt;padding:10px 18px;border-radius:3px;z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+    .toast.show{opacity:1;transform:translateY(0)}
 
     @media(max-width:900px){
       nav{padding:0 24px}.nlinks,.np{display:none}
@@ -160,6 +167,7 @@
           <th class="c" style="min-width:75px">D/EBITDA</th>
           <th class="c" style="min-width:155px">P/E  ·  5yr avg  ·  Δ</th>
           <th class="c" style="min-width:155px">P/FCF  ·  5yr avg  ·  Δ</th>
+          <th class="c" style="min-width:130px">Qual Inputs  ·  BC / LTP</th>
           <th style="min-width:120px"></th>
         </tr>
       </thead>
@@ -167,6 +175,31 @@
     </table>
   </div>
   <div class="tnotes" id="tnotes"></div>
+</div>
+
+<div id="disc-section" style="display:none" class="ts">
+  <div class="tslbl">Discovery Coverage  ·  Auto-generated via daily_discovery.py</div>
+  <div class="tscroll">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:190px">Company</th>
+          <th style="min-width:115px">Score</th>
+          <th class="c" style="min-width:72px">DCF GG</th>
+          <th class="c" style="min-width:72px">DCF EM</th>
+          <th class="c" style="min-width:68px">ROIC</th>
+          <th class="c" style="min-width:75px">Rev CAGR</th>
+          <th class="c" style="min-width:68px">FCF/NI</th>
+          <th class="c" style="min-width:75px">D/EBITDA</th>
+          <th class="c" style="min-width:100px">P/E</th>
+          <th class="c" style="min-width:100px">P/FCF</th>
+          <th class="c" style="min-width:130px">Qual Inputs  ·  BC / LTP</th>
+          <th style="min-width:100px"></th>
+        </tr>
+      </thead>
+      <tbody id="disc-tb"></tbody>
+    </table>
+  </div>
 </div>
 
 <div class="ls">
@@ -209,6 +242,107 @@ const D = [
   {t:"F",   n:"Ford Motor Company",     ex:"NYSE",  score:15.8,sn:"auto-score, floor 64",gg:null,em:-0.944,roic:0.010,cagr:0.058,fcfni:1.52,de:19.3,pe:null,pe5:7.5,pf:4.2,pf5:6.5,url:"/reports/F_report.html",note:"GG DCF negative (extreme leverage). Score reflects updated FY2025 data; prior: 35.8."},
   {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available in model — report shows financial data only."},
 ];
+
+// ── Qualitative helpers ───────────────────────────────────────────────────────
+function qualCell(c){
+  if(c.pending) return'<span class="cd" style="font-size:7pt">—</span>';
+  return`<div style="display:flex;gap:5px;justify-content:center">
+    <select class="qsel" title="Business Clarity (adds up to 2.5 pts)" onchange="updateQual('${c.t}')">
+      <option value="">BC</option>
+      <option value="HIGH">HIGH</option>
+      <option value="MOD">MOD</option>
+      <option value="LOW">LOW</option>
+    </select>
+    <select class="qsel" title="Long-Term Positioning (adds up to 10 pts)" onchange="updateQual('${c.t}')">
+      <option value="">LTP</option>
+      <option value="HIGH">HIGH</option>
+      <option value="MOD">MOD</option>
+      <option value="LOW">LOW</option>
+    </select>
+  </div>`;
+}
+
+let _toastTimer;
+function showToast(msg){
+  let t=document.getElementById('_toast');
+  if(!t){t=document.createElement('div');t.id='_toast';t.className='toast';document.body.appendChild(t);}
+  clearTimeout(_toastTimer);
+  t.textContent=msg; t.classList.add('show');
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+function _applySelStyle(sel){
+  sel.classList.remove('sH','sM','sL');
+  if(sel.value) sel.classList.add('s'+sel.value[0]);
+}
+
+async function updateQual(ticker){
+  const row=document.querySelector(`tr[data-ticker="${ticker}"]`);
+  if(!row) return;
+  const sels=row.querySelectorAll('.qsel');
+  if(sels.length<2) return;
+  const bc=sels[0].value, ltp=sels[1].value;
+
+  const scoreEl=document.getElementById(`sc-${ticker}`);
+  if(scoreEl) scoreEl.innerHTML=`<span style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)">updating…</span>`;
+
+  try{
+    const r=await fetch(`/api/qualitative/${ticker}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({biz_clarity:bc,ltp:ltp})
+    });
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'Update failed');_restoreScore(ticker);return;}
+
+    const entry=D.find(x=>x.t===ticker);
+    if(entry){entry.score=d.adj_score;entry.sn=(d.biz_clarity||d.ltp)?'qual adj.':'auto-score';}
+
+    if(scoreEl){
+      scoreEl.innerHTML=scoreCell({score:d.adj_score,sn:(d.biz_clarity||d.ltp)?'qual adj.':'auto-score'});
+      setTimeout(()=>scoreEl.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
+    }
+    [sels[0],sels[1]].forEach(s=>_applySelStyle(s));
+    _updateStats();
+    const note=d.warning?` ⚠`:'';
+    showToast(`${ticker} score → ${d.adj_score.toFixed(1)}${note}`);
+  }catch(e){_restoreScore(ticker);}
+}
+
+function _restoreScore(ticker){
+  const c=D.find(x=>x.t===ticker)||{score:null,sn:null};
+  const el=document.getElementById(`sc-${ticker}`);
+  if(el){el.innerHTML=scoreCell(c);setTimeout(()=>el.querySelectorAll('.sfill[data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),100);}
+}
+
+async function loadQualOverrides(){
+  try{
+    const ov=await(await fetch('/api/qualitative-all')).json();
+    Object.entries(ov).forEach(([ticker,o])=>{
+      const row=document.querySelector(`tr[data-ticker="${ticker}"]`);
+      if(!row) return;
+      const sels=row.querySelectorAll('.qsel');
+      if(sels.length>=2){
+        if(o.biz_clarity){sels[0].value=o.biz_clarity;_applySelStyle(sels[0]);}
+        if(o.ltp)        {sels[1].value=o.ltp;        _applySelStyle(sels[1]);}
+      }
+      if(o.adj_score!=null){
+        const entry=D.find(x=>x.t===ticker);
+        if(entry){entry.score=o.adj_score;entry.sn='qual adj.';}
+        const el=document.getElementById(`sc-${ticker}`);
+        if(el) el.innerHTML=scoreCell({score:o.adj_score,sn:'qual adj.'});
+      }
+    });
+    setTimeout(()=>document.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
+    _updateStats();
+  }catch(e){}
+}
+
+function _updateStats(){
+  const sc=D.filter(c=>c.score!=null).map(c=>c.score);
+  document.getElementById('sCov').textContent=sc.length;
+  document.getElementById('sAvg').textContent=sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1):'—';
+  document.getElementById('sHC').textContent=sc.length?sc.filter(s=>s>=75).length:'—';
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const p=(v,d=1)=>v==null?'—':((v>=0?'+':'')+(v*100).toFixed(d)+'%');
@@ -256,10 +390,11 @@ function render(){
   D.forEach(c=>{
     const tr=document.createElement('tr');
     if(c.pending) tr.className='pr';
+    tr.dataset.ticker=c.t;
     tr.innerHTML=`
       <td><div class="tcc"><div class="tlog">${c.t.slice(0,4)}</div>
         <div><div class="tn">${c.n}</div><div class="te">${c.ex}: ${c.t}</div></div></div></td>
-      <td>${scoreCell(c)}</td>
+      <td id="sc-${c.t}">${scoreCell(c)}</td>
       <td style="text-align:center">${upChip(c.gg)}</td>
       <td style="text-align:center">${upChip(c.em)}</td>
       <td style="text-align:center">${roicChip(c.roic)}</td>
@@ -268,16 +403,54 @@ function render(){
       <td style="text-align:center">${deChip(c.de)}</td>
       <td style="text-align:center">${valCell(c.pe,c.pe5)}</td>
       <td style="text-align:center">${valCell(c.pf,c.pf5)}</td>
+      <td style="text-align:center">${qualCell(c)}</td>
       <td>${actions(c)}</td>`;
     tb.appendChild(tr);
     if(c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`);
   });
   setTimeout(()=>document.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
   if(notes.length) document.getElementById('tnotes').innerHTML='<strong>Notes —</strong> '+notes.join(' &nbsp;&middot;&nbsp; ');
-  const sc=D.filter(c=>c.score!=null).map(c=>c.score);
-  document.getElementById('sCov').textContent=sc.length;
-  document.getElementById('sAvg').textContent=sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1):'—';
-  document.getElementById('sHC').textContent=sc.length?sc.filter(s=>s>=75).length:'—';
+  _updateStats();
+}
+
+// ── Discovery tickers (from outputs.csv via heatmap API) ──────────────────────
+const CORE_SET=new Set(["NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V","KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI","JPM","C","BAC","UAL"]);
+
+async function loadDiscovery(){
+  try{
+    const {tickers}=await(await fetch('/api/heatmap-data')).json();
+    const disc=tickers.filter(t=>!CORE_SET.has(t.ticker));
+    if(!disc.length) return;
+    document.getElementById('disc-section').style.display='';
+    const tb=document.getElementById('disc-tb');
+    disc.forEach(t=>{
+      const tr=document.createElement('tr');
+      tr.dataset.ticker=t.ticker;
+      const gg=t.gg_upside!=null?t.gg_upside/100:null;
+      const em=t.em_upside!=null?t.em_upside/100:null;
+      const roic=t.roic!=null?t.roic/100:null;
+      const cagr=t.rev_cagr!=null?t.rev_cagr/100:null;
+      const fakeC={t:t.ticker,score:t.score,sn:t.score!=null?'auto-score':null,pending:!t.score};
+      tr.innerHTML=`
+        <td><div class="tcc"><div class="tlog">${t.ticker.slice(0,4)}</div>
+          <div><div class="tn">${t.name||t.ticker}</div><div class="te">Discovery · ${t.ticker}</div></div></div></td>
+        <td id="sc-${t.ticker}">${scoreCell(fakeC)}</td>
+        <td style="text-align:center">${upChip(gg)}</td>
+        <td style="text-align:center">${upChip(em)}</td>
+        <td style="text-align:center">${roicChip(roic)}</td>
+        <td style="text-align:center">${cagrChip(cagr)}</td>
+        <td style="text-align:center">${fcfChip(t.fcf_ni)}</td>
+        <td style="text-align:center">${deChip(t.d_ebitda)}</td>
+        <td style="text-align:center">${t.pe!=null?x(t.pe):chip('—','chd')}</td>
+        <td style="text-align:center">${t.pfcf!=null?x(t.pfcf):chip('—','chd')}</td>
+        <td style="text-align:center">${qualCell(fakeC)}</td>
+        <td><div class="acts"><a class="al alv" href="/reports/${t.ticker}_report.html" target="_blank">Report</a></div></td>`;
+      tb.appendChild(tr);
+    });
+    setTimeout(()=>tb.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
+    // Apply any saved qualitative overrides to discovery rows too
+    loadQualOverrides();
+  }catch(e){}
 }
 
 // ── Live reports ──────────────────────────────────────────────────────────────
@@ -304,14 +477,14 @@ async function loadLive(){
         </div>`;
       g.appendChild(card);
     });
-    const all=[...D.filter(c=>c.score!=null).map(c=>c.score),...rpts.filter(r=>r.score!=null).map(r=>r.score)];
-    document.getElementById('sCov').textContent=all.length;
-    document.getElementById('sAvg').textContent=(all.reduce((a,b)=>a+b,0)/all.length).toFixed(1);
-    document.getElementById('sHC').textContent=all.filter(s=>s>=75).length;
+    // Stats already reflect D array; just bump Live count
+    document.getElementById('sLive').textContent=rpts.length;
   }catch(e){document.getElementById('sLive').textContent='0';}
 }
 
 render();
+loadQualOverrides();
+loadDiscovery();
 loadLive();
 </script>
 </body>

@@ -648,6 +648,107 @@ def api_compare_scenarios():
     return jsonify(scenarios)
 
 
+# ── Qualitative override store ────────────────────────────────────────────────
+
+QUAL_PATH = os.path.join(os.path.dirname(__file__), "static", "data", "qualitative_overrides.json")
+
+def _load_qual_overrides():
+    try:
+        with open(QUAL_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def _save_qual_overrides(data):
+    os.makedirs(os.path.dirname(QUAL_PATH), exist_ok=True)
+    with open(QUAL_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+@app.route("/api/qualitative-all")
+def api_qual_all():
+    return jsonify(_load_qual_overrides())
+
+
+@app.route("/api/qualitative/<ticker>", methods=["POST"])
+def api_update_qualitative(ticker):
+    ticker = ticker.upper().strip()
+    body   = request.get_json(force=True) or {}
+
+    def _norm(v):
+        v = (v or "").strip().upper()
+        if v in ("MOD-HIGH", "MOD-LOW", "MOD"): return "MOD"
+        if v == "HIGH": return "HIGH"
+        if v == "LOW":  return "LOW"
+        return ""
+
+    biz_clarity = _norm(body.get("biz_clarity", ""))
+    ltp         = _norm(body.get("ltp", ""))
+
+    stored = load_ticker_data(ticker)
+    if not stored:
+        return jsonify({"error": f"No cached data for {ticker}. Generate the report first."}), 404
+
+    scorecard_metrics = stored.get("scorecard_metrics") or {}
+    auto_score = float(scorecard_metrics.get("auto_score") or 0)
+
+    TIER_PTS  = {"HIGH": 10, "MOD": 7, "LOW": 0}
+    bc_pts    = TIER_PTS.get(biz_clarity, 0) * 2.5 / 10
+    ltp_pts   = TIER_PTS.get(ltp,         0) * 10.0 / 10
+    adj_score = round(auto_score + bc_pts + ltp_pts, 1)
+    floor_cap = scorecard_metrics.get("floor_cap")
+    if floor_cap is not None:
+        adj_score = min(adj_score, float(floor_cap))
+
+    # Regenerate HTML report with updated qualitative inputs
+    html_error = None
+    try:
+        profile = stored.get("profile") or {}
+        report_data = build_report_data(
+            ticker=ticker, profile=profile,
+            is_data=stored["is_data"], bs_data=stored["bs_data"],
+            cf_data=stored["cf_data"], years=stored.get("years") or [],
+            wacc_val=stored.get("wacc_val"),
+            dcf_prices=stored.get("dcf_prices") or {},
+            scorecard_metrics=scorecard_metrics,
+            current_price=float(profile.get("price") or 0) or None,
+            market_cap=float(profile.get("mktCap") or profile.get("marketCap") or 0) or None,
+            biz_clarity=biz_clarity or None,
+            ltp=ltp or None,
+            adj_score=adj_score,
+            analyst_ests=stored.get("analyst_ests") or [],
+        )
+        html_content = render_html_report(report_data)
+        reports_dir = os.path.join(os.path.dirname(__file__), "static", "reports")
+        os.makedirs(reports_dir, exist_ok=True)
+        with open(os.path.join(reports_dir, f"{ticker}_report.html"), "w", encoding="utf-8") as f:
+            f.write(html_content)
+    except Exception as e:
+        html_error = str(e)
+
+    # Persist override so dashboard can restore it on next load
+    overrides = _load_qual_overrides()
+    overrides[ticker] = {
+        "biz_clarity": biz_clarity or None,
+        "ltp":         ltp or None,
+        "adj_score":   adj_score,
+        "auto_score":  auto_score,
+        "updated":     datetime.date.today().isoformat(),
+    }
+    _save_qual_overrides(overrides)
+
+    resp = {
+        "ticker":      ticker,
+        "biz_clarity": biz_clarity or None,
+        "ltp":         ltp or None,
+        "auto_score":  auto_score,
+        "adj_score":   adj_score,
+    }
+    if html_error:
+        resp["warning"] = f"Score updated; report regen failed: {html_error}"
+    return jsonify(resp)
+
+
 # ── Heatmap ───────────────────────────────────────────────────────────────────
 
 # Static sector buckets for the core coverage universe
