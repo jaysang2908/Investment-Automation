@@ -791,6 +791,137 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         / shares, 2) if shares > 0 else 0
         for cf_ in cf_data]
 
+    # ── Pre-compute commentary strings ────────────────────────────────────────
+    def _div_paid(cf_):
+        for key in ("dividendsPaid", "commonDividendsPaid",
+                    "dividendsAndOtherCashDistributions"):
+            v = cf_.get(key)
+            if v and v != 0:
+                return abs(v) / 1e9
+        return 0.0
+
+    div_b_lst      = [_div_paid(cf_) for cf_ in cf_data]
+    total_buybacks = sum(buyback_b_lst)
+    total_divs     = sum(div_b_lst)
+    total_returns  = total_buybacks + total_divs
+    n_yr           = len(cf_data)
+
+    # Capital returns key metric card
+    if total_returns < 0.05:
+        _cr_val = "Minimal"
+        _cr_sub = f"Capital primarily reinvested at {_pct(roic_v)} ROIC; direct shareholder returns negligible over {n_yr}yr."
+    elif total_buybacks > total_divs * 2:
+        _cr_val = f"${total_returns:.1f}B"
+        _cr_sub = f"Buyback-led: ${total_buybacks:.1f}B repurchases + ${total_divs:.1f}B dividends over {n_yr}yr."
+    elif total_divs > total_buybacks * 2:
+        _cr_val = f"${total_returns:.1f}B"
+        _cr_sub = f"Dividend-led: ${total_divs:.1f}B dividends + ${total_buybacks:.1f}B buybacks over {n_yr}yr."
+    else:
+        _cr_val = f"${total_returns:.1f}B"
+        _cr_sub = f"Balanced returns: ${total_buybacks:.1f}B buybacks + ${total_divs:.1f}B dividends over {n_yr}yr."
+
+    # Moat commentary
+    _roic_trend_dir = (
+        "improving" if len(roic_lst) >= 2 and (roic_lst[-1] or 0) > (roic_lst[0] or 0)
+        else "declining" if len(roic_lst) >= 2 and (roic_lst[-1] or 0) < (roic_lst[0] or 0)
+        else "stable"
+    )
+    _moat_strength = (
+        "Strong"   if (roic_v or 0) > 0.20 and (gm0 or 0) > 0.40 else
+        "Moderate" if (roic_v or 0) > 0.12 or  (gm0 or 0) > 0.35 else
+        "Narrow"
+    )
+    _moat_commentary = (
+        f"{_moat_strength} competitive position: {_pct(gm0)} gross margin "
+        f"({'improving' if _gm_trend > 0.01 else 'declining' if _gm_trend < -0.01 else 'stable'} "
+        f"over {len(is_data)}yr), ROIC {_pct(roic_v)} ({_roic_trend_dir})."
+        + (" ROIC comfortably above cost of capital — durable advantage supported by financials."
+           if (roic_v or 0) > 0.15
+           else " ROIC near cost of capital; competitive advantage not yet clearly evident in returns.")
+    )
+
+    # Business Clarity commentary
+    if t_bc:
+        _bc_commentary = (
+            f"Rated {t_bc}: "
+            + ("clear, asset-light model with straightforward revenue drivers."
+               if t_bc == "HIGH" else
+               "moderately complex; key drivers identifiable from financials."
+               if t_bc in ("MOD", "MOD-HIGH", "MOD-LOW") else
+               "complex or opaque model requiring deeper qualitative diligence.")
+        )
+    else:
+        _bc_model_type = (
+            "High-margin, asset-light model" if (gm0 or 0) > 0.50 and _capex_intensity < 0.05
+            else "Capital-efficient with moderate complexity" if (gm0 or 0) > 0.35
+            else "Capital-intensive or complex operating model"
+        )
+        _bc_commentary = (
+            f"{_bc_model_type}: {_pct(gm0)} gross margin, {_pct(fcf_ni_v)} FCF/NI conversion, "
+            f"CapEx {_pct(_capex_intensity)} of revenue. Not manually rated."
+        )
+
+    # Long-term positioning commentary
+    if t_ltp:
+        _ltp_commentary = (
+            f"Rated {t_ltp}: "
+            + ("strong secular growth with high-return reinvestment opportunities."
+               if t_ltp == "HIGH" else
+               "solid runway; addressable market supports continued expansion."
+               if t_ltp in ("MOD", "MOD-HIGH", "MOD-LOW") else
+               "limited structural upside; mature category or significant headwinds.")
+            + f" {_n_fcf}yr revenue CAGR {_pct(rev_cagr_v)}, ROIC {_pct(roic_v)}."
+        )
+    else:
+        _ltp_desc = (
+            "Strong secular growth with high-return reinvestment"
+            if (rev_cagr_v or 0) > 0.12 and (roic_v or 0) > 0.15 else
+            "Moderate runway; well-positioned within addressable market"
+            if (rev_cagr_v or 0) > 0.05 else
+            "Mature business; growth reliant on market expansion or M&A"
+        )
+        _ltp_commentary = (
+            f"{_ltp_desc}. {_n_fcf}yr revenue CAGR: {_pct(rev_cagr_v)}, "
+            f"ROIC {_pct(roic_v)}, FCF {_b(fcf0)} in FY{years[-1]}. Not manually rated."
+        )
+
+    # Management / capital allocation commentary
+    _mgt_return_str = (
+        f"${total_buybacks:.1f}B buybacks"
+        + (f" + ${total_divs:.1f}B dividends" if total_divs > 0.01 else "")
+        + f" over {n_yr}yr."
+        if total_buybacks > 0.01 else
+        f"${total_divs:.1f}B dividends over {n_yr}yr. No material buyback activity."
+        if total_divs > 0.01 else
+        f"Minimal direct returns over {n_yr}yr; capital reinvested at {_pct(roic_v)} ROIC."
+    )
+    _mgt_commentary = (
+        ceo_info + f" ROIC {_pct(roic_v)} ({_roic_trend_dir} over {len(is_data)}yr). " + _mgt_return_str
+    )
+
+    # Capital returns scorecard commentary (P2)
+    _p2_cr_commentary = _cr_sub
+
+    # Execution risk commentary (P3)
+    _er_parts = []
+    if (fcf_ni_v or 0) < 0.60:
+        _er_parts.append(f"FCF/NI {_pct(fcf_ni_v)} — watch working capital and capex discipline")
+    else:
+        _er_parts.append(f"FCF/NI {_pct(fcf_ni_v)} — healthy conversion, limited near-term execution concern")
+    if _capex_intensity and _capex_intensity > 0.06:
+        _er_parts.append(
+            f"CapEx-intensive ({_pct(_capex_intensity)} of revenue, {_b(capex0)}) — delivery risk on major projects"
+        )
+    if abs(_gm_trend) > 0.015:
+        _er_parts.append(
+            f"Gross margin {'contracting' if _gm_trend < 0 else 'expanding'} {_pct(abs(_gm_trend))} over {len(is_data)}yr"
+        )
+    _er_commentary = (
+        "; ".join(_er_parts) + "."
+        if _er_parts else
+        f"CapEx {_pct(_capex_intensity)} of revenue; FCF/NI {_pct(fcf_ni_v)}. No material execution flags from financial data."
+    )
+
     # ── Assemble DATA dict ─────────────────────────────────────────────────────
     D = {
         # Header
@@ -848,22 +979,22 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "ROIC_VALUE":           _pct(roic_v),
         "ROIC_SUB":             f"FY{years[-1]}",
         "CAP_RETURNS_LABEL":    "Capital Returns",
-        "CAP_RETURNS_VALUE":    "See Excel",
-        "CAP_RETURNS_SUB":      "Dividends + Buybacks — see CF tab",
+        "CAP_RETURNS_VALUE":    _cr_val,
+        "CAP_RETURNS_SUB":      _cr_sub,
 
-        # Revenue mix (stubs — fill from Excel Segments tab)
+        # Revenue mix (segment detail not available via FMP free tier)
         "REV_MIX_SECTION_LABEL": "Revenue Mix",
-        "SEG1_EMOJI_NAME": "📊 Segment 1", "SEG1_REV_PCT": "—",
-        "SEG1_DESC": "Open the Excel model → Segments tab for breakdown.",
-        "SEG2_EMOJI_NAME": "📊 Segment 2", "SEG2_REV_PCT": "—",
-        "SEG2_DESC": "Open the Excel model → Segments tab for breakdown.",
-        "SEG3_EMOJI_NAME": "📊 Segment 3", "SEG3_REV_PCT": "—",
-        "SEG3_DESC": "Open the Excel model → Segments tab for breakdown.",
+        "SEG1_EMOJI_NAME": "📊 Total Revenue", "SEG1_REV_PCT": "100%",
+        "SEG1_DESC": f"{_b(rev0)} total revenue in FY{years[-1]} ({_pct(rev_yoy)} YoY). Segment breakdown in 10-K.",
+        "SEG2_EMOJI_NAME": "📊 EBITDA", "SEG2_REV_PCT": _pct(ebitdam0),
+        "SEG2_DESC": f"EBITDA margin {_pct(ebitdam0)} in FY{years[-1]}; {_n_fcf}yr avg trend {'improving' if _gm_trend > 0 else 'declining' if _gm_trend < 0 else 'stable'}.",
+        "SEG3_EMOJI_NAME": "📊 Free Cash Flow", "SEG3_REV_PCT": _pct(fcf0/rev0 if rev0 else None),
+        "SEG3_DESC": f"FCF {_b(fcf0)} in FY{years[-1]}, {_pct(fcf_ni_v)} FCF/NI conversion. {_n_fcf}yr FCF CAGR: {_pct(fcf_cagr_v) if fcf_cagr_v else 'N/A'}.",
 
         # Credit
-        "SP_RATING":       sp_rating,    "SP_OUTLOOK":       "See 10-K",
+        "SP_RATING":       sp_rating,    "SP_OUTLOOK":       "N/A",
         "SP_TIER_LABEL":   f"Tier: {cr_tier}",
-        "MOODYS_RATING":   moody_rating, "MOODYS_OUTLOOK":   "See 10-K",
+        "MOODYS_RATING":   moody_rating, "MOODYS_OUTLOOK":   "N/A",
         "MOODYS_TIER_LABEL": f"Tier: {cr_tier}",
         "FITCH_RATING":    fitch_rating, "FITCH_OUTLOOK":    "NR",
         "FITCH_TIER_LABEL": "Tier: NR",
@@ -938,13 +1069,13 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         # Scorecard — totals use adj_score from Excel engine for consistency
         "P1_WEIGHTED":          str(p1),
         "P1_BC_SCORE_TEXT":     t_bc or "MOD", "P1_BC_WTD": str(round(P[t_bc or "MOD"]*2.5/10, 2)),
-        "P1_BC_COMMENTARY":     (f"Manual input: {t_bc}." if t_bc else "Review business segment clarity from 10-K."),
+        "P1_BC_COMMENTARY":     _bc_commentary,
         "P1_MOAT_SCORE_TEXT":   "MOD", "P1_MOAT_WTD": "7.0",
-        "P1_MOAT_COMMENTARY":   f"Auto-proxy: {_pct(gm0)} gross margin, {_pct(rev_cagr_v)} rev CAGR. Confirm with 10-K moat analysis.",
+        "P1_MOAT_COMMENTARY":   _moat_commentary,
         "P1_LTP_SCORE_TEXT":    t_ltp or "MOD", "P1_LTP_WTD": str(round(P[t_ltp or "MOD"]*10.0/10, 1)),
-        "P1_LTP_COMMENTARY":    (f"Manual input: {t_ltp}." if t_ltp else "Review long-term positioning and TAM manually."),
+        "P1_LTP_COMMENTARY":    _ltp_commentary,
         "P1_MGT_SCORE_TEXT":    "MOD", "P1_MGT_WTD": "5.25",
-        "P1_MGT_COMMENTARY":    ceo_info + " Review track record and capital allocation.",
+        "P1_MGT_COMMENTARY":    _mgt_commentary,
 
         "P2_WEIGHTED":          str(p2),
         "P2_RC_SCORE_TEXT":     t_rev,  "P2_RC_WTD": str(round(P[t_rev]*10.0/10, 1)),
@@ -952,7 +1083,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "P2_CQ_SCORE_TEXT":     t_fcf_ni, "P2_CQ_WTD": str(round(P[t_fcf_ni]*10.0/10, 1)),
         "P2_CQ_COMMENTARY":     f"FCF/NI: {_pct(fcf_ni_v)}.",
         "P2_CR_SCORE_TEXT":     "MOD",  "P2_CR_WTD": "3.5",
-        "P2_CR_COMMENTARY":     "Review buyback + dividend history in Excel CF tab.",
+        "P2_CR_COMMENTARY":     _p2_cr_commentary,
         "P2_ROIC_SCORE_TEXT":   t_roic, "P2_ROIC_WTD": str(round(P[t_roic]*7.5/10, 1)),
         "P2_ROIC_COMMENTARY":   f"Latest ROIC: {_pct(roic_v)}.",
 
@@ -965,7 +1096,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD": str(round(P[t_eint]*7.5/10, 1)),
         "P3_IC_COMMENTARY":     f"EBIT/Interest: {ebit_int_str}.",
         "P3_ER_SCORE_TEXT":     "MOD",  "P3_ER_WTD": "1.75",
-        "P3_ER_COMMENTARY":     "Review execution risks from 10-K Risk Factors section.",
+        "P3_ER_COMMENTARY":     _er_commentary,
 
         "P4_WEIGHTED":          str(p4),
         "P4_PE_SCORE_TEXT":     t_pe,   "P4_PE_WTD": str(round(P[t_pe]*10.0/10, 1)),
@@ -1055,8 +1186,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"vs. {_x(pfcf_5yr)} 5-year average ({pfcf_delta}). "
             f"DCF base case (Gordon Growth, WACC {wacc_b*100:.1f}%): <strong>${base_px:.0f} ({_vs(base_px, current_price)})</strong>. "
             f"Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) | Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}). "
-            f"<strong>Note: Add qualitative valuation commentary and forward estimates after reviewing the Excel model.</strong>"
-        ) if base_px and current_price else "Review DCF in Excel model and add valuation commentary.",
+        ) if base_px and current_price else (
+            f"At ${current_price:.2f}, {company_name} trades at {_x(trailing_pe)} trailing P/E "
+            f"vs. {_x(pe_5yr)} 5-year average ({pe_delta}) and {_x(trailing_pfc)} P/FCF. "
+            f"DCF price not computed — insufficient FCF history or negative base cash flow."
+        ),
 
         "DCF_BEAR_WACC": f"{w_bear*100:.1f}%", "DCF_BEAR_TGR": f"{tgr_bear*100:.1f}%",
         "DCF_BEAR_CAGR": _pct(_bear_rev_g) + " (bear — 40% of trailing)",
@@ -1089,8 +1223,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "WACC_TAX_RATE":  f"{eff_tax0*100:.1f}%",
         "WACC_EW":        f"{ew_v*100:.0f}%",
         "WACC_DW":        f"{dw_v*100:.0f}%",
-        "WACC_NOTE":      (f"WACC = {ew_v*100:.0f}% × {ke_approx*100:.1f}% (Ke) + {dw_v*100:.0f}% × {max(0,kd_pre)*100:.1f}% × (1 − {eff_tax0*100:.0f}% tax) ≈ {wacc_b*100:.1f}%. "
-                           f"Beta: FMP 5yr monthly. ERP: Damodaran avg implied/historical. Rf: FRED DGS10. Review Excel WACC tab for full derivation."),
+        "WACC_NOTE":      (f"WACC = {ew_v*100:.0f}% equity × {ke_approx*100:.1f}% Ke + {dw_v*100:.0f}% debt × {max(0,kd_pre)*100:.1f}% Kd × (1 − {eff_tax0*100:.0f}% tax) = {wacc_b*100:.1f}%. "
+                           f"Beta {beta_v:.2f} (FMP 5yr), ERP {ERP_APPROX*100:.1f}% (Damodaran), Rf from FRED DGS10."),
 
         # EV Bridge
         "DCF_PV_FCFS":   _b(pv_fcfs_approx) if pv_fcfs_approx else "—",
@@ -1119,10 +1253,22 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             "MULT_EV10_FY1_PX","MULT_EV10_FY1_UPS","MULT_EV10_FY2_PX","MULT_EV10_FY2_UPS",
             "MULT_EV5_FY1_PX","MULT_EV5_FY1_UPS","MULT_EV5_FY2_PX","MULT_EV5_FY2_UPS",
         ]},
-        "MULTIPLES_METHOD_RATIONALE": "Method Rationale: Review multiples vs. historical averages after adding forward estimates.",
-        "MULTIPLES_KEY_QUESTION":     f"Key Question: Is the {pe_delta} discount/premium to 5yr P/E justified by current growth?",
+        "MULTIPLES_METHOD_RATIONALE": (
+            f"Method: P/E ({pe_delta} vs 5yr avg {_x(pe_5yr)}), "
+            f"P/FCF ({pfcf_delta} vs 5yr avg {_x(pfcf_5yr)}), EV/EBITDA {_x(ev_ebitda)}. "
+            f"Forward multiples pending analyst estimates (FMP free tier)."
+        ),
+        "MULTIPLES_KEY_QUESTION":     (
+            f"Key Question: Does the {pe_delta} to 5yr P/E reflect a re-rating opportunity or "
+            f"justified caution given {_pct(rev_cagr_v)} revenue CAGR and {_pct(roic_v)} ROIC?"
+        ),
         "COMPOSITE_FAIR_VALUE":       f"${base_px:.0f}" if base_px else "N/A",
-        "COMPOSITE_UPSIDE_NOTE":      f"DCF base: ${base_px:.0f} ({_vs(base_px, current_price)}). Add multiples-based range." if base_px else "See Excel model.",
+        "COMPOSITE_UPSIDE_NOTE":      (
+            f"DCF base: ${base_px:.0f} ({_vs(base_px, current_price)}); "
+            f"bear ${bear_px:.0f} ({_vs(bear_px, current_price)}), bull ${bull_px:.0f} ({_vs(bull_px, current_price)})."
+            if base_px else
+            f"DCF not computed — FCF base insufficient. Multiples: P/E {_x(trailing_pe)}, P/FCF {_x(trailing_pfc)}, EV/EBITDA {_x(ev_ebitda)}."
+        ),
 
         # Analysts (auto-fetched where available via analyst_ests param)
         "TICKER_SHORT":   ticker,
@@ -1136,16 +1282,16 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "CONSENSUS_PT":       "—",
         "CONSENSUS_PT_VS":    "—",
         "PT_RANGE":           "—",
-        "ANALYST_TABLE_NOTE": f"Analyst data not fetched. Pass analyst_ests= to build_report_data() for forward multiples.",
+        "ANALYST_TABLE_NOTE": f"Forward analyst estimates not available on FMP free tier. DCF-implied fair value: ${base_px:.0f} ({_vs(base_px, current_price)})." if base_px else "Forward analyst estimates not available on FMP free tier.",
 
         # Footnotes
         "FN1": f"Credit ratings: S&P {sp_rating} — manual input or Damodaran ICR model.",
         "FN2": f"Historical financials via FMP API. Fiscal year {years[-1]}.",
         "FN3": f"Revenue 3yr CAGR: {_pct(rev_cagr_v)} from FY{years[-4] if len(years)>=4 else years[0]}–{years[-1]}.",
-        "FN4": "Share price history: add historical series manually.",
+        "FN4": "Share price history: sourced from FMP API where available.",
         "FN5": f"ROIC: {_pct(roic_v)} — NOPAT / Invested Capital from FMP data.",
         "FN6": "Valuation multiples: 5-year averages from FMP ratios API.",
-        "FN7": "Risk factors: add from 10-K Risk Factors section.",
+        "FN7": f"Key risks: {_er_commentary[:120]}{'...' if len(_er_commentary) > 120 else ''}",
         "FN8": f"DCF: WACC {wacc_b*100:.1f}% (Damodaran-based), TGR 3.0%.",
         "DISCLAIMER_TEXT": "This report is auto-generated from public financial data. For informational purposes only. Not investment advice.",
     }
