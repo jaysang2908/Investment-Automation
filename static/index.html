@@ -12,7 +12,7 @@
     /* Page-specific overrides not in the design system */
     html { scroll-behavior: smooth; }
 
-    #tickerInput { text-transform: uppercase; letter-spacing: 4px; font-size: 22px; font-weight: 600; }
+    #tickerInput { text-transform: uppercase; letter-spacing: 4px; font-size: 15px; font-weight: 600; }
 
     /* Generate message states */
     .gen-msg { margin-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px; min-height: 18px; text-align: center; }
@@ -314,12 +314,12 @@
 <!-- DAILY DISCOVERIES -->
 <section class="section" id="discoveries">
   <div class="sec-eyebrow">Auto-Research Engine</div>
-  <div class="sec-head">
+  <div class="sec-head" style="flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:36px">
     <h2 class="sec-title">Daily Discoveries</h2>
+    <p style="color:var(--ink-3);font-size:14px;max-width:560px;line-height:1.65;letter-spacing:0">
+      Up to 3 new company reports generated automatically each day — full DCF, WACC, reverse-DCF, and forward multiples.
+    </p>
   </div>
-  <p style="color:var(--ink-3);font-size:15px;margin-top:-40px;margin-bottom:44px;max-width:560px;line-height:1.65">
-    Up to 3 new company reports generated automatically each day — full DCF, WACC, reverse-DCF, and forward multiples.
-  </p>
   <div class="cards" id="discoveryGrid" style="min-height:80px">
     <div id="disc-loading" style="color:var(--ink-4);font-family:var(--font-mono);font-size:11px;letter-spacing:1px;grid-column:1/-1;padding:20px 0">
       Loading discoveries…
