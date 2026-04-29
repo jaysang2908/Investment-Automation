@@ -6,297 +6,547 @@
   <title>News — Investment Utopia</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/iu-redesign.css">
   <style>
-    :root {
-      --bg:         #07090e;
-      --surface:    #0e1520;
-      --surface2:   #131c2c;
-      --border:     rgba(255,255,255,0.06);
-      --border2:    rgba(255,255,255,0.12);
-      --gold:       #c9a84c;
-      --gold-light: #e8c97a;
-      --gold-dim:   rgba(201,168,76,0.12);
-      --text:       #d9e0ea;
-      --text-muted: #7a8499;
-      --text-dim:   #3d4455;
-      --green:      #10b981;
-      --green-dim:  rgba(16,185,129,0.12);
-      --amber:      #f59e0b;
-      --amber-dim:  rgba(245,158,11,0.12);
-      --red:        #ef4444;
-      --red-dim:    rgba(239,68,68,0.12);
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      font-family: 'IBM Plex Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image: radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px);
-      background-size: 32px 32px;
-      pointer-events: none; z-index: 0;
-    }
-
-    /* ── NAV ── */
-    nav {
-      position: fixed; inset: 0 0 auto 0; z-index: 200;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 48px; height: 62px;
-      background: rgba(7,9,14,0.85);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo { font-family:'IBM Plex Mono',monospace; font-size:10.5pt; font-weight:500; letter-spacing:3.5px; color:var(--text); text-transform:uppercase; text-decoration:none; }
-    .nav-logo span { color:var(--gold); }
-    .nav-links { display:flex; gap:32px; list-style:none; }
-    .nav-links a { font-size:8pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-muted); text-decoration:none; transition:color 0.2s; }
-    .nav-links a:hover, .nav-links a.active { color:var(--text); }
-    .nav-pill { font-family:'IBM Plex Mono',monospace; font-size:7.5pt; letter-spacing:1.5px; text-transform:uppercase; padding:5px 14px; border:1px solid rgba(201,168,76,0.35); border-radius:2px; color:var(--gold); text-decoration:none; transition:background 0.2s; }
-    .nav-pill:hover { background:var(--gold-dim); }
-
     /* ── PAGE LAYOUT ── */
-    .page { max-width: 1160px; margin: 0 auto; padding: 100px 48px 60px; position: relative; }
-
-    .page-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:8pt; letter-spacing:4px; text-transform:uppercase; color:var(--gold); margin-bottom:10px; }
-    .page-heading { font-family:'Playfair Display',serif; font-size:28pt; font-weight:700; color:#fff; margin-bottom:8px; line-height:1.15; }
-    .page-sub { font-size:9pt; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; margin-bottom:32px; }
+    .page-head {
+      padding: 56px 32px 28px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .ph-eyebrow {
+      font-family: var(--font-mono);
+      font-size: var(--t-eyebrow);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+    .ph-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 32px;
+    }
+    .ph-title {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 600;
+      color: var(--ink-1);
+      line-height: 1.15;
+      letter-spacing: -0.5px;
+    }
+    .ph-sub {
+      font-size: var(--t-body);
+      color: var(--ink-3);
+      margin-top: 10px;
+      max-width: 560px;
+      font-weight: 300;
+      line-height: 1.6;
+    }
+    .ph-meta {
+      font-family: var(--font-mono);
+      font-size: var(--t-eyebrow);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .ph-meta strong { color: var(--ink-1); font-weight: 600; }
 
     /* ── STALE BANNER ── */
     .stale-banner {
       display: none;
-      background: var(--amber-dim);
-      border: 1px solid rgba(245,158,11,0.25);
-      border-radius: 4px;
+      background: var(--warn-bg);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: var(--r-md);
       padding: 12px 18px;
-      margin-bottom: 24px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 8.5pt;
-      color: var(--amber);
+      margin: 0 32px 20px;
+      max-width: calc(1280px - 64px);
+      margin-left: auto;
+      margin-right: auto;
+      font-family: var(--font-mono);
+      font-size: var(--t-small);
+      color: var(--warn);
       letter-spacing: 0.5px;
     }
 
-    /* ── FILTER CHIPS ── */
-    .chips-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 28px;
-      align-items: center;
-    }
-    .chips-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 7pt;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-right: 6px;
-    }
-    .chip {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 8pt;
-      letter-spacing: 1px;
-      padding: 5px 12px;
-      border-radius: 3px;
-      border: 1px solid var(--border2);
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.15s;
-      text-transform: uppercase;
-    }
-    .chip:hover {
-      border-color: rgba(201,168,76,0.3);
-      color: var(--text);
-    }
-    .chip.active {
-      background: var(--gold-dim);
-      border-color: rgba(201,168,76,0.35);
-      color: var(--gold);
-    }
-
-    /* ── ARTICLE CARDS ── */
-    .articles-list { display: flex; flex-direction: column; gap: 16px; }
-
-    .article-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 24px 28px;
-      transition: border-color 0.25s, box-shadow 0.25s;
-      display: flex;
-      gap: 20px;
-    }
-    .article-card:hover {
-      border-color: rgba(201,168,76,0.22);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-    }
-
-    .article-thumb {
-      width: 120px;
-      height: 80px;
-      border-radius: 4px;
-      object-fit: cover;
-      flex-shrink: 0;
-      background: var(--surface2);
-    }
-
-    .article-body { flex: 1; min-width: 0; }
-
-    .article-headline {
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 11.5pt;
-      font-weight: 500;
-      color: #fff;
-      text-decoration: none;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      transition: color 0.2s;
-    }
-    .article-headline:hover { color: var(--gold-light); }
-
-    .article-meta {
+    /* ── FILTER BAR ── */
+    .filter-bar {
+      max-width: 1280px;
+      margin: 0 auto 24px;
+      padding: 0 32px;
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-top: 8px;
       flex-wrap: wrap;
     }
-
-    .meta-site {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 7pt;
-      letter-spacing: 1px;
+    .filter-label {
+      font-family: var(--font-mono);
+      font-size: var(--t-micro);
+      letter-spacing: 2px;
       text-transform: uppercase;
-      color: var(--text-muted);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border2);
-      padding: 2px 8px;
-      border-radius: 2px;
+      color: var(--ink-5);
+      margin-right: 4px;
+    }
+    .tk-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ── TWO-COLUMN LAYOUT ── */
+    .layout {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 32px 80px;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 40px;
     }
 
-    .meta-date {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 7.5pt;
-      color: var(--text-dim);
+    /* ── FEATURED ARTICLE ── */
+    .featured {
+      background: var(--surface-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin-bottom: 32px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
     }
-
-    .meta-ticker {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 7pt;
-      letter-spacing: 1.5px;
+    .featured-img {
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, #1a2438 0%, #0c1320 100%);
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding: 24px;
+    }
+    .featured-img::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 30%, var(--gold-glow) 0%, transparent 60%);
+      opacity: 0.5;
+    }
+    .featured-img-tag {
+      position: relative;
+      font-family: var(--font-mono);
+      font-size: var(--t-micro);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+      border: 1px solid var(--border-3);
+      padding: 4px 10px;
+      border-radius: var(--r-sm);
+    }
+    .featured-body {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .featured-eye {
+      font-family: var(--font-mono);
+      font-size: var(--t-micro);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+    .featured-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--ink-1);
+      line-height: 1.25;
+      letter-spacing: -0.2px;
+      margin-bottom: 14px;
+    }
+    .featured-snippet {
+      font-size: var(--t-body);
+      color: var(--ink-3);
+      line-height: 1.7;
+      font-weight: 300;
+      margin-bottom: 18px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .featured-meta {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: var(--t-eyebrow);
+      letter-spacing: 1px;
+      color: var(--ink-4);
+      text-transform: uppercase;
+    }
+    .featured-meta .src { color: var(--ink-2); font-weight: 600; }
+    .featured-tickers { display: flex; gap: 6px; margin-top: 16px; }
+    .tk-pill {
+      font-family: var(--font-mono);
+      font-size: var(--t-eyebrow);
+      letter-spacing: 1px;
       color: var(--gold);
       background: var(--gold-dim);
-      border: 1px solid rgba(201,168,76,0.18);
-      padding: 2px 8px;
-      border-radius: 2px;
+      padding: 3px 10px;
+      border-radius: var(--r-sm);
+      text-decoration: none;
     }
 
-    .article-snippet {
-      margin-top: 8px;
-      font-size: 9pt;
-      font-weight: 300;
-      color: var(--text-muted);
+    /* ── SECTION HEADER ── */
+    .sec-head-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin: 0 0 16px;
+    }
+    .sec-h2 {
+      font-family: var(--font-display);
+      font-size: var(--t-h3);
+      font-weight: 600;
+      color: var(--ink-1);
+      letter-spacing: -0.2px;
+    }
+    .sec-count {
+      font-family: var(--font-mono);
+      font-size: var(--t-eyebrow);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+    }
+
+    /* ── ARTICLE LIST (editorial) ── */
+    .articles { display: flex; flex-direction: column; }
+    .art {
+      display: grid;
+      grid-template-columns: 100px 1fr 110px;
+      gap: 20px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border-1);
+      cursor: pointer;
+      text-decoration: none;
+      align-items: start;
+      transition: background var(--dur-fast);
+    }
+    .art:hover { background: rgba(255,255,255,0.012); }
+    .art:hover .art-title { color: var(--gold); }
+
+    .art-time {
+      font-family: var(--font-mono);
+      font-size: var(--t-eyebrow);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+      padding-top: 4px;
+    }
+    .art-time strong {
+      color: var(--ink-1);
+      display: block;
+      font-size: 11px;
+      margin-bottom: 2px;
+      font-weight: 600;
+    }
+    .art-body { padding-right: 8px; }
+    .art-tickers {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .art-source {
+      font-family: var(--font-mono);
+      font-size: var(--t-micro);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .art-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--ink-1);
+      line-height: 1.3;
+      margin-bottom: 8px;
+      transition: color var(--dur-base);
+      letter-spacing: -0.1px;
+    }
+    .art-snippet {
+      font-size: var(--t-small);
+      color: var(--ink-3);
       line-height: 1.65;
+      font-weight: 300;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    .art-thumb {
+      width: 110px;
+      height: 80px;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .art-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .art-thumb-placeholder {
+      width: 100%;
+      height: 100%;
+      background: var(--surface-2);
+    }
+    .art-thumb-placeholder.t1 { background: linear-gradient(135deg, #2a1f3d 0%, #0c1320 100%); }
+    .art-thumb-placeholder.t2 { background: linear-gradient(135deg, #1a3a2e 0%, #0c1320 100%); }
+    .art-thumb-placeholder.t3 { background: linear-gradient(135deg, #3a2818 0%, #0c1320 100%); }
+    .art-thumb-placeholder.t4 { background: linear-gradient(135deg, #1a2e3a 0%, #0c1320 100%); }
+    .art-thumb-placeholder.t5 { background: linear-gradient(135deg, #3a1a2a 0%, #0c1320 100%); }
 
     /* ── EMPTY STATE ── */
     .empty-state {
       text-align: center;
       padding: 80px 20px;
-      color: var(--text-dim);
+      color: var(--ink-4);
     }
     .empty-state h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 16pt;
-      color: var(--text-muted);
+      font-family: var(--font-display);
+      font-size: var(--t-h3);
+      color: var(--ink-3);
       margin-bottom: 12px;
     }
     .empty-state p {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 8.5pt;
+      font-family: var(--font-mono);
+      font-size: var(--t-small);
       letter-spacing: 0.5px;
       line-height: 1.7;
     }
     .empty-state code {
       background: rgba(255,255,255,0.06);
       padding: 2px 8px;
-      border-radius: 3px;
-      font-size: 8.5pt;
+      border-radius: var(--r-sm);
     }
+
+    /* ── SIDEBAR ── */
+    aside { display: flex; flex-direction: column; gap: 20px; }
+    .s-panel {
+      background: var(--surface-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--r-lg);
+      padding: 20px;
+    }
+    .s-panel-eye {
+      font-family: var(--font-mono);
+      font-size: var(--t-micro);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+      margin-bottom: 16px;
+    }
+
+    .mover {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-1);
+      align-items: center;
+    }
+    .mover:last-child { border-bottom: none; }
+    .mover-tk { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--gold); letter-spacing: 1px; }
+    .mover-name { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+    .mover-px { font-family: var(--font-mono); font-size: var(--t-small); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+    .mover-pct {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      padding: 3px 8px;
+      border-radius: var(--r-sm);
+      min-width: 56px;
+      text-align: right;
+    }
+    .mover-pct.up { color: var(--pos); background: var(--pos-bg); }
+    .mover-pct.dn { color: var(--neg); background: var(--neg-bg); }
 
     /* ── FOOTER ── */
     footer {
-      border-top: 1px solid var(--border);
-      padding: 32px 48px;
+      border-top: 1px solid var(--border-1);
+      padding: 28px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 24px;
     }
-    .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:10pt; letter-spacing:3.5px; text-transform:uppercase; color:var(--text-dim); }
-    .footer-logo span { color:var(--gold); }
-    .footer-disc { font-size:7.5pt; color:var(--text-dim); max-width:520px; text-align:right; line-height:1.6; }
+    .footer-logo {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+    }
+    .footer-logo span { color: var(--gold); }
+    .footer-disc {
+      font-size: var(--t-small);
+      color: var(--ink-4);
+      max-width: 520px;
+      text-align: right;
+      line-height: 1.6;
+    }
 
     /* ── RESPONSIVE ── */
-    @media(max-width:860px) {
-      nav { padding: 0 24px; }
-      .nav-links, .nav-pill { display: none; }
-      .page { padding: 90px 20px 40px; }
-      .article-card { flex-direction: column; }
-      .article-thumb { width: 100%; height: 140px; }
-      footer { flex-direction: column; padding: 28px 24px; }
+    @media(max-width: 1000px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      .ph-row { flex-direction: column; align-items: flex-start; }
+      .ph-meta { text-align: left; }
+    }
+    @media(max-width: 680px) {
+      .page-head { padding: 56px 20px 24px; }
+      .filter-bar, .layout { padding-left: 20px; padding-right: 20px; }
+      .art { grid-template-columns: 1fr; }
+      .art-thumb { display: none; }
+      .art-time { padding-bottom: 0; }
+      footer { flex-direction: column; padding: 24px 20px; }
       .footer-disc { text-align: center; }
     }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <a href="/" class="nav-logo">Investment<span>.</span>Utopia</a>
   <div style="display:flex;align-items:center;gap:36px">
     <ul class="nav-links">
-      <li><a href="/">Home</a></li>
+      <li><a href="/">Generate</a></li>
       <li><a href="/dashboard.html">Dashboard</a></li>
       <li><a href="/dcf">DCF Calculator</a></li>
       <li><a href="/heatmap">Heatmap</a></li>
       <li><a href="/news" class="active">News</a></li>
     </ul>
-    <a class="nav-pill" href="/dashboard.html">View Dashboard</a>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
+      <span class="pulse"></span>
+    </div>
   </div>
 </nav>
 
-<div class="page">
-  <div class="page-eyebrow">Market Intelligence</div>
-  <h1 class="page-heading">News Feed</h1>
-  <div class="page-sub" id="lastUpdated">Loading...</div>
-
-  <div class="stale-banner" id="staleBanner">
-    Data may be stale — last updated more than 26 hours ago. News will refresh on next scheduled run.
+<!-- PAGE HEADER -->
+<header class="page-head">
+  <div class="ph-eyebrow">Market Pulse</div>
+  <div class="ph-row">
+    <div>
+      <h1 class="ph-title">News Feed</h1>
+      <p class="ph-sub">Press releases and market headlines from FMP, filtered to your covered tickers.</p>
+    </div>
+    <div class="ph-meta">
+      <div>Sourced from FMP API</div>
+      <div style="margin-top:6px" id="lastUpdated">Loading...</div>
+    </div>
   </div>
+</header>
 
-  <div class="chips-wrap" id="chipsWrap">
-    <span class="chips-label">Filter</span>
-    <button class="chip active" data-ticker="">All</button>
+<!-- STALE BANNER -->
+<div class="stale-banner" id="staleBanner">
+  Data may be stale — last updated more than 26 hours ago. News will refresh on next scheduled run.
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="filter-label">Filter</span>
+  <div class="tk-filters" id="chipsWrap">
+    <button class="chip on" data-ticker="">All</button>
   </div>
+</div>
 
-  <div class="articles-list" id="articlesList"></div>
+<!-- MAIN LAYOUT -->
+<div class="layout">
+  <main>
+    <div id="featuredSlot"></div>
+
+    <div class="sec-head-row" id="secHead" style="display:none">
+      <h2 class="sec-h2">Latest Headlines</h2>
+      <span class="sec-count" id="artCount"></span>
+    </div>
+
+    <div class="articles" id="articlesList"></div>
+  </main>
+
+  <aside>
+    <div class="s-panel">
+      <div class="s-panel-eye">Watchlist Movers · Today</div>
+      <div class="mover">
+        <div><div class="mover-tk">NVDA</div><div class="mover-name">NVIDIA Corp.</div></div>
+        <div class="mover-px">—</div>
+        <div class="mover-pct dn">live</div>
+      </div>
+      <div class="mover">
+        <div><div class="mover-tk">MSFT</div><div class="mover-name">Microsoft</div></div>
+        <div class="mover-px">—</div>
+        <div class="mover-pct up">live</div>
+      </div>
+      <div class="mover">
+        <div><div class="mover-tk">AAPL</div><div class="mover-name">Apple Inc.</div></div>
+        <div class="mover-px">—</div>
+        <div class="mover-pct up">live</div>
+      </div>
+      <div class="mover">
+        <div><div class="mover-tk">TSLA</div><div class="mover-name">Tesla</div></div>
+        <div class="mover-px">—</div>
+        <div class="mover-pct dn">live</div>
+      </div>
+      <div class="mover">
+        <div><div class="mover-tk">META</div><div class="mover-name">Meta Platforms</div></div>
+        <div class="mover-px">—</div>
+        <div class="mover-pct up">live</div>
+      </div>
+    </div>
+
+    <div class="s-panel">
+      <div class="s-panel-eye">Sector Sentiment · 24h</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Technology</span>
+          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
+            <i style="position:absolute;left:50%;width:30%;height:100%;background:var(--pos);border-radius:2px"></i>
+          </span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--pos);min-width:40px;text-align:right">+0.64</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Financials</span>
+          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
+            <i style="position:absolute;left:50%;width:16%;height:100%;background:var(--pos);border-radius:2px"></i>
+          </span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--pos);min-width:40px;text-align:right">+0.36</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Healthcare</span>
+          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
+            <i style="position:absolute;left:50%;width:8%;height:100%;background:var(--pos);border-radius:2px"></i>
+          </span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--pos);min-width:40px;text-align:right">+0.16</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Energy</span>
+          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
+            <i style="position:absolute;right:50%;width:14%;height:100%;background:var(--neg);border-radius:2px"></i>
+          </span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--neg);min-width:40px;text-align:right">−0.28</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Consumer</span>
+          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
+            <i style="position:absolute;right:50%;width:6%;height:100%;background:var(--neg);border-radius:2px"></i>
+          </span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--neg);min-width:40px;text-align:right">−0.12</span>
+        </div>
+      </div>
+    </div>
+  </aside>
 </div>
 
 <footer>
@@ -313,13 +563,14 @@
   ];
 
   let allArticles = [];
-  let allTickers = [];
+  let allTickers  = [];
   let activeTicker = "";
+  const THUMB_CLASSES = ["t1","t2","t3","t4","t5"];
 
   // ── Relative time ──
   function timeAgo(dateStr) {
     if (!dateStr) return "";
-    const now = new Date();
+    const now  = new Date();
     const then = new Date(dateStr);
     const diffMs = now - then;
     if (diffMs < 0) return "just now";
@@ -327,16 +578,27 @@
     const hours = Math.floor(diffMs / 3600000);
     const days  = Math.floor(diffMs / 86400000);
     if (mins < 1)   return "just now";
-    if (mins < 60)  return mins + (mins === 1 ? " minute ago" : " minutes ago");
-    if (hours < 24) return hours + (hours === 1 ? " hour ago" : " hours ago");
+    if (mins < 60)  return mins + (mins === 1 ? " min ago" : " min ago");
+    if (hours < 24) return hours + (hours === 1 ? " hr ago" : " hr ago");
     if (days < 30)  return days + (days === 1 ? " day ago" : " days ago");
     return then.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+  }
+
+  function timeShort(dateStr) {
+    if (!dateStr) return { main:"—", sub:"" };
+    const then = new Date(dateStr);
+    const now  = new Date();
+    const diffMs = now - then;
+    const days = Math.floor(diffMs / 86400000);
+    const hhmm = then.toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit", hour12:false });
+    if (days === 0) return { main: hhmm, sub: "Today" };
+    if (days === 1) return { main: "Yesterday", sub: hhmm };
+    return { main: then.toLocaleDateString("en-US", { month:"short", day:"numeric" }), sub: hhmm };
   }
 
   // ── Truncate snippet ──
   function snippet(text, maxLen) {
     if (!text) return "";
-    // Take first 2 sentences or maxLen chars
     const sentences = text.match(/[^.!?]+[.!?]+/g);
     if (sentences && sentences.length >= 2) {
       const two = sentences.slice(0, 2).join("").trim();
@@ -346,14 +608,17 @@
     return text.slice(0, maxLen).replace(/\s+\S*$/, "") + "...";
   }
 
+  function escHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
   // ── Build chips ──
   function buildChips(tickers) {
     const wrap = document.getElementById("chipsWrap");
-    // Merge core + any discovery tickers from the news data
     const merged = new Set(CORE_TICKERS);
     tickers.forEach(t => merged.add(t));
     const sorted = Array.from(merged).sort();
-
     sorted.forEach(t => {
       const btn = document.createElement("button");
       btn.className = "chip";
@@ -366,20 +631,26 @@
 
   function setFilter(ticker) {
     activeTicker = ticker;
-    document.querySelectorAll(".chip").forEach(c => {
-      c.classList.toggle("active", c.dataset.ticker === ticker);
+    document.querySelectorAll("#chipsWrap .chip").forEach(c => {
+      c.classList.toggle("on", c.dataset.ticker === ticker);
     });
     renderArticles();
   }
 
   // ── Render articles ──
   function renderArticles() {
+    const featured = document.getElementById("featuredSlot");
     const container = document.getElementById("articlesList");
+    const secHead = document.getElementById("secHead");
+    const artCount = document.getElementById("artCount");
+
     const filtered = activeTicker
       ? allArticles.filter(a => (a.symbol || "").toUpperCase() === activeTicker)
       : allArticles;
 
     if (!filtered.length) {
+      featured.innerHTML = "";
+      secHead.style.display = "none";
       if (!allArticles.length) {
         container.innerHTML = `
           <div class="empty-state">
@@ -396,29 +667,52 @@
       return;
     }
 
-    container.innerHTML = filtered.map(a => {
-      const imgHtml = a.image
-        ? `<img class="article-thumb" src="${a.image}" alt="" loading="lazy" onerror="this.style.display='none'">`
-        : "";
-      return `
-        <div class="article-card">
-          ${imgHtml}
-          <div class="article-body">
-            <a class="article-headline" href="${a.url}" target="_blank" rel="noopener">${escHtml(a.title)}</a>
-            <div class="article-meta">
-              ${a.site ? `<span class="meta-site">${escHtml(a.site)}</span>` : ""}
-              <span class="meta-date">${timeAgo(a.publishedDate)}</span>
-              ${a.symbol ? `<span class="meta-ticker">${escHtml(a.symbol)}</span>` : ""}
-            </div>
-            <div class="article-snippet">${escHtml(snippet(a.text, 200))}</div>
+    // Featured: first article
+    const top = filtered[0];
+    const topTime = timeAgo(top.publishedDate);
+    featured.innerHTML = `
+      <article class="featured">
+        <div class="featured-img">
+          <span class="featured-img-tag">Featured</span>
+        </div>
+        <div class="featured-body">
+          <div class="featured-eye">Latest · ${escHtml(topTime)}</div>
+          <h2 class="featured-title"><a href="${escHtml(top.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escHtml(top.title)}</a></h2>
+          <p class="featured-snippet">${escHtml(snippet(top.text, 260))}</p>
+          <div class="featured-meta">
+            ${top.site ? `<span class="src">${escHtml(top.site)}</span><span>·</span>` : ""}
+            <span>${escHtml(topTime)}</span>
           </div>
-        </div>`;
-    }).join("");
-  }
+          ${top.symbol ? `<div class="featured-tickers"><span class="tk-pill">${escHtml(top.symbol)}</span></div>` : ""}
+        </div>
+      </article>`;
 
-  function escHtml(str) {
-    if (!str) return "";
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    // Rest of articles
+    const rest = filtered.slice(1);
+    secHead.style.display = rest.length ? "flex" : "none";
+    artCount.textContent = `${rest.length} article${rest.length === 1 ? "" : "s"}`;
+
+    container.innerHTML = rest.map((a, i) => {
+      const t = timeShort(a.publishedDate);
+      const tc = THUMB_CLASSES[i % THUMB_CLASSES.length];
+      const thumbHtml = a.image
+        ? `<div class="art-thumb"><img src="${escHtml(a.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=art-thumb-placeholder ${tc}></div>'"></div>`
+        : `<div class="art-thumb"><div class="art-thumb-placeholder ${tc}"></div></div>`;
+
+      return `
+        <a class="art" href="${escHtml(a.url)}" target="_blank" rel="noopener">
+          <div class="art-time"><strong>${escHtml(t.main)}</strong>${escHtml(t.sub)}</div>
+          <div class="art-body">
+            <div class="art-tickers">
+              ${a.symbol ? `<span class="tk-pill">${escHtml(a.symbol)}</span>` : ""}
+              ${a.site ? `<span class="art-source">${escHtml(a.site)}</span>` : ""}
+            </div>
+            <h3 class="art-title">${escHtml(a.title)}</h3>
+            <p class="art-snippet">${escHtml(snippet(a.text, 200))}</p>
+          </div>
+          ${thumbHtml}
+        </a>`;
+    }).join("");
   }
 
   // ── Load data ──
@@ -428,24 +722,21 @@
       const data = await resp.json();
 
       allArticles = data.articles || [];
-      allTickers  = data.tickers || [];
+      allTickers  = data.tickers  || [];
 
-      // Sort reverse chronological
       allArticles.sort((a, b) => {
         const da = new Date(a.publishedDate || 0);
         const db = new Date(b.publishedDate || 0);
         return db - da;
       });
 
-      // Last updated
-      const sub = document.getElementById("lastUpdated");
+      const meta = document.getElementById("lastUpdated");
       if (data.fetched) {
-        sub.textContent = "Last updated: " + timeAgo(data.fetched + "Z");
+        meta.innerHTML = `Updated · <strong>${timeAgo(data.fetched + "Z")}</strong>`;
       } else {
-        sub.textContent = "No data loaded";
+        meta.textContent = "No data loaded";
       }
 
-      // Stale banner
       if (data.stale) {
         document.getElementById("staleBanner").style.display = "block";
       }
@@ -463,7 +754,6 @@
     }
   }
 
-  // Also try to load discovery tickers for chip completeness
   async function loadDiscoveryTickers() {
     try {
       const resp = await fetch("/api/reports/discovered");
