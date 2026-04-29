@@ -28,8 +28,8 @@ BLOCKED_PATH = os.path.join(BASE_DIR, "static", "data", "free_tier_blocked.json"
 os.makedirs(OUT_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "static", "data"), exist_ok=True)
 
-MAX_DAILY     = 5    # reports to generate per run
-QUOTA_STRIKES = 15   # total 402s before assuming true quota exhaustion
+MAX_DAILY     = 3    # reports to generate per run
+QUOTA_STRIKES = 40   # total 402s before assuming true quota exhaustion
 
 # ── Tickers already in core coverage ─────────────────────────────────────────
 EXISTING = {
