@@ -2,17 +2,32 @@
   "blocked": [
     "AEP",
     "BKNG",
+    "BMY",
+    "CI",
+    "CMCSA",
+    "CMG",
+    "DLR",
     "ETN",
+    "FDS",
     "GTLB",
+    "HPQ",
     "ICE",
+    "LVS",
     "MAR",
     "MCD",
     "MCO",
+    "MDT",
+    "MS",
+    "NET",
     "O",
     "OKTA",
     "PANW",
     "PG",
     "SE",
-    "UPS"
+    "SLB",
+    "SPG",
+    "UPS",
+    "VRTX",
+    "YUM"
   ]
 }

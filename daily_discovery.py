@@ -372,7 +372,7 @@ def main():
         blocked |= newly_blocked
         _save_blocked(blocked)
         print(f"\n  Blocked list updated: +{len(newly_blocked)} tickers "
-              f"({', '.join(sorted(newly_blocked))}) → {len(blocked)} total blocked")
+              f"({', '.join(sorted(newly_blocked))}) -> {len(blocked)} total blocked")
 
     # ── Persist all results ───────────────────────────────────────────────────
     if successes:
