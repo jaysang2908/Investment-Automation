@@ -6,171 +6,250 @@
   <title>Coverage Dashboard — Investment Utopia</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/iu-redesign.css">
   <style>
-    :root{
-      --bg:#07090e;--surface:#0e1520;--surface2:#131c2c;
-      --border:rgba(255,255,255,.06);--border2:rgba(255,255,255,.12);
-      --gold:#c9a84c;--gold-light:#e8c97a;--gold-dim:rgba(201,168,76,.12);
-      --text:#d9e0ea;--text-muted:#7a8499;--text-dim:#3d4455;
-      --green:#10b981;--green-dim:rgba(16,185,129,.12);
-      --amber:#f59e0b;--amber-dim:rgba(245,158,11,.12);
-      --red:#ef4444;--red-dim:rgba(239,68,68,.12);
-    }
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,.022) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+    /* ── PAGE HEAD ── */
+    .page-head { padding: 56px 32px 32px; max-width: 1400px; margin: 0 auto; }
+    .ph-eyebrow { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    .ph-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+    .ph-title { font-family: var(--font-display); font-size: 36px; font-weight: 600; color: var(--ink-1); line-height: 1.1; letter-spacing: -0.5px; }
+    .ph-title em { font-style: italic; color: var(--gold); font-weight: 400; }
+    .ph-sub { font-size: var(--t-body); color: var(--ink-3); margin-top: 10px; max-width: 540px; font-weight: 300; line-height: 1.6; }
+    .ph-meta { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-4); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+    .ph-meta strong { color: var(--ink-1); font-weight: 600; }
 
-    nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:64px;background:rgba(7,9,14,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
-    .nl{font-family:'IBM Plex Mono',monospace;font-size:10pt;letter-spacing:3.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none}
-    .nl span{color:var(--gold)}
-    .nlinks{list-style:none;display:flex;gap:32px}
-    .nlinks a{font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);text-decoration:none;transition:color .2s}
-    .nlinks a:hover,.nlinks a.active{color:var(--gold)}
-    .np{font-family:'IBM Plex Mono',monospace;font-size:8pt;letter-spacing:1px;text-transform:uppercase;padding:8px 18px;border:1px solid var(--gold);color:var(--gold);border-radius:2px;text-decoration:none;transition:background .2s}
-    .np:hover{background:var(--gold-dim)}
+    /* ── KPI STRIP ── */
+    .strip { max-width: 1400px; margin: 0 auto 28px; padding: 0 32px; display: grid; grid-template-columns: repeat(4, 1fr); }
+    .strip-inner { display: flex; background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; }
+    .strip-cell { flex: 1; padding: 22px 26px; border-right: 1px solid var(--border-1); }
+    .strip-cell:last-child { border-right: none; }
+    .strip-label { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 2px; text-transform: uppercase; color: var(--ink-4); margin-bottom: 10px; }
+    .strip-val { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--ink-1); line-height: 1; }
+    .strip-val .denom { color: var(--ink-4); font-size: 16px; }
+    .strip-val.up { color: var(--pos); }
+    .strip-delta { font-family: var(--font-mono); font-size: var(--t-eyebrow); color: var(--ink-4); margin-top: 8px; }
+    .strip-delta.pos { color: var(--pos); }
 
-    .ph{padding:48px 48px 28px;border-bottom:1px solid var(--border)}
-    .ph-eye{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
-    .ph-title{font-family:'Playfair Display',serif;font-size:26pt;font-weight:600;color:#fff;margin-bottom:8px}
-    .ph-sub{font-size:9pt;color:var(--text-muted);font-weight:300;max-width:560px;line-height:1.7}
-    .ph-act{display:flex;gap:12px;margin-top:20px}
-    .btn{font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:1px;text-transform:uppercase;padding:9px 20px;border-radius:2px;text-decoration:none;border:none;cursor:pointer;transition:all .2s;display:inline-block}
-    .bg{background:var(--gold);color:#07090e;font-weight:500}.bg:hover{background:var(--gold-light)}
+    /* ── TOOLBAR ── */
+    .toolbar { max-width: 1400px; margin: 0 auto 14px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tools-right { display: flex; gap: 10px; align-items: center; }
+    .search-box { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-1); border: 1px solid var(--border-2); border-radius: var(--r-md); }
+    .search-box input { background: transparent; border: none; outline: none; font-family: var(--font-mono); font-size: var(--t-small); color: var(--ink-1); width: 200px; }
+    .search-box input::placeholder { color: var(--ink-5); }
+    .search-icon { color: var(--ink-4); flex-shrink: 0; }
 
-    .sbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border)}
-    .si{flex:1;padding:18px 32px;border-right:1px solid var(--border)}.si:last-child{border-right:none}
-    .si-l{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
-    .si-v{font-family:'IBM Plex Mono',monospace;font-size:15pt;font-weight:500;color:#fff}
-    .si-s{font-size:7.5pt;color:var(--text-muted);margin-top:3px}
+    /* ── TABLE WRAP ── */
+    .table-wrap { max-width: 1400px; margin: 0 auto; padding: 0 32px 40px; }
+    .tbl-outer { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 1160px; }
+    thead th { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 2px; text-transform: uppercase; color: var(--ink-4); padding: 14px 16px; text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--border-2); font-weight: 500; white-space: nowrap; cursor: pointer; user-select: none; }
+    thead th.num { text-align: center; }
+    thead th:hover { color: var(--ink-2); }
+    tbody td { padding: 16px; border-bottom: 1px solid var(--border-1); vertical-align: middle; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr.data-row { transition: background var(--dur-fast); }
+    tbody tr.data-row:hover { background: rgba(255,255,255,0.018); }
+    tbody tr.data-row.dim td { opacity: 0.4; }
 
-    .ts{padding:28px 48px 16px}
-    .tslbl{font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;gap:12px}
-    .tslbl::after{content:'';flex:1;height:1px;background:var(--border)}
-    .leg{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px}
-    .li{display:flex;align-items:center;gap:6px;font-size:7.5pt;color:var(--text-muted)}
-    .ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    /* Company cell */
+    .tk-cell { display: flex; align-items: center; gap: 14px; }
+    .tk-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--gold); letter-spacing: 1px; min-width: 52px; }
+    .tk-name { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--ink-1); line-height: 1.25; }
+    .tk-meta { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 1px; color: var(--ink-4); text-transform: uppercase; margin-top: 2px; }
 
-    .tscroll{overflow-x:auto;border:1px solid var(--border);border-radius:4px}
-    table{width:100%;border-collapse:collapse;font-size:8.5pt;min-width:1200px}
-    thead th{font-family:'IBM Plex Mono',monospace;font-size:5.5pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);font-weight:400;padding:11px 13px;white-space:nowrap;background:var(--surface);border-bottom:2px solid var(--border2);text-align:left}
-    thead th.c{text-align:center}
-    tbody td{padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--bg);white-space:nowrap}
-    tbody tr:last-child td{border-bottom:none}
-    tbody tr:hover td{background:rgba(255,255,255,.012)}
-    tbody tr.pr td{opacity:.35}
+    /* Score cell */
+    td.score-td { text-align: left; }
+    .score-wrap { display: flex; align-items: center; gap: 10px; }
+    .score-bar { display: inline-block; width: 56px; height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+    .score-bar > i { display: block; height: 100%; border-radius: 2px; width: 0; transition: width 0.9s ease; }
+    .score-num { font-family: var(--font-mono); font-size: 13px; font-weight: 600; min-width: 32px; }
+    .score-num.good { color: var(--pos); }
+    .score-num.hold { color: var(--warn); }
+    .score-num.bad  { color: var(--neg); }
+    .score-label { font-family: var(--font-mono); font-size: var(--t-micro); color: var(--ink-4); }
 
-    .tcc{display:flex;align-items:center;gap:11px}
-    .tlog{width:34px;height:34px;border-radius:5px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:6.5pt;font-weight:500;color:var(--text-muted);flex-shrink:0}
-    .tn{font-size:8pt;font-weight:500;color:#fff}.te{font-family:'IBM Plex Mono',monospace;font-size:6pt;color:var(--text-dim);margin-top:2px}
+    /* Verdict cell */
+    td.num { text-align: center; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-small); }
+    td.num.up { color: var(--pos); }
+    td.num.dn { color: var(--neg); }
 
-    .scc{display:flex;align-items:center;gap:9px}
-    .snum{font-family:'IBM Plex Mono',monospace;font-size:10.5pt;font-weight:500;min-width:40px}
-    .sbar{display:inline-block;width:48px;height:3px;background:var(--surface2);border-radius:2px;vertical-align:middle;overflow:hidden}
-    .sfill{display:block;height:100%;border-radius:2px;width:0;transition:width .9s ease}
-    .sn{font-family:'IBM Plex Mono',monospace;font-size:6pt;color:var(--text-dim)}
+    /* Group header rows */
+    .group-head td { background: rgba(255,255,255,0.02); padding: 10px 16px; }
+    .group-head-label { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-4); display: flex; align-items: center; gap: 10px; }
+    .gh-count { background: var(--surface-3); color: var(--ink-2); padding: 2px 8px; border-radius: 10px; font-size: var(--t-micro); }
 
-    .cg{color:var(--green)}.ca{color:var(--amber)}.cr{color:var(--red)}.cd{color:var(--text-dim)}
-    .fg{background:var(--green)}.fa{background:var(--amber)}.fr{background:var(--red)}
+    /* Action buttons */
+    .acts { display: flex; gap: 5px; justify-content: flex-end; }
+    .al { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-sm); text-decoration: none; transition: all var(--dur-base); white-space: nowrap; cursor: pointer; border: 1px solid; }
+    .alv { color: var(--gold); border-color: rgba(230,193,104,0.3); background: transparent; }
+    .alv:hover { background: var(--gold-dim); }
+    .alx { color: var(--pos); border-color: rgba(52,211,153,0.3); background: transparent; }
+    .alx:hover { background: var(--pos-bg); }
+    .alg { color: var(--ink-3); border-color: var(--border-2); background: transparent; }
+    .alg:hover { color: var(--ink-1); border-color: var(--border-3); }
+    .aln { color: var(--ink-5); border-color: var(--border-1); background: transparent; pointer-events: none; }
 
-    .chip{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:7.5pt;font-weight:500;padding:3px 8px;border-radius:2px;white-space:nowrap}
-    .chg{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.20)}
-    .cha{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,.18)}
-    .chr{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.18)}
-    .chd{background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--border)}
+    /* Qual controls */
+    .qsel { font-family: var(--font-mono); font-size: var(--t-micro); background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--border-2); border-radius: var(--r-sm); padding: 4px 6px; cursor: pointer; width: 54px; appearance: none; -webkit-appearance: none; outline: none; transition: border-color 0.15s, color 0.15s; }
+    .qsel:hover { border-color: rgba(230,193,104,0.4); }
+    .qsel:focus { border-color: var(--gold); }
+    .qsel.sH { color: var(--pos); border-color: rgba(52,211,153,0.4); }
+    .qsel.sM { color: var(--warn); border-color: rgba(251,191,36,0.4); }
+    .qsel.sL { color: var(--neg); border-color: rgba(248,113,113,0.4); }
+    .qbtn { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 8px; border-radius: var(--r-sm); border: 1px solid rgba(230,193,104,0.35); background: transparent; color: var(--gold); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .qbtn:hover { background: var(--gold-dim); }
+    .qbtn:active { opacity: 0.7; }
 
-    .vc{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
-    .vc-c{font-family:'IBM Plex Mono',monospace;font-size:8pt;color:#fff}
-    .vc-s{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;color:var(--text-dim)}
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface-2); border: 1px solid var(--border-2); color: var(--ink-1); font-family: var(--font-mono); font-size: var(--t-small); padding: 10px 18px; border-radius: var(--r-md); z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateY(0); }
 
-    .acts{display:flex;gap:5px;justify-content:flex-end}
-    .al{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;border-radius:2px;text-decoration:none;transition:all .2s;white-space:nowrap}
-    .alv{color:var(--gold);border:1px solid rgba(201,168,76,.3)}.alv:hover{background:var(--gold-dim)}
-    .alg{color:var(--text-muted);border:1px solid var(--border2)}.alg:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
-    .alx{color:#10b981;border:1px solid rgba(16,185,129,.3)}.alx:hover{background:rgba(16,185,129,.08)}
-    .aln{color:var(--text-dim);border:1px solid var(--border);pointer-events:none}
+    /* Chips */
+    .chip { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: 1.5px; text-transform: uppercase; padding: 7px 12px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: transparent; color: var(--ink-3); cursor: pointer; transition: all var(--dur-base); }
+    .chip:hover { color: var(--ink-1); border-color: var(--border-3); }
+    .chip.on { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+    .chip .ct { color: var(--ink-4); margin-left: 5px; font-weight: 400; }
+    .chip.on .ct { color: var(--gold-soft); }
 
-    .tnotes{font-size:7pt;color:var(--text-dim);padding:8px 0 0;line-height:1.8}
+    /* Value chips */
+    .vc { display: inline-flex; align-items: baseline; gap: 4px; }
+    .vc-c { font-family: var(--font-mono); font-size: var(--t-small); color: var(--ink-1); }
+    .vc-s { font-family: var(--font-mono); font-size: var(--t-micro); color: var(--ink-4); }
+    .cg { color: var(--pos); } .ca { color: var(--warn); } .cr { color: var(--neg); } .cd { color: var(--ink-4); }
+    .fg { background: var(--pos); } .fa { background: var(--warn); } .fr { background: var(--neg); }
+    .bchip { display: inline-block; font-family: var(--font-mono); font-size: var(--t-micro); font-weight: 500; padding: 3px 8px; border-radius: var(--r-sm); white-space: nowrap; }
+    .bchip.chg { background: var(--pos-bg); color: var(--pos); border: 1px solid rgba(52,211,153,0.2); }
+    .bchip.cha { background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(251,191,36,0.2); }
+    .bchip.chr { background: var(--neg-bg); color: var(--neg); border: 1px solid rgba(248,113,113,0.2); }
+    .bchip.chd { background: rgba(255,255,255,0.04); color: var(--ink-4); border: 1px solid var(--border-1); }
 
-    .ls{padding:28px 48px 52px}
-    .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:12px}
-    .lcard{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:16px 18px;display:flex;flex-direction:column;gap:9px;text-decoration:none;transition:border-color .2s,transform .15s}
-    .lcard:hover{border-color:var(--border2);transform:translateY(-2px)}
-    .ltop{display:flex;align-items:center;justify-content:space-between}
-    .ltick{font-family:'IBM Plex Mono',monospace;font-size:13pt;font-weight:500;color:#fff}
-    .lsc{font-family:'IBM Plex Mono',monospace;font-size:11pt}
-    .lts{font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)}
-    .lbtns{display:flex;gap:7px}
-    .el{font-size:8.5pt;color:var(--text-dim);padding:16px 0;font-style:italic}
+    /* Live reports section */
+    .live-section { max-width: 1400px; margin: 0 auto; padding: 0 32px 60px; }
+    .live-label { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-4); margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+    .live-label::after { content: ''; flex: 1; height: 1px; background: var(--border-1); }
+    .lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .lcard { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; transition: border-color 0.2s, transform 0.15s; }
+    .lcard:hover { border-color: var(--border-3); transform: translateY(-2px); }
+    .ltop { display: flex; align-items: center; justify-content: space-between; }
+    .ltick { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--gold); letter-spacing: 1px; }
+    .lsc { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+    .lts { font-family: var(--font-mono); font-size: var(--t-micro); color: var(--ink-4); }
+    .lbtns { display: flex; gap: 6px; }
+    .el { font-size: var(--t-small); color: var(--ink-4); padding: 16px 0; }
 
-    /* Qualitative dropdowns + Apply button */
-    .qsel{font-family:'IBM Plex Mono',monospace;font-size:7pt;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border2);border-radius:2px;padding:3px 5px;cursor:pointer;width:56px;appearance:none;-webkit-appearance:none;outline:none;transition:border-color .15s,color .15s}
-    .qsel:hover{border-color:rgba(201,168,76,.4)}.qsel:focus{border-color:var(--gold)}
-    .qsel.sH{color:var(--green);border-color:rgba(16,185,129,.4)}.qsel.sM{color:var(--amber);border-color:rgba(245,158,11,.4)}.qsel.sL{color:var(--red);border-color:rgba(239,68,68,.4)}
-    .qbtn{font-family:'IBM Plex Mono',monospace;font-size:6.5pt;letter-spacing:.5px;text-transform:uppercase;padding:3px 7px;border-radius:2px;border:1px solid rgba(201,168,76,.35);background:transparent;color:var(--gold);cursor:pointer;transition:all .15s;white-space:nowrap}
-    .qbtn:hover{background:var(--gold-dim)}.qbtn:active{opacity:.7}
-    .toast{position:fixed;bottom:28px;right:28px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:8pt;padding:10px 18px;border-radius:3px;z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
-    .toast.show{opacity:1;transform:translateY(0)}
+    /* Notes area */
+    .tnotes { font-family: var(--font-mono); font-size: var(--t-micro); color: var(--ink-4); padding: 12px 0 4px; line-height: 1.9; max-width: 1400px; margin: 0 auto; padding-left: 32px; padding-right: 32px; }
 
-    @media(max-width:900px){
-      nav{padding:0 24px}.nlinks,.np{display:none}
-      .ph{padding:32px 24px 20px}.ts{padding:20px 24px 10px}.ls{padding:20px 24px 40px}
-      .sbar{flex-wrap:wrap}.si{min-width:50%;border-bottom:1px solid var(--border);border-right:none}
+    /* Responsive */
+    @media(max-width: 900px) {
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .page-head, .toolbar, .table-wrap, .tnotes, .live-section { padding-left: 20px; padding-right: 20px; }
+      .strip { padding: 0 20px; }
+      .strip-inner { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
-  <a href="/" class="nl">Investment<span>.</span>Utopia</a>
-  <div style="display:flex;align-items:center;gap:36px">
-    <ul class="nlinks">
+  <a href="/" class="nav-logo">Investment<span>.</span>Utopia</a>
+  <div style="display:flex;align-items:center;gap:32px">
+    <ul class="nav-links">
       <li><a href="/">Generate</a></li>
       <li><a href="/dashboard.html" class="active">Dashboard</a></li>
-      <li><a href="/#methodology">Methodology</a></li>
+      <li><a href="/dcf">DCF Calculator</a></li>
+      <li><a href="/heatmap">Heatmap</a></li>
+      <li><a href="/news">News</a></li>
     </ul>
-    <a class="np" href="/">Generate Report</a>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
+      <span class="pulse"></span>
+    </div>
   </div>
 </nav>
 
-<div class="ph">
-  <div class="ph-eye">Active Coverage</div>
-  <h1 class="ph-title">Coverage Dashboard</h1>
-  <p class="ph-sub">All analysed companies — DCF upside, valuation vs history, and quality metrics. Scores are auto-scored (FMP engine) unless noted as including qualitative inputs.</p>
-  <div class="ph-act"><a href="/" class="btn bg">Generate New Report</a></div>
-</div>
-
-<div class="sbar">
-  <div class="si"><div class="si-l">Coverage</div><div class="si-v" id="sCov">—</div><div class="si-s">Companies with data</div></div>
-  <div class="si"><div class="si-l">Avg Score</div><div class="si-v" id="sAvg">—</div><div class="si-s">Scored companies</div></div>
-  <div class="si"><div class="si-l">High Conviction</div><div class="si-v" id="sHC">—</div><div class="si-s">Score ≥ 75</div></div>
-  <div class="si"><div class="si-l">Live Reports</div><div class="si-v" id="sLive">—</div><div class="si-s">This session</div></div>
-</div>
-
-<div class="ts">
-  <div class="tslbl">Coverage Heatmap  ·  FMP Engine Outputs &amp; 10-K Data</div>
-  <div class="leg">
-    <div class="li"><div class="ld" style="background:var(--green)"></div>HIGH / Favourable</div>
-    <div class="li"><div class="ld" style="background:var(--amber)"></div>MOD / Neutral</div>
-    <div class="li"><div class="ld" style="background:var(--red)"></div>LOW / Cautionary</div>
-    <div class="li"><div class="ld" style="background:var(--text-dim)"></div>No data / Model issue</div>
+<!-- PAGE HEADER -->
+<header class="page-head">
+  <div class="ph-eyebrow">Coverage Dashboard</div>
+  <div class="ph-row">
+    <div>
+      <h1 class="ph-title">Watchlist <em>at a glance</em></h1>
+      <p class="ph-sub">All analysed companies — DCF upside, valuation vs history, and quality metrics. Scores auto-scored unless noted as including qualitative inputs.</p>
+    </div>
+    <div class="ph-meta">
+      <span>Coverage · <strong id="sCov">—</strong> names</span>
+      <span>Avg Score · <strong id="sAvg">—</strong></span>
+    </div>
   </div>
-  <div class="tscroll">
+</header>
+
+<!-- KPI STRIP -->
+<div class="strip">
+  <div class="strip-inner" id="stripInner">
+    <div class="strip-cell">
+      <div class="strip-label">High Conviction</div>
+      <div class="strip-val" id="sHC">—</div>
+      <div class="strip-delta pos">Score ≥ 75</div>
+    </div>
+    <div class="strip-cell">
+      <div class="strip-label">Live Reports</div>
+      <div class="strip-val" id="sLive">—</div>
+      <div class="strip-delta">This session</div>
+    </div>
+    <div class="strip-cell">
+      <div class="strip-label">Buy Range</div>
+      <div class="strip-val" id="sBuy">—</div>
+      <div class="strip-delta">Score 65–74</div>
+    </div>
+    <div class="strip-cell">
+      <div class="strip-label">Hold / Avoid</div>
+      <div class="strip-val" id="sHold">—</div>
+      <div class="strip-delta">Score &lt; 65</div>
+    </div>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="filters" id="filterChips">
+    <button class="chip on" data-filter="all" onclick="setFilter('all',this)">All <span class="ct" id="fc-all">—</span></button>
+    <button class="chip" data-filter="hc"  onclick="setFilter('hc',this)">High Conviction <span class="ct" id="fc-hc">—</span></button>
+    <button class="chip" data-filter="buy" onclick="setFilter('buy',this)">Buy <span class="ct" id="fc-buy">—</span></button>
+    <button class="chip" data-filter="hold" onclick="setFilter('hold',this)">Hold <span class="ct" id="fc-hold">—</span></button>
+    <button class="chip" data-filter="avoid" onclick="setFilter('avoid',this)">Avoid <span class="ct" id="fc-avoid">—</span></button>
+    <button class="chip" data-filter="pending" onclick="setFilter('pending',this)">Pending <span class="ct" id="fc-pending">—</span></button>
+  </div>
+  <div class="tools-right">
+    <div class="search-box">
+      <svg class="search-icon" width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <input id="searchInput" placeholder="Ticker or company…" oninput="filterSearch(this.value)">
+    </div>
+  </div>
+</div>
+
+<!-- COVERAGE TABLE -->
+<div class="table-wrap">
+  <div class="tbl-outer">
     <table>
       <thead>
         <tr>
-          <th style="min-width:190px">Company</th>
-          <th style="min-width:115px">Score</th>
-          <th class="c" style="min-width:72px">DCF GG</th>
-          <th class="c" style="min-width:72px">DCF EM</th>
-          <th class="c" style="min-width:68px">ROIC</th>
-          <th class="c" style="min-width:75px">Rev CAGR</th>
-          <th class="c" style="min-width:68px">FCF/NI</th>
-          <th class="c" style="min-width:75px">D/EBITDA</th>
-          <th class="c" style="min-width:155px">P/E  ·  5yr avg  ·  Δ</th>
-          <th class="c" style="min-width:155px">P/FCF  ·  5yr avg  ·  Δ</th>
-          <th class="c" style="min-width:130px">Qual Inputs  ·  BC / LTP</th>
-          <th style="min-width:120px"></th>
+          <th style="min-width:220px">Company</th>
+          <th style="min-width:140px">Score</th>
+          <th class="num" style="min-width:80px">Verdict</th>
+          <th class="num" style="min-width:72px">DCF GG</th>
+          <th class="num" style="min-width:72px">DCF EM</th>
+          <th class="num" style="min-width:64px">ROIC</th>
+          <th class="num" style="min-width:72px">Rev CAGR</th>
+          <th class="num" style="min-width:64px">FCF/NI</th>
+          <th class="num" style="min-width:72px">D/EBITDA</th>
+          <th class="num" style="min-width:150px">P/E · 5yr · Δ</th>
+          <th class="num" style="min-width:150px">P/FCF · 5yr · Δ</th>
+          <th class="num" style="min-width:130px">BC / LTP</th>
+          <th style="min-width:110px"></th>
         </tr>
       </thead>
       <tbody id="tb"></tbody>
@@ -179,24 +258,28 @@
   <div class="tnotes" id="tnotes"></div>
 </div>
 
-<div id="disc-section" style="display:none" class="ts">
-  <div class="tslbl">Discovery Coverage  ·  Auto-generated via daily_discovery.py</div>
-  <div class="tscroll">
+<!-- DISCOVERY TABLE -->
+<div id="disc-section" style="display:none" class="table-wrap" style="padding-top:0">
+  <div style="font-family:var(--font-mono);font-size:var(--t-eyebrow);letter-spacing:2.5px;text-transform:uppercase;color:var(--ink-4);margin-bottom:14px;display:flex;align-items:center;gap:12px;padding-bottom:0">
+    Daily Discoveries <span style="font-size:10px;color:var(--ink-5);text-transform:none;letter-spacing:0;font-family:var(--font-body);font-weight:300;margin-left:4px">· auto-generated via daily_discovery.py</span>
+  </div>
+  <div class="tbl-outer">
     <table>
       <thead>
         <tr>
-          <th style="min-width:190px">Company</th>
-          <th style="min-width:115px">Score</th>
-          <th class="c" style="min-width:72px">DCF GG</th>
-          <th class="c" style="min-width:72px">DCF EM</th>
-          <th class="c" style="min-width:68px">ROIC</th>
-          <th class="c" style="min-width:75px">Rev CAGR</th>
-          <th class="c" style="min-width:68px">FCF/NI</th>
-          <th class="c" style="min-width:75px">D/EBITDA</th>
-          <th class="c" style="min-width:100px">P/E</th>
-          <th class="c" style="min-width:100px">P/FCF</th>
-          <th class="c" style="min-width:130px">Qual Inputs  ·  BC / LTP</th>
-          <th style="min-width:100px"></th>
+          <th style="min-width:220px">Company</th>
+          <th style="min-width:140px">Score</th>
+          <th class="num" style="min-width:80px">Verdict</th>
+          <th class="num" style="min-width:72px">DCF GG</th>
+          <th class="num" style="min-width:72px">DCF EM</th>
+          <th class="num" style="min-width:64px">ROIC</th>
+          <th class="num" style="min-width:72px">Rev CAGR</th>
+          <th class="num" style="min-width:64px">FCF/NI</th>
+          <th class="num" style="min-width:72px">D/EBITDA</th>
+          <th class="num" style="min-width:96px">P/E</th>
+          <th class="num" style="min-width:96px">P/FCF</th>
+          <th class="num" style="min-width:130px">BC / LTP</th>
+          <th style="min-width:90px"></th>
         </tr>
       </thead>
       <tbody id="disc-tb"></tbody>
@@ -204,20 +287,16 @@
   </div>
 </div>
 
-<div class="ls">
-  <div class="tslbl">Live-Generated Reports  ·  This Session  (2-hour TTL)</div>
+<!-- LIVE REPORTS -->
+<div class="live-section">
+  <div class="live-label">Live-Generated Reports · This Session (2-hour TTL)</div>
   <div class="lgrid" id="lgrid">
     <div class="el" id="lempty">No reports generated this session. <a href="/" style="color:var(--gold);text-decoration:none">Generate one →</a></div>
   </div>
 </div>
 
 <script>
-// ── Coverage data (sorted by score desc) ──────────────────────────────────────
-// Scores: re-run 2026-04-24 with updated engine (bank leverage fix, new FMP data)
-// GG/EM: null when DCF produced negative/implausible price
-// AAPL/MSFT: auto-score only (no qualitative inputs) — add BC+LTP via /generate for ~70+ score
-// NFLX: jumped 43→84 because old model run lacked P/E and P/FCF data; now scored
-// Banks: D/EBITDA gate removed; Equity/Assets (CET1 proxy) used for P3 leverage criterion
+// ── Coverage data ──────────────────────────────────────────────────────────────
 const D = [
   {t:"NFLX",n:"Netflix Inc.",           ex:"NASDAQ",score:84.5,sn:"auto-score",   gg:0.134,  em:0.645,  roic:0.359,cagr:0.126,fcfni:0.86,de:0.5,  pe:null, pe5:null, pf:null, pf5:null,  url:"/reports/NFLX_report.html",note:"Prior run lacked P/E & P/FCF data; both now scored."},
   {t:"NVDA",n:"NVIDIA Corporation",     ex:"NASDAQ",score:75.0,sn:"auto-score",   gg:-0.417,em:0.096,  roic:0.713,cagr:1.00, fcfni:0.81,de:0.0,  pe:37.7, pe5:60.2, pf:46.9, pf5:70.4, url:"/reports/NVDA_report.html"},
@@ -228,257 +307,364 @@ const D = [
   {t:"AMD", n:"Advanced Micro Devices", ex:"NASDAQ",score:59.2,sn:"auto-score",   gg:-0.486, em:-0.105, roic:0.059,cagr:0.136,fcfni:1.55,de:0.0,  pe:80.5, pe5:123.1,pf:51.8, pf5:87.2, url:"/reports/AMD_report.html"},
   {t:"AAPL",n:"Apple Inc.",             ex:"NASDAQ",score:57.5,sn:"auto-score*",  gg:-0.434,em:-0.158, roic:0.823,cagr:0.018,fcfni:0.88,de:0.7,  pe:34.1, pe5:29.9, pf:38.7, pf5:29.2, url:"/reports/AAPL_report.html",note:"*Qual inputs (BC+LTP) not included in this run. Previous incl. qual. score: 74.3."},
   {t:"JNJ", n:"Johnson & Johnson",      ex:"NYSE",  score:54.0,sn:"auto-score",   gg:0.493,  em:0.622,  roic:0.192,cagr:0.056,fcfni:0.73,de:1.2,  pe:18.8, pe5:20.4, pf:25.6, pf5:22.9, url:"/reports/JNJ_report.html"},
-  {t:"META",n:"Meta Platforms Inc.",    ex:"NASDAQ",score:53.0,sn:"auto-score",   gg:null,   em:0.762,  roic:0.244,cagr:0.199,fcfni:0.76,de:0.6,  pe:27.5, pe5:22.5, pf:36.1, pf5:25.1, url:"/reports/META_report.html",note:"GG price implausible (negative EV from model) — EM shown only."},
+  {t:"META",n:"Meta Platforms Inc.",    ex:"NASDAQ",score:53.0,sn:"auto-score",   gg:null,   em:0.762,  roic:0.244,cagr:0.199,fcfni:0.76,de:0.6,  pe:27.5, pe5:22.5, pf:36.1, pf5:25.1, url:"/reports/META_report.html",note:"GG price implausible — EM shown only."},
   {t:"TSM", n:"Taiwan Semiconductor",   ex:"NYSE",  score:52.8,sn:"auto-score",   gg:null,   em:null,   roic:0.447,cagr:0.193,fcfni:0.63,de:0.0,  pe:28.5, pe5:23.6, pf:45.0, pf5:45.9, url:"/reports/TSM_report.html",note:"DCF prices in TWD — FX conversion not applied."},
   {t:"KO",  n:"The Coca-Cola Company",  ex:"NYSE",  score:47.0,sn:"auto-score",   gg:-0.067, em:0.052,  roic:0.168,cagr:0.037,fcfni:0.40,de:2.4,  pe:23.0, pe5:25.4, pf:56.8, pf5:38.2, url:"/reports/KO_report.html"},
-  {t:"ABBV",n:"AbbVie Inc.",            ex:"NYSE",  score:43.0,sn:"auto-score",   gg:0.820,  em:0.668,  roic:0.175,cagr:0.018,fcfni:4.22,de:2.4,  pe:96.3, pe5:54.2, pf:22.8, pf5:15.1, url:"/reports/ABBV_report.html",note:"FCF/NI >100% reflects amortisation of acquired intangibles (Allergan deal)."},
+  {t:"ABBV",n:"AbbVie Inc.",            ex:"NYSE",  score:43.0,sn:"auto-score",   gg:0.820,  em:0.668,  roic:0.175,cagr:0.018,fcfni:4.22,de:2.4,  pe:96.3, pe5:54.2, pf:22.8, pf5:15.1, url:"/reports/ABBV_report.html",note:"FCF/NI >100% reflects amortisation of acquired intangibles."},
   {t:"CSCO",n:"Cisco Systems Inc.",     ex:"NASDAQ",score:41.8,sn:"auto-score",   gg:-0.222, em:-0.056, roic:0.162,cagr:0.032,fcfni:1.31,de:1.8,  pe:26.8, pe5:20.1, pf:20.6, pf5:16.3, url:"/reports/CSCO_report.html"},
   {t:"WMT", n:"Walmart Inc.",           ex:"NYSE",  score:40.0,sn:"auto-score",   gg:-0.894, em:-0.180, roic:0.166,cagr:0.053,fcfni:0.68,de:1.0,  pe:43.4, pe5:35.0, pf:63.7, pf5:44.7, url:"/reports/WMT_report.html"},
-  {t:"WFC", n:"Wells Fargo & Co.",      ex:"NYSE",  score:38.7,sn:"bank adj.",     gg:-0.835,em:-0.351,roic:0.049,cagr:0.140,fcfni:0.89,de:14.5,pe:13.9,pe5:11.2,pf:null,pf5:29.9,url:"/reports/WFC_report.html",note:"Bank: D/EBITDA gate exempt. Equity/Assets 8.5% (CET1 proxy) used for P3."},
-  {t:"SOFI",n:"SoFi Technologies Inc.", ex:"NASDAQ",score:36.0,sn:"bank adj.",     gg:0.324, em:1.283, roic:0.209,cagr:0.393,fcfni:8.28,de:0.0,  pe:62.6,pe5:47.5, pf:null,pf5:null,  url:"/reports/SOFI_report.html",note:"Bank: Equity/Assets 20.7% (well-capitalised). FCF/NI non-standard (bank economics)."},
-  {t:"INTC",n:"Intel Corporation",      ex:"NASDAQ",score:33.0,sn:"auto-score, floor 64",gg:null,em:-0.310,roic:0.0,cagr:0.057,fcfni:18.54,de:3.2,pe:null,pe5:49.6,pf:null,pf5:null,url:"/reports/INTC_report.html",note:"GG DCF negative. FCF/NI >100% from heavy D&A. ROIC near-zero reflects capex cycle."},
+  {t:"WFC", n:"Wells Fargo & Co.",      ex:"NYSE",  score:38.7,sn:"bank adj.",     gg:-0.835,em:-0.351,roic:0.049,cagr:0.140,fcfni:0.89,de:14.5,pe:13.9,pe5:11.2,pf:null,pf5:29.9,url:"/reports/WFC_report.html",note:"Bank: D/EBITDA gate exempt. Equity/Assets 8.5% (CET1 proxy)."},
+  {t:"SOFI",n:"SoFi Technologies Inc.", ex:"NASDAQ",score:36.0,sn:"bank adj.",     gg:0.324, em:1.283, roic:0.209,cagr:0.393,fcfni:8.28,de:0.0,  pe:62.6,pe5:47.5, pf:null,pf5:null,  url:"/reports/SOFI_report.html",note:"Bank: Equity/Assets 20.7%. FCF/NI non-standard (bank economics)."},
+  {t:"INTC",n:"Intel Corporation",      ex:"NASDAQ",score:33.0,sn:"auto-score",   gg:null,  em:-0.310, roic:0.0, cagr:0.057,fcfni:18.54,de:3.2,pe:null,pe5:49.6,pf:null,pf5:null,url:"/reports/INTC_report.html",note:"FCF/NI >100% from heavy D&A. ROIC near-zero reflects capex cycle."},
   {t:"TSLA",n:"Tesla Inc.",             ex:"NASDAQ",score:32.5,sn:"auto-score",   gg:-0.966, em:-0.679, roic:0.043,cagr:0.052,fcfni:1.64,de:0.0,  pe:382.3,pe5:167.1,pf:233.2,pf5:225.0,url:"/reports/TSLA_report.html"},
-  {t:"JPM", n:"JPMorgan Chase & Co.",   ex:"NYSE",  score:32.0,sn:"bank adj.",     gg:null,   em:null,   roic:0.059,cagr:0.221,fcfni:1.77,de:11.6,pe:15.8,pe5:11.6,pf:8.9,pf5:14.3,url:"/reports/JPM_report.html",note:"Bank: Equity/Assets 8.2%. DCF structurally unsuited for deposit-funded banks."},
-  {t:"C",   n:"Citigroup Inc.",         ex:"NYSE",  score:25.0,sn:"bank adj.",     gg:null,   em:null,   roic:0.025,cagr:0.189,fcfni:1.56,de:31.0,pe:14.9,pe5:9.5, pf:9.5, pf5:5.6, url:"/reports/C_report.html",note:"Bank: DCF prices negative (bank structure). Equity/Assets 8.0%. D/EBITDA non-comparable."},
-  {t:"BAC", n:"Bank of America Corp.",  ex:"NYSE",  score:23.7,sn:"bank adj.",     gg:null,   em:-0.228, roic:0.070,cagr:0.185,fcfni:0.41,de:9.1, pe:13.3,pe5:11.5,pf:32.1,pf5:19.1,url:"/reports/BAC_report.html",note:"Bank: Equity/Assets 8.9%. GG price implausible. D/EBITDA non-comparable."},
-  {t:"F",   n:"Ford Motor Company",     ex:"NYSE",  score:15.8,sn:"auto-score, floor 64",gg:null,em:-0.944,roic:0.010,cagr:0.058,fcfni:1.52,de:19.3,pe:null,pe5:7.5,pf:4.2,pf5:6.5,url:"/reports/F_report.html",note:"GG DCF negative (extreme leverage). Score reflects updated FY2025 data; prior: 35.8."},
-  {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available in model — report shows financial data only."},
+  {t:"JPM", n:"JPMorgan Chase & Co.",   ex:"NYSE",  score:32.0,sn:"bank adj.",     gg:null,   em:null,   roic:0.059,cagr:0.221,fcfni:1.77,de:11.6,pe:15.8,pe5:11.6,pf:8.9,pf5:14.3,url:"/reports/JPM_report.html",note:"Bank: DCF structurally unsuited for deposit-funded banks."},
+  {t:"C",   n:"Citigroup Inc.",         ex:"NYSE",  score:25.0,sn:"bank adj.",     gg:null,   em:null,   roic:0.025,cagr:0.189,fcfni:1.56,de:31.0,pe:14.9,pe5:9.5, pf:9.5, pf5:5.6, url:"/reports/C_report.html",note:"Bank: DCF prices negative (bank structure). D/EBITDA non-comparable."},
+  {t:"BAC", n:"Bank of America Corp.",  ex:"NYSE",  score:23.7,sn:"bank adj.",     gg:null,   em:-0.228, roic:0.070,cagr:0.185,fcfni:0.41,de:9.1, pe:13.3,pe5:11.5,pf:32.1,pf5:19.1,url:"/reports/BAC_report.html",note:"Bank: GG price implausible. D/EBITDA non-comparable."},
+  {t:"F",   n:"Ford Motor Company",     ex:"NYSE",  score:15.8,sn:"auto-score",   gg:null,  em:-0.944, roic:0.010,cagr:0.058,fcfni:1.52,de:19.3,pe:null,pe5:7.5,pf:4.2,pf5:6.5,url:"/reports/F_report.html",note:"GG DCF negative (extreme leverage)."},
+  {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available — report shows financial data only."},
 ];
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const p = (v, d=1) => v == null ? '—' : ((v >= 0 ? '+' : '') + (v*100).toFixed(d) + '%');
+const x = (v, d=1) => v == null ? '—' : (v.toFixed(d) + 'x');
+
+function chip(l, c) { return `<span class="bchip ${c}">${l}</span>`; }
+
+function upChip(v) {
+  if (v == null) return chip('—', 'chd');
+  if (Math.abs(v) > 2) return chip('—', 'chd');
+  return chip(p(v), v > 0.20 ? 'chg' : v > 0 ? 'cha' : 'chr');
+}
+function roicChip(v) { if (v == null) return chip('—','chd'); return chip(p(v,0), v >= 0.20 ? 'chg' : v >= 0.08 ? 'cha' : 'chr'); }
+function cagrChip(v) { if (v == null) return chip('—','chd'); return chip(p(v,1), v >= 0.12 ? 'chg' : v >= 0.05 ? 'cha' : 'chr'); }
+function fcfChip(v) {
+  if (v == null) return chip('—','chd');
+  const display = v > 1.5 ? '>100%' : p(v, 0);
+  return chip(display, v >= 0.80 ? 'chg' : v >= 0.60 ? 'cha' : 'chr');
+}
+function deChip(v) { if (v == null) return chip('—','chd'); return chip(v.toFixed(1) + 'x', v < 1.5 ? 'chg' : v < 4 ? 'cha' : 'chr'); }
+function valCell(cur, avg) {
+  if (cur == null || avg == null) return chip('—', 'chd');
+  const d = (cur - avg) / avg;
+  const ds = (d >= 0 ? '+' : '') + (d*100).toFixed(0) + '%';
+  const dc = d <= 0 ? 'chg' : d <= 0.20 ? 'cha' : 'chr';
+  return `<span class="vc"><span class="vc-c">${x(cur)}</span><span class="vc-s">/ ${x(avg)}</span>${chip(ds, dc)}</span>`;
+}
+
+function verdictCell(c) {
+  if (c.pending || c.score == null)
+    return `<span class="verdict pending"><span class="dot"></span>Pending</span>`;
+  if (c.score >= 75)
+    return `<span class="verdict good"><span class="dot"></span>High Conv.</span>`;
+  if (c.score >= 65)
+    return `<span class="verdict good"><span class="dot"></span>Buy</span>`;
+  if (c.score >= 50)
+    return `<span class="verdict hold"><span class="dot"></span>Hold</span>`;
+  return `<span class="verdict avoid"><span class="dot"></span>Avoid</span>`;
+}
+
+function scoreCell(c) {
+  if (c.score == null)
+    return `<span style="font-family:var(--font-mono);font-size:var(--t-small);color:var(--ink-4)">—</span>`;
+  const cls = c.score >= 75 ? 'good' : c.score >= 60 ? 'hold' : 'bad';
+  const barCls = c.score >= 75 ? 'fg' : c.score >= 60 ? 'fa' : 'fr';
+  return `<div class="score-wrap">
+    <span class="score-bar"><i class="${barCls}" data-w="${c.score}"></i></span>
+    <span class="score-num ${cls}">${c.score.toFixed(1)}</span>
+    ${c.sn ? `<span class="score-label">${c.sn}</span>` : ''}
+  </div>`;
+}
+
 // ── Qualitative helpers ───────────────────────────────────────────────────────
-function qualCell(c){
-  if(c.pending) return'<span class="cd" style="font-size:7pt">—</span>';
-  // c._auto is frozen at render time — the original auto_score before any qual adjustments
-  const hint=c._auto||0;
-  return`<div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap">
-    <select class="qsel" title="Business Clarity (adds up to 2.5 pts to score)">
+function qualCell(c) {
+  if (c.pending) return '<span class="cd" style="font-size:var(--t-micro)">—</span>';
+  const hint = c._auto || 0;
+  return `<div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap">
+    <select class="qsel" title="Business Clarity (adds up to 2.5 pts)">
       <option value="">BC</option>
       <option value="HIGH">HIGH</option>
       <option value="MOD">MOD</option>
       <option value="LOW">LOW</option>
     </select>
-    <select class="qsel" title="Long-Term Positioning (adds up to 10 pts to score)">
+    <select class="qsel" title="Long-Term Positioning (adds up to 10 pts)">
       <option value="">LTP</option>
       <option value="HIGH">HIGH</option>
       <option value="MOD">MOD</option>
       <option value="LOW">LOW</option>
     </select>
-    <button class="qbtn" onclick="updateQual('${c.t}',${hint})" title="Apply qualitative inputs and update score + report">Apply</button>
+    <button class="qbtn" onclick="updateQual('${c.t}',${hint})">Apply</button>
   </div>`;
 }
 
+const EXCEL_TICKERS = new Set(["AAPL","ABBV","ADBE","AMD","BAC","C","COST","CSCO","F","INTC","JNJ","JPM","KO","META","MSFT","NVDA","SOFI","TSLA","TSM","V","WMT"]);
+function actions(c) {
+  if (c.pending) return `<div class="acts"><span class="al aln">Pending</span></div>`;
+  const v  = c.url ? `<a class="al alv" href="${c.url}" target="_blank">Report</a>` : '';
+  const xl = EXCEL_TICKERS.has(c.t) ? `<a class="al alx" href="/download/model/${c.t}" title="Download Excel model">Model</a>` : '';
+  return `<div class="acts">${v}${xl}<a class="al alg" href="/" title="Re-run ${c.t}">Re-run</a></div>`;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
 let _toastTimer;
-function showToast(msg){
-  let t=document.getElementById('_toast');
-  if(!t){t=document.createElement('div');t.id='_toast';t.className='toast';document.body.appendChild(t);}
+function showToast(msg) {
+  let t = document.getElementById('_toast');
+  if (!t) { t = document.createElement('div'); t.id = '_toast'; t.className = 'toast'; document.body.appendChild(t); }
   clearTimeout(_toastTimer);
-  t.textContent=msg; t.classList.add('show');
-  _toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+  t.textContent = msg; t.classList.add('show');
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-function _applySelStyle(sel){
+function _applySelStyle(sel) {
   sel.classList.remove('sH','sM','sL');
-  if(sel.value) sel.classList.add('s'+sel.value[0]);
+  if (sel.value) sel.classList.add('s' + sel.value[0]);
 }
 
-async function updateQual(ticker, autoScoreHint){
-  const row=document.querySelector(`tr[data-ticker="${ticker}"]`);
-  if(!row) return;
-  const sels=row.querySelectorAll('.qsel');
-  if(sels.length<2) return;
-  const bc=sels[0].value, ltp=sels[1].value;
+// ── Qual API ──────────────────────────────────────────────────────────────────
+async function updateQual(ticker, autoScoreHint) {
+  const row = document.querySelector(`tr[data-ticker="${ticker}"]`);
+  if (!row) return;
+  const sels = row.querySelectorAll('.qsel');
+  if (sels.length < 2) return;
+  const bc = sels[0].value, ltp = sels[1].value;
 
-  const btn=row.querySelector('.qbtn');
-  if(btn){btn.textContent='...';btn.disabled=true;}
-  const scoreEl=document.getElementById(`sc-${ticker}`);
-  if(scoreEl) scoreEl.innerHTML=`<span style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)">updating…</span>`;
+  const btn = row.querySelector('.qbtn');
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+  const scoreEl = document.getElementById(`sc-${ticker}`);
+  if (scoreEl) scoreEl.innerHTML = `<span style="font-family:var(--font-mono);font-size:var(--t-micro);color:var(--ink-4)">updating…</span>`;
 
-  try{
-    const r=await fetch(`/api/qualitative/${ticker}`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({biz_clarity:bc,ltp:ltp,auto_score:autoScoreHint||0})
+  try {
+    const r = await fetch(`/api/qualitative/${ticker}`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({biz_clarity: bc, ltp: ltp, auto_score: autoScoreHint || 0})
     });
-    const d=await r.json();
-    if(btn){btn.textContent='Apply';btn.disabled=false;}
-    if(!r.ok){alert(d.error||'Update failed');_restoreScore(ticker);return;}
+    const d = await r.json();
+    if (btn) { btn.textContent = 'Apply'; btn.disabled = false; }
+    if (!r.ok) { alert(d.error || 'Update failed'); _restoreScore(ticker); return; }
 
-    const entry=D.find(x=>x.t===ticker);
-    if(entry){entry.score=d.adj_score;entry.sn=(d.biz_clarity||d.ltp)?'qual adj.':'auto-score';}
+    const entry = D.find(x => x.t === ticker);
+    if (entry) { entry.score = d.adj_score; entry.sn = (d.biz_clarity || d.ltp) ? 'qual adj.' : 'auto-score'; }
 
-    if(scoreEl){
-      scoreEl.innerHTML=scoreCell({score:d.adj_score,sn:(d.biz_clarity||d.ltp)?'qual adj.':'auto-score'});
-      setTimeout(()=>scoreEl.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
+    if (scoreEl) {
+      scoreEl.innerHTML = scoreCell({score: d.adj_score, sn: (d.biz_clarity || d.ltp) ? 'qual adj.' : 'auto-score'});
+      setTimeout(() => scoreEl.querySelectorAll('i[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
     }
-    [sels[0],sels[1]].forEach(s=>_applySelStyle(s));
+    [sels[0], sels[1]].forEach(s => _applySelStyle(s));
     _updateStats();
-    const note=d.warning?' (report regen failed — score saved)':' — report updated';
-    showToast(`${ticker} score -> ${d.adj_score.toFixed(1)}${note}`);
-  }catch(e){if(btn){btn.textContent='Apply';btn.disabled=false;}_restoreScore(ticker);}
+    const note = d.warning ? ' (report regen failed — score saved)' : ' — report updated';
+    showToast(`${ticker} score → ${d.adj_score.toFixed(1)}${note}`);
+  } catch(e) { if (btn) { btn.textContent = 'Apply'; btn.disabled = false; } _restoreScore(ticker); }
 }
 
-function _restoreScore(ticker){
-  const c=D.find(x=>x.t===ticker)||{score:null,sn:null};
-  const el=document.getElementById(`sc-${ticker}`);
-  if(el){el.innerHTML=scoreCell(c);setTimeout(()=>el.querySelectorAll('.sfill[data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),100);}
+function _restoreScore(ticker) {
+  const c = D.find(x => x.t === ticker) || {score: null, sn: null};
+  const el = document.getElementById(`sc-${ticker}`);
+  if (el) { el.innerHTML = scoreCell(c); setTimeout(() => el.querySelectorAll('i[data-w]').forEach(e => e.style.width = e.dataset.w + '%'), 100); }
 }
 
-async function loadQualOverrides(){
-  try{
-    const ov=await(await fetch('/api/qualitative-all')).json();
-    Object.entries(ov).forEach(([ticker,o])=>{
-      const row=document.querySelector(`tr[data-ticker="${ticker}"]`);
-      if(!row) return;
-      const sels=row.querySelectorAll('.qsel');
-      if(sels.length>=2){
-        if(o.biz_clarity){sels[0].value=o.biz_clarity;_applySelStyle(sels[0]);}
-        if(o.ltp)        {sels[1].value=o.ltp;        _applySelStyle(sels[1]);}
+async function loadQualOverrides() {
+  try {
+    const ov = await (await fetch('/api/qualitative-all')).json();
+    Object.entries(ov).forEach(([ticker, o]) => {
+      const row = document.querySelector(`tr[data-ticker="${ticker}"]`);
+      if (!row) return;
+      const sels = row.querySelectorAll('.qsel');
+      if (sels.length >= 2) {
+        if (o.biz_clarity) { sels[0].value = o.biz_clarity; _applySelStyle(sels[0]); }
+        if (o.ltp)         { sels[1].value = o.ltp;         _applySelStyle(sels[1]); }
       }
-      if(o.adj_score!=null){
-        const entry=D.find(x=>x.t===ticker);
-        if(entry){entry.score=o.adj_score;entry.sn='qual adj.';}
-        const el=document.getElementById(`sc-${ticker}`);
-        if(el) el.innerHTML=scoreCell({score:o.adj_score,sn:'qual adj.'});
+      if (o.adj_score != null) {
+        const entry = D.find(x => x.t === ticker);
+        if (entry) { entry.score = o.adj_score; entry.sn = 'qual adj.'; }
+        const el = document.getElementById(`sc-${ticker}`);
+        if (el) el.innerHTML = scoreCell({score: o.adj_score, sn: 'qual adj.'});
       }
     });
-    setTimeout(()=>document.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
+    setTimeout(() => document.querySelectorAll('i[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
     _updateStats();
-  }catch(e){}
+  } catch(e) {}
 }
 
-function _updateStats(){
-  const sc=D.filter(c=>c.score!=null).map(c=>c.score);
-  document.getElementById('sCov').textContent=sc.length;
-  document.getElementById('sAvg').textContent=sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1):'—';
-  document.getElementById('sHC').textContent=sc.length?sc.filter(s=>s>=75).length:'—';
+function _updateStats() {
+  const scored = D.filter(c => c.score != null);
+  const sc = scored.map(c => c.score);
+  const count = D.filter(c => !c.pending && c.score != null).length;
+  document.getElementById('sCov').textContent = count;
+  document.getElementById('sAvg').textContent = sc.length ? (sc.reduce((a,b) => a+b, 0) / sc.length).toFixed(1) : '—';
+  document.getElementById('sHC').textContent   = sc.filter(s => s >= 75).length;
+  document.getElementById('sBuy').textContent  = sc.filter(s => s >= 65 && s < 75).length;
+  document.getElementById('sHold').textContent = sc.filter(s => s < 65).length;
+  // Update filter chip counts
+  const pending = D.filter(c => c.pending).length;
+  const all = D.length;
+  document.getElementById('fc-all').textContent     = all;
+  document.getElementById('fc-hc').textContent      = sc.filter(s => s >= 75).length;
+  document.getElementById('fc-buy').textContent     = sc.filter(s => s >= 65 && s < 75).length;
+  document.getElementById('fc-hold').textContent    = sc.filter(s => s >= 50 && s < 65).length;
+  document.getElementById('fc-avoid').textContent   = sc.filter(s => s < 50).length;
+  document.getElementById('fc-pending').textContent = pending;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const p=(v,d=1)=>v==null?'—':((v>=0?'+':'')+(v*100).toFixed(d)+'%');
-const x=(v,d=1)=>v==null?'—':(v.toFixed(d)+'x');
-function chip(l,c){return`<span class="chip ${c}">${l}</span>`}
-function upChip(v){
-  if(v==null) return chip('—','chd');
-  if(Math.abs(v)>2) return chip('—','chd'); // implausible DCF
-  return chip(p(v),v>0.20?'chg':v>0?'cha':'chr');
+// ── Filter chips ──────────────────────────────────────────────────────────────
+let _activeFilter = 'all';
+function setFilter(f, btn) {
+  _activeFilter = f;
+  document.querySelectorAll('#filterChips .chip').forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
+  _applyFilter();
 }
-function roicChip(v){if(v==null)return chip('—','chd');return chip(p(v,0),v>=0.20?'chg':v>=0.08?'cha':'chr')}
-function cagrChip(v){if(v==null)return chip('—','chd');return chip(p(v,1),v>=0.12?'chg':v>=0.05?'cha':'chr')}
-function fcfChip(v){
-  if(v==null)return chip('—','chd');
-  const display=v>1.5?'>100%':p(v,0);
-  return chip(display,v>=0.80?'chg':v>=0.60?'cha':'chr');
+function filterSearch(q) {
+  _applyFilter(q.trim().toLowerCase());
 }
-function deChip(v){if(v==null)return chip('—','chd');return chip(v.toFixed(1)+'x',v<1.5?'chg':v<4?'cha':'chr')}
-function valCell(cur,avg){
-  if(cur==null||avg==null) return chip('—','chd');
-  const d=(cur-avg)/avg;
-  const ds=(d>=0?'+':'')+(d*100).toFixed(0)+'%';
-  const dc=d<=0?'chg':d<=0.20?'cha':'chr';
-  return`<span class="vc"><span class="vc-c">${x(cur)}</span><span class="vc-s">/ ${x(avg)}</span>${chip(ds,dc)}</span>`;
+function _verdictFor(c) {
+  if (c.pending || c.score == null) return 'pending';
+  if (c.score >= 75) return 'hc';
+  if (c.score >= 65) return 'buy';
+  if (c.score >= 50) return 'hold';
+  return 'avoid';
 }
-function scoreCell(c){
-  if(c.score==null) return`<span style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim)">—</span>`;
-  const sc=c.score>=75?'cg':c.score>=60?'ca':'cr';
-  const fc=c.score>=75?'fg':c.score>=60?'fa':'fr';
-  return`<div class="scc"><span class="snum ${sc}">${c.score.toFixed(1)}</span><span class="sbar"><span class="sfill ${fc}" data-w="${c.score}"></span></span>${c.sn?`<span class="sn">${c.sn}</span>`:''}</div>`;
-}
-// Tickers that have an Excel model available for download
-const EXCEL_TICKERS=new Set(["AAPL","ABBV","ADBE","AMD","BAC","C","COST","CSCO","F","INTC","JNJ","JPM","KO","META","MSFT","NVDA","SOFI","TSLA","TSM","V","WMT"]);
-function actions(c){
-  if(c.pending) return`<div class="acts"><span class="al aln">Pending</span></div>`;
-  const v=c.url?`<a class="al alv" href="${c.url}" target="_blank">Report</a>`:'';
-  const xl=EXCEL_TICKERS.has(c.t)?`<a class="al alx" href="/download/model/${c.t}" title="Download Excel model">Model</a>`:'';
-  return`<div class="acts">${v}${xl}<a class="al alg" href="/" title="Re-run ${c.t}">Re-run →</a></div>`;
+function _applyFilter(search) {
+  const q = search !== undefined ? search : (document.getElementById('searchInput').value.trim().toLowerCase());
+  document.querySelectorAll('#tb tr.data-row').forEach(row => {
+    const ticker = row.dataset.ticker || '';
+    const entry = D.find(c => c.t === ticker);
+    if (!entry) return;
+    const vf = _verdictFor(entry);
+    const matchFilter = _activeFilter === 'all' || vf === _activeFilter;
+    const matchSearch = !q || ticker.toLowerCase().includes(q) || (entry.n||'').toLowerCase().includes(q);
+    row.style.display = (matchFilter && matchSearch) ? '' : 'none';
+    // also hide group-head rows if no visible rows follow
+  });
+  // Handle group-head visibility
+  document.querySelectorAll('#tb .group-head').forEach(gh => {
+    let next = gh.nextElementSibling;
+    let anyVisible = false;
+    while (next && !next.classList.contains('group-head')) {
+      if (next.style.display !== 'none') { anyVisible = true; break; }
+      next = next.nextElementSibling;
+    }
+    gh.style.display = anyVisible ? '' : 'none';
+  });
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
-function render(){
-  // Freeze original auto_score before any qual overrides mutate entry.score
-  D.forEach(c=>{ c._auto = c.score; });
-  const tb=document.getElementById('tb');
-  const notes=[];
-  D.forEach(c=>{
-    const tr=document.createElement('tr');
-    if(c.pending) tr.className='pr';
-    tr.dataset.ticker=c.t;
-    tr.innerHTML=`
-      <td><div class="tcc"><div class="tlog">${c.t.slice(0,4)}</div>
-        <div><div class="tn">${c.n}</div><div class="te">${c.ex}: ${c.t}</div></div></div></td>
-      <td id="sc-${c.t}">${scoreCell(c)}</td>
+function render() {
+  D.forEach(c => { c._auto = c.score; });
+  const tb = document.getElementById('tb');
+  const notes = [];
+
+  // Group header: High Conviction
+  const hcItems = D.filter(c => !c.pending && (c.score||0) >= 75);
+  const buyItems = D.filter(c => !c.pending && (c.score||0) >= 65 && (c.score||0) < 75);
+  const holdItems = D.filter(c => !c.pending && (c.score||0) >= 50 && (c.score||0) < 65);
+  const avoidItems = D.filter(c => !c.pending && (c.score||0) < 50);
+  const pendItems = D.filter(c => c.pending);
+
+  function addGroup(label, items) {
+    if (!items.length) return;
+    const gh = document.createElement('tr');
+    gh.className = 'group-head';
+    gh.innerHTML = `<td colspan="13"><div class="group-head-label">${label}<span class="gh-count">${items.length}</span></div></td>`;
+    tb.appendChild(gh);
+    items.forEach(c => addRow(c, tb));
+  }
+
+  function addRow(c, tbody) {
+    const tr = document.createElement('tr');
+    tr.className = 'data-row' + (c.pending ? ' dim' : '');
+    tr.dataset.ticker = c.t;
+    tr.innerHTML = `
+      <td><div class="tk-cell">
+        <div class="tk-mono">${c.t}</div>
+        <div><div class="tk-name">${c.n}</div><div class="tk-meta">${c.ex} · ${c.t}</div></div>
+      </div></td>
+      <td id="sc-${c.t}" class="score-td">${scoreCell(c)}</td>
+      <td style="text-align:center">${verdictCell(c)}</td>
       <td style="text-align:center">${upChip(c.gg)}</td>
       <td style="text-align:center">${upChip(c.em)}</td>
       <td style="text-align:center">${roicChip(c.roic)}</td>
       <td style="text-align:center">${cagrChip(c.cagr)}</td>
       <td style="text-align:center">${fcfChip(c.fcfni)}</td>
       <td style="text-align:center">${deChip(c.de)}</td>
-      <td style="text-align:center">${valCell(c.pe,c.pe5)}</td>
-      <td style="text-align:center">${valCell(c.pf,c.pf5)}</td>
+      <td style="text-align:center">${valCell(c.pe, c.pe5)}</td>
+      <td style="text-align:center">${valCell(c.pf, c.pf5)}</td>
       <td style="text-align:center">${qualCell(c)}</td>
       <td>${actions(c)}</td>`;
-    tb.appendChild(tr);
-    if(c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`);
-  });
-  setTimeout(()=>document.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
-  if(notes.length) document.getElementById('tnotes').innerHTML='<strong>Notes —</strong> '+notes.join(' &nbsp;&middot;&nbsp; ');
+    tbody.appendChild(tr);
+    if (c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`);
+  }
+
+  addGroup('High Conviction', hcItems);
+  addGroup('Buy', buyItems);
+  addGroup('Hold', holdItems);
+  addGroup('Avoid', avoidItems);
+  addGroup('Pending', pendItems);
+
+  setTimeout(() => document.querySelectorAll('i[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
+  if (notes.length) document.getElementById('tnotes').innerHTML = '<strong>Notes —</strong> ' + notes.join(' &nbsp;·&nbsp; ');
   _updateStats();
 }
 
-// ── Discovery tickers (from outputs.csv via heatmap API) ──────────────────────
-const CORE_SET=new Set(["NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V","KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI","JPM","C","BAC","UAL"]);
+// ── Discovery tickers ─────────────────────────────────────────────────────────
+const CORE_SET = new Set(["NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V","KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI","JPM","C","BAC","UAL"]);
 
-async function loadDiscovery(){
-  try{
-    const {tickers}=await(await fetch('/api/heatmap-data')).json();
-    const disc=tickers.filter(t=>!CORE_SET.has(t.ticker));
-    if(!disc.length) return;
-    document.getElementById('disc-section').style.display='';
-    const tb=document.getElementById('disc-tb');
-    disc.forEach(t=>{
-      const tr=document.createElement('tr');
-      tr.dataset.ticker=t.ticker;
-      const gg=t.gg_upside!=null?t.gg_upside/100:null;
-      const em=t.em_upside!=null?t.em_upside/100:null;
-      const roic=t.roic!=null?t.roic/100:null;
-      const cagr=t.rev_cagr!=null?t.rev_cagr/100:null;
-      const fakeC={t:t.ticker,score:t.score,sn:t.score!=null?'auto-score':null,pending:!t.score};
-      tr.innerHTML=`
-        <td><div class="tcc"><div class="tlog">${t.ticker.slice(0,4)}</div>
-          <div><div class="tn">${t.name||t.ticker}</div><div class="te">Discovery · ${t.ticker}</div></div></div></td>
-        <td id="sc-${t.ticker}">${scoreCell(fakeC)}</td>
+async function loadDiscovery() {
+  try {
+    const {tickers} = await (await fetch('/api/heatmap-data')).json();
+    const disc = tickers.filter(t => !CORE_SET.has(t.ticker));
+    if (!disc.length) return;
+    document.getElementById('disc-section').style.display = '';
+    const tb = document.getElementById('disc-tb');
+    disc.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.dataset.ticker = t.ticker;
+      tr.className = 'data-row';
+      const gg   = t.gg_upside  != null ? t.gg_upside  / 100 : null;
+      const em   = t.em_upside  != null ? t.em_upside  / 100 : null;
+      const roic = t.roic       != null ? t.roic       / 100 : null;
+      const cagr = t.rev_cagr   != null ? t.rev_cagr   / 100 : null;
+      const fakeC = {t: t.ticker, score: t.score, sn: t.score != null ? 'auto-score' : null, pending: !t.score};
+      tr.innerHTML = `
+        <td><div class="tk-cell">
+          <div class="tk-mono">${t.ticker}</div>
+          <div><div class="tk-name">${t.name || t.ticker}</div><div class="tk-meta">Discovery · ${t.ticker}</div></div>
+        </div></td>
+        <td id="sc-${t.ticker}" class="score-td">${scoreCell(fakeC)}</td>
+        <td style="text-align:center">${verdictCell(fakeC)}</td>
         <td style="text-align:center">${upChip(gg)}</td>
         <td style="text-align:center">${upChip(em)}</td>
         <td style="text-align:center">${roicChip(roic)}</td>
         <td style="text-align:center">${cagrChip(cagr)}</td>
         <td style="text-align:center">${fcfChip(t.fcf_ni)}</td>
         <td style="text-align:center">${deChip(t.d_ebitda)}</td>
-        <td style="text-align:center">${t.pe!=null?x(t.pe):chip('—','chd')}</td>
-        <td style="text-align:center">${t.pfcf!=null?x(t.pfcf):chip('—','chd')}</td>
+        <td style="text-align:center">${t.pe != null ? x(t.pe) : chip('—','chd')}</td>
+        <td style="text-align:center">${t.pfcf != null ? x(t.pfcf) : chip('—','chd')}</td>
         <td style="text-align:center">${qualCell(fakeC)}</td>
         <td><div class="acts"><a class="al alv" href="/reports/${t.ticker}_report.html" target="_blank">Report</a></div></td>`;
       tb.appendChild(tr);
     });
-    setTimeout(()=>tb.querySelectorAll('.sfill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%'),100);
-    // Apply any saved qualitative overrides to discovery rows too
+    setTimeout(() => tb.querySelectorAll('i[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
     loadQualOverrides();
-  }catch(e){}
+  } catch(e) {}
 }
 
 // ── Live reports ──────────────────────────────────────────────────────────────
-async function loadLive(){
-  try{
-    const rpts=await(await fetch('/api/reports')).json();
-    document.getElementById('sLive').textContent=rpts.length;
-    if(!rpts.length) return;
-    document.getElementById('lempty').style.display='none';
-    const g=document.getElementById('lgrid');
-    rpts.forEach(r=>{
-      const sc=r.score>=75?'cg':r.score>=60?'ca':'cr';
-      const ts=new Date(r.ts);
-      const card=document.createElement('div');
-      card.className='lcard';
-      card.innerHTML=`
-        <div class="ltop"><div class="ltick">${r.ticker}</div>
-          <div class="lsc ${sc}">${r.score!=null?r.score.toFixed(1):'—'}<span style="font-size:8pt;color:var(--text-dim)">/100</span></div></div>
+async function loadLive() {
+  try {
+    const rpts = await (await fetch('/api/reports')).json();
+    document.getElementById('sLive').textContent = rpts.length;
+    if (!rpts.length) return;
+    document.getElementById('lempty').style.display = 'none';
+    const g = document.getElementById('lgrid');
+    rpts.forEach(r => {
+      const cls = r.score >= 75 ? 'good' : r.score >= 60 ? 'hold' : 'bad';
+      const ts  = new Date(r.ts);
+      const card = document.createElement('div');
+      card.className = 'lcard';
+      card.innerHTML = `
+        <div class="ltop">
+          <div class="ltick">${r.ticker}</div>
+          <div class="lsc score-num ${cls}">${r.score != null ? r.score.toFixed(1) : '—'}<span style="color:var(--ink-4);font-size:10px;font-weight:400">/100</span></div>
+        </div>
         <div class="lts">${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${ts.toLocaleDateString([],{month:'short',day:'numeric'})}</div>
         <div class="lbtns">
           <a class="al alv" href="/report/${r.rid}" target="_blank">View</a>
@@ -487,9 +673,7 @@ async function loadLive(){
         </div>`;
       g.appendChild(card);
     });
-    // Stats already reflect D array; just bump Live count
-    document.getElementById('sLive').textContent=rpts.length;
-  }catch(e){document.getElementById('sLive').textContent='0';}
+  } catch(e) { document.getElementById('sLive').textContent = '0'; }
 }
 
 render();
