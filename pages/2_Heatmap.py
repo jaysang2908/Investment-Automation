@@ -317,23 +317,39 @@ styled = (
     ])
 )
 
-st.markdown("""
+_table_html = styled.to_html(escape=False)
+st.markdown(f"""
 <style>
-[data-testid="stDataFrame"] thead tr th,
-[data-testid="stDataFrame"] .dvn-scroller .ag-header-cell-text,
-[data-testid="stDataFrame"] .ag-header-cell-label,
-[data-testid="stDataFrame"] .ag-header-cell,
-[data-testid="stDataFrame"] .ag-header-row,
-[data-testid="stDataFrame"] .ag-header {
-    color: white !important;
-    font-size: 14px !important;
-    font-weight: 700 !important;
+.heatmap-wrap table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-family: sans-serif;
+}}
+.heatmap-wrap th {{
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
     background-color: #1a1a1a !important;
-}
+    padding: 10px 14px !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    border-bottom: 2px solid #444 !important;
+    letter-spacing: 0.03em !important;
+}}
+.heatmap-wrap td {{
+    padding: 7px 14px;
+    white-space: nowrap;
+    font-size: 13px;
+    border-bottom: 1px solid #2a2a2a;
+}}
+.heatmap-wrap tr:hover td {{
+    background-color: rgba(255,255,255,0.04);
+}}
 </style>
+<div class="heatmap-wrap" style="overflow-x:auto; overflow-y:auto; max-height:750px;">
+{_table_html}
+</div>
 """, unsafe_allow_html=True)
-st.dataframe(styled, use_container_width=True, hide_index=True,
-             height=min(80 + 35 * len(disp), 750))
 
 st.markdown("---")
 
