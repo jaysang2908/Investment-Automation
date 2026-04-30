@@ -317,6 +317,21 @@ styled = (
     ])
 )
 
+st.markdown("""
+<style>
+[data-testid="stDataFrame"] thead tr th,
+[data-testid="stDataFrame"] .dvn-scroller .ag-header-cell-text,
+[data-testid="stDataFrame"] .ag-header-cell-label,
+[data-testid="stDataFrame"] .ag-header-cell,
+[data-testid="stDataFrame"] .ag-header-row,
+[data-testid="stDataFrame"] .ag-header {
+    color: white !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    background-color: #1a1a1a !important;
+}
+</style>
+""", unsafe_allow_html=True)
 st.dataframe(styled, use_container_width=True, hide_index=True,
              height=min(80 + 35 * len(disp), 750))
 
