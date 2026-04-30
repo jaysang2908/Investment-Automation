@@ -5,6 +5,7 @@ Must NOT call st.set_page_config() — only app.py does that.
 
 import streamlit as st
 import pandas as pd
+import re
 import requests
 from io import StringIO
 import base64
@@ -318,38 +319,26 @@ styled = (
 )
 
 _table_html = styled.to_html(escape=False)
-st.markdown(f"""
-<style>
-.heatmap-wrap table {{
-    width: 100%;
-    border-collapse: collapse;
-    font-family: sans-serif;
-}}
-.heatmap-wrap th {{
-    color: #ffffff !important;
-    font-size: 15px !important;
-    font-weight: 800 !important;
-    background-color: #1a1a1a !important;
-    padding: 10px 14px !important;
-    text-align: left !important;
-    white-space: nowrap !important;
-    border-bottom: 2px solid #444 !important;
-    letter-spacing: 0.03em !important;
-}}
-.heatmap-wrap td {{
-    padding: 7px 14px;
-    white-space: nowrap;
-    font-size: 13px;
-    border-bottom: 1px solid #2a2a2a;
-}}
-.heatmap-wrap tr:hover td {{
-    background-color: rgba(255,255,255,0.04);
-}}
-</style>
-<div class="heatmap-wrap" style="overflow-x:auto; overflow-y:auto; max-height:750px;">
-{_table_html}
-</div>
-""", unsafe_allow_html=True)
+
+# Strip any existing style attr from <th>, then stamp our own inline style.
+# Inline styles have the highest CSS specificity — nothing in any <style> block can override them.
+_TH_STYLE = (
+    "color:#ffffff;"
+    "font-size:15px;"
+    "font-weight:800;"
+    "background-color:#1a1a1a;"
+    "padding:10px 14px;"
+    "white-space:nowrap;"
+    "border-bottom:2px solid #444;"
+    "letter-spacing:0.04em;"
+)
+_table_html = re.sub(r'(<th\b[^>]*?)\s+style="[^"]*"', r'\1', _table_html)
+_table_html = re.sub(r'(<th\b)([^>]*?>)', rf'\1 style="{_TH_STYLE}"\2', _table_html)
+
+st.markdown(
+    f'<div style="overflow-x:auto;overflow-y:auto;max-height:750px;">{_table_html}</div>',
+    unsafe_allow_html=True,
+)
 
 st.markdown("---")
 
