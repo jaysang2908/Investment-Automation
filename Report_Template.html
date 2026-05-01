@@ -1309,67 +1309,54 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 
     </div>
 
-    <!-- RIGHT: Multiples -->
+    <!-- RIGHT: EV/EBITDA Exit Multiple Scenarios -->
     <div class="val-card">
-      <div class="val-card-title">Multiples Valuation (5yr Avg × Forward Earnings)</div>
+      <div class="val-card-title">EV/EBITDA Exit Multiple DCF</div>
+
+      <!-- Scenario table: bear / base / bull -->
       <table class="mult-table">
         <thead>
           <tr>
-            <th>Method</th><th>{{FY_FWD1}} Px</th><th>Upside</th><th>{{FY_FWD2}} Px</th><th>Upside</th>
+            <th>Scenario</th><th>Multiple</th><th>Implied Price</th><th>vs Current</th>
           </tr>
         </thead>
         <tbody>
-          <tr class="section-divider"><td colspan="5">P/E Multiple</td></tr>
-          <tr>
-            <td>10yr avg P/E — {{PE_10YR_AVG}}</td>
-            <td>{{MULT_PE10_FY1_PX}}</td><td class="up">{{MULT_PE10_FY1_UPS}}</td>
-            <td>{{MULT_PE10_FY2_PX}}</td><td class="up">{{MULT_PE10_FY2_UPS}}</td>
+          <tr style="background:rgba(220,38,38,0.06)">
+            <td style="font-weight:600;color:#b91c1c">Bear</td>
+            <td style="font-family:var(--font-mono)">{{MULT_EM_BEAR_X}}</td>
+            <td class="{{MULT_EM_BEAR_PX_CLASS}}" style="font-family:var(--font-mono);font-weight:700">{{MULT_EM_BEAR_PX}}</td>
+            <td class="{{MULT_EM_BEAR_PX_CLASS}}">{{MULT_EM_BEAR_VS}}</td>
           </tr>
-          <tr>
-            <td>5yr avg P/E — {{PE_5YR_AVG}}</td>
-            <td>{{MULT_PE5_FY1_PX}}</td><td class="up">{{MULT_PE5_FY1_UPS}}</td>
-            <td>{{MULT_PE5_FY2_PX}}</td><td class="up">{{MULT_PE5_FY2_UPS}}</td>
+          <tr style="background:rgba(37,99,235,0.06)">
+            <td style="font-weight:700;color:var(--accent)">Base</td>
+            <td style="font-family:var(--font-mono)">{{MULT_EM_BASE_X}}</td>
+            <td class="{{MULT_EM_BASE_PX_CLASS}}" style="font-family:var(--font-mono);font-weight:700;font-size:15px">{{MULT_EM_BASE_PX}}</td>
+            <td class="{{MULT_EM_BASE_PX_CLASS}}">{{MULT_EM_BASE_VS}}</td>
           </tr>
-          <tr class="section-divider"><td colspan="5">P/FCF Multiple</td></tr>
-          <tr>
-            <td>10yr avg P/FCF — {{PFCF_10YR_AVG}}</td>
-            <td>{{MULT_PFCF10_FY1_PX}}</td><td class="up">{{MULT_PFCF10_FY1_UPS}}</td>
-            <td>{{MULT_PFCF10_FY2_PX}}</td><td class="up">{{MULT_PFCF10_FY2_UPS}}</td>
-          </tr>
-          <tr>
-            <td>5yr avg P/FCF — {{PFCF_5YR_AVG}}</td>
-            <td>{{MULT_PFCF5_FY1_PX}}</td><td class="up">{{MULT_PFCF5_FY1_UPS}}</td>
-            <td>{{MULT_PFCF5_FY2_PX}}</td><td class="up">{{MULT_PFCF5_FY2_UPS}}</td>
-          </tr>
-          <tr class="section-divider"><td colspan="5">EV/EBITDA Multiple</td></tr>
-          <tr>
-            <td>10yr avg EV/EBITDA — {{EVEBITDA_10YR_AVG}}</td>
-            <td>{{MULT_EV10_FY1_PX}}</td><td class="up">{{MULT_EV10_FY1_UPS}}</td>
-            <td>{{MULT_EV10_FY2_PX}}</td><td class="up">{{MULT_EV10_FY2_UPS}}</td>
-          </tr>
-          <tr>
-            <td>5yr avg EV/EBITDA — {{EVEBITDA_5YR_AVG}}</td>
-            <td>{{MULT_EV5_FY1_PX}}</td><td class="up">{{MULT_EV5_FY1_UPS}}</td>
-            <td>{{MULT_EV5_FY2_PX}}</td><td class="up">{{MULT_EV5_FY2_UPS}}</td>
-          </tr>
-          <tr class="section-divider"><td colspan="5">LTM Market Multiples (Reference)</td></tr>
-          <tr>
-            <td>EV/Revenue (LTM)</td>
-            <td colspan="4" style="color:var(--ink-2);font-family:var(--font-mono)">{{EV_REV_LTM}} &nbsp;·&nbsp; market-implied at current price</td>
-          </tr>
-          <tr>
-            <td>EV/EBITDA (LTM)</td>
-            <td colspan="4" style="color:var(--ink-2);font-family:var(--font-mono)">{{EV_EBITDA_TRAILING}} &nbsp;·&nbsp; 5yr avg {{EVEBITDA_5YR_AVG}}</td>
+          <tr style="background:rgba(22,163,74,0.06)">
+            <td style="font-weight:600;color:#15803d">Bull</td>
+            <td style="font-family:var(--font-mono)">{{MULT_EM_BULL_X}}</td>
+            <td class="{{MULT_EM_BULL_PX_CLASS}}" style="font-family:var(--font-mono);font-weight:700">{{MULT_EM_BULL_PX}}</td>
+            <td class="{{MULT_EM_BULL_PX_CLASS}}">{{MULT_EM_BULL_VS}}</td>
           </tr>
         </tbody>
       </table>
-      <p style="font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.55">{{MULTIPLES_METHOD_RATIONALE}}</p>
-      <p style="font-size:13px;color:var(--ink-2);margin-top:8px;line-height:1.55">{{MULTIPLES_KEY_QUESTION}}</p>
-      <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.55">
-        <strong style="color:var(--accent-ink)">Composite Fair Value Range:</strong>
-        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)"> {{COMPOSITE_FAIR_VALUE}}</span>
-        &nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg-card);border:1px solid var(--line);padding:2px 8px;border-radius:3px">{{VALUATION_METHOD}}</span><br>
-        <span style="color:var(--ink-2)">{{COMPOSITE_UPSIDE_NOTE}}</span>
+
+      <!-- Historical multiples reference bar -->
+      <div style="margin-top:12px;padding:10px 12px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
+        <strong style="color:var(--ink)">5yr Avg Multiples (Reference):</strong>&nbsp;
+        P/E <span style="font-family:var(--font-mono)">{{PE_5YR_AVG}}</span>
+        &nbsp;·&nbsp; P/FCF <span style="font-family:var(--font-mono)">{{PFCF_5YR_AVG}}</span>
+        &nbsp;·&nbsp; EV/EBITDA <span style="font-family:var(--font-mono)">{{EVEBITDA_5YR_AVG}}</span>
+      </div>
+
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px;line-height:1.55">{{MULTIPLES_METHOD_RATIONALE}}</p>
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:6px;line-height:1.55;font-style:italic">{{MULTIPLES_KEY_QUESTION}}</p>
+
+      <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.6">
+        <strong style="color:var(--accent-ink)">Composite Fair Value:</strong>
+        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:16px"> {{COMPOSITE_FAIR_VALUE}}</span><br>
+        <span style="color:var(--ink-2);font-size:12.5px">{{COMPOSITE_UPSIDE_NOTE}}</span>
       </div>
     </div>
   </div>

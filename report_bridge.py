@@ -1724,17 +1724,145 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     D.update(mu)
 
-    # Method rationale (override D defaults set earlier)
-    D["MULTIPLES_METHOD_RATIONALE"] = (
-        f"Forward earnings based on {_proj_src}. "
-        f"Applied 5yr avg multiples: P/E {_x(pe_5yr)}, P/FCF {_x(pfcf_5yr)}, "
-        f"EV/EBITDA {_x(ev_ebitda)}. "
-        f"Trailing P/E {_x(trailing_pe)} ({pe_delta} vs 5yr avg); "
-        f"P/FCF {_x(trailing_pfc)} ({pfcf_delta} vs 5yr avg)."
+    # ── EV/EBITDA Exit Multiple Scenarios (anchored to Excel DCF output) ────────
+    # Replicates build_dcf logic: bear=16x (−20%), base=20x, bull=24x (+20%).
+    def _em_dcf_local(exit_mult):
+        try:
+            _g = 0.03; _n = 5; _nwc_pct = 0.01
+            _w = wacc_b
+            if not _w or (_w - _g) <= 0.001 or shares <= 0 or not rev0:
+                return None
+            _cf0 = cf_data[-1] if cf_data else {}
+            _last_margin = ebd0 / rev0 if (ebd0 and rev0) else 0.20
+            _da   = abs(is0.get("depreciationAndAmortization") or
+                        _cf0.get("depreciationAndAmortization") or 0)
+            _capex = abs(_cf0.get("capitalExpenditure") or 0)
+            _da_pct    = _da / rev0
+            _capex_pct = _capex / rev0
+            _g1 = rev_cagr_v or 0.05
+            _proj_revs   = [rev0 * (1 + _g1) ** (i + 1) for i in range(_n)]
+            _proj_ebitda = [r * _last_margin for r in _proj_revs]
+            def _ufcf(r, e):
+                da = r * _da_pct
+                return (e - da) * (1 - eff_tax0) + da - r * _capex_pct - r * _nwc_pct
+            _sum_pv = sum(
+                _ufcf(_proj_revs[i], _proj_ebitda[i]) / (1 + _w) ** (i + 0.5)
+                for i in range(_n)
+            )
+            _disc = (1 + _w) ** _n
+            _term_ebitda = _proj_revs[-1] * (1 + _g) * _last_margin
+            _nd = debt0 - cash0
+            _ip = (_sum_pv + _term_ebitda * exit_mult / _disc - _nd) / shares
+            return round(_ip, 0) if _ip > 0 else None
+        except Exception:
+            return None
+
+    _em_base_mult = 20.0
+    _em_bear_mult = 16.0   # −20%
+    _em_bull_mult = 24.0   # +20%
+
+    _em_helper_base = _em_dcf_local(_em_base_mult)
+
+    # Anchor to Excel model em_px when available, then scale bear/bull
+    if em_px and _em_helper_base and _em_helper_base > 0:
+        _adj = em_px / _em_helper_base
+        _em_base_px = em_px
+        _em_bear_px = round((_em_dcf_local(_em_bear_mult) or 0) * _adj, 0) or None
+        _em_bull_px = round((_em_dcf_local(_em_bull_mult) or 0) * _adj, 0) or None
+    else:
+        _em_base_px = _em_helper_base
+        _em_bear_px = _em_dcf_local(_em_bear_mult)
+        _em_bull_px = _em_dcf_local(_em_bull_mult)
+
+    D["MULT_EM_BASE_X"]  = f"{_em_base_mult:.0f}x EV/EBITDA"
+    D["MULT_EM_BEAR_X"]  = f"{_em_bear_mult:.0f}x EV/EBITDA (−20%)"
+    D["MULT_EM_BULL_X"]  = f"{_em_bull_mult:.0f}x EV/EBITDA (+20%)"
+    D["MULT_EM_BASE_PX"] = f"${_em_base_px:.0f}" if _em_base_px else "N/A"
+    D["MULT_EM_BEAR_PX"] = f"${_em_bear_px:.0f}" if _em_bear_px else "N/A"
+    D["MULT_EM_BULL_PX"] = f"${_em_bull_px:.0f}" if _em_bull_px else "N/A"
+    D["MULT_EM_BASE_VS"] = _vs(_em_base_px, current_price)
+    D["MULT_EM_BEAR_VS"] = _vs(_em_bear_px, current_price)
+    D["MULT_EM_BULL_VS"] = _vs(_em_bull_px, current_price)
+    def _pxcls(px):
+        if not px or not current_price or current_price == 0:
+            return ""
+        up = px / current_price - 1
+        if up > 0.10: return "dcf-bull"
+        if up > 0:    return "dcf-mid"
+        return "dcf-bear"
+    D["MULT_EM_BASE_PX_CLASS"] = _pxcls(_em_base_px)
+    D["MULT_EM_BEAR_PX_CLASS"] = _pxcls(_em_bear_px)
+    D["MULT_EM_BULL_PX_CLASS"] = _pxcls(_em_bull_px)
+
+    # Composite: Gordon Growth base + EV/EBITDA base
+    if _em_base_px and gg_px and current_price:
+        _comp_all = round((_em_base_px + gg_px) / 2, 0)
+        D["COMPOSITE_FAIR_VALUE"]  = f"${_comp_all:.0f}"
+        D["COMPOSITE_UPSIDE_NOTE"] = (
+            f"Gordon Growth (base): ${gg_px:.0f} ({_vs(gg_px, current_price)}) · "
+            f"EV/EBITDA Exit 20x (base): ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) · "
+            f"Composite avg: ${_comp_all:.0f} ({_vs(_comp_all, current_price)})."
+        )
+    elif _em_base_px and current_price:
+        D["COMPOSITE_FAIR_VALUE"]  = f"${_em_base_px:.0f}"
+        D["COMPOSITE_UPSIDE_NOTE"] = (
+            f"EV/EBITDA Exit 20x: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)})."
+        )
+
+    # ── Valuation verdict — dot-point format ─────────────────────────────────
+    _cp_str = f"${current_price:.2f}" if current_price else "N/A"
+    _vv_lines = [f"At {_cp_str}, {company_name} trades at:"]
+    if trailing_pe:
+        _vv_lines.append(
+            f"• Trailing P/E {_x(trailing_pe)} "
+            f"(vs 5yr avg {_x(pe_5yr)} — {pe_delta})"
+        )
+    if trailing_pfc:
+        _vv_lines.append(
+            f"• LTM P/FCF {_x(trailing_pfc)} "
+            f"(vs 5yr avg {_x(pfcf_5yr)} — {pfcf_delta})"
+        )
+    if ev_ebitda:
+        _vv_lines.append(f"• EV/EBITDA {_x(ev_ebitda)} (LTM, trailing)")
+    _vv_lines.append("")
+    _vv_lines.append("Gordon Growth DCF:")
+    _vv_lines.append(
+        f"• Base: ${base_px:.0f} ({_vs(base_px, current_price)}) — "
+        f"WACC {wacc_b*100:.1f}%, TGR 3.0%"
+        if base_px else "• Base: N/A"
     )
-    D["MULTIPLES_KEY_QUESTION"] = (
-        f"Key Question: Does the {pe_delta} vs 5yr P/E reflect a structural re-rating "
-        f"opportunity or valuation risk? ROIC {_pct(roic_v)}, revenue CAGR {_pct(rev_cagr_v)}."
+    _vv_lines.append(
+        f"• Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) — "
+        f"WACC +1%, TGR 2.0%"
+        if bear_px else "• Bear: N/A"
+    )
+    _vv_lines.append(
+        f"• Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}) — "
+        f"WACC −1%, TGR 3.5%"
+        if bull_px else "• Bull: N/A"
+    )
+    _vv_lines.append("")
+    _vv_lines.append("EV/EBITDA Exit Multiple DCF:")
+    _vv_lines.append(
+        f"• Base: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) — 20x terminal multiple"
+        if _em_base_px else "• Base: N/A"
+    )
+    _vv_lines.append(
+        f"• Bear: ${_em_bear_px:.0f} ({_vs(_em_bear_px, current_price)}) — 16x (−20%)"
+        if _em_bear_px else "• Bear: N/A"
+    )
+    _vv_lines.append(
+        f"• Bull: ${_em_bull_px:.0f} ({_vs(_em_bull_px, current_price)}) — 24x (+20%)"
+        if _em_bull_px else "• Bull: N/A"
+    )
+    D["VALUATION_VERDICT_TEXT"] = "<br>".join(_vv_lines)
+
+    # Method rationale
+    D["MULTIPLES_METHOD_RATIONALE"] = (
+        f"Bear/Base/Bull stress 5yr avg EV/EBITDA terminal multiple ±20% "
+        f"(16x / 20x / 24x). Same projection assumptions as Excel DCF model. "
+        f"Trailing: P/E {_x(trailing_pe)} ({pe_delta} vs 5yr avg {_x(pe_5yr)}), "
+        f"P/FCF {_x(trailing_pfc)} ({pfcf_delta} vs 5yr avg {_x(pfcf_5yr)})."
     )
 
     # ── Consistency check: key displayed values vs source data ────────────────
