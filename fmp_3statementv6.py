@@ -811,8 +811,14 @@ def build_bs(wb, data, years, ticker):
         ))
 
     row = write_section_hdr(ws, row, "Key Derived Balances", nc)
-    row = write_data_row(ws, row, "Total Debt (ST + LT)",                  v("totalDebt"),                        years, bold=True)
-    row = write_data_row(ws, row, "Net Debt",                              v("netDebt"),                          years, bold=True)
+    td_kd_row = row
+    row = write_formula_row(ws, row, "Total Debt (ST + LT)",
+        formula_fn=lambda r, c: f"={cl(c)}{std_row}+{cl(c)}{ltd_row}",
+        n_years=n, bold=True)
+    nd_kd_row = row
+    row = write_formula_row(ws, row, "Net Debt",
+        formula_fn=lambda r, c: f"={cl(c)}{td_kd_row}-{cl(c)}{cash_row}",
+        n_years=n, bold=True)
     # Working Capital = formula: Total CA − Total CL (from summary rows, same sheet)
     row = write_formula_row(ws, row, "Working Capital",
         formula_fn=lambda r,c: f"=IFERROR({cl(c)}{tca_row}-{cl(c)}{tcl_row},\"\")",
@@ -825,7 +831,7 @@ def build_bs(wb, data, years, ticker):
     return {"cash": cash_row, "rec": rec_row, "inv": inv_row, "tca": tca_row,
             "ppe": ppe_row, "dta": dta_row, "tlta": tlta_row, "tot_assets": tot_assets_row,
             "ap": ap_row, "tcl": tcl_row, "ltd": ltd_row,
-            "tl": tl_row, "te": te_row}
+            "tl": tl_row, "te": te_row, "nd": nd_kd_row}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CASH FLOW TAB
@@ -1919,7 +1925,7 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 # DCF TAB
 # ═══════════════════════════════════════════════════════════════════════════════
-def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, current_price=None):
+def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, current_price=None, cf_refs=None):
     """Build DCF sheet — consensus years auto-populated from FMP, remainder user input."""
 
     last_hist_year = years[-1]
@@ -2075,54 +2081,70 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             return est_map[prev_yr]["rev_avg"]
         return None   # can't compute; formula will handle
 
-    # Revenue growth %
+    # Shared P&L row refs used throughout assumption rows
+    _pl_rev    = pl_refs["rev"]
+    _pl_ebitda = pl_refs["ebitda"]
+    _pl_da     = pl_refs["da"]
+    _pl_tax    = pl_refs["tax"]
+    _pl_ebt    = pl_refs["ebt"]
+
+    # Revenue growth % — Yrs 1-3: analyst consensus; Yrs 4-5: = Yr 3 formula
+    _rg_row = row  # capture row before assm_row writes it (closure will ref this)
     def rev_growth_fn(i, yr, c):
-        if yr in est_map:
-            e = est_map[yr]
-            prev = prior_rev(i)
-            val  = round(e["rev_avg"] / prev - 1, 4) if prev else None
-            return val, "1A5276", C_BG    # darker blue = consensus-derived
-        return 0.08, C_BLUE, C_ALT       # lighter blue = user input default
+        if i < 3:  # Years 1-3: analyst consensus where available
+            if yr in est_map:
+                e    = est_map[yr]
+                prev = prior_rev(i)
+                val  = round(e["rev_avg"] / prev - 1, 4) if prev else None
+                return val, "1A5276", C_BG
+            return 0.08, C_BLUE, C_ALT
+        # Years 4-5: formula = Year 3 growth rate (PROJ_COLS[2])
+        return f"={cl(PROJ_COLS[2])}{_rg_row}", C_BLUE, C_ALT
 
     rev_growth_defaults = [rev_growth_fn(i, yr, c)[0]
                            for i, (yr, c) in enumerate(zip(proj_years, PROJ_COLS))]
 
+    # Historical Revenue Growth: formula from P&L (first year = None, no prior)
+    hist_rev_growth = [None] + [
+        f"='P&L'!{cl(HIST_COLS[i])}{_pl_rev}/'P&L'!{cl(HIST_COLS[i-1])}{_pl_rev}-1"
+        for i in range(1, n_hist)
+    ]
     row = assm_row(row, "Revenue Growth %",
-        [None,
-         round(hist_rev[1]/hist_rev[0]-1, 4) if hist_rev[0] else None,
-         round(hist_rev[2]/hist_rev[1]-1, 4) if len(hist_rev) > 2 and hist_rev[1] else None,
-         round(hist_rev[3]/hist_rev[2]-1, 4) if len(hist_rev) > 3 and hist_rev[2] else None,
-         round(hist_rev[4]/hist_rev[3]-1, 4) if len(hist_rev) > 4 and hist_rev[3] else None,
-        ][:n_hist],
-        rev_growth_fn, 0.03,
-        note_text=("FMP consensus years: implied growth rate back-calculated from analyst "
-                   "revenue estimates.  User input years: edit freely.  "
-                   "Terminal = long-run growth rate (typically 2-4%)."),
+        hist_rev_growth[:n_hist], rev_growth_fn, 0.03,
+        note_text=("Yrs 1-3: FMP analyst consensus implied growth (back-calc from rev estimates).  "
+                   "Yrs 4-5: formula = Yr 3 growth.  Terminal = long-run growth (2-4%)."),
         term_color=C_BLUE)
     rev_growth_row = row - 1
 
-    # EBITDA margin %
+    # EBITDA Margin % — Yrs 1-3: analyst consensus; Yrs 4-5: = Yr 3 formula
+    _em_row = row
     def ebitda_margin_fn(i, yr, c):
-        if yr in est_map:
-            e = est_map[yr]
-            rev = e["rev_avg"] or 1
-            val = round(e["ebitda_avg"] / rev, 4) if rev else None
-            return val, "1A5276", C_BG
-        # Default: step from last consensus or last historical
-        last_known = (est_map[est_years[-1]]["ebitda_avg"] /
-                      max(est_map[est_years[-1]]["rev_avg"], 1)
-                      if estimates else
-                      (hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.50))
-        return round(last_known, 4), C_BLUE, C_ALT
+        if i < 3:
+            if yr in est_map:
+                e   = est_map[yr]
+                rev = e["rev_avg"] or 1
+                val = round(e["ebitda_avg"] / rev, 4) if rev else None
+                return val, "1A5276", C_BG
+            last_known = (est_map[est_years[-1]]["ebitda_avg"] /
+                          max(est_map[est_years[-1]]["rev_avg"], 1)
+                          if estimates else
+                          (hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.50))
+            return round(last_known, 4), C_BLUE, C_ALT
+        return f"={cl(PROJ_COLS[2])}{_em_row}", C_BLUE, C_ALT  # Yrs 4-5: = Yr 3
 
-    hist_ebitda_margins = [
+    # Historical EBITDA margin: formula from P&L
+    hist_ebitda_margins_f = [
+        f"='P&L'!{cl(HIST_COLS[i])}{_pl_ebitda}/'P&L'!{cl(HIST_COLS[i])}{_pl_rev}"
+        for i in range(n_hist)
+    ]
+    hist_ebitda_margins = [  # numeric fallback for terminal value default
         round(hist_ebitda[i] / max(hist_rev[i], 1), 4) if hist_rev[i] else None
         for i in range(n_hist)
     ]
     row = assm_row(row, "EBITDA Margin %",
-        hist_ebitda_margins, ebitda_margin_fn, None,
-        note_text=("FMP consensus years: margin back-calculated from analyst EBITDA / Revenue.  "
-                   "Terminal: enter your long-run normalised EBITDA margin."),
+        hist_ebitda_margins_f, ebitda_margin_fn, None,
+        note_text=("Yrs 1-3: FMP analyst consensus margin.  Yrs 4-5: = Yr 3 margin.  "
+                   "Terminal: long-run normalised EBITDA margin (user input)."),
         term_color=C_BLUE)
     ebitda_margin_row = row - 1
     # Terminal EBITDA margin — manual blue input
@@ -2130,48 +2152,91 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
           hist_ebitda_margins[-1] if hist_ebitda_margins else 0.50,
           bg=C_ASSM, color=C_BLUE, fmt=PCT)
 
-    # D&A % revenue — always user input (FMP doesn't estimate)
+    # D&A % revenue — historical from P&L; Year 1 = avg historicals; Years 2+ = Year 1
     hist_da_pct = [round(hist_da[i] / max(hist_rev[i], 1), 4)
                    if hist_rev[i] else None for i in range(n_hist)]
     last_da_pct = next((v for v in reversed(hist_da_pct) if v), 0.02)
+    hist_da_pct_f = [
+        f"=-'P&L'!{cl(HIST_COLS[i])}{_pl_da}/'P&L'!{cl(HIST_COLS[i])}{_pl_rev}"
+        for i in range(n_hist)
+    ]
+    _da_pct_row = row
     def da_pct_fn(i, yr, c):
-        return round(last_da_pct, 4), C_BLUE, C_ALT
+        if i == 0:
+            return (f"=AVERAGE({cl(HIST_COLS[0])}{_da_pct_row}:{cl(HIST_COLS[-1])}{_da_pct_row})",
+                    C_BLUE, C_ALT)
+        return f"={cl(PROJ_COLS[0])}{_da_pct_row}", C_BLUE, C_ALT
 
-    row = assm_row(row, "D&A as % of Revenue  (user input — FMP does not estimate)",
-        hist_da_pct, da_pct_fn, round(last_da_pct, 4),
-        note_text="Historical from 3-statement model.  FMP provides no forward D&A estimate — enter your own.")
+    row = assm_row(row, "D&A as % of Revenue",
+        hist_da_pct_f, da_pct_fn, f"={cl(PROJ_COLS[0])}{_da_pct_row}",
+        note_text="Historical linked from P&L.  Yr 1 = avg of historicals; Yrs 2-5 & terminal = Yr 1.")
     da_pct_row = row - 1
 
-    # CapEx % revenue — user input
+    # CapEx % revenue — historical from Cash Flow; Year 1 = avg; Years 2+ = Year 1
     hist_capex_pct = [round(hist_capex[i] / max(hist_rev[i], 1), 4)
                       if hist_rev[i] else None for i in range(n_hist)]
     last_capex_pct = next((v for v in reversed(hist_capex_pct) if v), 0.02)
+    _cx_pct_row = row
+    if cf_refs:
+        _cf_capex = cf_refs["capex"]
+        hist_capex_pct_f = [
+            f"=-'Cash Flow'!{cl(HIST_COLS[i])}{_cf_capex}/'P&L'!{cl(HIST_COLS[i])}{_pl_rev}"
+            for i in range(n_hist)
+        ]
+    else:
+        hist_capex_pct_f = hist_capex_pct
     def capex_pct_fn(i, yr, c):
-        return round(last_capex_pct, 4), C_BLUE, C_ALT
+        if i == 0:
+            return (f"=AVERAGE({cl(HIST_COLS[0])}{_cx_pct_row}:{cl(HIST_COLS[-1])}{_cx_pct_row})",
+                    C_BLUE, C_ALT)
+        return f"={cl(PROJ_COLS[0])}{_cx_pct_row}", C_BLUE, C_ALT
 
-    row = assm_row(row, "CapEx as % of Revenue  (user input)",
-        hist_capex_pct, capex_pct_fn, round(last_capex_pct, 4),
-        note_text="Historical from cash flow statement.  Adjust for known capex programmes.")
+    row = assm_row(row, "CapEx as % of Revenue",
+        hist_capex_pct_f, capex_pct_fn, f"={cl(PROJ_COLS[0])}{_cx_pct_row}",
+        note_text="Historical linked from Cash Flow.  Yr 1 = avg of historicals; Yrs 2-5 & terminal = Yr 1.")
     capex_pct_row = row - 1
 
-    # NWC change % revenue — user input
+    # NWC change % revenue — historical from Balance Sheet (ΔNWC/Revenue); Year 1 = avg; Years 2+ = Year 1
+    _bs_tca = bs_refs["tca"]
+    _bs_tcl = bs_refs["tcl"]
+    hist_nwc_pct_f = [None]  # first year: no prior period for delta
+    for _i in range(1, n_hist):
+        _c = HIST_COLS[_i]; _p = HIST_COLS[_i - 1]
+        hist_nwc_pct_f.append(
+            f"=-(('Balance Sheet'!{cl(_c)}{_bs_tca}-'Balance Sheet'!{cl(_c)}{_bs_tcl})"
+            f"-('Balance Sheet'!{cl(_p)}{_bs_tca}-'Balance Sheet'!{cl(_p)}{_bs_tcl}))"
+            f"/'P&L'!{cl(_c)}{_pl_rev}"
+        )
+    _nwc_pct_row = row
     def nwc_pct_fn(i, yr, c):
-        return 0.01, C_BLUE, C_ALT
+        if i == 0:
+            # Average cols 2..n_hist (skip col 1 which has no delta)
+            _avg_start = cl(HIST_COLS[1]) if n_hist > 1 else cl(HIST_COLS[0])
+            return (f"=AVERAGE({_avg_start}{_nwc_pct_row}:{cl(HIST_COLS[-1])}{_nwc_pct_row})",
+                    C_BLUE, C_ALT)
+        return f"={cl(PROJ_COLS[0])}{_nwc_pct_row}", C_BLUE, C_ALT
 
-    row = assm_row(row, "Change in NWC as % of Revenue  (user input)",
-        [0.01] * n_hist, nwc_pct_fn, 0.01,
-        note_text="Cross-ref historical NWC change from Ratios & FCF tab.")
+    row = assm_row(row, "Change in NWC as % of Revenue",
+        hist_nwc_pct_f, nwc_pct_fn, f"={cl(PROJ_COLS[0])}{_nwc_pct_row}",
+        note_text="Historical: -(ΔNWC)/Revenue from Balance Sheet.  Yr 1 = avg; Yrs 2-5 & terminal = Yr 1.")
     nwc_pct_row = row - 1
 
-    # Tax rate — show effective; user overrides for normalised
+    # Tax rate — historical from P&L; Year 1 = avg; Years 2+ = Year 1
     last_tax = round(hist_tax[-1], 4) if hist_tax else 0.15
+    hist_tax_f = [
+        f"='P&L'!{cl(HIST_COLS[i])}{_pl_tax}/'P&L'!{cl(HIST_COLS[i])}{_pl_ebt}"
+        for i in range(n_hist)
+    ]
+    _tax_row = row
     def tax_fn(i, yr, c):
-        return round(last_tax, 4), C_BLUE, C_ALT
+        if i == 0:
+            return (f"=AVERAGE({cl(HIST_COLS[0])}{_tax_row}:{cl(HIST_COLS[-1])}{_tax_row})",
+                    C_BLUE, C_ALT)
+        return f"={cl(PROJ_COLS[0])}{_tax_row}", C_BLUE, C_ALT
 
-    row = assm_row(row, "Effective Tax Rate  (user input — adjust to normalised if needed)",
-        [round(t, 4) if t else None for t in hist_tax],
-        tax_fn, round(last_tax, 4),
-        note_text="Historical effective rate from income statement.  Consider using statutory rate for terminal year.")
+    row = assm_row(row, "Effective Tax Rate",
+        hist_tax_f, tax_fn, f"={cl(PROJ_COLS[0])}{_tax_row}",
+        note_text="Historical linked from P&L (tax / pretax income).  Forecast: avg of historicals, constant thereafter.")
     tax_row_dcf = row - 1
 
     row = blank(row)
@@ -2182,11 +2247,11 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # Revenue
     wcell(row, 1, "Revenue", bold=True, bg=C_BG, halign="left", indent=1)
     for i, c in enumerate(HIST_COLS):
-        wcell(row, c, round(hist_rev[i], 1) if hist_rev[i] else None,
+        wcell(row, c, f"='P&L'!{cl(c)}{_pl_rev}",
               bg=C_HIST, color=C_BLUE, fmt=NUM)
     for i, c in enumerate(PROJ_COLS):
         yr = proj_years[i]
-        if yr in est_map:
+        if yr in est_map and i < 3:
             e = est_map[yr]
             wcell(row, c, round(e["rev_avg"], 1), bg=C_BG, color="1A5276", fmt=NUM)
         else:
@@ -2258,11 +2323,11 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # EBITDA
     wcell(row, 1, "EBITDA", bold=True, bg=C_BG, halign="left", indent=1)
     for i, c in enumerate(HIST_COLS):
-        wcell(row, c, round(hist_ebitda[i], 1) if hist_ebitda[i] else None,
+        wcell(row, c, f"='P&L'!{cl(c)}{_pl_ebitda}",
               bg=C_HIST, color=C_BLUE, fmt=NUM)
     for i, c in enumerate(PROJ_COLS):
         yr = proj_years[i]
-        if yr in est_map:
+        if yr in est_map and i < 3:
             e = est_map[yr]
             wcell(row, c, round(e["ebitda_avg"], 1), bg=C_BG, color="1A5276", fmt=NUM)
         else:
@@ -2318,7 +2383,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # D&A
     wcell(row, 1, "  Less: D&A", halign="left", indent=2)
     for i, c in enumerate(HIST_COLS):
-        wcell(row, c, -round(hist_da[i], 1) if hist_da[i] else None,
+        wcell(row, c, f"=-'P&L'!{cl(c)}{_pl_da}",
               bg=C_HIST, color=C_BLUE, fmt=NUM)
     for c in PROJ_COLS + [TERM_COL]:
         bg_ = C_BG if (proj_years[PROJ_COLS.index(c)] in est_map
@@ -2332,8 +2397,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # EBIT
     wcell(row, 1, "EBIT  (Operating Profit)", bold=True, bg=C_SUB, halign="left", indent=1)
     for i, c in enumerate(HIST_COLS):
-        ebit_h = (hist_ebitda[i] or 0) - (hist_da[i] or 0)
-        wcell(row, c, round(ebit_h, 1), bold=True, bg=C_HIST, fmt=NUM)
+        wcell(row, c, f"={cl(c)}{ebitda_row}+{cl(c)}{da_row}", bold=True, bg=C_HIST, fmt=NUM)
         ws.cell(row=row, column=c).font = fnt(bold=True, color=C_BLACK)
     for c in PROJ_COLS + [TERM_COL]:
         wcell(row, c, f"={cl(c)}{ebitda_row}+{cl(c)}{da_row}",
@@ -2344,8 +2408,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # Tax on EBIT
     wcell(row, 1, "  Less: Tax on EBIT  (unlevered)", halign="left", indent=2)
     for i, c in enumerate(HIST_COLS):
-        ebit_h = (hist_ebitda[i] or 0) - (hist_da[i] or 0)
-        wcell(row, c, -round(ebit_h * (hist_tax[i] or 0), 1),
+        wcell(row, c, f"=-{cl(c)}{ebit_row}*{cl(c)}{tax_row_dcf}",
               bg=C_HIST, fmt=NUM)
         ws.cell(row=row, column=c).font = fnt(color=C_BLACK)
     for c in PROJ_COLS + [TERM_COL]:
@@ -2357,8 +2420,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # NOPAT
     wcell(row, 1, "NOPAT", bold=True, bg=C_BG, halign="left", indent=1)
     for i, c in enumerate(HIST_COLS):
-        ebit_h = (hist_ebitda[i] or 0) - (hist_da[i] or 0)
-        wcell(row, c, round(ebit_h * (1 - (hist_tax[i] or 0)), 1),
+        wcell(row, c, f"={cl(c)}{ebit_row}+{cl(c)}{tax_ebit_row}",
               bold=True, bg=C_HIST, fmt=NUM)
         ws.cell(row=row, column=c).font = fnt(bold=True, color=C_BLACK)
     for c in PROJ_COLS + [TERM_COL]:
@@ -2370,8 +2432,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # D&A add-back
     wcell(row, 1, "  (+) D&A add-back  (non-cash)", halign="left", indent=2)
     for i, c in enumerate(HIST_COLS):
-        wcell(row, c, round(hist_da[i], 1) if hist_da[i] else None,
-              bg=C_HIST, fmt=NUM)
+        wcell(row, c, f"=-{cl(c)}{da_row}", bg=C_HIST, fmt=NUM)
         ws.cell(row=row, column=c).font = fnt(color=C_BLACK)
     for c in PROJ_COLS + [TERM_COL]:
         wcell(row, c, f"=-{cl(c)}{da_row}", fmt=NUM)
@@ -2381,8 +2442,12 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # CapEx
     wcell(row, 1, "  (−) Capital Expenditures", halign="left", indent=2)
     for i, c in enumerate(HIST_COLS):
-        wcell(row, c, -round(hist_capex[i], 1) if hist_capex[i] else None,
-              bg=C_HIST, color=C_BLUE, fmt=NUM)
+        if cf_refs:
+            wcell(row, c, f"='Cash Flow'!{cl(c)}{cf_refs['capex']}",
+                  bg=C_HIST, color=C_BLUE, fmt=NUM)
+        else:
+            wcell(row, c, -round(hist_capex[i], 1) if hist_capex[i] else None,
+                  bg=C_HIST, color=C_BLUE, fmt=NUM)
     for c in PROJ_COLS + [TERM_COL]:
         wcell(row, c, f"=-{cl(c)}{rev_row}*{cl(c)}{capex_pct_row}", fmt=NUM)
     note(row, "= Revenue × CapEx % assumption  (negative = cash outflow)")
@@ -2391,7 +2456,14 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     # NWC
     wcell(row, 1, "  (−) Increase in Net Working Capital", halign="left", indent=2)
     for i, c in enumerate(HIST_COLS):
-        wcell(row, c, None, bg=C_HIST, fmt=NUM)
+        if i == 0:
+            wcell(row, c, None, bg=C_HIST, fmt=NUM)
+        else:
+            _pc = HIST_COLS[i - 1]
+            wcell(row, c,
+                  f"=-(('Balance Sheet'!{cl(c)}{_bs_tca}-'Balance Sheet'!{cl(c)}{_bs_tcl})"
+                  f"-('Balance Sheet'!{cl(_pc)}{_bs_tca}-'Balance Sheet'!{cl(_pc)}{_bs_tcl}))",
+                  bg=C_HIST, fmt=NUM)
     for c in PROJ_COLS + [TERM_COL]:
         wcell(row, c, f"=-{cl(c)}{rev_row}*{cl(c)}{nwc_pct_row}", fmt=NUM)
     note(row, "= Revenue × NWC % (positive revenue growth ties up cash in working capital)")
@@ -2401,9 +2473,9 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     wcell(row, 1, "UNLEVERED FREE CASH FLOW  (UFCF)", bold=True,
           bg=C_BG, halign="left", indent=1)
     for i, c in enumerate(HIST_COLS):
-        h = ((hist_ebitda[i] or 0) - (hist_da[i] or 0)) * (1 - (hist_tax[i] or 0)) + \
-            (hist_da[i] or 0) - (hist_capex[i] or 0)
-        wcell(row, c, round(h, 1), bold=True, bg=C_HIST, fmt=NUM)
+        wcell(row, c,
+              f"={cl(c)}{nopat_row}+{cl(c)}{da_back_row}+{cl(c)}{capex_row}+{cl(c)}{nwc_row}",
+              bold=True, bg=C_HIST, fmt=NUM)
         ws.cell(row=row, column=c).font = fnt(bold=True, color=C_BLACK)
     for c in PROJ_COLS + [TERM_COL]:
         wcell(row, c,
@@ -2414,9 +2486,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 
     wcell(row, 1, "  UFCF Margin %", italic=True, halign="left", indent=2)
     for i, c in enumerate(HIST_COLS):
-        h = ((hist_ebitda[i] or 0) - (hist_da[i] or 0)) * (1 - (hist_tax[i] or 0)) + \
-            (hist_da[i] or 0) - (hist_capex[i] or 0)
-        cell = wcell(row, c, round(h / max(hist_rev[i], 1), 4) if hist_rev[i] else None,
+        cell = wcell(row, c, f"={cl(c)}{ufcf_row}/{cl(c)}{rev_row}",
                      italic=True, bg=C_HIST, fmt=PCT)
         cell.font = fnt(italic=True, color=C_BLACK)
     for c in PROJ_COLS + [TERM_COL]:
@@ -2546,20 +2616,20 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         for c in range(3, NC + 1): wcell(row, c, None, bg=C_BG)
         ev_rows[label] = row; row += 1
 
-    # Net debt from balance sheet
-    bs0     = bs_data[-1]
-    debt    = ((bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)) / 1e6
-    cash    = (bs0.get("cashAndCashEquivalents") or 0) / 1e6
-    net_debt = debt - cash
-
     wcell(row, 1, "  Less: Net Debt  (Debt − Cash)", halign="left", indent=2)
-    wcell(row, 2, round(net_debt, 1), color=C_GREEN, fmt=NUM)
+    _nd_col = cl(HIST_COLS[-1])
+    if "nd" in bs_refs:
+        _nd_val = f"='Balance Sheet'!{_nd_col}{bs_refs['nd']}"
+    else:
+        bs0  = bs_data[-1]
+        _debt = ((bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)) / 1e6
+        _cash = (bs0.get("cashAndCashEquivalents") or 0) / 1e6
+        _nd_val = round(_debt - _cash, 1)
+    wcell(row, 2, _nd_val, color=C_GREEN, fmt=NUM)
     ws.cell(row=row, column=2).fill = fll(C_WHITE); ws.cell(row=row, column=2).border = brd()
     ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
     for c in range(3, NC + 1): wcell(row, c, None)
-    note(row, (f"Auto-linked from Balance Sheet: "
-               f"Debt ${debt:,.0f}mm − Cash ${cash:,.0f}mm = ${net_debt:,.0f}mm  "
-               f"(negative = net cash)"))
+    note(row, "Linked from Balance Sheet: Total Debt (ST+LT) − Cash & Equivalents  (negative = net cash)")
     nd_row = row; row += 1
 
     wcell(row, 1, "  Less: Minority Interest", halign="left", indent=2)
@@ -3614,7 +3684,7 @@ def main():
     build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs)
     build_segments(wb, ticker, years)
     wacc_refs = build_wacc(wb, ticker, is_data, bs_data, manual_rating)
-    dcf_refs  = build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs)
+    dcf_refs  = build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, cf_refs=cf_refs)
     build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
 
     base  = f"{ticker}_FinancialModel_{years[-1]}"

@@ -163,7 +163,7 @@ def try_generate(ticker):
         wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, None)
         dcf_refs  = mdl.build_dcf(
             wb, ticker, is_data, bs_data, cf_data, years,
-            pl_refs, bs_refs, wacc_refs, current_price=current_price
+            pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
         )
         _, scorecard_metrics = mdl.build_scorecard(
             wb, ticker, is_data, bs_data, cf_data, years
