@@ -2616,12 +2616,12 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         for c in range(3, NC + 1): wcell(row, c, None, bg=C_BG)
         ev_rows[label] = row; row += 1
 
+    bs0 = bs_data[-1]  # used here and below for minority interest / shares
     wcell(row, 1, "  Less: Net Debt  (Debt − Cash)", halign="left", indent=2)
     _nd_col = cl(HIST_COLS[-1])
     if "nd" in bs_refs:
         _nd_val = f"='Balance Sheet'!{_nd_col}{bs_refs['nd']}"
     else:
-        bs0  = bs_data[-1]
         _debt = ((bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)) / 1e6
         _cash = (bs0.get("cashAndCashEquivalents") or 0) / 1e6
         _nd_val = round(_debt - _cash, 1)
