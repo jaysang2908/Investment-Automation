@@ -714,7 +714,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <div class="section-header">
     <span class="section-num">02</span>
     <div>
-      <div class="section-title">Revenue Mix</div>
+      <div class="section-title">Financial Highlights</div>
       <div class="section-sub">{{REV_MIX_SECTION_LABEL}}</div>
     </div>
   </div>
@@ -822,6 +822,10 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="row-label">Revenue</td>
         <td>{{REV_FY1}}</td><td>{{REV_FY2}}</td><td>{{REV_FY3}}</td><td>{{REV_FY4}}</td><td>{{REV_FY5}}</td>
       </tr>
+      <tr class="margin-row">
+        <td class="row-label" style="padding-left:18px;font-style:italic">Revenue YoY %</td>
+        <td>{{REV_YOY_FY1}}</td><td>{{REV_YOY_FY2}}</td><td>{{REV_YOY_FY3}}</td><td>{{REV_YOY_FY4}}</td><td>{{REV_YOY_FY5}}</td>
+      </tr>
       <tr>
         <td class="row-label">Gross Profit</td>
         <td>{{GP_FY1}}</td><td>{{GP_FY2}}</td><td>{{GP_FY3}}</td><td>{{GP_FY4}}</td><td>{{GP_FY5}}</td>
@@ -838,9 +842,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA Margin</td>
         <td>{{EBITDAM_FY1}}</td><td>{{EBITDAM_FY2}}</td><td>{{EBITDAM_FY3}}</td><td>{{EBITDAM_FY4}}</td><td>{{EBITDAM_FY5}}</td>
       </tr>
+      <tr class="margin-row">
+        <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA YoY %</td>
+        <td>{{EBITDA_YOY_FY1}}</td><td>{{EBITDA_YOY_FY2}}</td><td>{{EBITDA_YOY_FY3}}</td><td>{{EBITDA_YOY_FY4}}</td><td>{{EBITDA_YOY_FY5}}</td>
+      </tr>
       <tr>
         <td class="row-label">EBIT</td>
         <td>{{EBIT_FY1}}</td><td>{{EBIT_FY2}}</td><td>{{EBIT_FY3}}</td><td>{{EBIT_FY4}}</td><td>{{EBIT_FY5}}</td>
+      </tr>
+      <tr class="margin-row">
+        <td class="row-label" style="padding-left:18px;font-style:italic">EBIT YoY %</td>
+        <td>{{EBIT_YOY_FY1}}</td><td>{{EBIT_YOY_FY2}}</td><td>{{EBIT_YOY_FY3}}</td><td>{{EBIT_YOY_FY4}}</td><td>{{EBIT_YOY_FY5}}</td>
       </tr>
       <tr class="highlight-row">
         <td class="row-label">Net Income (GAAP)</td>
@@ -907,7 +919,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
       <tr>
         <td class="row-label">EBIT / Interest</td>
-        <td colspan="5" style="text-align:center;color:var(--up);font-weight:600">{{EBITINT_NOTE}}</td>
+        <td>{{EBITINT_FY1}}</td><td>{{EBITINT_FY2}}</td><td>{{EBITINT_FY3}}</td><td>{{EBITINT_FY4}}</td><td>{{EBITINT_FY5}}</td>
       </tr>
 
       <tr class="section-row"><td colspan="6">Cash Flow Statement</td></tr>

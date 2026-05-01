@@ -16,6 +16,27 @@ from data_validation import validate_fmp_data, persist_anomalies
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "Report_Template.html")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "static", "data")
 
+# ── Gemini AI key (injected from server.py at startup) ────────────────────────
+GEMINI_KEY = os.environ.get("GEMINI_KEY", "")
+
+def _gemini(prompt, timeout=20):
+    """Call Gemini 1.5 Flash for qualitative commentary. Returns None on failure."""
+    if not GEMINI_KEY:
+        return None
+    try:
+        import requests as _r
+        url = (f"https://generativelanguage.googleapis.com/v1beta/"
+               f"models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}")
+        resp = _r.post(url, json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.25, "maxOutputTokens": 300},
+        }, timeout=timeout)
+        if resp.status_code == 200:
+            return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception:
+        pass
+    return None
+
 # ── Formatters ────────────────────────────────────────────────────────────────
 
 def _m(v):
@@ -442,7 +463,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                       wacc_val, dcf_prices, scorecard_metrics,
                       manual_rating=None, current_price=None, market_cap=None,
                       biz_clarity=None, ltp=None, adj_score=None,
-                      analyst_ests=None):
+                      analyst_ests=None, analyst_targets=None):
 
     is0, bs0, cf0 = is_data[-1], bs_data[-1], cf_data[-1]
     today = datetime.date.today().strftime("%B %Y")
@@ -758,6 +779,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     # ── 5-year financial table ─────────────────────────────────────────────────
     fin = {}
+    _prev_rev = _prev_ebd = _prev_ebit = None  # for YoY growth tracking
     for i, (yr, is_, bs_, cf_) in enumerate(zip(years, is_data, bs_data, cf_data), 1):
         rev   = is_.get("revenue") or 0
         gp    = is_.get("grossProfit") or 0
@@ -797,6 +819,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         fin[f"OCF_FY{i}"]     = _m(ocf)
         fin[f"CAPEX_FY{i}"]   = f"({_m(cpx)})"
         fin[f"FCF_FY{i}"]     = _m(fcf)
+
+        # YoY growth rates (blank for first year)
+        fin[f"REV_YOY_FY{i}"]    = _pct(rev/_prev_rev - 1) if (_prev_rev and rev and _prev_rev > 0) else "—"
+        fin[f"EBITDA_YOY_FY{i}"] = _pct(ebd/_prev_ebd - 1) if (_prev_ebd and ebd and _prev_ebd > 0) else "—"
+        fin[f"EBIT_YOY_FY{i}"]   = _pct(ebit/_prev_ebit - 1) if (_prev_ebit and ebit and _prev_ebit != 0) else "—"
+        _prev_rev = rev; _prev_ebd = ebd; _prev_ebit = ebit
 
         # New: net margin, D&A, FCF bridge
         fin[f"NM_FY{i}"]      = _pct(ni/rev if rev else None)
@@ -1038,13 +1066,16 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "CAP_RETURNS_VALUE":    _cr_val,
         "CAP_RETURNS_SUB":      _cr_sub,
 
-        # Revenue mix (segment detail not available via FMP free tier)
-        "REV_MIX_SECTION_LABEL": "Revenue Mix",
-        "SEG1_EMOJI_NAME": "📊 Total Revenue", "SEG1_REV_PCT": "100%",
-        "SEG1_DESC": f"{_b(rev0)} total revenue in FY{years[-1]} ({_pct(rev_yoy)} YoY). Segment breakdown in 10-K.",
-        "SEG2_EMOJI_NAME": "📊 EBITDA", "SEG2_REV_PCT": _pct(ebitdam0),
-        "SEG2_DESC": f"EBITDA margin {_pct(ebitdam0)} in FY{years[-1]}; {_n_fcf}yr avg trend {'improving' if _gm_trend > 0 else 'declining' if _gm_trend < 0 else 'stable'}.",
-        "SEG3_EMOJI_NAME": "📊 Free Cash Flow", "SEG3_REV_PCT": _pct(fcf0/rev0 if rev0 else None),
+        # Financial Highlights (segment detail not available via FMP free tier)
+        "REV_MIX_SECTION_LABEL": f"FY{years[-1]} · Segment detail in 10-K",
+        "SEG1_EMOJI_NAME": "📈 Revenue Growth",
+        "SEG1_REV_PCT": (_pct(rev_yoy) if rev_yoy else _b(rev0)),
+        "SEG1_DESC": f"Total revenue {_b(rev0)} in FY{years[-1]}. {_n_fcf}yr CAGR {_pct(rev_cagr_v)}. Segment mix in 10-K.",
+        "SEG2_EMOJI_NAME": "💰 EBITDA Margin",
+        "SEG2_REV_PCT": _pct(ebitdam0),
+        "SEG2_DESC": f"EBITDA {_b(ebd0)} in FY{years[-1]}; margin {'improving' if _gm_trend > 0 else 'declining' if _gm_trend < 0 else 'stable'} over {_n_fcf}yr review period.",
+        "SEG3_EMOJI_NAME": "🏦 FCF Margin",
+        "SEG3_REV_PCT": _pct(fcf0/rev0 if rev0 else None),
         "SEG3_DESC": f"FCF {_b(fcf0)} in FY{years[-1]}, {_pct(fcf_ni_v)} FCF/NI conversion. {_n_fcf}yr FCF CAGR: {_pct(fcf_cagr_v) if fcf_cagr_v else 'N/A'}.",
 
         # Credit
@@ -1385,10 +1416,79 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     if _thesis.get("risk"):
         D["THESIS_CATALYSTS_TEXT"] = _thesis["risk"]
 
-    # EBIT/Interest note (template uses a single colspan=5 cell for this row)
+    # ── Gemini AI: qualitative moat + growth catalysts ────────────────────────
+    if GEMINI_KEY:
+        _ai_moat = _gemini(
+            f"Write 2 sentences (max 60 words) on {company_name} ({ticker})'s economic moat — "
+            f"focus on qualitative competitive advantages: brand, switching costs, network effects, "
+            f"patents, cost advantages, or regulatory moat. Sector: {industry}. "
+            f"ROIC: {_pct(roic_v)}, Gross margin: {_pct(gm0)}, Revenue CAGR: {_pct(rev_cagr_v)}. "
+            f"Be specific and analytical. No disclaimers."
+        )
+        if _ai_moat:
+            D["THESIS_MOAT_TEXT"] = _ai_moat
+
+        _ai_catalysts = _gemini(
+            f"Write 2 sentences (max 60 words) on the top growth catalysts for {company_name} ({ticker}) "
+            f"over the next 3 years. Sector: {industry}. Focus on AI exposure, product cycles, "
+            f"geographic expansion, margin levers, or structural tailwinds. Be specific and analytical. No disclaimers."
+        )
+        if _ai_catalysts:
+            D["THESIS_CATALYSTS_TEXT"] = _ai_catalysts
+
+    # EBIT/Interest note (kept for backwards compat but template now uses individual columns)
     ebitint_vals = [fin.get(f"EBITINT_FY{i}", "N/A") for i in range(1, len(years) + 1)]
     non_na = [(years[i], v) for i, v in enumerate(ebitint_vals) if v != "N/A"]
     D["EBITINT_NOTE"] = " · ".join(f"FY{yr}: {v}" for yr, v in non_na) if non_na else "N/A — interest data not available"
+
+    # ── Analyst price targets (yfinance) ──────────────────────────────────────
+    _at = analyst_targets or {}
+    if not _at:
+        try:
+            import yfinance as _yf
+            _yfi = _yf.Ticker(ticker).info
+            _pt_mean = _yfi.get("targetMeanPrice")
+            _pt_low  = _yfi.get("targetLowPrice")
+            _pt_high = _yfi.get("targetHighPrice")
+            _pt_n    = _yfi.get("numberOfAnalystOpinions")
+            _rec     = (_yfi.get("recommendationKey") or "").replace("_", " ").upper()
+            if _pt_mean and current_price:
+                D["CONSENSUS_PT"]    = f"${_pt_mean:.2f}"
+                D["CONSENSUS_PT_VS"] = _vs(_pt_mean, current_price)
+            if _pt_n:
+                D["ANALYST_COUNT"] = str(int(_pt_n))
+            if _pt_low and _pt_high:
+                D["PT_RANGE"] = f"${_pt_low:.2f} – ${_pt_high:.2f}"
+            if _pt_mean:
+                D["ANALYST_TABLE_NOTE"] = (
+                    f"Consensus target ${_pt_mean:.2f} ({_vs(_pt_mean, current_price)}) · "
+                    f"Range ${_pt_low:.2f}–${_pt_high:.2f} · {_pt_n} analysts · "
+                    f"Consensus: {_rec}. Source: Yahoo Finance."
+                )
+            # Fill individual analyst rows from upgrades_downgrades
+            try:
+                _upgrades = _yf.Ticker(ticker).upgrades_downgrades
+                if _upgrades is not None and not _upgrades.empty:
+                    _upgrades = _upgrades.reset_index()
+                    # Sort by date descending, take top 7
+                    _upgrades = _upgrades.sort_values("GradeDate", ascending=False).head(7)
+                    for _row_i, (_, _ug) in enumerate(_upgrades.iterrows(), 1):
+                        _firm = str(_ug.get("Firm") or "")
+                        _action = str(_ug.get("Action") or "")
+                        _to_grade = str(_ug.get("ToGrade") or "")
+                        _from_grade = str(_ug.get("FromGrade") or "")
+                        _date = str(_ug.get("GradeDate", ""))[:10]
+                        _rating_text = _to_grade or _action
+                        D[f"A{_row_i}_NAME"]        = _action.title() if _action else "—"
+                        D[f"A{_row_i}_FIRM"]        = _firm or "—"
+                        D[f"A{_row_i}_RATING_TEXT"] = _rating_text or "—"
+                        D[f"A{_row_i}_PT"]          = "—"
+                        D[f"A{_row_i}_PT_VS"]       = "—"
+                        D[f"A{_row_i}_DATE"]        = _date or "—"
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     # ── Analyst estimates → forward multiples ─────────────────────────────────
     if analyst_ests:

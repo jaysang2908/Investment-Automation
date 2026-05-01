@@ -22,6 +22,7 @@ from flask import Flask, request, jsonify, Response, send_file
 import requests as _req
 
 import fmp_3statementv6 as mdl
+import report_bridge as _rb
 from report_bridge import build_report_data, render_html_report
 from data_store import save_ticker_data, load_ticker_data
 from scenarios_db import init_db, save_scenario, list_scenarios, delete_scenario, get_scenario
@@ -30,8 +31,9 @@ from scenarios_db import init_db, save_scenario, list_scenarios, delete_scenario
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 # ── Config from environment ───────────────────────────────────────────────────
-mdl.API_KEY  = os.environ.get("FMP_API_KEY", mdl.API_KEY)
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+mdl.API_KEY    = os.environ.get("FMP_API_KEY", mdl.API_KEY)
+_rb.GEMINI_KEY = os.environ.get("GEMINI_KEY", "")
+APP_PASSWORD   = os.environ.get("APP_PASSWORD", "")
 
 # ── Initialise scenario database ─────────────────────────────────────────────
 init_db()
@@ -138,6 +140,21 @@ def generate():
         wb.save(buf)
         excel_bytes = buf.getvalue()
 
+        # ── Fetch analyst estimates (forward EPS/revenue for multiples table) ─
+        analyst_ests = []
+        try:
+            _ae = _req.get(
+                f"https://financialmodelingprep.com/stable/analyst-estimates"
+                f"?symbol={ticker}&period=annual&limit=5&apikey={mdl.API_KEY}", timeout=8
+            ).json()
+            if isinstance(_ae, list):
+                analyst_ests = sorted(
+                    [e for e in _ae if str(e.get("date",""))[:4] > str(years[-1])],
+                    key=lambda x: x.get("date","")
+                )[:5]
+        except Exception:
+            pass
+
         # ── Compute adjusted score first (need it for HTML report) ───────────
         TIER_PTS    = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
         auto_score  = scorecard_metrics.get("auto_score") or 0
@@ -165,6 +182,7 @@ def generate():
             biz_clarity       = biz_clarity or None,
             ltp               = ltp or None,
             adj_score         = adj_score,
+            analyst_ests      = analyst_ests,
         )
         html_content = render_html_report(report_data)
 
@@ -176,7 +194,7 @@ def generate():
                 wacc_val=wacc_refs.get("wacc_val"),
                 dcf_prices=(dcf_refs or {}).get("dcf_prices") or {},
                 scorecard_metrics=scorecard_metrics,
-                analyst_ests=None,
+                analyst_ests=analyst_ests,
             )
         except Exception:
             pass
