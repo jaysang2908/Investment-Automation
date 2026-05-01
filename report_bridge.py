@@ -472,7 +472,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     # ── Company info ──────────────────────────────────────────────────────────
     company_name = profile.get("companyName") or ticker
     exchange     = profile.get("exchangeShortName") or ""
-    industry     = profile.get("industry") or profile.get("sector") or "N/A"
+    industry     = profile.get("industry") or profile.get("sector") or profile.get("industryType") or ""
     ceo          = profile.get("ceo") or "N/A"
     description  = profile.get("description") or ""
     ceo_info     = f"CEO: {ceo}."
@@ -532,6 +532,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     trailing_pfc  = scorecard_metrics.get("pfcf_current")
     pfcf_5yr      = scorecard_metrics.get("pfcf_5yr_avg")
 
+    # ── Fallbacks: compute ROIC / rev_cagr directly if scorecard cache is stale ─
+    if roic_v is None:
+        roic_v = _roic(is0, bs0)
+    if rev_cagr_v is None and len(is_data) >= 2:
+        _r0 = is_data[0].get("revenue") or 0
+        _rn = is_data[-1].get("revenue") or 0
+        _n  = len(is_data) - 1
+        rev_cagr_v = (_rn / _r0) ** (1 / _n) - 1 if (_r0 > 0 and _rn > 0 and _n > 0) else None
+    if fcf_ni_v is None:
+        _ni0 = is0.get("netIncome") or 0
+        fcf_ni_v = (fcf0 / _ni0) if _ni0 and _ni0 > 0 else None
+
     # ── YoY growth ────────────────────────────────────────────────────────────
     def _yoy(series, key):
         if len(series) < 2: return None
@@ -544,6 +556,15 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 ((cf_data[-2].get("operatingCashFlow") or 0) - abs(cf_data[-2].get("capitalExpenditure") or 0))
                 ) if len(cf_data) >= 2 else None
     fcf_yoy  = (fcf0 / fcf_prev - 1) if fcf_prev else None
+
+    # 3-year average annual revenue growth
+    _rev_yoys_3yr = []
+    for _j in range(max(1, len(is_data) - 3), len(is_data)):
+        _pr = is_data[_j-1].get("revenue") or 0
+        _cr = is_data[_j].get("revenue") or 0
+        if _pr > 0 and _cr:
+            _rev_yoys_3yr.append(_cr / _pr - 1)
+    _rev_3yr_avg = sum(_rev_yoys_3yr) / len(_rev_yoys_3yr) if _rev_yoys_3yr else None
 
     # ── Valuation multiples (LTM) ─────────────────────────────────────────────
     ev_ebitda = (ev / ebd0) if ev and ebd0 > 0 else None
@@ -815,7 +836,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _de = debt / ebd if ebd > 0 else None
         fin[f"DEBITDA_FY{i}"] = _x(_de)
         _ei = abs(ebit) / ie if ie > 0 else None
-        fin[f"EBITINT_FY{i}"] = _x(_ei)
+        fin[f"EBITINT_FY{i}"] = _x(_ei) if _ei is not None else "—"
         fin[f"OCF_FY{i}"]     = _m(ocf)
         fin[f"CAPEX_FY{i}"]   = f"({_m(cpx)})"
         fin[f"FCF_FY{i}"]     = _m(fcf)
@@ -1070,7 +1091,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "REV_MIX_SECTION_LABEL": f"FY{years[-1]} · Segment detail in 10-K",
         "SEG1_EMOJI_NAME": "📈 Revenue Growth",
         "SEG1_REV_PCT": (_pct(rev_yoy) if rev_yoy else _b(rev0)),
-        "SEG1_DESC": f"Total revenue {_b(rev0)} in FY{years[-1]}. {_n_fcf}yr CAGR {_pct(rev_cagr_v)}. Segment mix in 10-K.",
+        "SEG1_DESC": (
+            f"Total revenue {_b(rev0)} in FY{years[-1]}. "
+            f"3yr avg annual growth {_pct(_rev_3yr_avg)}; "
+            f"{_n_fcf}yr CAGR {_pct(rev_cagr_v)}. Segment mix in 10-K."
+        ),
         "SEG2_EMOJI_NAME": "💰 EBITDA Margin",
         "SEG2_REV_PCT": _pct(ebitdam0),
         "SEG2_DESC": f"EBITDA {_b(ebd0)} in FY{years[-1]}; margin {'improving' if _gm_trend > 0 else 'declining' if _gm_trend < 0 else 'stable'} over {_n_fcf}yr review period.",
@@ -1416,25 +1441,77 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     if _thesis.get("risk"):
         D["THESIS_CATALYSTS_TEXT"] = _thesis["risk"]
 
-    # ── Gemini AI: qualitative moat + growth catalysts ────────────────────────
+    # ── Gemini AI: qualitative moat, growth catalysts, risks, scorecard ─────────
+    # These prompts draw on Gemini's world knowledge — not just financial metrics.
+    # Context is provided so responses are company-specific and analytical.
+    _ai_fin_ctx = (
+        f"Financial context (FY{years[-1]}): Revenue {_b(rev0)} ({_pct(rev_yoy)} YoY, "
+        f"{_n_fcf}yr CAGR {_pct(rev_cagr_v)}); EBITDA margin {_pct(ebitdam0)}; "
+        f"ROIC {_pct(roic_v)}; FCF {_b(fcf0)} ({_pct(fcf_ni_v)} FCF/NI); "
+        f"D/EBITDA {_x(d_ebd)}; gross margin {_pct(gm0)}."
+    )
+
     if GEMINI_KEY:
+        # ── Section 4: The Moat ───────────────────────────────────────────────
         _ai_moat = _gemini(
-            f"Write 2 sentences (max 60 words) on {company_name} ({ticker})'s economic moat — "
-            f"focus on qualitative competitive advantages: brand, switching costs, network effects, "
-            f"patents, cost advantages, or regulatory moat. Sector: {industry}. "
-            f"ROIC: {_pct(roic_v)}, Gross margin: {_pct(gm0)}, Revenue CAGR: {_pct(rev_cagr_v)}. "
-            f"Be specific and analytical. No disclaimers."
+            f"You are a buy-side equity analyst. Write a concise economic moat assessment "
+            f"for {company_name} ({ticker}), sector: {industry}.\n"
+            f"{_ai_fin_ctx}\n"
+            f"In 3 sentences (max 90 words), assess: (1) the PRIMARY source of competitive "
+            f"advantage — be specific: brand recognition, ecosystem lock-in, switching costs, "
+            f"network effects, patents/IP, regulatory moat, or structural cost advantage; "
+            f"(2) how durable this moat is and what specific threat could erode it. "
+            f"Draw on your knowledge of this company's products, strategy, and competitive "
+            f"dynamics. Go beyond the financial metrics above. No disclaimers or caveats."
         )
         if _ai_moat:
             D["THESIS_MOAT_TEXT"] = _ai_moat
+            D["P1_MOAT_COMMENTARY"] = _ai_moat  # also used in scorecard
 
+        # ── Section 4: Growth Catalysts ───────────────────────────────────────
         _ai_catalysts = _gemini(
-            f"Write 2 sentences (max 60 words) on the top growth catalysts for {company_name} ({ticker}) "
-            f"over the next 3 years. Sector: {industry}. Focus on AI exposure, product cycles, "
-            f"geographic expansion, margin levers, or structural tailwinds. Be specific and analytical. No disclaimers."
+            f"You are a buy-side equity analyst. Write a concise growth catalyst assessment "
+            f"for {company_name} ({ticker}), sector: {industry}.\n"
+            f"{_ai_fin_ctx}\n"
+            f"In 3 sentences (max 90 words), identify: (1) the most important near-term "
+            f"catalyst (e.g. new product launch, AI feature integration, pricing power, "
+            f"regulatory approval, geographic expansion, margin inflection); "
+            f"(2) the key structural long-term growth driver. "
+            f"Be specific to this company's known strategy and product roadmap. "
+            f"Do NOT just restate the financial metrics above. No disclaimers."
         )
         if _ai_catalysts:
             D["THESIS_CATALYSTS_TEXT"] = _ai_catalysts
+            D["P1_LTP_COMMENTARY"] = _ai_catalysts  # also used in scorecard LTP row
+
+        # ── Risk Factors: qualitative overlay ─────────────────────────────────
+        _risk_ctx = (
+            f"Beta {beta_v:.2f}; D/EBITDA {_x(d_ebd)}; interest coverage {_x(ebit_int)}; "
+            f"gross margin {'declining' if _gm_trend < -0.01 else 'expanding' if _gm_trend > 0.01 else 'stable'} over {len(is_data)}yr."
+        )
+        _ai_risks = _gemini(
+            f"You are a buy-side equity analyst. Write a concise risk assessment "
+            f"for {company_name} ({ticker}), sector: {industry}.\n"
+            f"{_ai_fin_ctx} {_risk_ctx}\n"
+            f"In 3 sentences (max 90 words), identify: (1) the primary company-specific "
+            f"business risk (e.g. competitive threat, product concentration, regulatory "
+            f"scrutiny, customer concentration, technology disruption); "
+            f"(2) the key macro or market risk (rate sensitivity, geopolitical exposure, FX, "
+            f"commodity costs, valuation multiple risk). "
+            f"Be specific to this company. Go beyond what the financial metrics already show. "
+            f"No disclaimers or generic statements."
+        )
+        if _ai_risks:
+            # Override the first two auto-generated risk items with the AI narrative
+            D["RISK_1_TEXT"] = _ai_risks
+            D["RISK_1_TITLE"] = "Primary Business Risk"
+            D["RISK_2_TITLE"] = "AI-Assessed Macro / Structural Risk"
+            D["RISK_2_TEXT"] = (
+                f"Valuation: P/E {_x(trailing_pe)} vs. {_x(pe_5yr)} 5yr avg ({pe_delta}); "
+                f"P/FCF {_x(trailing_pfc)} vs. {_x(pfcf_5yr)} 5yr avg ({pfcf_delta}). "
+                + ("Multiple premium warrants flawless execution." if trailing_pe and pe_5yr and trailing_pe > pe_5yr * 1.05 else
+                   "Valuation broadly in line with history.")
+            )
 
     # EBIT/Interest note (kept for backwards compat but template now uses individual columns)
     ebitint_vals = [fin.get(f"EBITINT_FY{i}", "N/A") for i in range(1, len(years) + 1)]
