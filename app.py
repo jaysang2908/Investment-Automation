@@ -27,7 +27,8 @@ if password != st.secrets["APP_PASSWORD"]:
 
 # ── Inject API keys from Streamlit secrets into the module ───────────────────
 import fmp_3statementv6 as mdl
-mdl.API_KEY = st.secrets["FMP_API_KEY"]
+mdl.API_KEY    = st.secrets["FMP_API_KEY"]
+mdl.GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 st.title("📊 Investment Model Generator")

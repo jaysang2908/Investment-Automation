@@ -15,6 +15,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 API_KEY      = "tOPLCq7cEELfef0FA6AKNuVoO549gAS1"
 YEARS        = 5    # historical years to fetch
 YEARS_PROJ   = 5    # minimum projection years in DCF (auto-extended if FMP has more)
+GEMINI_KEY   = ""   # injected from Streamlit secrets at runtime
 
 # ── Damodaran tables (Jan 2025 US data — update annually) ─────────────────────
 # ICR band → (synthetic rating, default spread)
@@ -226,6 +227,32 @@ def fetch_analyst_estimates(ticker, last_hist_year):
     except Exception as e:
         print(f"  [Estimates] Failed: {e}")
         return []
+
+def get_ai_suggestion(prompt, timeout=20):
+    """Call Gemini 1.5 Flash REST API. Returns text string or None on any failure."""
+    if not GEMINI_KEY:
+        return None
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/"
+        f"models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+    )
+    try:
+        resp = requests.post(
+            url,
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.25, "maxOutputTokens": 380},
+            },
+            timeout=timeout,
+        )
+        if resp.status_code == 200:
+            return (resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    .strip())
+        print(f"  [Gemini] HTTP {resp.status_code}: {resp.text[:120]}")
+    except Exception as e:
+        print(f"  [Gemini] Error: {e}")
+    return None
+
 
 def get_synthetic_rating(icr):
     """Map Interest Coverage Ratio to Damodaran synthetic rating + spread."""
@@ -991,6 +1018,7 @@ def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs,
     rev   = pl_refs["rev"];   cogs  = pl_refs["cogs"]; gp    = pl_refs["gp"]
     ebitda= pl_refs["ebitda"];da    = pl_refs["da"];   ebit  = pl_refs["ebit"]
     ebt   = pl_refs["ebt"];   tax   = pl_refs["tax"];  ni    = pl_refs["ni"]
+    int_exp = pl_refs["int_exp"]   # direct interest expense row — avoids EBT-EBIT proxy
 
     tca   = bs_refs["tca"];   tcl   = bs_refs["tcl"];  tot_a = bs_refs["tot_assets"]
     te    = bs_refs["te"];    ltd   = bs_refs["ltd"];  cash  = bs_refs["cash"]
@@ -1115,7 +1143,7 @@ def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs,
         lambda r,c: f"=IFERROR('Balance Sheet'!{cl(c)}{ltd}/{pl(ebitda,c)},\"\")",
         n, is_ratio=True)
     row = write_formula_row(ws, row, "Interest Coverage  (EBIT / Interest Expense)",
-        lambda r,c: f"=IFERROR({pl(ebit,c)}/ABS({pl(ebt,c)}-{pl(ebit,c)}),\"\")",
+        lambda r,c: f"=IFERROR(ABS({pl(ebit,c)})/ABS({pl(int_exp,c)}),\"\")",
         n, is_ratio=True)
     row = write_formula_row(ws, row, "Debt / Equity",
         lambda r,c: f"=IFERROR('Balance Sheet'!{cl(c)}{ltd}/{bs(te,c)},\"\")",
@@ -2310,6 +2338,30 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     cell.font = fnt(italic=True, color=C_BLACK)
     note(row, "= EBITDA / Revenue  (formula — cross-check on margin assumption)")
     row += 1
+
+    # EBITDA YoY Growth %
+    wcell(row, 1, "  EBITDA YoY Growth %", italic=True, halign="left", indent=2)
+    for i, c in enumerate(HIST_COLS):
+        if i > 0:
+            cell = wcell(row, c,
+                         f"=IFERROR({cl(c)}{ebitda_row}/{cl(c-1)}{ebitda_row}-1,\"\")",
+                         italic=True, bg=C_HIST, fmt=PCT)
+            cell.font = fnt(italic=True, color=C_BLACK)
+        else:
+            wcell(row, c, None, bg=C_HIST)
+    for i, c in enumerate(PROJ_COLS):
+        prior_c = PROJ_COLS[i - 1] if i > 0 else HIST_COLS[-1]
+        cell = wcell(row, c,
+                     f"=IFERROR({cl(c)}{ebitda_row}/{cl(prior_c)}{ebitda_row}-1,\"\")",
+                     italic=True,
+                     bg=C_BG if proj_years[i] in est_map else C_ALT, fmt=PCT)
+        cell.font = fnt(italic=True, color=C_BLACK)
+    cell = wcell(row, TERM_COL,
+                 f"=IFERROR({cl(TERM_COL)}{ebitda_row}/{cl(PROJ_COLS[-1])}{ebitda_row}-1,\"\")",
+                 italic=True, bg=C_ASSM, fmt=PCT)
+    cell.font = fnt(italic=True, color=C_BLACK)
+    note(row, "= YoY EBITDA growth rate")
+    row += 1
     row = blank(row)
 
     # ── SECTION 3: FCF BUILD ──────────────────────────────────────────────────
@@ -2340,6 +2392,30 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
               bold=True, bg=C_SUB, fmt=NUM)
     note(row, "= EBITDA + D&A  (GAAP operating income, EBIT)")
     ebit_row = row; row += 1
+
+    # EBIT YoY Growth %
+    wcell(row, 1, "  EBIT YoY Growth %", italic=True, halign="left", indent=2)
+    for i, c in enumerate(HIST_COLS):
+        if i > 0:
+            cell = wcell(row, c,
+                         f"=IFERROR({cl(c)}{ebit_row}/{cl(c-1)}{ebit_row}-1,\"\")",
+                         italic=True, bg=C_HIST, fmt=PCT)
+            cell.font = fnt(italic=True, color=C_BLACK)
+        else:
+            wcell(row, c, None, bg=C_HIST)
+    for i, c in enumerate(PROJ_COLS):
+        prior_c = PROJ_COLS[i - 1] if i > 0 else HIST_COLS[-1]
+        cell = wcell(row, c,
+                     f"=IFERROR({cl(c)}{ebit_row}/{cl(prior_c)}{ebit_row}-1,\"\")",
+                     italic=True,
+                     bg=C_BG if proj_years[i] in est_map else C_ALT, fmt=PCT)
+        cell.font = fnt(italic=True, color=C_BLACK)
+    cell = wcell(row, TERM_COL,
+                 f"=IFERROR({cl(TERM_COL)}{ebit_row}/{cl(PROJ_COLS[-1])}{ebit_row}-1,\"\")",
+                 italic=True, bg=C_ASSM, fmt=PCT)
+    cell.font = fnt(italic=True, color=C_BLACK)
+    note(row, "= YoY EBIT growth rate")
+    row += 1
 
     # Tax on EBIT
     wcell(row, 1, "  Less: Tax on EBIT  (unlevered)", halign="left", indent=2)
@@ -3100,6 +3176,43 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     floor_cap = (59 if gate1 and gate2 else
                  64 if gate1 or gate2 else None)
 
+    # ── Analyst price targets (from yfinance info — already fetched above) ────
+    _pt_mean    = yf_info.get("targetMeanPrice")
+    _pt_low     = yf_info.get("targetLowPrice")
+    _pt_high    = yf_info.get("targetHighPrice")
+    _pt_n       = yf_info.get("numberOfAnalystOpinions")
+    _rec_key    = (yf_info.get("recommendationKey") or "").replace("_", " ").upper()
+    _mkt_price  = (yf_info.get("currentPrice") or
+                   float(prof_sc.get("price") or 0) or None)
+
+    # ── AI-generated commentary (Gemini 1.5 Flash) ────────────────────────────
+    _ai_moat = _ai_catalysts = None
+    if GEMINI_KEY:
+        _gm_str   = f"{gm_latest:.1%}" if gm_latest is not None else "N/A"
+        _roic_str = f"{roic_latest:.1%}" if roic_latest is not None else "N/A"
+        _cagr_str = f"{rev_cagr:.1%}" if rev_cagr is not None else "N/A"
+        _sect     = sector_str or "unknown sector"
+
+        print(f"  [Gemini] Generating moat narrative for {ticker}...")
+        _ai_moat = get_ai_suggestion(
+            f"You are a senior sell-side equity analyst writing a brief investment note. "
+            f"In exactly 3 concise sentences, assess the economic moat of {ticker} ({_sect}). "
+            f"Cover: (1) moat type (brand, switching costs, network effects, cost advantage, "
+            f"or efficient scale), (2) long-term defensibility and structural risks. "
+            f"Be specific to {ticker}'s actual business — avoid generic statements. "
+            f"Key data: Gross margin {_gm_str}, ROIC {_roic_str}, "
+            f"Revenue CAGR (3yr) {_cagr_str}, Revenue consistency σ={rev_std:.1%}."
+        )
+
+        print(f"  [Gemini] Generating growth catalysts for {ticker}...")
+        _ai_catalysts = get_ai_suggestion(
+            f"You are a senior sell-side equity analyst. List exactly 4 specific near-to-medium-term "
+            f"growth catalysts for {ticker} ({_sect}). "
+            f"Each catalyst must be specific to {ticker}'s actual products, markets, or strategy — "
+            f"not generic sector commentary. Format: one catalyst per line, starting with '• '. "
+            f"Keep each line under 25 words. Revenue CAGR (3yr): {_cagr_str}."
+        )
+
     # ── Criteria table definition ─────────────────────────────────────────────
     # (part, label, weight, auto_tier, note, is_auto)
     # Business Clarity and Long-Term Potential remain manual (needs segment data / narrative)
@@ -3388,9 +3501,92 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     row = merge_row(
         row,
         "SCORING GUIDE:  ≥80 STRONG BUY  |  65–79 BUY  |  50–64 HOLD  |  35–49 REDUCE  |  <35 SELL  "
-        "  ||  Floor gates: D/EBITDA >4x OR EBIT/Int <2x → cap 64;  both → cap 59",
+        "  ||  Floor gates: D/EBITDA >4x OR EBIT/Int <2x → cap 64;  both → cap 59  "
+        "  ||  Note: P/E and P/FCF valuation criteria are price-sensitive — "
+        f"computed at market price on {datetime.date.today():%d %b %Y}.",
         bold=False, color="444444", bg="F4F8FB", size=8, indent=2
     )
+
+    # ── ANALYST PRICE TARGETS ─────────────────────────────────────────────────
+    row = blank_row(row)
+    row = merge_row(row, "ANALYST PRICE TARGETS  (Source: Yahoo Finance)",
+                    bold=True, bg="1A3A5C", size=10)
+
+    def _pt_row(r, label, val, fmt="$#,##0.00", upside=None):
+        ws.row_dimensions[r].height = 16
+        wcell(r, 1, label, bold=False, bg="EAF2FB", halign="left")
+        if val is not None:
+            c_v = wcell(r, 2, val, bold=True, bg="EAF2FB", halign="right", fmt=fmt)
+            c_v.font = fnt(bold=True, color="1A3A5C")
+        else:
+            wcell(r, 2, "N/A", italic=True, bg="EAF2FB", color="999999", halign="right")
+        if upside is not None and val is not None:
+            c_u = wcell(r, 3, upside, bold=False, bg="EAF2FB", halign="right",
+                        fmt='0.0%;(0.0%);"-"')
+            c_u.font = fnt(color=("1B5E20" if upside >= 0 else "B71C1C"))
+        for col in range(4, NC + 1):
+            wcell(r, col, None, bg="EAF2FB")
+        return r + 1
+
+    def _upside(pt, mp):
+        if pt and mp and mp > 0:
+            return (pt / mp) - 1
+        return None
+
+    row = _pt_row(row, "  Consensus Recommendation", _rec_key or "N/A",
+                  fmt="@")
+    row = _pt_row(row, "  Number of Analyst Opinions", _pt_n,
+                  fmt='0;(0);"-"')
+    row = _pt_row(row, "  Current Market Price  ($)", _mkt_price,
+                  fmt="$#,##0.00")
+    row = _pt_row(row, "  Mean Price Target  ($)", _pt_mean,
+                  upside=_upside(_pt_mean, _mkt_price))
+    row = _pt_row(row, "  Low Price Target  ($)",  _pt_low,
+                  upside=_upside(_pt_low, _mkt_price))
+    row = _pt_row(row, "  High Price Target  ($)", _pt_high,
+                  upside=_upside(_pt_high, _mkt_price))
+
+    ws.row_dimensions[row].height = 12
+    merge_row(row, "  Upside / (downside) in column C = vs current market price.  "
+              "Source: Yahoo Finance — verify independently before use in client materials.",
+              bold=False, color="777777", bg="EAF2FB", size=8, indent=2)
+    row += 1
+
+    # ── AI INVESTMENT COMMENTARY ──────────────────────────────────────────────
+    row = blank_row(row)
+    row = merge_row(row,
+                    "AI-GENERATED INVESTMENT COMMENTARY  "
+                    "(Gemini 1.5 Flash — review and verify before use in client materials)",
+                    bold=True, bg=C_DETAIL_HD, size=10)
+
+    for section_title, content, bg_hex in [
+        ("ECONOMIC MOAT & COMPETITIVE DEFENSIBILITY",
+         _ai_moat or "AI commentary unavailable — GEMINI_KEY not configured or API error.",
+         "EAF2FB"),
+        ("GROWTH CATALYSTS",
+         _ai_catalysts or "AI commentary unavailable — GEMINI_KEY not configured or API error.",
+         "E8F5E9"),
+    ]:
+        row = merge_row(row, f"  {section_title}", bold=True, bg=C_SECTION, size=9)
+        # Estimate row height based on text length (~80 chars per line at this width)
+        n_lines = max(3, len(content) // 80 + 1)
+        ws.row_dimensions[row].height = max(48, n_lines * 14)
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NC)
+        c_ai = ws.cell(row=row, column=1, value=content)
+        c_ai.font      = Font(name="Arial", size=10, color=C_BLACK)
+        c_ai.fill      = fll(bg_hex)
+        c_ai.alignment = Alignment(horizontal="left", vertical="top",
+                                   indent=2, wrap_text=True)
+        c_ai.border    = brd()
+        row += 1
+        row = blank_row(row)
+
+    ws.row_dimensions[row].height = 14
+    merge_row(row,
+              "⚠  AI-generated content (Gemini 1.5 Flash).  Always review for factual accuracy "
+              "before use in client materials.  Not a substitute for independent research.",
+              bold=False, color="B71C1C", bg="FFF9C4", size=8, indent=2)
+    row += 1
 
     # ── Metrics dict for portfolio heatmap ────────────────────────────────────
     # auto_score = raw points out of 100 earned from the 11 auto-scored criteria.
