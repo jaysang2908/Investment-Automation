@@ -1513,6 +1513,21 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                    "Valuation broadly in line with history.")
             )
 
+        # ── Valuation method: DCF vs Multiples ───────────────────────────────
+        _ai_val_method = _gemini(
+            f"You are a buy-side equity analyst. For {company_name} ({ticker}), "
+            f"sector: {industry}.\n"
+            f"{_ai_fin_ctx}\n"
+            f"In 2 sentences (max 75 words): state clearly whether a DCF (Gordon Growth, "
+            f"terminal-value-heavy) OR a multiples-based approach (P/E, P/FCF, EV/EBITDA) "
+            f"is MORE APPROPRIATE for valuing this company RIGHT NOW, and why. "
+            f"Base your answer on revenue growth rate, FCF predictability, and business "
+            f"maturity — e.g. fast-growing companies suit multiples; mature cash-generative "
+            f"businesses suit DCF. Name the preferred method explicitly. No hedging."
+        )
+        if _ai_val_method:
+            D["MULTIPLES_KEY_QUESTION"] = _ai_val_method
+
     # EBIT/Interest note (kept for backwards compat but template now uses individual columns)
     ebitint_vals = [fin.get(f"EBITINT_FY{i}", "N/A") for i in range(1, len(years) + 1)]
     non_na = [(years[i], v) for i, v in enumerate(ebitint_vals) if v != "N/A"]
@@ -1567,109 +1582,160 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         except Exception:
             pass
 
-    # ── Analyst estimates → forward multiples ─────────────────────────────────
+    # ── Multiples Valuation — always computed from internal projections ─────────
+    # Project FY+1/FY+2 earnings using trailing CAGR + historical margins so
+    # the table is always populated (no FMP analyst estimates required).
+    # FMP data overrides when available.
+    _g1 = max(-0.10, min(rev_cagr_v or 0.05, 0.40))
+
+    _eps_ltm = float(is0.get("epsdiluted") or is0.get("eps") or
+                     ((is0.get("netIncome") or 0) / shares if shares > 0 else 0) or 0)
+    _fwd_eps1 = _eps_ltm * (1 + _g1) if _eps_ltm > 0 else 0
+    _fwd_eps2 = _eps_ltm * (1 + _g1) ** 2 if _eps_ltm > 0 else 0
+
+    _fcf_per_sh = (fcf0 / shares) if (shares > 0 and fcf0 and fcf0 > 0) else 0
+    _fwd_fcf1 = _fcf_per_sh * (1 + _g1) if _fcf_per_sh > 0 else 0
+    _fwd_fcf2 = _fcf_per_sh * (1 + _g1) ** 2 if _fcf_per_sh > 0 else 0
+
+    _fwd_ebitda1 = ebd0 * (1 + _g1) if (ebd0 and ebd0 > 0) else 0
+    _fwd_ebitda2 = ebd0 * (1 + _g1) ** 2 if (ebd0 and ebd0 > 0) else 0
+
+    _nd = debt0 - cash0
+    _sh = shares if shares > 0 else 1
+
+    def _mpx_i(mult, pershare):
+        return round(mult * pershare, 0) if mult and mult > 0 and pershare and pershare > 0 else None
+
+    def _mpx_ev_i(mult, ebd_fwd):
+        if mult and mult > 0 and ebd_fwd and ebd_fwd > 0 and _sh > 0:
+            eq_impl = mult * ebd_fwd - _nd
+            return round(eq_impl / _sh, 0) if eq_impl > 0 else None
+        return None
+
+    def _fmtp(v): return f"${v:.0f}" if v else "N/A"
+    def _fmtu(v): return _vs(v, current_price) if v else "N/A"
+
+    mu = {}
+    for _fy, _eps, _fcf_ps, _ebd_fwd in [
+        ("FY1", _fwd_eps1, _fwd_fcf1, _fwd_ebitda1),
+        ("FY2", _fwd_eps2, _fwd_fcf2, _fwd_ebitda2),
+    ]:
+        _pe_px = _mpx_i(pe_5yr, _eps)
+        mu[f"MULT_PE10_{_fy}_PX"]   = _fmtp(_pe_px); mu[f"MULT_PE10_{_fy}_UPS"]   = _fmtu(_pe_px)
+        mu[f"MULT_PE5_{_fy}_PX"]    = _fmtp(_pe_px); mu[f"MULT_PE5_{_fy}_UPS"]    = _fmtu(_pe_px)
+        _pf_px = _mpx_i(pfcf_5yr, _fcf_ps)
+        mu[f"MULT_PFCF10_{_fy}_PX"] = _fmtp(_pf_px); mu[f"MULT_PFCF10_{_fy}_UPS"] = _fmtu(_pf_px)
+        mu[f"MULT_PFCF5_{_fy}_PX"]  = _fmtp(_pf_px); mu[f"MULT_PFCF5_{_fy}_UPS"]  = _fmtu(_pf_px)
+        _ev_px = _mpx_ev_i(ev_ebitda, _ebd_fwd)
+        mu[f"MULT_EV10_{_fy}_PX"]   = _fmtp(_ev_px); mu[f"MULT_EV10_{_fy}_UPS"]   = _fmtu(_ev_px)
+        mu[f"MULT_EV5_{_fy}_PX"]    = _fmtp(_ev_px); mu[f"MULT_EV5_{_fy}_UPS"]    = _fmtu(_ev_px)
+
+    if ev_ebitda:
+        mu["EVEBITDA_5YR_AVG"]  = f"{ev_ebitda:.1f}x (trailing)"
+        mu["EVEBITDA_10YR_AVG"] = f"{ev_ebitda:.1f}x (trailing)"
+
+    # Forward stats (from internal projections)
+    if _fwd_eps1 > 0 and current_price:
+        _fwd_pe_int = round(current_price / _fwd_eps1, 1)
+        D["FORWARD_PE"]     = _x(_fwd_pe_int)
+        D["FORWARD_PE_EST"] = f"FY+1E EPS ${_fwd_eps1:.2f} (trailing {_pct(_g1)} CAGR projection)"
+        D["PE_FWD_STAT"]    = _x(_fwd_pe_int)
+    if _fwd_fcf1 > 0 and current_price:
+        _fwd_pfc_int = round(current_price / _fwd_fcf1, 1)
+        D["FORWARD_PFCF"]     = _x(_fwd_pfc_int)
+        D["FORWARD_PFCF_EST"] = f"FY+1E FCF/sh ${_fwd_fcf1:.2f} (trailing {_pct(_g1)} CAGR projection)"
+        D["PFCF_FWD_STAT"]    = _x(_fwd_pfc_int)
+    D["REV_CAGR_FWD"] = f"FY+1E: {_pct(_g1)} (trailing CAGR projection)"
+
+    # Override with FMP analyst consensus when available
+    _proj_src = f"internal trailing {_pct(_g1)} CAGR projection"
     if analyst_ests:
         _ests = sorted(analyst_ests, key=lambda x: x.get("date", ""))
         _e1 = _ests[0] if _ests else {}
         _e2 = _ests[1] if len(_ests) >= 2 else {}
+        _eps1_fmp = float(_e1.get("estimatedEpsAvg") or 0)
+        _eps2_fmp = float(_e2.get("estimatedEpsAvg") or 0)
+        _ebd1_fmp = float(_e1.get("estimatedEbitdaAvg") or 0)
+        _ebd2_fmp = float(_e2.get("estimatedEbitdaAvg") or 0)
+        _rev1_fmp = float(_e1.get("estimatedRevenueAvg") or 0)
+        _fn_conv  = max(0.3, min(fcf_ni_v or 0.7, 2.0))
+        _fp1_fmp  = round(_eps1_fmp * _fn_conv, 2) if _eps1_fmp > 0 else 0
+        _fp2_fmp  = round(_eps2_fmp * _fn_conv, 2) if _eps2_fmp > 0 else 0
 
-        _eps1  = _e1.get("estimatedEpsAvg") or 0
-        _eps2  = _e2.get("estimatedEpsAvg") or 0
-        _ebd1  = _e1.get("estimatedEbitdaAvg") or 0
-        _ebd2  = _e2.get("estimatedEbitdaAvg") or 0
-        _rev1  = _e1.get("estimatedRevenueAvg") or 0
-        _rev2  = _e2.get("estimatedRevenueAvg") or 0
+        for _fy, _eps, _fcf_ps, _ebd_fwd in [
+            ("FY1", _eps1_fmp, _fp1_fmp, _ebd1_fmp),
+            ("FY2", _eps2_fmp, _fp2_fmp, _ebd2_fmp),
+        ]:
+            _pe_px = _mpx_i(pe_5yr, _eps)
+            if _pe_px:
+                mu[f"MULT_PE10_{_fy}_PX"] = _fmtp(_pe_px); mu[f"MULT_PE10_{_fy}_UPS"] = _fmtu(_pe_px)
+                mu[f"MULT_PE5_{_fy}_PX"]  = _fmtp(_pe_px); mu[f"MULT_PE5_{_fy}_UPS"]  = _fmtu(_pe_px)
+            _pf_px = _mpx_i(pfcf_5yr, _fcf_ps)
+            if _pf_px:
+                mu[f"MULT_PFCF10_{_fy}_PX"] = _fmtp(_pf_px); mu[f"MULT_PFCF10_{_fy}_UPS"] = _fmtu(_pf_px)
+                mu[f"MULT_PFCF5_{_fy}_PX"]  = _fmtp(_pf_px); mu[f"MULT_PFCF5_{_fy}_UPS"]  = _fmtu(_pf_px)
+            _ev_px = _mpx_ev_i(ev_ebitda, _ebd_fwd)
+            if _ev_px:
+                mu[f"MULT_EV10_{_fy}_PX"] = _fmtp(_ev_px); mu[f"MULT_EV10_{_fy}_UPS"] = _fmtu(_ev_px)
+                mu[f"MULT_EV5_{_fy}_PX"]  = _fmtp(_ev_px); mu[f"MULT_EV5_{_fy}_UPS"]  = _fmtu(_ev_px)
 
-        # FCF/share proxy: forward EPS × historical FCF/NI conversion ratio
-        _fn = max(0.3, min(fcf_ni_v or 0.7, 2.0))
-        _fp1 = round(_eps1 * _fn, 2) if _eps1 > 0 else 0
-        _fp2 = round(_eps2 * _fn, 2) if _eps2 > 0 else 0
+        if _rev1_fmp > 0 and rev0 > 0:
+            D["REV_CAGR_FWD"] = (
+                f"FY+1E: {_pct((_rev1_fmp / rev0) - 1)} (FMP consensus, "
+                f"vs {_pct(rev_cagr_v)} trailing)"
+            )
+        if _eps1_fmp > 0 and current_price:
+            _fwd_pe_fmp = round(current_price / _eps1_fmp, 1)
+            D["FORWARD_PE"]     = _x(_fwd_pe_fmp)
+            D["FORWARD_PE_EST"] = f"FY+1E EPS ${_eps1_fmp:.2f} (FMP consensus)"
+            D["PE_FWD_STAT"]    = _x(_fwd_pe_fmp)
+        if _eps1_fmp > 0:
+            D["FCF_CAGR_FWD"] = (
+                f"FY+1E EPS ${_eps1_fmp:.2f} → FCF/sh ${_fp1_fmp:.2f} "
+                f"(×{_fn_conv:.2f} FCF/NI conv.)"
+            )
+        _proj_src = "FMP analyst consensus"
 
-        # Forward P/E and P/FCF
-        if _eps1 > 0 and current_price:
-            _fwd_pe   = round(current_price / _eps1, 1)
-            _fwd_pe_d = _delta(_fwd_pe, pe_5yr)
-            D["FORWARD_PE"]        = _x(_fwd_pe)
-            D["FORWARD_PE_EST"]    = f"Based on FY+1E EPS ${_eps1:.2f}"
-            D["FORWARD_PE_DELTA"]  = _fwd_pe_d
-            D["PE_FWD_STAT"]       = _x(_fwd_pe)
-        if _fp1 > 0 and current_price:
-            _fwd_pfc  = round(current_price / _fp1, 1)
-            _fwd_pf_d = _delta(_fwd_pfc, pfcf_5yr)
-            D["FORWARD_PFCF"]      = _x(_fwd_pfc)
-            D["FORWARD_PFCF_EST"]  = f"Based on FY+1E FCF/sh ${_fp1:.2f} (EPS × {_fn:.2f} conv.)"
-            D["FORWARD_PFCF_DELTA"] = _fwd_pf_d
-            D["PFCF_FWD_STAT"]     = _x(_fwd_pfc)
+    # Composite multiples implied price (FY+1 only; average P/E, P/FCF, EV/EBITDA)
+    _fy1_implied = [
+        float(mu[k][1:]) for k in [
+            "MULT_PE5_FY1_PX", "MULT_PFCF5_FY1_PX", "MULT_EV5_FY1_PX"
+        ] if k in mu and isinstance(mu[k], str) and mu[k].startswith("$")
+    ]
+    _comp_mult_px = round(sum(_fy1_implied) / len(_fy1_implied), 0) if _fy1_implied else None
 
-        # Forward revenue CAGR from estimates
-        if _rev1 > 0 and rev0 > 0:
-            _rev_fwd_cagr = (_rev1 / rev0) - 1
-            D["REV_CAGR_FWD"]  = f"FY+1E: {_pct(_rev_fwd_cagr)} (vs {_pct(rev_cagr_v)} trailing)"
-        if _rev2 > 0 and rev0 > 0 and _rev2 != _rev1:
-            _rev_fwd2_cagr = (_rev2 / rev0) ** 0.5 - 1
-            D["REV_CAGR_FWD"]  = f"FY+1E: {_pct((_rev1/rev0)-1 if _rev1 else 0)}, FY+2E 2yr CAGR: {_pct(_rev_fwd2_cagr)}"
-        if _eps1 > 0:
-            D["FCF_CAGR_FWD"] = f"FY+1E EPS ${_eps1:.2f} → FCF/sh ${_fp1:.2f} (×{_fn:.2f} conv.)"
+    # Composite: blend DCF + multiples
+    if _comp_mult_px and base_px and current_price:
+        _comp_all = round((_comp_mult_px + base_px) / 2, 0)
+        mu["COMPOSITE_FAIR_VALUE"]  = f"${_comp_all:.0f}"
+        mu["COMPOSITE_UPSIDE_NOTE"] = (
+            f"Gordon Growth DCF: ${base_px:.0f} ({_vs(base_px, current_price)}) · "
+            f"Multiples avg (P/E, P/FCF, EV/EBITDA): ${_comp_mult_px:.0f} "
+            f"({_vs(_comp_mult_px, current_price)}) · "
+            f"Composite: ${_comp_all:.0f} ({_vs(_comp_all, current_price)})."
+        )
+    elif _comp_mult_px and current_price:
+        mu["COMPOSITE_FAIR_VALUE"]  = f"${_comp_mult_px:.0f}"
+        mu["COMPOSITE_UPSIDE_NOTE"] = (
+            f"Multiples avg (P/E, P/FCF, EV/EBITDA): "
+            f"${_comp_mult_px:.0f} ({_vs(_comp_mult_px, current_price)}). "
+            f"DCF not computed (negative FCF)."
+        )
 
-        _pa  = pe_5yr          # 5yr P/E avg (used for both 5yr and 10yr labels)
-        _pfa = pfcf_5yr        # 5yr P/FCF avg
-        _eva = ev_ebitda       # trailing EV/EBITDA (used as proxy historical avg)
-        _nd  = debt0 - cash0   # net debt (positive = debt > cash)
-        _sh  = shares or 1
+    D.update(mu)
 
-        def _mpx(mult, pershare):
-            return round(mult * pershare, 0) if mult and pershare and pershare > 0 else None
-
-        def _mpx_ev(mult, ebd):
-            if mult and ebd and ebd > 0 and _sh > 0:
-                eq_impl = mult * ebd - _nd
-                return round(eq_impl / _sh, 0) if eq_impl > 0 else None
-            return None
-
-        def _fp(v): return f"${v:.0f}" if v else "N/A"
-        def _fu(v): return _vs(v, current_price) if v else "N/A"
-
-        mu = {}
-        for _fy, _e, _fp_, _ebd in [("FY1", _eps1, _fp1, _ebd1), ("FY2", _eps2, _fp2, _ebd2)]:
-            _pe_px   = _mpx(_pa,  _e);   mu[f"MULT_PE10_{_fy}_PX"] = _fp(_pe_px);   mu[f"MULT_PE10_{_fy}_UPS"] = _fu(_pe_px)
-            mu[f"MULT_PE5_{_fy}_PX"]    = _fp(_pe_px);   mu[f"MULT_PE5_{_fy}_UPS"]    = _fu(_pe_px)
-            _pf_px   = _mpx(_pfa, _fp_); mu[f"MULT_PFCF10_{_fy}_PX"] = _fp(_pf_px); mu[f"MULT_PFCF10_{_fy}_UPS"] = _fu(_pf_px)
-            mu[f"MULT_PFCF5_{_fy}_PX"]  = _fp(_pf_px);  mu[f"MULT_PFCF5_{_fy}_UPS"]  = _fu(_pf_px)
-            _ev_px   = _mpx_ev(_eva, _ebd); mu[f"MULT_EV10_{_fy}_PX"] = _fp(_ev_px); mu[f"MULT_EV10_{_fy}_UPS"] = _fu(_ev_px)
-            mu[f"MULT_EV5_{_fy}_PX"]    = _fp(_ev_px);  mu[f"MULT_EV5_{_fy}_UPS"]    = _fu(_ev_px)
-
-        if _eva:
-            mu["EVEBITDA_5YR_AVG"]  = f"{_eva:.1f}x (trailing)"
-            mu["EVEBITDA_10YR_AVG"] = f"{_eva:.1f}x (trailing)"
-
-        # Composite: average all non-N/A implied prices + DCF base
-        _all_implied = [float(v[1:]) for v in mu.values()
-                        if isinstance(v, str) and v.startswith("$")]
-        if _all_implied:
-            _comp_mult = round(sum(_all_implied) / len(_all_implied), 0)
-            if base_px and current_price:
-                _comp_all = round((sum(_all_implied) + base_px) / (len(_all_implied) + 1), 0)
-                mu["COMPOSITE_FAIR_VALUE"]  = f"${_comp_all:.0f}"
-                mu["COMPOSITE_UPSIDE_NOTE"] = (
-                    f"DCF ${base_px:.0f} ({_vs(base_px, current_price)}) + "
-                    f"multiples avg ${_comp_mult:.0f} ({_vs(_comp_mult, current_price)}) "
-                    f"→ composite ${_comp_all:.0f} ({_vs(_comp_all, current_price)})."
-                )
-            else:
-                mu["COMPOSITE_FAIR_VALUE"]  = f"${_comp_mult:.0f}"
-                mu["COMPOSITE_UPSIDE_NOTE"] = (
-                    f"Avg of {len(_all_implied)} multiples-based targets: "
-                    f"${_comp_mult:.0f} ({_vs(_comp_mult, current_price)})."
-                )
-
-        # Write — override stub values; preserve any real values already set
-        for k, v in mu.items():
-            if D.get(k) in ("—", "Add", "N/A", None, ""):
-                D[k] = v
-        # Always update composite (it starts as DCF-only; now includes multiples)
-        for k in ("COMPOSITE_FAIR_VALUE", "COMPOSITE_UPSIDE_NOTE"):
-            if k in mu:
-                D[k] = mu[k]
+    # Method rationale (override D defaults set earlier)
+    D["MULTIPLES_METHOD_RATIONALE"] = (
+        f"Forward earnings based on {_proj_src}. "
+        f"Applied 5yr avg multiples: P/E {_x(pe_5yr)}, P/FCF {_x(pfcf_5yr)}, "
+        f"EV/EBITDA {_x(ev_ebitda)}. "
+        f"Trailing P/E {_x(trailing_pe)} ({pe_delta} vs 5yr avg); "
+        f"P/FCF {_x(trailing_pfc)} ({pfcf_delta} vs 5yr avg)."
+    )
+    D["MULTIPLES_KEY_QUESTION"] = (
+        f"Key Question: Does the {pe_delta} vs 5yr P/E reflect a structural re-rating "
+        f"opportunity or valuation risk? ROIC {_pct(roic_v)}, revenue CAGR {_pct(rev_cagr_v)}."
+    )
 
     # ── Consistency check: key displayed values vs source data ────────────────
     # All financial data flows from FMP (is_data / bs_data / cf_data).
