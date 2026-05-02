@@ -5,9 +5,18 @@ This tool is used by a **professional investor**. All calculations, formulas, an
 
 ---
 
-## Rule 1: HTML Report Must Exactly Reflect DCF Excel Model Outputs
+## Rule 1: HTML Report Must Exactly Reflect Model Outputs — No Exceptions
 
-The HTML report is the primary deliverable. Every number it presents that originates from the DCF model **must be identical to what the Excel workbook produces**. This is non-negotiable.
+The HTML report is the primary deliverable. **Every scored, calculated, or tiered value it displays must be identical to what the Excel workbook produces.** This is non-negotiable and applies to all sections — not just the DCF valuation.
+
+### Scorecard Tiers
+All auto-scored criteria (Moat Profile, Management, Capital Returns, Execution Risk, Revenue CAGR, FCF Quality, ROIC, Leverage, Interest Cover, P/E, P/FCF) are computed once in `build_scorecard()` and stored in the `metrics` dict. `report_bridge.py` **must read these values directly** — never hardcode a fallback tier like `"MOD"` as a permanent default. If the engine value is missing (legacy cached report), `"MOD"` is acceptable as a last-resort fallback only.
+
+The `metrics` dict keys for tiers passed to report_bridge:
+```
+tier_moat, tier_mgmt, tier_cap_ret, tier_exec
+```
+Section totals (`p1`, `p2`, `p3`) in `report_bridge.py` must use these live values so the HTML weighted scores match the Excel scorecard totals.
 
 ### Growth Tier Classification
 Companies are auto-classified by 3-year average annual revenue growth (last 3 YoY periods from `is_data`):

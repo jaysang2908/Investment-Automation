@@ -3752,6 +3752,11 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         "pfcf_current":       trailing_pfcf,
         "pfcf_5yr_avg":       pfcf_5yr_avg,
         "ev_ebitda_5yr_avg":  ev_ebitda_5yr_avg,
+        # Computed scorecard tiers — passed to report_bridge so HTML matches Excel exactly
+        "tier_moat":     tier_moat,
+        "tier_mgmt":     tier_mgmt,
+        "tier_cap_ret":  tier_cap_ret,
+        "tier_exec":     tier_exec,
     }
 
     print("  Scorecard tab built.")

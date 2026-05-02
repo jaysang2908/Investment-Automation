@@ -896,10 +896,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_bc  = _norm(biz_clarity)
     t_ltp = _norm(ltp)
 
+    # Read proxy tiers computed by Excel engine (passed via scorecard_metrics).
+    # These replace the old hardcoded "MOD" fallbacks so HTML matches Excel exactly.
+    t_moat    = _norm(scorecard_metrics.get("tier_moat"))    or "MOD"
+    t_mgmt    = _norm(scorecard_metrics.get("tier_mgmt"))    or "MOD"
+    t_cap_ret = _norm(scorecard_metrics.get("tier_cap_ret")) or "MOD"
+    t_exec    = _norm(scorecard_metrics.get("tier_exec"))    or "MOD"
+
     P = TIER_PTS
-    p1 = round((P[t_bc or "MOD"]*2.5 + P["MOD"]*10.0 + P[t_ltp or "MOD"]*10.0 + P["MOD"]*7.5) / 10, 1)
-    p2 = round((P[t_rev]*10.0 + P[t_fcf_ni]*10.0 + P["MOD"]*5.0 + P[t_roic]*7.5) / 10, 1)
-    p3 = round((P[t_debd]*5.0 + P[t_eint]*7.5 + P["MOD"]*2.5) / 10, 1)
+    p1 = round((P[t_bc or "MOD"]*2.5 + P[t_moat]*10.0 + P[t_ltp or "MOD"]*10.0 + P[t_mgmt]*7.5) / 10, 1)
+    p2 = round((P[t_rev]*10.0 + P[t_fcf_ni]*10.0 + P[t_cap_ret]*5.0 + P[t_roic]*7.5) / 10, 1)
+    p3 = round((P[t_debd]*5.0 + P[t_eint]*7.5 + P[t_exec]*2.5) / 10, 1)
     p4 = round((P[t_pe]*10.0 + P[t_pfcf]*10.0) / 10, 1)
     # Use adj_score (Excel engine total + manual inputs) when available for accuracy
     final_score = adj_score or auto_score or round(p1 + p2 + p3 + p4, 1)
@@ -1310,11 +1317,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "P1_WEIGHTED":          str(p1),
         "P1_BC_SCORE_TEXT":     t_bc or "MOD", "P1_BC_WTD": str(round(P[t_bc or "MOD"]*2.5/10, 2)),
         "P1_BC_COMMENTARY":     _bc_commentary,
-        "P1_MOAT_SCORE_TEXT":   "MOD", "P1_MOAT_WTD": "7.0",
+        "P1_MOAT_SCORE_TEXT":   t_moat, "P1_MOAT_WTD": str(round(P[t_moat]*10.0/10, 1)),
         "P1_MOAT_COMMENTARY":   _moat_commentary,
         "P1_LTP_SCORE_TEXT":    t_ltp or "MOD", "P1_LTP_WTD": str(round(P[t_ltp or "MOD"]*10.0/10, 1)),
         "P1_LTP_COMMENTARY":    _ltp_commentary,
-        "P1_MGT_SCORE_TEXT":    "MOD", "P1_MGT_WTD": "5.25",
+        "P1_MGT_SCORE_TEXT":    t_mgmt, "P1_MGT_WTD": str(round(P[t_mgmt]*7.5/10, 2)),
         "P1_MGT_COMMENTARY":    _mgt_commentary,
 
         "P2_WEIGHTED":          str(p2),
@@ -1322,7 +1329,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "P2_RC_COMMENTARY":     f"3yr revenue CAGR: {_pct(rev_cagr_v)}.",
         "P2_CQ_SCORE_TEXT":     t_fcf_ni, "P2_CQ_WTD": str(round(P[t_fcf_ni]*10.0/10, 1)),
         "P2_CQ_COMMENTARY":     f"FCF/NI: {_pct(fcf_ni_v)}.",
-        "P2_CR_SCORE_TEXT":     "MOD",  "P2_CR_WTD": "3.5",
+        "P2_CR_SCORE_TEXT":     t_cap_ret, "P2_CR_WTD": str(round(P[t_cap_ret]*5.0/10, 2)),
         "P2_CR_COMMENTARY":     _p2_cr_commentary,
         "P2_ROIC_SCORE_TEXT":   t_roic, "P2_ROIC_WTD": str(round(P[t_roic]*7.5/10, 1)),
         "P2_ROIC_COMMENTARY":   f"Latest ROIC: {_pct(roic_v)}.",
@@ -1335,7 +1342,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         ),
         "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD": str(round(P[t_eint]*7.5/10, 1)),
         "P3_IC_COMMENTARY":     f"EBIT/Interest: {ebit_int_str}.",
-        "P3_ER_SCORE_TEXT":     "MOD",  "P3_ER_WTD": "1.75",
+        "P3_ER_SCORE_TEXT":     t_exec, "P3_ER_WTD": str(round(P[t_exec]*2.5/10, 2)),
         "P3_ER_COMMENTARY":     _er_commentary,
 
         "P4_WEIGHTED":          str(p4),
