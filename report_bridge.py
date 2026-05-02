@@ -826,13 +826,41 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     # ── Narrative-gap banner ─────────────────────────────────────────────────
     # Flag when the fundamentals-derived target diverges materially (>40%) from
-    # market price. Common drivers: strategic premium (CHIPS Act, takeout speculation),
-    # narrative-driven re-rating, or a genuinely mispriced security. User must judge.
+    # market price. Examples are sector- and direction-aware so they generalise
+    # beyond INTC — the goal is to prompt user judgment, not diagnose the cause.
     _narrative_banner_html = ""
     if price_target and current_price and current_price > 0:
         _gap_pct = (price_target / current_price - 1) * 100
         if abs(_gap_pct) > 40:
-            _direction = "below" if _gap_pct < 0 else "above"
+            # Direction: market premium = market price > our fundamentals target
+            #            market discount = market price < our fundamentals target
+            _is_premium = _gap_pct < 0
+            _direction = "below" if _is_premium else "above"
+
+            # Sector-aware example drivers (kept generic — never company-specific)
+            _bucket = (scorecard_metrics.get("sector_bucket") or "").lower()
+            _PREMIUM_DRIVERS = {
+                "tech_growth":       "platform/AI re-rating, optionality on new product cycles, network-effect tailwinds, takeout speculation",
+                "stable_compounder": "defensive flight-to-quality bid, brand premium, multiple expansion on macro/rates",
+                "cyclical":          "cycle-bottom recovery thesis, government/policy support, commodity tailwind, strategic M&A optionality",
+                "bank":              "rate-cycle benefit, capital-return story, credit-quality re-rating",
+            }
+            _DISCOUNT_DRIVERS = {
+                "tech_growth":       "regulatory/competitive overhang, disruption risk, multiple compression on growth deceleration",
+                "stable_compounder": "secular decline concerns, brand erosion, channel disruption",
+                "cyclical":          "cycle-top fears, demand-destruction worries, leverage concerns",
+                "bank":              "credit-cycle concerns, NIM compression, regulatory headwinds",
+            }
+            _generic_premium  = "narrative-driven re-rating, strategic premium, takeout speculation, or factors outside the cash-flow model"
+            _generic_discount = "secular concerns, near-term overhang, structural derating, or genuine mispricing"
+
+            if _is_premium:
+                _examples = _PREMIUM_DRIVERS.get(_bucket, _generic_premium)
+                _frame    = "Market is paying a premium the fundamentals do not support"
+            else:
+                _examples = _DISCOUNT_DRIVERS.get(_bucket, _generic_discount)
+                _frame    = "Market is discounting the stock below what the fundamentals justify"
+
             _narrative_banner_html = (
                 f'<div style="margin:14px 0 18px;padding:12px 18px;'
                 f'background:var(--warn-bg);border-left:3px solid var(--warn);'
@@ -841,9 +869,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 f'letter-spacing:0.5px;font-size:10px;text-transform:uppercase">'
                 f'⚠ Material Valuation Gap</strong><br>'
                 f'Fundamentals-derived target is <strong>{abs(_gap_pct):.0f}% {_direction}</strong> '
-                f'current market price. Likely reflects narrative or strategic factors not captured '
-                f'in a fundamentals-only model — e.g. CHIPS Act subsidies, national-security premium, '
-                f'M&A optionality, turnaround narratives, or genuine mispricing. '
+                f'current market price. {_frame}. '
+                f'Possible drivers (sector-typical): {_examples}. '
                 f'User judgment required: consider qualitatively whether the gap is justified.'
                 f'</div>'
             )

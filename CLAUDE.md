@@ -140,7 +140,14 @@ When triggered:
 
 ## Rule 7: Narrative-Gap Banner
 
-When `|price_target / current_price − 1| > 40%`, render a banner immediately below the hero card flagging the divergence. Common causes: CHIPS Act subsidies, national-security premium, M&A optionality, turnaround narratives, or genuine mispricing. The model should produce an honest fundamentals-only number and surface the gap — never fudge inputs to match the market price.
+When `|price_target / current_price − 1| > 40%`, render a banner immediately below the hero card flagging the divergence. The model produces an honest fundamentals-only number and surfaces the gap — **never fudge inputs to match the market price**.
+
+The banner content is **dynamic in two dimensions**, never company-specific:
+
+1. **Direction** — premium (market > fundamentals) vs discount (market < fundamentals); each gets a different framing line and a different set of example drivers.
+2. **Sector bucket** — `tech_growth` / `stable_compounder` / `cyclical` / `bank` (read from `scorecard_metrics["sector_bucket"]`). Each bucket has its own list of plausible premium and discount drivers. Falls back to generic language when sector is unknown.
+
+The example drivers are intentionally generic ("rate-cycle benefit", "regulatory overhang", "takeout speculation") — never name specific companies, programs, or events (e.g. don't say "CHIPS Act"). The banner's job is to prompt user judgment, not diagnose the cause.
 
 Template variable: `{{NARRATIVE_GAP_BANNER}}` — produces empty string when gap < 40%.
 
