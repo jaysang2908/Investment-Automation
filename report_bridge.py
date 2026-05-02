@@ -145,7 +145,7 @@ def _tier_pfcf(current, avg):
     if r < 1.10: return "MOD"
     return "LOW"
 
-TIER_PTS = {"HIGH": 10, "MOD": 7, "LOW": 0}
+TIER_PTS = {"HIGH": 10, "MOD-HIGH": 7, "MOD": 7, "MOD-LOW": 3, "LOW": 0}
 
 # ── Thesis builder ────────────────────────────────────────────────────────────
 
@@ -904,44 +904,44 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     credit_commentary = _credit_note(sp_rating, moody_rating, cr_tier,
                                       d_ebd_str, ebit_int_str, net_cash_str)
 
-    # ── Scorecard tiers ───────────────────────────────────────────────────────
-    t_rev    = _tier_rev_cagr(rev_cagr_v)
-    t_roic   = _tier_roic(roic_v)
-    t_fcf_ni = _tier_fcf_ni(fcf_ni_v)
-    t_eint   = _tier_ebit_int(ebit_int)
-    # Bank-aware leverage tier (report_bridge uses 3-tier: HIGH/MOD/LOW)
-    if is_bank_v:
-        ea = equity_assets_v
-        t_debd = ("HIGH" if ea and ea > 0.10 else
-                  "MOD"  if ea and ea > 0.06 else "LOW")
-    else:
-        t_debd = _tier_d_ebitda(d_ebd)
-    t_pe     = _tier_pe(trailing_pe, pe_5yr)
-    t_pfcf   = _tier_pfcf(trailing_pfc, pfcf_5yr)
+    # ── Scorecard tiers — ALL read from engine, never re-derived ─────────────
+    # build_scorecard() is the single source of truth for every tier value.
+    # report_bridge must not re-compute these — doing so causes divergence
+    # due to different thresholds, missing trend penalties, and 3-vs-4-tier gaps.
+    def _et(key, fallback="MOD"):
+        """Read a tier from scorecard_metrics; return fallback for legacy caches."""
+        v = (scorecard_metrics.get(key) or "").strip().upper()
+        return v if v in TIER_PTS else fallback
 
-    # Normalise manual qualitative tiers (MOD-HIGH / MOD-LOW both → MOD)
-    def _norm(v):
+    t_rev     = _et("tier_rev_cagr")
+    t_fcf_ni  = _et("tier_fcf_ni")
+    t_roic    = _et("tier_roic")
+    t_debd    = _et("tier_leverage")
+    t_eint    = _et("tier_ebit_int")
+    t_moat    = _et("tier_moat")
+    t_mgmt    = _et("tier_mgmt")
+    t_cap_ret = _et("tier_cap_ret")
+    t_exec    = _et("tier_exec")
+    t_pe      = _et("tier_pe")
+    t_pfcf    = _et("tier_pfcf")
+
+    # Qualitative tiers (user-supplied via web form — 3-state: HIGH/MOD/LOW).
+    # "MOD" from user maps to 7pts (midpoint); MOD-LOW is not user-selectable.
+    def _norm_qual(v):
         v = (v or "").strip().upper()
-        if v in ("MOD-HIGH", "MOD-LOW", "MOD"): return "MOD"
-        if v == "HIGH": return "HIGH"
-        if v == "LOW":  return "LOW"
+        if v == "HIGH":    return "HIGH"
+        if v in ("MOD", "MOD-HIGH", "MOD-LOW"): return "MOD"
+        if v == "LOW":     return "LOW"
         return None
-    t_bc  = _norm(biz_clarity)
-    t_ltp = _norm(ltp)
-
-    # Read proxy tiers computed by Excel engine (passed via scorecard_metrics).
-    # These replace the old hardcoded "MOD" fallbacks so HTML matches Excel exactly.
-    t_moat    = _norm(scorecard_metrics.get("tier_moat"))    or "MOD"
-    t_mgmt    = _norm(scorecard_metrics.get("tier_mgmt"))    or "MOD"
-    t_cap_ret = _norm(scorecard_metrics.get("tier_cap_ret")) or "MOD"
-    t_exec    = _norm(scorecard_metrics.get("tier_exec"))    or "MOD"
+    t_bc  = _norm_qual(biz_clarity)
+    t_ltp = _norm_qual(ltp)
 
     P = TIER_PTS
     p1 = round((P[t_bc or "MOD"]*2.5 + P[t_moat]*10.0 + P[t_ltp or "MOD"]*10.0 + P[t_mgmt]*7.5) / 10, 1)
     p2 = round((P[t_rev]*10.0 + P[t_fcf_ni]*10.0 + P[t_cap_ret]*5.0 + P[t_roic]*7.5) / 10, 1)
     p3 = round((P[t_debd]*5.0 + P[t_eint]*7.5 + P[t_exec]*2.5) / 10, 1)
     p4 = round((P[t_pe]*10.0 + P[t_pfcf]*10.0) / 10, 1)
-    # Use adj_score (Excel engine total + manual inputs) when available for accuracy
+    # Use adj_score (Excel engine total) when available for accuracy; fall back to p-sums
     final_score = adj_score or auto_score or round(p1 + p2 + p3 + p4, 1)
 
     # ── 5-year financial table ─────────────────────────────────────────────────

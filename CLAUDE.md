@@ -12,11 +12,16 @@ The HTML report is the primary deliverable. **Every scored, calculated, or tiere
 ### Scorecard Tiers
 All auto-scored criteria (Moat Profile, Management, Capital Returns, Execution Risk, Revenue CAGR, FCF Quality, ROIC, Leverage, Interest Cover, P/E, P/FCF) are computed once in `build_scorecard()` and stored in the `metrics` dict. `report_bridge.py` **must read these values directly** — never hardcode a fallback tier like `"MOD"` as a permanent default. If the engine value is missing (legacy cached report), `"MOD"` is acceptable as a last-resort fallback only.
 
-The `metrics` dict keys for tiers passed to report_bridge:
+The `metrics` dict keys for **all** tiers passed to report_bridge:
 ```
-tier_moat, tier_mgmt, tier_cap_ret, tier_exec
+tier_moat, tier_mgmt, tier_cap_ret, tier_exec,
+tier_rev_cagr, tier_fcf_ni, tier_roic, tier_leverage, tier_ebit_int, tier_pe, tier_pfcf
 ```
 Section totals (`p1`, `p2`, `p3`) in `report_bridge.py` must use these live values so the HTML weighted scores match the Excel scorecard totals.
+
+**report_bridge.py must NEVER re-derive a tier independently.** The scorecard engine applies sector-specific thresholds (`SECTOR_THRESHOLDS`), trend penalties (e.g. FCF/NI declined >15pp → down-tier), and a 4-tier scale (HIGH/MOD-HIGH/MOD-LOW/LOW). Any separate re-derivation in report_bridge will diverge. The `_tier_rev_cagr()`, `_tier_fcf_ni()`, `_tier_roic()`, `_tier_ebit_int()`, `_tier_d_ebitda()`, `_tier_pe()`, `_tier_pfcf()` functions exist only as legacy fallbacks for stale cached reports — do not use them for fresh renders.
+
+`TIER_PTS` must include all 4 tiers: `{"HIGH": 10, "MOD-HIGH": 7, "MOD": 7, "MOD-LOW": 3, "LOW": 0}`
 
 ### Dual Scoring + Conservative Verdict
 The scorecard is reported on two scales and **both must always be visible** in the HTML report when qualitative inputs are provided:
