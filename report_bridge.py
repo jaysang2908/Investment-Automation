@@ -358,13 +358,44 @@ def _credit_note(sp, moody, tier, d_ebd, ebit_int, net_str):
 
 # ── Verdict ───────────────────────────────────────────────────────────────────
 
+# Verdict bands as percentage of max — applied identically to both the
+# quant-only score (max 87.5) and the full score (max 100).
+_VERDICT_BANDS = [
+    (0.75, "High Conviction Buy",            4),
+    (0.65, "Good Business at Fair Price",    3),
+    (0.50, "Hold — Monitor",                 2),
+    (0.00, "Avoid",                          1),
+]
+
+def _verdict_from_pct(pct):
+    """Verdict label + numeric rank (higher = more bullish) from a 0-1 score percentage."""
+    if pct is None: return ("Analysis Pending", 0)
+    for thr, lbl, rank in _VERDICT_BANDS:
+        if pct >= thr:
+            return (lbl, rank)
+    return ("Avoid", 1)
+
 def _verdict(score, offset=0.0):
-    """Verdict label. Pass offset=-12.5 when qualitative inputs were not entered (max=87.5)."""
+    """Legacy single-score verdict (kept for backwards compatibility)."""
     if score is None: return "Analysis Pending"
     if score >= 75 + offset:   return "High Conviction Buy"
     if score >= 65 + offset:   return "Good Business at Fair Price"
     if score >= 50 + offset:   return "Hold — Monitor"
     return "Avoid"
+
+def _conservative_verdict(quant_score, full_score):
+    """Take the more conservative (lower) verdict between the two scores.
+
+    quant_score: out of 87.5 (objective only).
+    full_score:  out of 100  (with qualitative inputs); may be None if not provided.
+    """
+    quant_pct = (quant_score / 87.5) if quant_score else None
+    full_pct  = (full_score / 100.0) if full_score else None
+    q_lbl, q_rank = _verdict_from_pct(quant_pct)
+    if full_pct is None:
+        return q_lbl
+    f_lbl, f_rank = _verdict_from_pct(full_pct)
+    return q_lbl if q_rank <= f_rank else f_lbl
 
 # ── CSS class helpers (mirrors pipeline.py) ───────────────────────────────────
 
@@ -382,10 +413,12 @@ def _sensitivity_class(current_px, calc_px):
 
 def _compute_css(d, current_price):
     c = {}
+    # Use percentage of max so the same colour bands apply to both 87.5 and 100 scales.
     score = float(str(d.get("FINAL_SCORE", 0)).replace(",", "") or 0)
-    _css_offset = -12.5 if str(d.get("SCORE_MAX", "100")) == "87.5" else 0.0
-    c["VERDICT_CLASS"]     = "verdict-green" if score >= 70 + _css_offset else ("verdict-amber" if score >= 50 + _css_offset else "verdict-red")
-    c["SCORE_FINAL_CLASS"] = "score-final-green" if score >= 70 + _css_offset else ("score-final-amber" if score >= 50 + _css_offset else "score-final-red")
+    _smax = float(str(d.get("SCORE_MAX", "100")) or 100) or 100
+    _pct  = score / _smax if _smax else 0
+    c["VERDICT_CLASS"]     = "verdict-green" if _pct >= 0.70 else ("verdict-amber" if _pct >= 0.50 else "verdict-red")
+    c["SCORE_FINAL_CLASS"] = "score-final-green" if _pct >= 0.70 else ("score-final-amber" if _pct >= 0.50 else "score-final-red")
 
     def dcol(s):
         return "#00695c" if ("−" in str(s) or str(s).startswith("-")) else "#b45309"
@@ -1136,13 +1169,27 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         f"CapEx {_pct(_capex_intensity)} of revenue; FCF/NI {_pct(fcf_ni_v)}. No material execution flags from financial data."
     )
 
-    # ── Score max and verdict offset (qualitative inputs) ─────────────────────
+    # ── Dual scoring: Quant (max 87.5) + Full (max 100) ──────────────────────
+    # Both are always computed. Quant is objective-only and lives on a 0–87.5
+    # scale (same 11 auto-criteria the Excel engine scores). Full adds the two
+    # qualitative inputs (Business Clarity + LTP) for a 0–100 scale.
+    # The verdict uses the *more conservative* of the two (rank-min).
     _qual_entered  = bool(t_bc or t_ltp)
-    _score_max     = 100 if _qual_entered else 87.5
-    _score_offset  = 0.0 if _qual_entered else -12.5
+    _quant_score   = round(auto_score, 1) if auto_score else round(p1 + p2 + p3 + p4 -
+                                                                    (P[t_bc or "MOD"]*2.5 +
+                                                                     P[t_ltp or "MOD"]*10.0)/10, 1)
+    _full_score    = round(adj_score, 1) if (adj_score and _qual_entered) else None
+    _verdict_text  = _conservative_verdict(_quant_score, _full_score)
+
+    # The headline FINAL_SCORE shown in big numbers on the hero stays as the
+    # full score when available, else quant — but the verdict is independent
+    # and always uses the conservative rule above.
+    final_score    = _full_score if _full_score is not None else _quant_score
+    _score_max     = 100 if _full_score is not None else 87.5
+
     _score_note    = ("" if _qual_entered else
                       "Qualitative inputs (Business Clarity, Long-Term Potential) not provided. "
-                      "Score shown out of 87.5 — verdict bands adjusted accordingly. "
+                      "Quant score shown out of 87.5 — verdict applies %-bands to that scale. "
                       "Completing these inputs unlocks the full 100-pt scorecard.")
     _score_note_html = (
         "" if _qual_entered else
@@ -1152,13 +1199,36 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         + _score_note + "</div>"
     )
 
+    # Pre-formatted dual-score HTML block for the hero card.
+    if _full_score is not None:
+        _dual_score_html = (
+            f'<div class="verdict-score-row">'
+            f'<span class="verdict-score-num">{round(_full_score,1)}</span>'
+            f'<span class="verdict-score-den">/100</span>'
+            f'</div>'
+            f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">'
+            f'Quant: <strong>{round(_quant_score,1)}/87.5</strong> &nbsp;·&nbsp; '
+            f'Full: <strong>{round(_full_score,1)}/100</strong>'
+            f'</div>'
+        )
+    else:
+        _dual_score_html = (
+            f'<div class="verdict-score-row">'
+            f'<span class="verdict-score-num">{round(_quant_score,1)}</span>'
+            f'<span class="verdict-score-den">/87.5</span>'
+            f'</div>'
+            f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">'
+            f'Quant only — qualitative inputs pending'
+            f'</div>'
+        )
+
     # ── Assemble DATA dict ─────────────────────────────────────────────────────
     D = {
         # Header
         "COMPANY_NAME":     company_name,
         "TICKER_LINE":      ticker_line,
         "DESCRIPTION_LINE": industry,
-        "VERDICT_TEXT":     _verdict(final_score, offset=_score_offset),
+        "VERDICT_TEXT":     _verdict_text,
         "CURRENT_PRICE":    current_price,
         "PRICE_TARGET":     price_target,
         "PRICE_TARGET_METHOD": _primary_method,
@@ -1167,6 +1237,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FINAL_SCORE":      round(final_score, 1) if final_score else 0,
         "FINAL_SCORE_CALC": str(round(final_score, 1)) if final_score else "0",
         "SCORE_MAX":        _score_max,
+        "QUANT_SCORE":      round(_quant_score, 1) if _quant_score else 0,
+        "QUANT_SCORE_MAX":  87.5,
+        "FULL_SCORE":       round(_full_score, 1) if _full_score else "—",
+        "FULL_SCORE_MAX":   100,
+        "DUAL_SCORE_HTML":  _dual_score_html,
         "SCORE_NOTE":       _score_note,
         "SCORE_NOTE_HTML":  _score_note_html,
         "N_ACTUALS":        str(len(is_data)),

@@ -18,6 +18,18 @@ tier_moat, tier_mgmt, tier_cap_ret, tier_exec
 ```
 Section totals (`p1`, `p2`, `p3`) in `report_bridge.py` must use these live values so the HTML weighted scores match the Excel scorecard totals.
 
+### Dual Scoring + Conservative Verdict
+The scorecard is reported on two scales and **both must always be visible** in the HTML report when qualitative inputs are provided:
+
+- **Quant Score (max 87.5)** — 11 auto-scored criteria from FMP data only (no user input). Always shown.
+- **Full Score (max 100)** — Quant + Business Clarity (2.5 wt) + Long-Term Potential (10.0 wt). Shown when the user supplies BC and/or LTP via the Render web form.
+
+**Verdict rule:** convert each score to % of its max, apply identical %-bands (`≥75% → High Conviction Buy`, `≥65% → Good Business at Fair Price`, `≥50% → Hold — Monitor`, else `Avoid`), and **take the more conservative (lower) verdict** between the two. Implemented in `_conservative_verdict()` in `report_bridge.py`.
+
+**Qualitative does NOT flow into the DCF.** Business Clarity and Long-Term Potential are predictability/TAM judgments — they are not financial inputs and would distort cash-flow projections. They affect the scorecard verdict only.
+
+**Excel pre-fill:** when the user supplies BC/LTP on the web form, `server.py` passes them into `build_scorecard()` so the Excel scorecard tier cells are pre-populated (matching the HTML). Dropdowns remain active so the user can override in Excel.
+
 ### Growth Tier Classification
 Companies are auto-classified by 3-year average annual revenue growth (last 3 YoY periods from `is_data`):
 

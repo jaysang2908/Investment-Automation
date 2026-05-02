@@ -577,13 +577,11 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div>
         <div class="verdict-label">Research Verdict</div>
         <div class="verdict-value">{{VERDICT_TEXT}}</div>
+        <div style="font-size:10px;color:var(--ink-2);margin-top:4px;letter-spacing:0.3px">Conservative of Quant + Full scores</div>
       </div>
       <div>
-        <div class="verdict-score-row">
-          <span class="verdict-score-num">{{FINAL_SCORE}}</span>
-          <span class="verdict-score-den">/{{SCORE_MAX}}</span>
-        </div>
-        <div class="verdict-score-sub">JS Proprietary Score · {{REPORT_DATE}}</div>
+        {{DUAL_SCORE_HTML}}
+        <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · {{REPORT_DATE}}</div>
       </div>
     </div>
 

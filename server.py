@@ -134,7 +134,10 @@ def generate():
             wb, ticker, is_data, bs_data, cf_data, years,
             pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
         )
-        _, scorecard_metrics = mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
+        _, scorecard_metrics = mdl.build_scorecard(
+            wb, ticker, is_data, bs_data, cf_data, years,
+            biz_clarity=biz_clarity or None, ltp=ltp or None,
+        )
 
         buf = io.BytesIO()
         wb.save(buf)
@@ -718,7 +721,8 @@ def api_update_qualitative(ticker):
             _, recomputed = mdl.build_scorecard(
                 _wb, ticker,
                 stored["is_data"], stored["bs_data"], stored["cf_data"],
-                stored.get("years") or []
+                stored.get("years") or [],
+                biz_clarity=biz_clarity or None, ltp=ltp or None,
             )
             auto_score = float(recomputed.get("auto_score") or 0)
             scorecard_metrics = recomputed

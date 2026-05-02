@@ -2968,13 +2968,18 @@ def _tier(value, thresholds, inverted=False):
 # ═══════════════════════════════════════════════════════════════════════════════
 # SCORECARD
 # ═══════════════════════════════════════════════════════════════════════════════
-def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
+def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
+                    biz_clarity=None, ltp=None):
     """
     JS Scorecard tab — auto-scores 11 of 13 criteria.
     Quantitative: Revenue CAGR, FCF/NI, Capital Returns, ROIC, D/EBITDA, EBIT/Int
     Proxy-based:  Moat Profile, Management, Execution Risk, P/E vs Median, P/FCF vs Median
     Manual only:  Business Clarity (needs segment data), Long-Term Potential
     Scoring engine follows Master Prompt v2 thresholds.
+
+    biz_clarity / ltp (optional): user-supplied tier values from the web form.
+    When provided, they pre-fill the corresponding tier cells in the Excel
+    scorecard so the workbook reflects what the HTML report shows.
     """
     # is_bank is set later via profile fetch; initialise here so equity_assets
     # block (which runs before the fetch) can reference it safely.
@@ -3409,13 +3414,34 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     floor_cap = (59 if gate1 and gate2 else
                  64 if gate1 or gate2 else None)
 
+    # ── Normalise user-supplied qualitative tiers (HIGH / MOD / LOW) ──────────
+    def _norm_qual(v):
+        v = (v or "").strip().upper()
+        # Map condensed "MOD" to MOD-HIGH (centre of the moderate band) so it
+        # scores consistently with the Excel 4-tier scale (HIGH / MOD-HIGH /
+        # MOD-LOW / LOW). User dropdowns only expose HIGH/MOD/LOW.
+        if v == "HIGH": return "HIGH"
+        if v == "MOD":  return "MOD-HIGH"
+        if v in ("MOD-HIGH", "MOD-LOW"): return v
+        if v == "LOW":  return "LOW"
+        return None
+    _bc_tier  = _norm_qual(biz_clarity)
+    _ltp_tier = _norm_qual(ltp)
+
     # ── Criteria table definition ─────────────────────────────────────────────
     # (part, label, weight, auto_tier, note, is_auto)
-    # Business Clarity and Long-Term Potential remain manual (needs segment data / narrative)
+    # Business Clarity and Long-Term Potential are qualitative — pre-filled from
+    # the web form when provided; otherwise left blank for manual input.
     CRITERIA = [
-        ("P1", "Business Clarity",                  2.5,  None,          "Segment data not on current FMP plan — assign manually after reviewing 10-K", False),
+        ("P1", "Business Clarity",                  2.5,  _bc_tier,
+         ("User-supplied via web form" if _bc_tier else
+          "Segment data not on current FMP plan — assign manually after reviewing 10-K"),
+         _bc_tier is not None),
         ("P1", "Moat Profile",                       10.0, tier_moat,     note_moat,      True),
-        ("P1", "Long-Term Potential",                10.0, None,          "Structural/TAM outlook — assign manually (genuinely qualitative)",            False),
+        ("P1", "Long-Term Potential",                10.0, _ltp_tier,
+         ("User-supplied via web form" if _ltp_tier else
+          "Structural/TAM outlook — assign manually (genuinely qualitative)"),
+         _ltp_tier is not None),
         ("P1", "Management",                          7.5, tier_mgmt,     note_mgmt,      True),
         ("P2", "Revenue 3yr CAGR",                  10.0, tier_rev_cagr, note_rev_cagr,  True),
         ("P2", "Cash Quality  (FCF / Net Income)",  10.0, tier_fcf_ni,   note_fcf_ni,    True),
