@@ -2157,7 +2157,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                    if hist_rev[i] else None for i in range(n_hist)]
     last_da_pct = next((v for v in reversed(hist_da_pct) if v), 0.02)
     hist_da_pct_f = [
-        f"=-'P&L'!{cl(HIST_COLS[i])}{_pl_da}/'P&L'!{cl(HIST_COLS[i])}{_pl_rev}"
+        f"='P&L'!{cl(HIST_COLS[i])}{_pl_da}/'P&L'!{cl(HIST_COLS[i])}{_pl_rev}"
         for i in range(n_hist)
     ]
     _da_pct_row = row

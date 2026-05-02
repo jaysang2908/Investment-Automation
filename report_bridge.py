@@ -428,8 +428,13 @@ def _compute_css(d, current_price):
     c["FWD_PFCF_COLOR"]   = dcol(d.get("FORWARD_PFCF_DELTA",""))
 
     for scenario in ["BEAR","BASE","BULL"]:
-        vs = str(d.get(f"DCF_{scenario}_VS","+0%"))
+        vs = str(d.get(f"DCF_{scenario}_VS", "+0%"))
         c[f"DCF_{scenario}_PX_CLASS"] = "price-up" if "+" in vs else "price-dn"
+        c[f"DCF_{scenario}_VS_CLASS"] = "vs-up" if "+" in vs else "vs-dn"
+
+    for scenario in ["BEAR","BASE","BULL"]:
+        vs = str(d.get(f"MULT_EM_{scenario}_VS", "+0%"))
+        c[f"MULT_EM_{scenario}_VS_CLASS"] = "vs-up" if "+" in vs else "vs-dn"
 
     BUY  = {"BUY","OVERWEIGHT","STRONG BUY","OUTPERFORM","MARKET OUTPERFORM"}
     HOLD = {"HOLD","NEUTRAL","MARKET PERFORM","EQUAL WEIGHT"}
@@ -1396,6 +1401,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         **{f"A{i}_{k}": "—" for i in range(1,8)
            for k in ["NAME","FIRM","PT","PT_VS","DATE"]},
         **{f"A{i}_RATING_TEXT": "—" for i in range(1,8)},
+        **{f"A{i}_RATING_CLASS": "rating-hold" for i in range(1,8)},
+        **{f"A{i}_PT_CLASS": "" for i in range(1,8)},
         "ANALYST_COUNT":      "—",
         "CONSENSUS_PT":       "—",
         "CONSENSUS_PT_VS":    "—",
@@ -1581,6 +1588,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 pass
         except Exception:
             pass
+
+    # Flag for render_html_report to decide whether to show COMING SOON
+    D["ANALYSTS_HAVE_DATA"] = D.get("CONSENSUS_PT", "—") != "—"
 
     # ── Multiples Valuation — always computed from internal projections ─────────
     # Project FY+1/FY+2 earnings using trailing CAGR + historical margins so
@@ -2013,7 +2023,32 @@ def render_html_report(data):
         if isinstance(v, (str, int, float, bool)):
             html = html.replace(f"{{{{{k}}}}}", str(v))
 
-    # 5. Sensitivity grid (6x5)
+    # 5. Analyst section: replace with COMING SOON when no data available
+    if not data.get("ANALYSTS_HAVE_DATA"):
+        _coming_soon = (
+            '<div class="no-break" style="padding:56px 0 40px;text-align:center">'
+            '<div style="font-family:var(--font-mono);font-size:9px;letter-spacing:3px;'
+            'text-transform:uppercase;color:var(--muted);margin-bottom:14px">Coming Soon</div>'
+            '<div style="font-size:17px;font-weight:600;color:var(--ink);margin-bottom:10px">'
+            'Analyst Price Targets</div>'
+            '<div style="font-size:13px;color:var(--muted);line-height:1.7;'
+            'max-width:440px;margin:0 auto">'
+            'Analyst ratings and price targets will be sourced from a live data provider. '
+            'This section populates automatically when coverage data becomes available.'
+            '</div>'
+            '</div>'
+        )
+        html = re.sub(
+            r'(<section id="section-analysts">)(.*?)(</section>)',
+            lambda m: m.group(1) + re.sub(
+                r'(<div class="section-header">.*?</div>)(.*)',
+                r'\1' + _coming_soon,
+                m.group(2), flags=re.DOTALL
+            ) + m.group(3),
+            html, flags=re.DOTALL
+        )
+
+    # 6. Sensitivity grid (6x5)
     _bpx_raw = str(data.get("DCF_BASE_PX", "0")).lstrip("$").replace(",", "")
     try:
         base_px = float(_bpx_raw) if _bpx_raw not in ("N/A", "", "—", "-") else 0.0

@@ -385,6 +385,9 @@ table { border-collapse: collapse; }
 .scenario-table .price-row td.base-p { color: var(--accent); background: var(--accent-soft); }
 .scenario-table .price-row td.bull-p { color: var(--up); background: #E8F0EC; }
 .scenario-table thead tr th:first-child { background: var(--bg-elev); color: var(--muted); }
+.scenario-table .scen-section td { background: var(--bg-elev); font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 8px 14px; border-bottom: 1px solid var(--line-strong); }
+.scenario-table .upside-row td.vs-up { color: var(--up); font-weight: 600; font-family: var(--font-mono); }
+.scenario-table .upside-row td.vs-dn { color: var(--down); font-weight: 600; font-family: var(--font-mono); }
 
 /* ===== Key risks ===== */
 .risks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -1157,14 +1160,14 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <thead>
       <tr>
         <th style="background:var(--bg-elev);color:var(--muted);width:28%">Assumption</th>
-        <th class="bear-h" style="width:24%">🐻 Bear — {{BEAR_PRICE_RANGE}}</th>
-        <th class="base-h" style="width:24%">📊 Base — {{BASE_PRICE_RANGE}}</th>
-        <th class="bull-h" style="width:24%">🐂 Bull — {{BULL_PRICE_RANGE}}</th>
+        <th class="bear-h" style="width:24%">🐻 Bear</th>
+        <th class="base-h" style="width:24%">📊 Base</th>
+        <th class="bull-h" style="width:24%">🐂 Bull</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td class="row-label">Revenue / growth</td>
+        <td class="row-label">Revenue growth</td>
         <td>{{BEAR_REVENUE_GROWTH}}</td><td>{{BASE_REVENUE_GROWTH}}</td><td>{{BULL_REVENUE_GROWTH}}</td>
       </tr>
       <tr>
@@ -1176,24 +1179,50 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td>{{BEAR_FCF}}</td><td>{{BASE_FCF}}</td><td>{{BULL_FCF}}</td>
       </tr>
       <tr>
-        <td class="row-label">Exit multiple</td>
-        <td>{{BEAR_MULTIPLE}}</td><td>{{BASE_MULTIPLE}}</td><td>{{BULL_MULTIPLE}}</td>
+        <td class="row-label">Terminal growth rate</td>
+        <td style="font-family:var(--font-mono)">{{DCF_BEAR_TGR}}</td>
+        <td style="font-family:var(--font-mono)">{{DCF_BASE_TGR}}</td>
+        <td style="font-family:var(--font-mono)">{{DCF_BULL_TGR}}</td>
+      </tr>
+
+      <!-- Gordon Growth DCF -->
+      <tr class="scen-section">
+        <td colspan="4">Gordon Growth DCF &nbsp;·&nbsp; WACC: Bear {{DCF_BEAR_WACC}} / Base {{DCF_BASE_WACC}} / Bull {{DCF_BULL_WACC}}</td>
+      </tr>
+      <tr class="price-row">
+        <td class="row-label">GG Implied Price</td>
+        <td class="bear-p">{{DCF_BEAR_PX}}</td>
+        <td class="base-p">{{DCF_BASE_PX}}</td>
+        <td class="bull-p">{{DCF_BULL_PX}}</td>
+      </tr>
+      <tr class="upside-row">
+        <td class="row-label">vs {{CURRENT_PRICE}}</td>
+        <td class="{{DCF_BEAR_VS_CLASS}}">{{DCF_BEAR_VS}}</td>
+        <td class="{{DCF_BASE_VS_CLASS}}">{{DCF_BASE_VS}}</td>
+        <td class="{{DCF_BULL_VS_CLASS}}">{{DCF_BULL_VS}}</td>
+      </tr>
+
+      <!-- EV/EBITDA Exit Multiple DCF -->
+      <tr class="scen-section">
+        <td colspan="4">EV/EBITDA Exit Multiple DCF</td>
       </tr>
       <tr>
-        <td class="row-label">Key catalyst / risk</td>
-        <td>{{BEAR_CATALYST}}</td><td>{{BASE_CATALYST}}</td><td>{{BULL_CATALYST}}</td>
+        <td class="row-label">Exit multiple</td>
+        <td style="font-family:var(--font-mono)">{{MULT_EM_BEAR_X}}</td>
+        <td style="font-family:var(--font-mono)">{{MULT_EM_BASE_X}}</td>
+        <td style="font-family:var(--font-mono)">{{MULT_EM_BULL_X}}</td>
       </tr>
       <tr class="price-row">
-        <td class="row-label">Implied Price Range</td>
-        <td class="bear-p">{{BEAR_PRICE_RANGE}}</td>
-        <td class="base-p">{{BASE_PRICE_RANGE}}</td>
-        <td class="bull-p">{{BULL_PRICE_RANGE}}</td>
+        <td class="row-label">EM Implied Price</td>
+        <td class="bear-p">{{MULT_EM_BEAR_PX}}</td>
+        <td class="base-p">{{MULT_EM_BASE_PX}}</td>
+        <td class="bull-p">{{MULT_EM_BULL_PX}}</td>
       </tr>
-      <tr class="price-row">
-        <td class="row-label">Upside vs {{CURRENT_PRICE}}</td>
-        <td class="bear-p">{{BEAR_UPSIDE}}</td>
-        <td class="base-p">{{BASE_UPSIDE}}</td>
-        <td class="bull-p">{{BULL_UPSIDE}}</td>
+      <tr class="upside-row">
+        <td class="row-label">vs {{CURRENT_PRICE}}</td>
+        <td class="{{MULT_EM_BEAR_VS_CLASS}}">{{MULT_EM_BEAR_VS}}</td>
+        <td class="{{MULT_EM_BASE_VS_CLASS}}">{{MULT_EM_BASE_VS}}</td>
+        <td class="{{MULT_EM_BULL_VS_CLASS}}">{{MULT_EM_BULL_VS}}</td>
       </tr>
     </tbody>
   </table>
