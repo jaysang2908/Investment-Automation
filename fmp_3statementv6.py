@@ -1001,6 +1001,7 @@ def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs,
     tca   = bs_refs["tca"];   tcl   = bs_refs["tcl"];  tot_a = bs_refs["tot_assets"]
     te    = bs_refs["te"];    ltd   = bs_refs["ltd"];  cash  = bs_refs["cash"]
     rec   = bs_refs["rec"];   inv   = bs_refs["inv"];  ap    = bs_refs["ap"]
+    nd    = bs_refs["nd"]
 
     cfo   = cf_refs["cfo"];   capex = cf_refs["capex"];fcf   = cf_refs["fcf"]
 
@@ -1014,7 +1015,7 @@ def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs,
 
     nopat_r = row
     row = write_formula_row(ws, row, "  (−) Taxes on EBIT  [EBIT × Eff. Tax Rate]",
-        lambda r,c: f"=IFERROR(-{cl(c)}{ebit_r}*({pl(tax,c)}/{pl(ebt,c)}),0)",
+        lambda r,c: f"=IFERROR(-{cl(c)}{ebit_r}*MAX(0,MIN(0.5,{pl(tax,c)}/{pl(ebt,c)})),0)",
         n, indent=1)
 
     nopat_total = row
@@ -1106,8 +1107,8 @@ def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs,
         lambda r,c: f"=IFERROR({pl(ni,c)}/{bs(te,c)},\"\")", n, is_pct=True)
     row = write_formula_row(ws, row, "Return on Assets (ROA)",
         lambda r,c: f"=IFERROR({pl(ni,c)}/{bs(tot_a,c)},\"\")", n, is_pct=True)
-    row = write_formula_row(ws, row, "ROIC  [EBIT×(1−t) / (Equity + Net Debt)]",
-        lambda r,c: f"=IFERROR(({pl(ebit,c)}*(1-{pl(tax,c)}/{pl(ebt,c)}))/({bs(te,c)}+'Balance Sheet'!{cl(c)}{ltd}-'Balance Sheet'!{cl(c)}{cash}),\"\")",
+    row = write_formula_row(ws, row, "ROIC  [NOPAT / (Equity + Net Debt)]",
+        lambda r,c: f"=IFERROR(({pl(ebit,c)}*MAX(0,MIN(0.5,1-{pl(tax,c)}/{pl(ebt,c)})))/({bs(te,c)}+'Balance Sheet'!{cl(c)}{nd}),\"\")",
         n, is_pct=True)
 
     row = blank_row(ws, row, nc)
@@ -2203,7 +2204,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     for _i in range(1, n_hist):
         _c = HIST_COLS[_i]; _p = HIST_COLS[_i - 1]
         hist_nwc_pct_f.append(
-            f"=-(('Balance Sheet'!{cl(_c)}{_bs_tca}-'Balance Sheet'!{cl(_c)}{_bs_tcl})"
+            f"=(('Balance Sheet'!{cl(_c)}{_bs_tca}-'Balance Sheet'!{cl(_c)}{_bs_tcl})"
             f"-('Balance Sheet'!{cl(_p)}{_bs_tca}-'Balance Sheet'!{cl(_p)}{_bs_tcl}))"
             f"/'P&L'!{cl(_c)}{_pl_rev}"
         )
@@ -2218,13 +2219,13 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 
     row = assm_row(row, "Change in NWC as % of Revenue",
         hist_nwc_pct_f, nwc_pct_fn, f"={cl(PROJ_COLS[0])}{_nwc_pct_row}",
-        note_text="Historical: -(ΔNWC)/Revenue from Balance Sheet.  Yr 1 = avg; Yrs 2-5 & terminal = Yr 1.")
+        note_text="Historical: ΔNWC/Revenue from Balance Sheet (positive = NWC consumes cash as business grows).  Yr 1 = avg; Yrs 2-5 & terminal = Yr 1.")
     nwc_pct_row = row - 1
 
     # Tax rate — historical from P&L; Year 1 = avg; Years 2+ = Year 1
     last_tax = round(hist_tax[-1], 4) if hist_tax else 0.15
     hist_tax_f = [
-        f"='P&L'!{cl(HIST_COLS[i])}{_pl_tax}/'P&L'!{cl(HIST_COLS[i])}{_pl_ebt}"
+        f"=IFERROR(MAX(0,MIN(0.5,'P&L'!{cl(HIST_COLS[i])}{_pl_tax}/'P&L'!{cl(HIST_COLS[i])}{_pl_ebt})),0)"
         for i in range(n_hist)
     ]
     _tax_row = row
@@ -2466,7 +2467,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                   bg=C_HIST, fmt=NUM)
     for c in PROJ_COLS + [TERM_COL]:
         wcell(row, c, f"=-{cl(c)}{rev_row}*{cl(c)}{nwc_pct_row}", fmt=NUM)
-    note(row, "= Revenue × NWC % (positive revenue growth ties up cash in working capital)")
+    note(row, "= −Revenue × NWC%  (positive NWC% → cash outflow, reduces UFCF)")
     nwc_row = row; row += 1
 
     # UFCF
@@ -2698,16 +2699,18 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         for c in range(3, NC + 1): wcell(row, c, None, bg=C_SUB)
         row += 1
 
-    # ── Python-side implied prices (mirrors Excel DCF formulas) ──────────────
+    # ── Python-side implied prices — exact mirror of Excel assumption rows ──────
+    # All rates use AVERAGES matching Excel (Year 1 = avg historicals, Yrs 2-5 = Yr 1).
+    # Revenue / EBITDA years 4-5 use Year 3 growth + Year 3 margin (matches Excel formula).
     dcf_prices = {"gg_price": None, "em_price": None,
                   "gg_upside": None, "em_upside": None}
     try:
-        _g    = 0.03    # terminal growth rate (matches Excel default)
-        _tev  = 20.0    # exit EV/EBITDA multiple (matches Excel default)
+        _g    = 0.03    # terminal growth rate
+        _tev  = 20.0    # exit EV/EBITDA multiple (Excel assumption default)
         _wacc = (wacc_refs or {}).get("wacc_val")
 
-        # FX: financials are in reportedCurrency; implied price must be in USD
-        _ccy_dcf = is_data[0].get("reportedCurrency", "USD") if is_data else "USD"
+        # FX: financials in reportedCurrency; implied price must be in USD
+        _ccy_dcf   = is_data[0].get("reportedCurrency", "USD") if is_data else "USD"
         _fx_to_usd = 1.0
         if _ccy_dcf != "USD":
             try:
@@ -2718,58 +2721,109 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 ).json()
                 _fx_to_usd = float(_fxr[0]["ask"]) if isinstance(_fxr, list) and _fxr else 1.0
             except Exception:
-                pass  # if FX fetch fails, leave as 1.0 (price will be in local currency)
-        _last_margin = hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.20
-        _nwc_pct     = 0.01  # matches Excel default
+                pass
+
+        # Assumption averages — match Excel "Year 1 = AVERAGE(historicals)" rows
+        def _avg(vals): return sum(v for v in vals if v) / max(sum(1 for v in vals if v), 1)
+        avg_da_pct    = _avg(hist_da_pct)
+        avg_capex_pct = _avg(hist_capex_pct)
+        avg_tax       = _avg(hist_tax) if hist_tax else last_tax
+
+        # NWC%: historical average ΔNWC/Revenue from balance sheet (matches Excel NWC row).
+        # Stored as +ΔNWC/Revenue — positive when NWC consumes cash as business grows.
+        # _py_ufcf subtracts this: nopat + da - capex - rev*avg_nwc_pct
+        _nwc_hist = []
+        for _ni in range(1, n_hist):
+            _pa = (bs_data[_ni-1].get("totalCurrentAssets")     or 0) / 1e6
+            _pl = (bs_data[_ni-1].get("totalCurrentLiabilities") or 0) / 1e6
+            _ca = (bs_data[_ni].get("totalCurrentAssets")        or 0) / 1e6
+            _cl = (bs_data[_ni].get("totalCurrentLiabilities")   or 0) / 1e6
+            _dnwc = (_ca - _cl) - (_pa - _pl)
+            if hist_rev[_ni] > 0:
+                _nwc_hist.append(_dnwc / hist_rev[_ni])  # +ΔNWC/Rev (matches Excel)
+        avg_nwc_pct = _avg(_nwc_hist) if _nwc_hist else 0.01
 
         if _wacc and (_wacc - _g) > 0.001 and shares > 0:
-            # Project revenues and EBITDA
+            # Project revenues and EBITDA (years 1-3 from analyst estimates, 4-5 from yr 3)
             _proj_revs, _proj_ebitda = [], []
             for _i, _yr in enumerate(proj_years):
-                if _yr in est_map and est_map[_yr].get("rev_avg"):
+                if _yr in est_map and _i < 3 and est_map[_yr].get("rev_avg"):
                     _r = est_map[_yr]["rev_avg"]
-                    _e = est_map[_yr].get("ebitda_avg") or _r * _last_margin
+                    _e = est_map[_yr].get("ebitda_avg") or (
+                        _r * (est_map[est_years[-1]]["ebitda_avg"] /
+                              max(est_map[est_years[-1]]["rev_avg"], 1))
+                        if estimates else _r * (hist_ebitda[-1] / max(hist_rev[-1], 1))
+                    )
                 else:
-                    _prior = _proj_revs[-1] if _proj_revs else hist_rev[-1]
-                    _r = _prior * (1 + _g)
-                    _e = _r * _last_margin
+                    _prior_r = _proj_revs[-1] if _proj_revs else hist_rev[-1]
+                    if _i >= 3 and len(_proj_revs) >= 3:
+                        # Years 4-5: use Year 3 growth rate and Year 3 EBITDA margin
+                        _yr3_r = _proj_revs[2]; _yr2_r = _proj_revs[1]
+                        _yr3_g = (_yr3_r / _yr2_r - 1) if _yr2_r > 0 else _g
+                        _yr3_m = _proj_ebitda[2] / _yr3_r if _yr3_r > 0 else (hist_ebitda[-1] / max(hist_rev[-1], 1))
+                        _r = _prior_r * (1 + _yr3_g)
+                        _e = _r * _yr3_m
+                    else:
+                        _last_known_m = (hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.20)
+                        _r = _prior_r * (1 + _g)
+                        _e = _r * _last_known_m
                 _proj_revs.append(_r); _proj_ebitda.append(_e)
 
-            # Terminal year
+            # Terminal year — uses Year 5 margin (trailing EBITDA margin in Excel)
+            _trailing_margin = hist_ebitda[-1] / max(hist_rev[-1], 1) if hist_rev[-1] else 0.20
             _term_rev    = _proj_revs[-1] * (1 + _g)
-            _term_ebitda = _term_rev * _last_margin
+            _term_ebitda = _term_rev * _trailing_margin
 
             def _py_ufcf(rev, ebitda):
-                da    = rev * last_da_pct
-                nopat = (ebitda - da) * (1 - last_tax)
-                return nopat + da - rev * last_capex_pct - rev * _nwc_pct
+                da    = rev * avg_da_pct
+                nopat = (ebitda - da) * (1 - avg_tax)
+                return nopat + da - rev * avg_capex_pct - rev * avg_nwc_pct
 
-            # PV of explicit FCFs (mid-year convention)
-            _sum_pv = sum(
-                _py_ufcf(_proj_revs[i], _proj_ebitda[i]) / (1 + _wacc) ** (i + 0.5)
-                for i in range(len(proj_years))
-            )
+            _sum_pv  = sum(_py_ufcf(_proj_revs[i], _proj_ebitda[i]) / (1 + _wacc) ** (i + 0.5)
+                           for i in range(len(proj_years)))
             _tv_disc = (1 + _wacc) ** len(proj_years)
 
-            # Gordon Growth
-            _tv_gg = _py_ufcf(_term_rev, _term_ebitda) / (_wacc - _g)
-            _ip_gg = (_sum_pv + _tv_gg / _tv_disc - net_debt - mi) / shares
+            _tv_gg   = _py_ufcf(_term_rev, _term_ebitda) / (_wacc - _g)
+            _ip_gg   = (_sum_pv + _tv_gg / _tv_disc - net_debt - mi) / shares
 
-            # Exit Multiple
-            _tv_em = _term_ebitda * _tev
-            _ip_em = (_sum_pv + _tv_em / _tv_disc - net_debt - mi) / shares
+            _tv_em   = _term_ebitda * _tev
+            _ip_em   = (_sum_pv + _tv_em / _tv_disc - net_debt - mi) / shares
 
-            # Convert EV-derived price to USD if financials are in local currency
             _ip_gg_usd = _ip_gg * _fx_to_usd
             _ip_em_usd = _ip_em * _fx_to_usd
+
+            # GG sensitivity: vary TGR only (WACC constant) — 2% bear, 3% base, 4% bull
+            def _gg_px_at(tgr_s):
+                if (_wacc - tgr_s) <= 0.001:
+                    return None
+                _trv = _proj_revs[-1] * (1 + tgr_s)
+                _teb = _trv * _trailing_margin
+                _ip  = (_sum_pv + _py_ufcf(_trv, _teb) / (_wacc - tgr_s) / _tv_disc
+                        - net_debt - mi) / shares
+                return round(_ip * _fx_to_usd, 2)
+
+            # EM sensitivity: vary exit multiple (TGR and cash flows constant)
+            _tev_bear = round(_tev * 0.75)   # 15x when base is 20x
+            _tev_bull = round(_tev * 1.25)   # 25x when base is 20x
+            def _em_px_at(mult):
+                _ip = (_sum_pv + _term_ebitda * mult / _tv_disc - net_debt - mi) / shares
+                return round(_ip * _fx_to_usd, 2)
+
             dcf_prices = {
-                "gg_price":  round(_ip_gg_usd, 2),
-                "em_price":  round(_ip_em_usd, 2),
+                "gg_price":      round(_ip_gg_usd, 2),
+                "gg_bear_price": _gg_px_at(0.02),
+                "gg_bull_price": _gg_px_at(0.04),
+                "em_price":      round(_ip_em_usd, 2),
+                "em_bear_price": _em_px_at(_tev_bear),
+                "em_bull_price": _em_px_at(_tev_bull),
+                "em_base_mult":  _tev,
+                "em_bear_mult":  _tev_bear,
+                "em_bull_mult":  _tev_bull,
                 "gg_upside": round(_ip_gg_usd / price - 1, 4) if price else None,
                 "em_upside": round(_ip_em_usd / price - 1, 4) if price else None,
             }
     except Exception:
-        pass  # never break model generation for heatmap computation
+        pass  # never break model generation
 
     return {
         "ufcf_row": ufcf_row, "rev_row": rev_row,

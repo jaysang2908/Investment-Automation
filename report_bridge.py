@@ -592,19 +592,30 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     em_px  = dcf_prices.get("em_price")
     base_px = gg_px or em_px
 
-    wacc_b = wacc_val or 0.09
-    tgr_base = 0.030; tgr_bear = 0.020; tgr_bull = 0.035
-    w_base = wacc_b;  w_bear = wacc_b + 0.01; w_bull = wacc_b - 0.01
+    wacc_b   = wacc_val or 0.09
+    tgr_base = 0.030; tgr_bear = 0.020; tgr_bull = 0.040
 
-    def _dcf_px(base, w_new, tgr_new):
-        spread_base = w_base - tgr_base
-        spread_new  = w_new  - tgr_new
+    # GG bear/base/bull: vary TGR only (WACC constant = Excel output).
+    # Pre-computed by the DCF engine using the same cash flows as the Excel model.
+    # Fall back to spread-ratio approximation only if pre-computed values are absent
+    # (e.g., older cached reports generated before this change).
+    gg_bear_px = dcf_prices.get("gg_bear_price")
+    gg_bull_px = dcf_prices.get("gg_bull_price")
+
+    def _spread_approx(base, tgr_new):
+        spread_base = wacc_b - tgr_base
+        spread_new  = wacc_b - tgr_new
         if spread_base > 0 and spread_new > 0 and base:
             return round(base * spread_base / spread_new, 0)
         return None
 
-    bear_px = _dcf_px(base_px, w_bear, tgr_bear)
-    bull_px = _dcf_px(base_px, w_bull, tgr_bull)
+    if gg_bear_px is None and gg_px:
+        gg_bear_px = _spread_approx(gg_px, tgr_bear)
+    if gg_bull_px is None and gg_px:
+        gg_bull_px = _spread_approx(gg_px, tgr_bull)
+
+    bear_px = gg_bear_px  # for legacy use in verdict text / revenue-fallback path
+    bull_px = gg_bull_px
 
     # ── Revenue-based valuation fallback (for negative/zero FCF companies) ────
     # When DCF yields no price (negative FCF), use growth-adjusted EV/Revenue
@@ -1344,18 +1355,20 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"P/E {_x(trailing_pe)}, P/FCF {_x(trailing_pfc)}."
         ),
 
-        "DCF_BEAR_WACC": f"{w_bear*100:.1f}%", "DCF_BEAR_TGR": f"{tgr_bear*100:.1f}%",
-        "DCF_BEAR_CAGR": _pct(_bear_rev_g) + " (bear — 40% of trailing)",
-        "DCF_BEAR_PX":   f"${bear_px:.0f}" if bear_px else "N/A",
-        "DCF_BEAR_VS":   _vs(bear_px, current_price),
-        "DCF_BASE_WACC": f"{w_base*100:.1f}%", "DCF_BASE_TGR": f"{tgr_base*100:.1f}%",
-        "DCF_BASE_CAGR": _pct(_base_rev_g) + " (base — trailing CAGR)",
-        "DCF_BASE_PX":   f"${base_px:.0f}" if base_px else "N/A",
-        "DCF_BASE_VS":   _vs(base_px, current_price),
-        "DCF_BULL_WACC": f"{w_bull*100:.1f}%", "DCF_BULL_TGR": f"{tgr_bull*100:.1f}%",
-        "DCF_BULL_CAGR": _pct(_bull_rev_g) + " (bull — 140% of trailing)",
-        "DCF_BULL_PX":   f"${bull_px:.0f}" if bull_px else "N/A",
-        "DCF_BULL_VS":   _vs(bull_px, current_price),
+        # GG DCF scenarios — WACC fixed (Excel output); only TGR varies: 2% / 3% / 4%.
+        # Base price = exact Excel model Gordon Growth output. Bear/bull from engine.
+        "DCF_BEAR_WACC": f"{wacc_b*100:.1f}%", "DCF_BEAR_TGR": "2.0%",
+        "DCF_BEAR_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
+        "DCF_BEAR_PX":   f"${gg_bear_px:.0f}" if gg_bear_px else "N/A",
+        "DCF_BEAR_VS":   _vs(gg_bear_px, current_price),
+        "DCF_BASE_WACC": f"{wacc_b*100:.1f}%", "DCF_BASE_TGR": "3.0%",
+        "DCF_BASE_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
+        "DCF_BASE_PX":   f"${gg_px:.0f}" if gg_px else ("N/A" if not base_px else f"${base_px:.0f}"),
+        "DCF_BASE_VS":   _vs(gg_px or base_px, current_price),
+        "DCF_BULL_WACC": f"{wacc_b*100:.1f}%", "DCF_BULL_TGR": "4.0%",
+        "DCF_BULL_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
+        "DCF_BULL_PX":   f"${gg_bull_px:.0f}" if gg_bull_px else "N/A",
+        "DCF_BULL_VS":   _vs(gg_bull_px, current_price),
 
         # Sensitivity headers
         "TGR_1": "2.0%","TGR_2": "2.5%","TGR_3": "3.0%","TGR_4": "3.5%","TGR_5": "4.0%",
@@ -1817,22 +1830,32 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                      else "trailing" if _sane_ev(ev_ebitda)
                      else "default")
 
-    _em_helper_base = _em_dcf_local(float(_em_base_mult))
+    # EM base: always the exact Excel model output (em_px).
+    # EM bear/bull: engine-computed at 75%/125% of the Excel base multiple.
+    # Fall back to local DCF helper scaled to em_px only if engine values absent.
+    _em_base_px   = em_px
+    _em_base_mult_x = dcf_prices.get("em_base_mult", 20.0)
+    _em_bear_mult_x = dcf_prices.get("em_bear_mult", round(_em_base_mult_x * 0.75))
+    _em_bull_mult_x = dcf_prices.get("em_bull_mult", round(_em_base_mult_x * 1.25))
 
-    # Anchor to Excel model em_px when available, then scale bear/bull
-    if em_px and _em_helper_base and _em_helper_base > 0:
-        _adj = em_px / _em_helper_base
-        _em_base_px = em_px
-        _em_bear_px = round((_em_dcf_local(_em_bear_mult) or 0) * _adj, 0) or None
-        _em_bull_px = round((_em_dcf_local(_em_bull_mult) or 0) * _adj, 0) or None
-    else:
-        _em_base_px = _em_helper_base
-        _em_bear_px = _em_dcf_local(_em_bear_mult)
-        _em_bull_px = _em_dcf_local(_em_bull_mult)
+    _em_bear_px = dcf_prices.get("em_bear_price")
+    _em_bull_px = dcf_prices.get("em_bull_price")
 
-    D["MULT_EM_BASE_X"]  = f"{_em_base_mult:.0f}x EV/EBITDA ({_em_mult_src})"
-    D["MULT_EM_BEAR_X"]  = f"{_em_bear_mult:.0f}x EV/EBITDA (−20%)"
-    D["MULT_EM_BULL_X"]  = f"{_em_bull_mult:.0f}x EV/EBITDA (+20%)"
+    # Fallback: local DCF helper anchored to em_px (for old cached reports)
+    if em_px and (_em_bear_px is None or _em_bull_px is None):
+        _em_helper_base = _em_dcf_local(float(_em_base_mult_x))
+        _adj = (em_px / _em_helper_base) if (_em_helper_base and _em_helper_base > 0) else 1.0
+        if _em_bear_px is None:
+            _em_bear_px = round((_em_dcf_local(_em_bear_mult_x) or 0) * _adj, 0) or None
+        if _em_bull_px is None:
+            _em_bull_px = round((_em_dcf_local(_em_bull_mult_x) or 0) * _adj, 0) or None
+
+    if not _em_base_px:
+        _em_base_px = _em_dcf_local(float(_em_base_mult_x))
+
+    D["MULT_EM_BASE_X"]  = f"{_em_base_mult_x:.0f}x EV/EBITDA (model base)"
+    D["MULT_EM_BEAR_X"]  = f"{_em_bear_mult_x:.0f}x EV/EBITDA (bear)"
+    D["MULT_EM_BULL_X"]  = f"{_em_bull_mult_x:.0f}x EV/EBITDA (bull)"
     D["MULT_EM_BASE_PX"] = f"${_em_base_px:.0f}" if _em_base_px else "N/A"
     D["MULT_EM_BEAR_PX"] = f"${_em_bear_px:.0f}" if _em_bear_px else "N/A"
     D["MULT_EM_BULL_PX"] = f"${_em_bull_px:.0f}" if _em_bull_px else "N/A"
@@ -1850,19 +1873,19 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     D["MULT_EM_BEAR_PX_CLASS"] = _pxcls(_em_bear_px)
     D["MULT_EM_BULL_PX_CLASS"] = _pxcls(_em_bull_px)
 
-    # Composite: Gordon Growth base + EV/EBITDA base
+    # Composite: Gordon Growth base (exact Excel GG output) + EV/EBITDA base (exact Excel EM output)
     if _em_base_px and gg_px and current_price:
         _comp_all = round((_em_base_px + gg_px) / 2, 0)
         D["COMPOSITE_FAIR_VALUE"]  = f"${_comp_all:.0f}"
         D["COMPOSITE_UPSIDE_NOTE"] = (
-            f"Gordon Growth (base): ${gg_px:.0f} ({_vs(gg_px, current_price)}) · "
-            f"EV/EBITDA Exit 20x (base): ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) · "
+            f"Gordon Growth (TGR 3%, WACC {wacc_b*100:.1f}%): ${gg_px:.0f} ({_vs(gg_px, current_price)}) · "
+            f"EV/EBITDA Exit {_em_base_mult_x:.0f}x (model base): ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) · "
             f"Composite avg: ${_comp_all:.0f} ({_vs(_comp_all, current_price)})."
         )
     elif _em_base_px and current_price:
         D["COMPOSITE_FAIR_VALUE"]  = f"${_em_base_px:.0f}"
         D["COMPOSITE_UPSIDE_NOTE"] = (
-            f"EV/EBITDA Exit 20x: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)})."
+            f"EV/EBITDA Exit {_em_base_mult_x:.0f}x (model base): ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)})."
         )
 
     # ── Valuation verdict — dot-point format ─────────────────────────────────
