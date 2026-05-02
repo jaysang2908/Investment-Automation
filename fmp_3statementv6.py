@@ -3619,10 +3619,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         c_score.font = fnt(bold=True, color=C_BLACK)
 
         # G: Weighted score (formula)
+        # Weight in col C is stored as a decimal (e.g. 0.10 for 10%).
+        # Score in col F is 0–10. Multiply by 10 so the total is on a 0–100 scale.
         wt_col   = get_column_letter(3)
         scr_col  = get_column_letter(6)
         c_wscore = wcell(row, 7,
-                         f'=IF({scr_col}{row}="",0,{wt_col}{row}*{scr_col}{row})',
+                         f'=IF({scr_col}{row}="",0,{wt_col}{row}*{scr_col}{row}*10)',
                          bold=False, bg=row_bg, halign="center", fmt='0.00;(0.00);"-"')
 
         # H: Notes
