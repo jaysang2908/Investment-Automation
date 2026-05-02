@@ -2617,14 +2617,15 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         ev_rows[label] = row; row += 1
 
     bs0 = bs_data[-1]  # used here and below for minority interest / shares
+    # net_debt in $mm — always computed for the Python-side DCF price calculation below
+    net_debt = (((bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0))
+                - (bs0.get("cashAndCashEquivalents") or 0)) / 1e6
     wcell(row, 1, "  Less: Net Debt  (Debt − Cash)", halign="left", indent=2)
     _nd_col = cl(HIST_COLS[-1])
     if "nd" in bs_refs:
         _nd_val = f"='Balance Sheet'!{_nd_col}{bs_refs['nd']}"
     else:
-        _debt = ((bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)) / 1e6
-        _cash = (bs0.get("cashAndCashEquivalents") or 0) / 1e6
-        _nd_val = round(_debt - _cash, 1)
+        _nd_val = round(net_debt, 1)
     wcell(row, 2, _nd_val, color=C_GREEN, fmt=NUM)
     ws.cell(row=row, column=2).fill = fll(C_WHITE); ws.cell(row=row, column=2).border = brd()
     ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
