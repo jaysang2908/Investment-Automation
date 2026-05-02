@@ -9,18 +9,31 @@ This tool is used by a **professional investor**. All calculations, formulas, an
 
 The HTML report is the primary deliverable. Every number it presents that originates from the DCF model **must be identical to what the Excel workbook produces**. This is non-negotiable.
 
+### Growth Tier Classification
+Companies are auto-classified by 3-year average annual revenue growth (last 3 YoY periods from `is_data`):
+
+| Tier | 3yr Avg Rev Growth | TGR Base | Bear TGR | Bull TGR | EM Base | EM Bear | EM Bull |
+|---|---|---|---|---|---|---|---|
+| Low | < 5% | 2.5% | 2.0% (×0.80) | 3.0% (×1.20) | 10x | 8x | 12x |
+| Medium | 5%–12% | 3.0% | 2.25% (×0.75) | 3.75% (×1.25) | 15x | 11x | 19x |
+| High | > 12% | 4.0% | 3.0% (×0.75) | 5.0% (×1.25) | 18x | 14x | 23x |
+
+Tier is computed in `build_dcf()` and stored in `dcf_prices["growth_tier"]`. The Excel TGR cell and exit multiple cell use these values — not hardcoded constants.
+
+### Primary Price Target Method
+- **Low / Medium (<10% growth):** Gordon Growth is primary (stable cash-flow companies).
+- **Medium (≥10% growth) / High:** Exit Multiple is primary (growth companies valued on EBITDA exit).
+- Price target, method label, and 3-line rationale are computed in `report_bridge.py` and mapped to `PRICE_TARGET`, `PRICE_TARGET_METHOD`, `PRICE_TARGET_RATIONALE` template variables.
+
 ### Gordon Growth (GG) Bear / Base / Bull
 - **Base case** = exact `gg_price` from the Python DCF engine (mirrors the Excel tab).
-- **Bear** = TGR 2.0%, WACC unchanged (from Excel WACC tab output).
-- **Bull** = TGR 4.0%, WACC unchanged.
-- WACC is **never varied** across GG scenarios — only TGR changes.
+- **Bear / Bull TGR** = tier-specific values above. WACC is **never varied** — only TGR changes.
 - Pre-computed in `fmp_3statementv6.py` `build_dcf()` as `dcf_prices["gg_bear_price"]` / `dcf_prices["gg_bull_price"]`.
 - `report_bridge.py` reads these keys directly. No approximation formulas.
 
 ### Exit Multiple (EM) Bear / Base / Bull
-- **Base case** = exact `em_price` from the Python DCF engine (Excel model default: 20x EV/EBITDA).
-- **Bear** = 75% of base multiple (15x when base is 20x).
-- **Bull** = 125% of base multiple (25x when base is 20x).
+- **Base case** = exact `em_price` from the Python DCF engine.
+- **Bear / Bull multiples** = tier-specific values above.
 - Pre-computed in `fmp_3statementv6.py` as `dcf_prices["em_bear_price"]` / `dcf_prices["em_bull_price"]`.
 - Report reads these directly.
 
@@ -99,15 +112,20 @@ If the Excel formula logic changes, the Python mirror must be updated in the sam
 ### Key `dcf_prices` dict keys (returned by `build_dcf()`)
 ```python
 {
-  "gg_price":      float,   # Gordon Growth base (TGR 3%)
-  "gg_bear_price": float,   # Gordon Growth bear (TGR 2%)
-  "gg_bull_price": float,   # Gordon Growth bull (TGR 4%)
-  "em_price":      float,   # Exit Multiple base (20x)
-  "em_bear_price": float,   # Exit Multiple bear (15x)
-  "em_bull_price": float,   # Exit Multiple bull (25x)
-  "em_base_mult":  float,   # 20.0
-  "em_bear_mult":  float,   # 15.0
-  "em_bull_mult":  float,   # 25.0
+  "gg_price":      float,   # Gordon Growth base (tier TGR)
+  "gg_bear_price": float,   # Gordon Growth bear (tier TGR × bear factor)
+  "gg_bull_price": float,   # Gordon Growth bull (tier TGR × bull factor)
+  "em_price":      float,   # Exit Multiple base (tier base multiple)
+  "em_bear_price": float,   # Exit Multiple bear (tier bear multiple)
+  "em_bull_price": float,   # Exit Multiple bull (tier bull multiple)
+  "em_base_mult":  float,   # e.g. 10.0 / 15.0 / 18.0 by tier
+  "em_bear_mult":  float,   # e.g. 8.0 / 11.0 / 14.0 by tier
+  "em_bull_mult":  float,   # e.g. 12.0 / 19.0 / 23.0 by tier
+  "tgr_base":      float,   # e.g. 0.025 / 0.030 / 0.040 by tier
+  "tgr_bear":      float,   # bear TGR for GG scenario
+  "tgr_bull":      float,   # bull TGR for GG scenario
+  "growth_tier":   str,     # "low" | "medium" | "high"
+  "rev_3yr_avg":   float,   # 3yr avg annual revenue growth used for tier
   "gg_upside":     float,   # (gg_price / current_price) - 1
   "em_upside":     float,   # (em_price / current_price) - 1
 }

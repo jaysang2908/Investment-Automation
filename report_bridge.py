@@ -593,12 +593,34 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     base_px = gg_px or em_px
 
     wacc_b   = wacc_val or 0.09
-    tgr_base = 0.030; tgr_bear = 0.020; tgr_bull = 0.040
+
+    # Growth tier — read from engine (computed in build_dcf from 3yr avg rev growth).
+    # Fall back to _rev_3yr_avg computed locally if engine didn't supply it.
+    _engine_tier    = dcf_prices.get("growth_tier")
+    _engine_3yr_avg = dcf_prices.get("rev_3yr_avg")
+    _growth_base    = _engine_3yr_avg if _engine_3yr_avg is not None else _rev_3yr_avg
+
+    if _engine_tier:
+        _tier = _engine_tier
+    else:
+        _tier = ("low" if (_growth_base or 0) < 0.05
+                 else "medium" if (_growth_base or 0) < 0.12
+                 else "high")
+
+    tgr_base = dcf_prices.get("tgr_base") or (0.025 if _tier == "low" else 0.030 if _tier == "medium" else 0.040)
+    tgr_bear = dcf_prices.get("tgr_bear") or round(tgr_base * (0.80 if _tier == "low" else 0.75), 4)
+    tgr_bull = dcf_prices.get("tgr_bull") or round(tgr_base * (1.20 if _tier == "low" else 1.25), 4)
+
+    # Tier labels for display
+    _tier_labels = {
+        "low":    "Low Growth / Mature",
+        "medium": "Medium Growth / Maturing",
+        "high":   "High Growth",
+    }
+    _tier_label = _tier_labels.get(_tier, "")
 
     # GG bear/base/bull: vary TGR only (WACC constant = Excel output).
-    # Pre-computed by the DCF engine using the same cash flows as the Excel model.
-    # Fall back to spread-ratio approximation only if pre-computed values are absent
-    # (e.g., older cached reports generated before this change).
+    # Pre-computed by the DCF engine; fall back to spread-ratio approximation for legacy reports.
     gg_bear_px = dcf_prices.get("gg_bear_price")
     gg_bull_px = dcf_prices.get("gg_bull_price")
 
@@ -689,8 +711,64 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     pv_tv_approx   = eq_val_approx * 0.65 if eq_val_approx else None
     pv_fcfs_approx = (ev_approx - pv_tv_approx) if ev_approx and pv_tv_approx else None
 
-    pt_vals = [p for p in [gg_px, em_px] if p]
-    price_target = round(sum(pt_vals) / len(pt_vals), 0) if pt_vals else current_price
+    # ── Primary price target — driven by growth tier ─────────────────────────
+    # Low:    GG base (mature companies — terminal value driven)
+    # Medium, growth < 10%:  GG base
+    # Medium, growth ≥ 10%:  EM base (faster growers — multiples more relevant)
+    # High:   EM base
+    _gb = _growth_base or 0
+    if _tier == "low":
+        _primary_pt  = gg_px
+        _primary_method = f"Gordon Growth (TGR {tgr_base*100:.1f}%)"
+    elif _tier == "medium" and _gb < 0.10:
+        _primary_pt  = gg_px
+        _primary_method = f"Gordon Growth (TGR {tgr_base*100:.1f}%)"
+    else:
+        # medium ≥10% or high → multiples
+        _primary_pt  = em_px
+        _em_base_m   = dcf_prices.get("em_base_mult", _DCF_TEV_BASE if '_DCF_TEV_BASE' in dir() else 15.0)
+        _primary_method = f"EV/EBITDA Exit ({dcf_prices.get('em_base_mult', 15):.0f}x)"
+
+    # Fall back to whichever method has data; last resort = composite avg
+    if not _primary_pt:
+        _fallback_pt = gg_px or em_px
+        _primary_pt  = _fallback_pt
+        _primary_method = "Gordon Growth" if gg_px else "EV/EBITDA Exit"
+    if not _primary_pt:
+        pt_vals = [p for p in [gg_px, em_px] if p]
+        _primary_pt = round(sum(pt_vals) / len(pt_vals), 0) if pt_vals else current_price
+        _primary_method = "Composite avg"
+
+    price_target = round(_primary_pt, 0) if _primary_pt else current_price
+
+    # Three-line rationale shown under the price target at the top of the report
+    _gb_pct = f"{_gb*100:.1f}%"
+    if _tier == "low":
+        _pt_rationale = (
+            f"{_tier_label} ({_gb_pct} 3yr avg rev growth). "
+            f"Gordon Growth prioritised — terminal value approach suits mature, "
+            f"stable-cash-flow businesses. TGR {tgr_base*100:.1f}% / WACC {wacc_b*100:.1f}%."
+        )
+    elif _tier == "medium" and _gb < 0.10:
+        _pt_rationale = (
+            f"{_tier_label} ({_gb_pct} 3yr avg rev growth). "
+            f"Gordon Growth prioritised — growth below 10% favours a terminal-value-based approach. "
+            f"TGR {tgr_base*100:.1f}% / WACC {wacc_b*100:.1f}%."
+        )
+    elif _tier == "medium":
+        _em_m = dcf_prices.get("em_base_mult", 15)
+        _pt_rationale = (
+            f"{_tier_label} ({_gb_pct} 3yr avg rev growth, >10%). "
+            f"EV/EBITDA multiples prioritised — growth rate above 10% makes peer-multiple "
+            f"re-rating a more relevant value driver. Base {_em_m:.0f}x exit multiple."
+        )
+    else:
+        _em_m = dcf_prices.get("em_base_mult", 18)
+        _pt_rationale = (
+            f"{_tier_label} ({_gb_pct} 3yr avg rev growth). "
+            f"EV/EBITDA multiples prioritised — high-growth companies are better valued on "
+            f"forward earnings power and peer multiples. Base {_em_m:.0f}x exit multiple."
+        )
 
     # ── Pre-compute scenario and risk metrics ─────────────────────────────────
     _gm_vals = [(is_.get("grossProfit") or 0) / max(1, is_.get("revenue") or 1) for is_ in is_data]
@@ -1076,6 +1154,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "VERDICT_TEXT":     _verdict(final_score, offset=_score_offset),
         "CURRENT_PRICE":    current_price,
         "PRICE_TARGET":     price_target,
+        "PRICE_TARGET_METHOD": _primary_method,
+        "PRICE_TARGET_RATIONALE": _pt_rationale,
         "REPORT_DATE":      today,
         "FINAL_SCORE":      round(final_score, 1) if final_score else 0,
         "FINAL_SCORE_CALC": str(round(final_score, 1)) if final_score else "0",
@@ -1357,15 +1437,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
         # GG DCF scenarios — WACC fixed (Excel output); only TGR varies: 2% / 3% / 4%.
         # Base price = exact Excel model Gordon Growth output. Bear/bull from engine.
-        "DCF_BEAR_WACC": f"{wacc_b*100:.1f}%", "DCF_BEAR_TGR": "2.0%",
+        # GG DCF scenarios — WACC fixed (Excel output); TGR varies by growth tier.
+        # Base price = exact Excel model Gordon Growth output. Bear/bull from engine.
+        "DCF_BEAR_WACC": f"{wacc_b*100:.1f}%", "DCF_BEAR_TGR": f"{tgr_bear*100:.2f}%",
         "DCF_BEAR_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
         "DCF_BEAR_PX":   f"${gg_bear_px:.0f}" if gg_bear_px else "N/A",
         "DCF_BEAR_VS":   _vs(gg_bear_px, current_price),
-        "DCF_BASE_WACC": f"{wacc_b*100:.1f}%", "DCF_BASE_TGR": "3.0%",
+        "DCF_BASE_WACC": f"{wacc_b*100:.1f}%", "DCF_BASE_TGR": f"{tgr_base*100:.2f}%",
         "DCF_BASE_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
         "DCF_BASE_PX":   f"${gg_px:.0f}" if gg_px else ("N/A" if not base_px else f"${base_px:.0f}"),
         "DCF_BASE_VS":   _vs(gg_px or base_px, current_price),
-        "DCF_BULL_WACC": f"{wacc_b*100:.1f}%", "DCF_BULL_TGR": "4.0%",
+        "DCF_BULL_WACC": f"{wacc_b*100:.1f}%", "DCF_BULL_TGR": f"{tgr_bull*100:.2f}%",
         "DCF_BULL_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
         "DCF_BULL_PX":   f"${gg_bull_px:.0f}" if gg_bull_px else "N/A",
         "DCF_BULL_VS":   _vs(gg_bull_px, current_price),

@@ -1945,6 +1945,40 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     n_hist  = len(years)
     n_term  = 1
 
+    # ── Growth tier: based on 3-year avg annual revenue growth ────────────────
+    # Drives base-case TGR, exit multiple, and bear/bull ranges throughout.
+    _gt_revs = [d.get("revenue") or 0 for d in is_data]
+    _gt_yoys = []
+    for _k in range(max(1, len(_gt_revs) - 3), len(_gt_revs)):
+        if _gt_revs[_k-1] > 0 and _gt_revs[_k] > 0:
+            _gt_yoys.append(_gt_revs[_k] / _gt_revs[_k-1] - 1)
+    _rev_3yr_avg_dcf = sum(_gt_yoys) / len(_gt_yoys) if _gt_yoys else 0.05
+
+    if _rev_3yr_avg_dcf < 0.05:
+        _TIER          = "low"
+        _DCF_TGR_BASE  = 0.025
+        _DCF_TGR_BEAR  = round(0.025 * 0.80, 4)   # 2.0%
+        _DCF_TGR_BULL  = round(0.025 * 1.20, 4)   # 3.0%
+        _DCF_TEV_BASE  = 10.0
+        _DCF_TEV_BEAR  = round(_DCF_TEV_BASE * 0.80)  # 8x
+        _DCF_TEV_BULL  = round(_DCF_TEV_BASE * 1.20)  # 12x
+    elif _rev_3yr_avg_dcf < 0.12:
+        _TIER          = "medium"
+        _DCF_TGR_BASE  = 0.030
+        _DCF_TGR_BEAR  = round(0.030 * 0.75, 4)   # 2.25%
+        _DCF_TGR_BULL  = round(0.030 * 1.25, 4)   # 3.75%
+        _DCF_TEV_BASE  = 15.0
+        _DCF_TEV_BEAR  = round(_DCF_TEV_BASE * 0.75)  # 11x
+        _DCF_TEV_BULL  = round(_DCF_TEV_BASE * 1.25)  # 19x
+    else:
+        _TIER          = "high"
+        _DCF_TGR_BASE  = 0.040
+        _DCF_TGR_BEAR  = round(0.040 * 0.75, 4)   # 3.0%
+        _DCF_TGR_BULL  = round(0.040 * 1.25, 4)   # 5.0%
+        _DCF_TEV_BASE  = 18.0
+        _DCF_TEV_BEAR  = round(_DCF_TEV_BASE * 0.75)  # 14x
+        _DCF_TEV_BULL  = round(_DCF_TEV_BASE * 1.25)  # 23x
+
     # Column layout: A=labels | hist cols | proj cols | terminal | notes
     NC          = 1 + n_hist + n_proj + n_term + 1
     HIST_COLS   = list(range(2, 2 + n_hist))
@@ -2514,17 +2548,21 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     wacc_dcf_row = row; row += 1
 
     wcell(row, 1, "Terminal Growth Rate  (g)", bold=True, bg=C_ASSM, halign="left", indent=1)
-    wcell(row, 2, 0.03, bold=True, bg=C_ASSM, color=C_BLUE, fmt=PCT2)
+    wcell(row, 2, _DCF_TGR_BASE, bold=True, bg=C_ASSM, color=C_BLUE, fmt=PCT2)
     for c in range(3, NC + 1): wcell(row, c, None, bg=C_ASSM)
-    note(row, "Long-run nominal GDP growth rate — typically 2-4% for US.  Keep below WACC.",
+    note(row, (f"Growth tier: {_TIER.upper()} ({_rev_3yr_avg_dcf*100:.1f}% 3yr avg rev growth).  "
+               f"Bear {_DCF_TGR_BEAR*100:.2f}% / Base {_DCF_TGR_BASE*100:.1f}% / Bull {_DCF_TGR_BULL*100:.2f}%.  "
+               f"Keep below WACC."),
          bg=C_ASSM)
     tg_row = row; row += 1
 
     wcell(row, 1, "Terminal EV/EBITDA Multiple  (exit multiple method)",
           bold=True, bg=C_ASSM, halign="left", indent=1)
-    wcell(row, 2, 20.0, bold=True, bg=C_ASSM, color=C_BLUE, fmt='0.0x')
+    wcell(row, 2, _DCF_TEV_BASE, bold=True, bg=C_ASSM, color=C_BLUE, fmt='0.0x')
     for c in range(3, NC + 1): wcell(row, c, None, bg=C_ASSM)
-    note(row, "Use current or peer NTM EV/EBITDA.  Cross-check vs Gordon Growth TV.",
+    note(row, (f"Growth tier: {_TIER.upper()} ({_rev_3yr_avg_dcf*100:.1f}% 3yr avg rev growth).  "
+               f"Bear {_DCF_TEV_BEAR:.0f}x / Base {_DCF_TEV_BASE:.0f}x / Bull {_DCF_TEV_BULL:.0f}x.  "
+               f"Override manually if needed."),
          bg=C_ASSM)
     tev_row = row; row += 1
     row = blank(row)
@@ -2705,8 +2743,8 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     dcf_prices = {"gg_price": None, "em_price": None,
                   "gg_upside": None, "em_upside": None}
     try:
-        _g    = 0.03    # terminal growth rate
-        _tev  = 20.0    # exit EV/EBITDA multiple (Excel assumption default)
+        _g    = _DCF_TGR_BASE   # tier-calibrated terminal growth rate
+        _tev  = _DCF_TEV_BASE  # tier-calibrated exit EV/EBITDA multiple
         _wacc = (wacc_refs or {}).get("wacc_val")
 
         # FX: financials in reportedCurrency; implied price must be in USD
@@ -2792,7 +2830,7 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _ip_gg_usd = _ip_gg * _fx_to_usd
             _ip_em_usd = _ip_em * _fx_to_usd
 
-            # GG sensitivity: vary TGR only (WACC constant) — 2% bear, 3% base, 4% bull
+            # GG sensitivity: vary TGR only (WACC constant) — tier-calibrated bear/base/bull
             def _gg_px_at(tgr_s):
                 if (_wacc - tgr_s) <= 0.001:
                     return None
@@ -2802,25 +2840,30 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                         - net_debt - mi) / shares
                 return round(_ip * _fx_to_usd, 2)
 
-            # EM sensitivity: vary exit multiple (TGR and cash flows constant)
-            _tev_bear = round(_tev * 0.75)   # 15x when base is 20x
-            _tev_bull = round(_tev * 1.25)   # 25x when base is 20x
+            # EM sensitivity: tier-calibrated bear/bull multiples
+            _tev_bear = _DCF_TEV_BEAR
+            _tev_bull = _DCF_TEV_BULL
             def _em_px_at(mult):
                 _ip = (_sum_pv + _term_ebitda * mult / _tv_disc - net_debt - mi) / shares
                 return round(_ip * _fx_to_usd, 2)
 
             dcf_prices = {
                 "gg_price":      round(_ip_gg_usd, 2),
-                "gg_bear_price": _gg_px_at(0.02),
-                "gg_bull_price": _gg_px_at(0.04),
+                "gg_bear_price": _gg_px_at(_DCF_TGR_BEAR),
+                "gg_bull_price": _gg_px_at(_DCF_TGR_BULL),
                 "em_price":      round(_ip_em_usd, 2),
                 "em_bear_price": _em_px_at(_tev_bear),
                 "em_bull_price": _em_px_at(_tev_bull),
                 "em_base_mult":  _tev,
                 "em_bear_mult":  _tev_bear,
                 "em_bull_mult":  _tev_bull,
-                "gg_upside": round(_ip_gg_usd / price - 1, 4) if price else None,
-                "em_upside": round(_ip_em_usd / price - 1, 4) if price else None,
+                "tgr_base":      _DCF_TGR_BASE,
+                "tgr_bear":      _DCF_TGR_BEAR,
+                "tgr_bull":      _DCF_TGR_BULL,
+                "growth_tier":   _TIER,
+                "rev_3yr_avg":   round(_rev_3yr_avg_dcf, 4),
+                "gg_upside":  round(_ip_gg_usd / price - 1, 4) if price else None,
+                "em_upside":  round(_ip_em_usd / price - 1, 4) if price else None,
             }
     except Exception:
         pass  # never break model generation
