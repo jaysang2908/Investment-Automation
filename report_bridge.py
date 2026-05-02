@@ -1798,18 +1798,22 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         except Exception:
             return None
 
-    # Base multiple: 5yr avg EV/EBITDA preferred (anchored to company's own history);
-    # falls back to trailing LTM if 5yr unavailable; then sector-agnostic 20x default.
-    # Range guard 5–120x excludes distorted periods (negative EBITDA, data gaps).
-    def _sane_ev(v): return v if (v and 5 <= v <= 120) else None
+    # Base multiple priority: NTM forward → 5yr historical avg → trailing LTM → 13x default.
+    # NTM = current EV / next-year estimated EBITDA (derived from trailing CAGR).
+    # Range guard 3–150x excludes distorted/negative EBITDA periods.
+    def _sane_ev(v): return v if (v and 3 <= v <= 150) else None
+    _ntm_ev_ebitda = (_sane_ev(round(ev / _fwd_ebitda1, 1))
+                      if (ev and _fwd_ebitda1 and _fwd_ebitda1 > 0) else None)
     _em_base_mult = float(
+        _sane_ev(_ntm_ev_ebitda) or
         _sane_ev(ev_ebitda_5yr_avg) or
         _sane_ev(ev_ebitda) or
-        20.0
+        13.0
     )
     _em_bear_mult = round(_em_base_mult * 0.80)   # −20%
     _em_bull_mult = round(_em_base_mult * 1.20)   # +20%
-    _em_mult_src  = ("5yr avg" if _sane_ev(ev_ebitda_5yr_avg)
+    _em_mult_src  = ("NTM fwd" if _sane_ev(_ntm_ev_ebitda)
+                     else "5yr avg" if _sane_ev(ev_ebitda_5yr_avg)
                      else "trailing" if _sane_ev(ev_ebitda)
                      else "default")
 
