@@ -540,10 +540,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     equity_assets_v = scorecard_metrics.get("equity_assets")
     is_bank_v     = scorecard_metrics.get("is_bank", False)
     auto_score    = scorecard_metrics.get("auto_score")
-    trailing_pe   = scorecard_metrics.get("pe_current")
-    pe_5yr        = scorecard_metrics.get("pe_5yr_avg")
-    trailing_pfc  = scorecard_metrics.get("pfcf_current")
-    pfcf_5yr      = scorecard_metrics.get("pfcf_5yr_avg")
+    trailing_pe       = scorecard_metrics.get("pe_current")
+    pe_5yr            = scorecard_metrics.get("pe_5yr_avg")
+    trailing_pfc      = scorecard_metrics.get("pfcf_current")
+    pfcf_5yr          = scorecard_metrics.get("pfcf_5yr_avg")
+    ev_ebitda_5yr_avg = scorecard_metrics.get("ev_ebitda_5yr_avg")
 
     # ── Fallbacks: compute ROIC / rev_cagr directly if scorecard cache is stale ─
     if roic_v is None:
@@ -1797,14 +1798,22 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         except Exception:
             return None
 
-    # Base multiple: use trailing EV/EBITDA when available and sensible (5–80x),
-    # rounded to nearest whole number. Falls back to 20x sector-agnostic default.
-    _em_base_mult = (round(ev_ebitda) if (ev_ebitda and 5 <= ev_ebitda <= 80)
-                     else 20.0)
+    # Base multiple: 5yr avg EV/EBITDA preferred (anchored to company's own history);
+    # falls back to trailing LTM if 5yr unavailable; then sector-agnostic 20x default.
+    # Range guard 5–120x excludes distorted periods (negative EBITDA, data gaps).
+    def _sane_ev(v): return v if (v and 5 <= v <= 120) else None
+    _em_base_mult = float(
+        _sane_ev(ev_ebitda_5yr_avg) or
+        _sane_ev(ev_ebitda) or
+        20.0
+    )
     _em_bear_mult = round(_em_base_mult * 0.80)   # −20%
     _em_bull_mult = round(_em_base_mult * 1.20)   # +20%
+    _em_mult_src  = ("5yr avg" if _sane_ev(ev_ebitda_5yr_avg)
+                     else "trailing" if _sane_ev(ev_ebitda)
+                     else "default")
 
-    _em_helper_base = _em_dcf_local(_em_base_mult)
+    _em_helper_base = _em_dcf_local(float(_em_base_mult))
 
     # Anchor to Excel model em_px when available, then scale bear/bull
     if em_px and _em_helper_base and _em_helper_base > 0:
@@ -1817,7 +1826,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _em_bear_px = _em_dcf_local(_em_bear_mult)
         _em_bull_px = _em_dcf_local(_em_bull_mult)
 
-    D["MULT_EM_BASE_X"]  = f"{_em_base_mult:.0f}x EV/EBITDA (trailing)"
+    D["MULT_EM_BASE_X"]  = f"{_em_base_mult:.0f}x EV/EBITDA ({_em_mult_src})"
     D["MULT_EM_BEAR_X"]  = f"{_em_bear_mult:.0f}x EV/EBITDA (−20%)"
     D["MULT_EM_BULL_X"]  = f"{_em_bull_mult:.0f}x EV/EBITDA (+20%)"
     D["MULT_EM_BASE_PX"] = f"${_em_base_px:.0f}" if _em_base_px else "N/A"

@@ -3005,6 +3005,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
     trailing_pfcf    = None
     pe_5yr_avg       = None
     pfcf_5yr_avg     = None
+    ev_ebitda_5yr_avg = None
     sector_pe_med    = None
     sector_pfcf_med  = None
 
@@ -3017,12 +3018,16 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
                          if r.get("priceToEarningsRatio")    and r["priceToEarningsRatio"]    > 0]
             pfcf_vals = [r["priceToFreeCashFlowRatio"] for r in rat_data
                          if r.get("priceToFreeCashFlowRatio") and r["priceToFreeCashFlowRatio"] > 0]
+            ev_vals   = [r["enterpriseValueMultiple"]  for r in rat_data
+                         if r.get("enterpriseValueMultiple")  and 2 < r["enterpriseValueMultiple"] < 200]
             trailing_pe   = round(rat_data[0].get("priceToEarningsRatio")    or 0, 1) or None
             trailing_pfcf = round(rat_data[0].get("priceToFreeCashFlowRatio") or 0, 1) or None
             pe_5yr_avg    = round(sum(pe_vals)   / len(pe_vals),   1) if len(pe_vals)   > 1 else None
             pfcf_5yr_avg  = round(sum(pfcf_vals) / len(pfcf_vals), 1) if len(pfcf_vals) > 1 else None
+            ev_ebitda_5yr_avg = round(sum(ev_vals) / len(ev_vals), 1) if len(ev_vals) > 1 else None
             print(f"  FMP ratios: P/E={trailing_pe}  5yr avg={pe_5yr_avg}  "
-                  f"P/FCF={trailing_pfcf}  5yr avg={pfcf_5yr_avg}")
+                  f"P/FCF={trailing_pfcf}  5yr avg={pfcf_5yr_avg}  "
+                  f"EV/EBITDA 5yr avg={ev_ebitda_5yr_avg}")
     except Exception as e_rat:
         print(f"  FMP ratios fetch failed: {e_rat}")
 
@@ -3634,9 +3639,10 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years):
         "auto_score":    _auto_score,
         "floor_cap":     floor_cap,
         "pe_current":    pe_current,
-        "pe_5yr_avg":    pe_5yr_avg,
-        "pfcf_current":  trailing_pfcf,
-        "pfcf_5yr_avg":  pfcf_5yr_avg,
+        "pe_5yr_avg":         pe_5yr_avg,
+        "pfcf_current":       trailing_pfcf,
+        "pfcf_5yr_avg":       pfcf_5yr_avg,
+        "ev_ebitda_5yr_avg":  ev_ebitda_5yr_avg,
     }
 
     print("  Scorecard tab built.")
