@@ -745,13 +745,20 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     pv_tv_approx   = eq_val_approx * 0.65 if eq_val_approx else None
     pv_fcfs_approx = (ev_approx - pv_tv_approx) if ev_approx and pv_tv_approx else None
 
-    # ── Primary price target — driven by growth tier ─────────────────────────
+    # ── Primary price target — driven by growth tier (overridden when GG disabled) ─
     # Low:    GG base (mature companies — terminal value driven)
     # Medium, growth < 10%:  GG base
     # Medium, growth ≥ 10%:  EM base (faster growers — multiples more relevant)
     # High:   EM base
+    # OVERRIDE: if trailing FCF or EBIT < 0, GG perpetuity is undefined → force EM.
+    _gg_disabled_reason = dcf_prices.get("gg_disabled_reason")
+    _neg_earnings_regime = bool(dcf_prices.get("neg_earnings_regime")) or bool(_gg_disabled_reason)
+
     _gb = _growth_base or 0
-    if _tier == "low":
+    if _neg_earnings_regime:
+        _primary_pt  = em_px
+        _primary_method = f"EV/EBITDA Exit ({dcf_prices.get('em_base_mult', 15):.0f}x)"
+    elif _tier == "low":
         _primary_pt  = gg_px
         _primary_method = f"Gordon Growth (TGR {tgr_base*100:.1f}%)"
     elif _tier == "medium" and _gb < 0.10:
@@ -777,7 +784,20 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     # Three-line rationale shown under the price target at the top of the report
     _gb_pct = f"{_gb*100:.1f}%"
-    if _tier == "low":
+    if _neg_earnings_regime:
+        _em_m = dcf_prices.get("em_base_mult", 15)
+        _tfcf_b = dcf_prices.get("trailing_fcf_b")
+        _tebit_b = dcf_prices.get("trailing_ebit_b")
+        _trail_str = ""
+        if _tfcf_b is not None and _tebit_b is not None:
+            _trail_str = f" Trailing FCF ${_tfcf_b:+,.1f}B, EBIT ${_tebit_b:+,.1f}B."
+        _pt_rationale = (
+            f"Gordon Growth disabled — perpetuity formula requires positive UFCF.{_trail_str} "
+            f"EV/EBITDA Exit Multiple used as sole primary method at {_em_m:.0f}x base "
+            f"({_tier_label}, {_gb_pct} 3yr avg rev growth). "
+            f"Material gap to market price likely reflects narrative/strategic factors not in DCF."
+        )
+    elif _tier == "low":
         _pt_rationale = (
             f"{_tier_label} ({_gb_pct} 3yr avg rev growth). "
             f"Gordon Growth prioritised — terminal value approach suits mature, "
@@ -803,6 +823,30 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"EV/EBITDA multiples prioritised — high-growth companies are better valued on "
             f"forward earnings power and peer multiples. Base {_em_m:.0f}x exit multiple."
         )
+
+    # ── Narrative-gap banner ─────────────────────────────────────────────────
+    # Flag when the fundamentals-derived target diverges materially (>40%) from
+    # market price. Common drivers: strategic premium (CHIPS Act, takeout speculation),
+    # narrative-driven re-rating, or a genuinely mispriced security. User must judge.
+    _narrative_banner_html = ""
+    if price_target and current_price and current_price > 0:
+        _gap_pct = (price_target / current_price - 1) * 100
+        if abs(_gap_pct) > 40:
+            _direction = "below" if _gap_pct < 0 else "above"
+            _narrative_banner_html = (
+                f'<div style="margin:14px 0 18px;padding:12px 18px;'
+                f'background:var(--warn-bg);border-left:3px solid var(--warn);'
+                f'border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:var(--ink-1)">'
+                f'<strong style="color:var(--warn);font-family:var(--font-mono);'
+                f'letter-spacing:0.5px;font-size:10px;text-transform:uppercase">'
+                f'⚠ Material Valuation Gap</strong><br>'
+                f'Fundamentals-derived target is <strong>{abs(_gap_pct):.0f}% {_direction}</strong> '
+                f'current market price. Likely reflects narrative or strategic factors not captured '
+                f'in a fundamentals-only model — e.g. CHIPS Act subsidies, national-security premium, '
+                f'M&A optionality, turnaround narratives, or genuine mispricing. '
+                f'User judgment required: consider qualitatively whether the gap is justified.'
+                f'</div>'
+            )
 
     # ── Pre-compute scenario and risk metrics ─────────────────────────────────
     _gm_vals = [(is_.get("grossProfit") or 0) / max(1, is_.get("revenue") or 1) for is_ in is_data]
@@ -1238,6 +1282,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         ),
         "PRICE_TARGET_METHOD": _primary_method,
         "PRICE_TARGET_RATIONALE": _pt_rationale,
+        "NARRATIVE_GAP_BANNER":   _narrative_banner_html,
         "REPORT_DATE":      today,
         "FINAL_SCORE":      round(final_score, 1) if final_score else 0,
         "FINAL_SCORE_CALC": str(round(final_score, 1)) if final_score else "0",
@@ -1531,8 +1576,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "DCF_BEAR_VS":   _vs(gg_bear_px, current_price),
         "DCF_BASE_WACC": f"{wacc_b*100:.1f}%", "DCF_BASE_TGR": f"{tgr_base*100:.2f}%",
         "DCF_BASE_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
-        "DCF_BASE_PX":   f"${gg_px:.0f}" if gg_px else ("N/A" if not base_px else f"${base_px:.0f}"),
-        "DCF_BASE_VS":   _vs(gg_px or base_px, current_price),
+        "DCF_BASE_PX":   f"${gg_px:.0f}" if gg_px else "N/A — GG disabled (negative FCF/EBIT)" if _neg_earnings_regime else "N/A",
+        "DCF_BASE_VS":   _vs(gg_px, current_price) if gg_px else "—",
         "DCF_BULL_WACC": f"{wacc_bull*100:.1f}%" if wacc_bull else f"{wacc_b*100:.1f}%",
         "DCF_BULL_TGR": f"{tgr_bull*100:.2f}%",
         "DCF_BULL_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
@@ -2082,21 +2127,28 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     _wacc_pct      = f"{wacc_b*100:.1f}%"     if wacc_b      else "N/A"
     _wacc_bear_pct = f"{wacc_bear*100:.1f}%"  if wacc_bear   else _wacc_pct
     _wacc_bull_pct = f"{wacc_bull*100:.1f}%"  if wacc_bull   else _wacc_pct
-    _vv_lines.append(
-        f"• Base: ${base_px:.0f} ({_vs(base_px, current_price)}) — "
-        f"WACC {_wacc_pct}, TGR {tgr_base*100:.2f}%"
-        if base_px else "• Base: N/A"
-    )
-    _vv_lines.append(
-        f"• Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) — "
-        f"WACC {_wacc_bear_pct}, TGR {tgr_bear*100:.2f}%"
-        if bear_px else "• Bear: N/A"
-    )
-    _vv_lines.append(
-        f"• Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}) — "
-        f"WACC {_wacc_bull_pct}, TGR {tgr_bull*100:.2f}%"
-        if bull_px else "• Bull: N/A"
-    )
+    if _neg_earnings_regime:
+        # Single explanation line — do not show fabricated base/bear/bull values.
+        _vv_lines.append(
+            f"• N/A — Gordon Growth disabled. Trailing FCF/EBIT negative; "
+            f"perpetuity formula undefined for non-positive UFCF."
+        )
+    else:
+        _vv_lines.append(
+            f"• Base: ${base_px:.0f} ({_vs(base_px, current_price)}) — "
+            f"WACC {_wacc_pct}, TGR {tgr_base*100:.2f}%"
+            if base_px else "• Base: N/A"
+        )
+        _vv_lines.append(
+            f"• Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) — "
+            f"WACC {_wacc_bear_pct}, TGR {tgr_bear*100:.2f}%"
+            if bear_px else "• Bear: N/A"
+        )
+        _vv_lines.append(
+            f"• Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}) — "
+            f"WACC {_wacc_bull_pct}, TGR {tgr_bull*100:.2f}%"
+            if bull_px else "• Bull: N/A"
+        )
     _vv_lines.append("")
     _vv_lines.append("EV/EBITDA Exit Multiple DCF:")
     _vv_lines.append(

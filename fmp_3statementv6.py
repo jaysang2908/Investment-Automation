@@ -2865,10 +2865,32 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 _ip = (_sum_pv + _term_ebitda * mult / _tv_disc - net_debt - mi) / shares
                 return round(_ip * _fx_to_usd, 2)
 
+            # ── Negative-earnings regime detection ─────────────────────────────
+            # Gordon Growth requires stable positive UFCF growing forever. If trailing
+            # FCF or EBIT is negative, the perpetuity formula produces nonsense
+            # (negative terminal value → negative implied price). Disable GG entirely
+            # in that case and fall back to EV/EBITDA Exit Multiple as primary.
+            _trailing_ebit_raw  = (is_data[-1].get("operatingIncome")  or 0) / 1e6
+            _trailing_ocf_raw   = (cf_data[-1].get("operatingCashFlow") or 0) / 1e6
+            _trailing_capex_raw = (cf_data[-1].get("capitalExpenditure") or 0) / 1e6
+            _trailing_fcf_raw   = _trailing_ocf_raw + _trailing_capex_raw  # capex is negative
+
+            _neg_earnings_regime = (_trailing_fcf_raw < 0) or (_trailing_ebit_raw < 0)
+            _gg_disabled_reason = None
+            if _neg_earnings_regime:
+                _gg_disabled_reason = (
+                    f"Gordon Growth disabled — trailing FCF "
+                    f"${_trailing_fcf_raw/1e3:+,.1f}B, trailing EBIT "
+                    f"${_trailing_ebit_raw/1e3:+,.1f}B. "
+                    f"GG perpetuity formula requires stable positive UFCF; "
+                    f"EV/EBITDA Exit Multiple used as sole primary method."
+                )
+
             dcf_prices = {
-                "gg_price":      round(_ip_gg_usd, 2),
-                "gg_bear_price": _gg_px_at(_DCF_TGR_BEAR, wacc_s=_wacc_bear),
-                "gg_bull_price": _gg_px_at(_DCF_TGR_BULL, wacc_s=_wacc_bull),
+                "gg_price":      None if _neg_earnings_regime else round(_ip_gg_usd, 2),
+                "gg_bear_price": None if _neg_earnings_regime else _gg_px_at(_DCF_TGR_BEAR, wacc_s=_wacc_bear),
+                "gg_bull_price": None if _neg_earnings_regime else _gg_px_at(_DCF_TGR_BULL, wacc_s=_wacc_bull),
+                "gg_disabled_reason": _gg_disabled_reason,
                 "wacc_bear":     _wacc_bear,
                 "wacc_bull":     _wacc_bull,
                 "em_price":      round(_ip_em_usd, 2),
@@ -2882,7 +2904,10 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 "tgr_bull":      _DCF_TGR_BULL,
                 "growth_tier":   _TIER,
                 "rev_3yr_avg":   round(_rev_3yr_avg_dcf, 4),
-                "gg_upside":  round(_ip_gg_usd / price - 1, 4) if price else None,
+                "trailing_fcf_b":  round(_trailing_fcf_raw / 1e3, 2),
+                "trailing_ebit_b": round(_trailing_ebit_raw / 1e3, 2),
+                "neg_earnings_regime": _neg_earnings_regime,
+                "gg_upside":  None if _neg_earnings_regime else (round(_ip_gg_usd / price - 1, 4) if price else None),
                 "em_upside":  round(_ip_em_usd / price - 1, 4) if price else None,
             }
     except Exception:
@@ -3379,6 +3404,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     def _t_val(current, hist_avg, sect_med, label, roic_v, cagr_v):
         if not current:
             return None, f"N/A — {label} not available from yfinance"
+        # Negative multiples mean the denominator (earnings or FCF) is negative.
+        # The ratio is mathematically defined but economically meaningless — a
+        # company losing money does not get cheaper as losses widen. Score LOW
+        # so the scorecard does not falsely flag distressed names as bargains.
+        if current <= 0:
+            return "LOW", (f"Current {current:.1f}x — {label} negative "
+                           f"(earnings/FCF below zero, multiple meaningless)")
         premium_ok = (roic_v is not None and roic_v > 0.25 and
                       cagr_v is not None and cagr_v > 0.15)
         benchmark  = hist_avg or sect_med
@@ -3388,6 +3420,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         note_v = "  |  ".join(parts_v)
         if not benchmark:
             return None, note_v + "  [no benchmark — review manually]"
+        if benchmark <= 0:
+            # 5yr avg distorted by loss years; cannot derive meaningful spread.
+            return None, note_v + "  [historical avg distorted by loss years — review manually]"
         delta = (current - benchmark) / benchmark
         note_v += f"  [{delta:+.0%} vs benchmark"
         if delta > 0.25:

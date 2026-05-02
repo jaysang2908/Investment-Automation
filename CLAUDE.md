@@ -122,6 +122,32 @@ If the Excel formula logic changes, the Python mirror must be updated in the sam
 - If `wacc ≤ tgr`, the Gordon Growth formula is undefined — return `None`, display "N/A".
 - Scenario prices that would imply negative equity value should return `None`.
 
+## Rule 6: Negative-Earnings Regime — Disable Gordon Growth
+
+Gordon Growth requires stable positive UFCF growing forever. When trailing FCF or trailing EBIT is **negative**, the perpetuity formula produces nonsense (negative terminal value → negative implied price per share). This is the canonical "DCF fails on this name" case (turnarounds, deeply cyclical bottoms, pre-profit growers).
+
+Detection lives in `build_dcf()`:
+```
+_neg_earnings_regime = (trailing_FCF < 0) OR (trailing_EBIT < 0)
+```
+
+When triggered:
+- `dcf_prices["gg_price"]`, `gg_bear_price`, `gg_bull_price`, and `gg_upside` are all set to `None`.
+- `dcf_prices["neg_earnings_regime"] = True` and `dcf_prices["gg_disabled_reason"]` carries an explanation string.
+- `report_bridge.py` overrides the tier-based primary method and forces **EV/EBITDA Exit Multiple as sole primary**, regardless of growth tier.
+- The HTML scenario table shows `"N/A — GG disabled (negative FCF/EBIT)"` in the GG row — must NOT fall back to EM price.
+- The price target rationale displays the trailing FCF and EBIT figures so the user understands why GG was bypassed.
+
+## Rule 7: Narrative-Gap Banner
+
+When `|price_target / current_price − 1| > 40%`, render a banner immediately below the hero card flagging the divergence. Common causes: CHIPS Act subsidies, national-security premium, M&A optionality, turnaround narratives, or genuine mispricing. The model should produce an honest fundamentals-only number and surface the gap — never fudge inputs to match the market price.
+
+Template variable: `{{NARRATIVE_GAP_BANNER}}` — produces empty string when gap < 40%.
+
+## Rule 8: Negative-Multiples Scoring
+
+In `_t_val()` (Part 4 valuation scoring), if current P/E or P/FCF is ≤ 0, return tier `"LOW"` with a note: "Multiple meaningless when earnings/FCF are negative." A loss-making company does not get cheaper as losses widen; the math may compute a "−300% vs benchmark" reading but that signals distress, not value. Likewise if the historical 5yr average is ≤ 0 (loss-period distortion), return tier `None` with an N/A note rather than scoring against a meaningless baseline.
+
 ---
 
 ## Architecture Reference
