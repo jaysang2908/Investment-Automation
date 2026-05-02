@@ -53,9 +53,11 @@ Tier is computed in `build_dcf()` and stored in `dcf_prices["growth_tier"]`. The
 
 ### Gordon Growth (GG) Bear / Base / Bull
 - **Base case** = exact `gg_price` from the Python DCF engine (mirrors the Excel tab).
-- **Bear / Bull TGR** = tier-specific values above. WACC is **never varied** — only TGR changes.
+- **Bear** = TGR tier-bear AND WACC +0.5pp. **Bull** = TGR tier-bull AND WACC −0.5pp.
+- WACC shift is ±0.5 percentage points (`_WACC_SHIFT = 0.005`) — stored as `dcf_prices["wacc_bear"]` / `dcf_prices["wacc_bull"]`.
 - Pre-computed in `fmp_3statementv6.py` `build_dcf()` as `dcf_prices["gg_bear_price"]` / `dcf_prices["gg_bull_price"]`.
 - `report_bridge.py` reads these keys directly. No approximation formulas.
+- The HTML scenario table (`DCF_BEAR_WACC` / `DCF_BULL_WACC`) must display the scenario-specific WACC, not the base WACC.
 
 ### Exit Multiple (EM) Bear / Base / Bull
 - **Base case** = exact `em_price` from the Python DCF engine.

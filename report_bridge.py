@@ -652,10 +652,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     }
     _tier_label = _tier_labels.get(_tier, "")
 
-    # GG bear/base/bull: vary TGR only (WACC constant = Excel output).
-    # Pre-computed by the DCF engine; fall back to spread-ratio approximation for legacy reports.
+    # GG bear/base/bull: vary both TGR and WACC (±0.5pp). Pre-computed by engine.
     gg_bear_px = dcf_prices.get("gg_bear_price")
     gg_bull_px = dcf_prices.get("gg_bull_price")
+    wacc_bear  = dcf_prices.get("wacc_bear") or (round(wacc_b + 0.005, 4) if wacc_b else None)
+    wacc_bull  = dcf_prices.get("wacc_bull") or (round(wacc_b - 0.005, 4) if wacc_b else None)
 
     def _spread_approx(base, tgr_new):
         spread_base = wacc_b - tgr_base
@@ -1521,11 +1522,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"P/E {_x(trailing_pe)}, P/FCF {_x(trailing_pfc)}."
         ),
 
-        # GG DCF scenarios — WACC fixed (Excel output); only TGR varies: 2% / 3% / 4%.
-        # Base price = exact Excel model Gordon Growth output. Bear/bull from engine.
-        # GG DCF scenarios — WACC fixed (Excel output); TGR varies by growth tier.
-        # Base price = exact Excel model Gordon Growth output. Bear/bull from engine.
-        "DCF_BEAR_WACC": f"{wacc_b*100:.1f}%", "DCF_BEAR_TGR": f"{tgr_bear*100:.2f}%",
+        # GG DCF scenarios — bear/bull vary WACC ±0.5pp AND TGR by tier.
+        # All three prices come directly from the DCF engine.
+        "DCF_BEAR_WACC": f"{wacc_bear*100:.1f}%" if wacc_bear else f"{wacc_b*100:.1f}%",
+        "DCF_BEAR_TGR": f"{tgr_bear*100:.2f}%",
         "DCF_BEAR_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
         "DCF_BEAR_PX":   f"${gg_bear_px:.0f}" if gg_bear_px else "N/A",
         "DCF_BEAR_VS":   _vs(gg_bear_px, current_price),
@@ -1533,7 +1533,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "DCF_BASE_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
         "DCF_BASE_PX":   f"${gg_px:.0f}" if gg_px else ("N/A" if not base_px else f"${base_px:.0f}"),
         "DCF_BASE_VS":   _vs(gg_px or base_px, current_price),
-        "DCF_BULL_WACC": f"{wacc_b*100:.1f}%", "DCF_BULL_TGR": f"{tgr_bull*100:.2f}%",
+        "DCF_BULL_WACC": f"{wacc_bull*100:.1f}%" if wacc_bull else f"{wacc_b*100:.1f}%",
+        "DCF_BULL_TGR": f"{tgr_bull*100:.2f}%",
         "DCF_BULL_CAGR": _pct(rev_cagr_v) if rev_cagr_v else "N/A",
         "DCF_BULL_PX":   f"${gg_bull_px:.0f}" if gg_bull_px else "N/A",
         "DCF_BULL_VS":   _vs(gg_bull_px, current_price),
@@ -2070,10 +2071,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"(vs 5yr avg {_x(pfcf_5yr)} — {pfcf_delta})"
         )
     if ev_ebitda:
-        _vv_lines.append(f"• EV/EBITDA {_x(ev_ebitda)} (LTM, trailing)")
+        _ev_ebd_delta = (
+            f" — {(ev_ebitda/ev_ebitda_5yr_avg - 1)*100:+.0f}%"
+            if ev_ebitda_5yr_avg and ev_ebitda_5yr_avg > 0 else ""
+        )
+        _ev_ebd_avg_str = f" (vs 5yr avg {_x(ev_ebitda_5yr_avg)}{_ev_ebd_delta})" if ev_ebitda_5yr_avg else ""
+        _vv_lines.append(f"• EV/EBITDA {_x(ev_ebitda)} (LTM, trailing){_ev_ebd_avg_str}")
     _vv_lines.append("")
     _vv_lines.append("Gordon Growth DCF:")
-    _wacc_pct = f"{wacc_b*100:.1f}%" if wacc_b else "N/A"
+    _wacc_pct      = f"{wacc_b*100:.1f}%"     if wacc_b      else "N/A"
+    _wacc_bear_pct = f"{wacc_bear*100:.1f}%"  if wacc_bear   else _wacc_pct
+    _wacc_bull_pct = f"{wacc_bull*100:.1f}%"  if wacc_bull   else _wacc_pct
     _vv_lines.append(
         f"• Base: ${base_px:.0f} ({_vs(base_px, current_price)}) — "
         f"WACC {_wacc_pct}, TGR {tgr_base*100:.2f}%"
@@ -2081,12 +2089,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     )
     _vv_lines.append(
         f"• Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) — "
-        f"WACC {_wacc_pct}, TGR {tgr_bear*100:.2f}%"
+        f"WACC {_wacc_bear_pct}, TGR {tgr_bear*100:.2f}%"
         if bear_px else "• Bear: N/A"
     )
     _vv_lines.append(
         f"• Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}) — "
-        f"WACC {_wacc_pct}, TGR {tgr_bull*100:.2f}%"
+        f"WACC {_wacc_bull_pct}, TGR {tgr_bull*100:.2f}%"
         if bull_px else "• Bull: N/A"
     )
     _vv_lines.append("")

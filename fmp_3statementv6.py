@@ -2842,13 +2842,19 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _ip_gg_usd = _ip_gg * _fx_to_usd
             _ip_em_usd = _ip_em * _fx_to_usd
 
-            # GG sensitivity: vary TGR only (WACC constant) — tier-calibrated bear/base/bull
-            def _gg_px_at(tgr_s):
-                if (_wacc - tgr_s) <= 0.001:
+            # GG sensitivity: vary both TGR and WACC (±0.5pp) — bear/bull are
+            # more conservative/optimistic on both levers simultaneously.
+            _WACC_SHIFT = 0.005   # 0.5 percentage points
+            _wacc_bear  = round(_wacc + _WACC_SHIFT, 4)  # higher WACC → lower price
+            _wacc_bull  = round(_wacc - _WACC_SHIFT, 4)  # lower WACC  → higher price
+
+            def _gg_px_at(tgr_s, wacc_s=None):
+                w = wacc_s if wacc_s is not None else _wacc
+                if (w - tgr_s) <= 0.001:
                     return None
                 _trv = _proj_revs[-1] * (1 + tgr_s)
                 _teb = _trv * _trailing_margin
-                _ip  = (_sum_pv + _py_ufcf(_trv, _teb) / (_wacc - tgr_s) / _tv_disc
+                _ip  = (_sum_pv + _py_ufcf(_trv, _teb) / (w - tgr_s) / _tv_disc
                         - net_debt - mi) / shares
                 return round(_ip * _fx_to_usd, 2)
 
@@ -2861,8 +2867,10 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 
             dcf_prices = {
                 "gg_price":      round(_ip_gg_usd, 2),
-                "gg_bear_price": _gg_px_at(_DCF_TGR_BEAR),
-                "gg_bull_price": _gg_px_at(_DCF_TGR_BULL),
+                "gg_bear_price": _gg_px_at(_DCF_TGR_BEAR, wacc_s=_wacc_bear),
+                "gg_bull_price": _gg_px_at(_DCF_TGR_BULL, wacc_s=_wacc_bull),
+                "wacc_bear":     _wacc_bear,
+                "wacc_bull":     _wacc_bull,
                 "em_price":      round(_ip_em_usd, 2),
                 "em_bear_price": _em_px_at(_tev_bear),
                 "em_bull_price": _em_px_at(_tev_bull),
