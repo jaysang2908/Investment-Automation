@@ -488,6 +488,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     market_cap    = market_cap    or float(profile.get("mktCap") or 0) or 0.0
 
     shares = float(profile.get("sharesOutstanding") or 0)
+    # Fallback: derive from market cap / price when sharesOutstanding is missing
+    if not shares and current_price and market_cap:
+        shares = market_cap / current_price
     shares_str = (f"{shares/1e9:.2f}B shares" if shares > 1e9 else
                   f"{shares/1e6:.1f}M shares" if shares > 1e6 else str(int(shares)))
 
@@ -500,6 +503,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     debt0  = std0 + ltd0
     eq0    = bs0.get("totalStockholdersEquity") or 0
     net_cash_val = cash0 - debt0
+    # EV fallback: synthesise market cap from price × shares when profile mktCap is missing
+    if not market_cap and current_price and shares:
+        market_cap = current_price * shares
     ev = (market_cap + debt0 - cash0) if market_cap else None
 
     if net_cash_val >= 0:
@@ -712,23 +718,26 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         if fcf0 > 0:
             _impl_g = wacc_b - fcf0 / _mkt_cap_v
             _impl_g = max(-0.15, min(_impl_g, wacc_b - 0.005))
-            _gap    = _impl_g - (rev_cagr_v or 0)
+            # Compare implied growth to historical FCF CAGR (more like-for-like than revenue CAGR)
+            _ref_g  = fcf_cagr_v if fcf_cagr_v is not None else rev_cagr_v
+            _gap    = _impl_g - (_ref_g or 0)
             _fy_str = f"{fcf0/_mkt_cap_v*100:.2f}%"
             _ig_str = f"{_impl_g*100:.1f}%"
             _wk_str = f"{wacc_b*100:.1f}%"
-            _cr_ref = f" vs. {_pct(rev_cagr_v)} trailing revenue CAGR" if rev_cagr_v else ""
+            _cr_ref = (f" vs. {_pct(fcf_cagr_v)} historical FCF CAGR" if fcf_cagr_v is not None
+                       else (f" vs. {_pct(rev_cagr_v)} trailing revenue CAGR" if rev_cagr_v else ""))
             if _gap > 0.03:
                 _vlbl, _vcol = "Ambitious Pricing", "var(--amber)"
-                _vtxt = (f"Market embeds {_ig_str} implied FCF growth{_cr_ref}. "
-                         f"Premium justified only if growth accelerates or margins expand materially.")
+                _vtxt = (f"Market embeds {_ig_str} implied perpetuity FCF growth{_cr_ref}. "
+                         f"Valuation premium justified only if FCF growth accelerates or margins expand materially from current levels.")
             elif _gap > -0.02:
                 _vlbl, _vcol = "Fairly Priced", "var(--accent)"
-                _vtxt = (f"Implied {_ig_str} FCF growth broadly in line{_cr_ref}. "
-                         f"Market pricing continuity — upside requires a re-rating catalyst.")
+                _vtxt = (f"Implied {_ig_str} perpetuity FCF growth broadly consistent{_cr_ref}. "
+                         f"Market pricing continuation of current trajectory — meaningful upside requires a re-rating catalyst or earnings surprise.")
             else:
                 _vlbl, _vcol = "Conservative Pricing", "var(--up)"
-                _vtxt = (f"Market prices in only {_ig_str} FCF growth{_cr_ref} — "
-                         f"deceleration embedded. Upside if historical growth rate sustains.")
+                _vtxt = (f"Market embeds only {_ig_str} perpetuity FCF growth{_cr_ref} — "
+                         f"deceleration already priced in. Valuation offers upside if the historical FCF growth rate is sustained.")
             rdcf_text = (
                 '<div class="rdcf-stats">'
                 f'<div class="rdcf-stat"><div class="rdcf-num">{_ig_str}</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Perpetuity rate at current price</div></div>'
@@ -1065,8 +1074,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
         # Overview
         "COMPANY_SUMMARY_TEXT": (
-            (description[:700] + "...") if len(description) > 700 else description
-        ) or f"{company_name} operates in the {industry} sector. {ceo_info}",
+            description or f"{company_name} operates in the {industry} sector. {ceo_info}"
+        ),
 
         # Market data
         "MARKET_CAP":       _b(market_cap),
@@ -1788,9 +1797,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         except Exception:
             return None
 
-    _em_base_mult = 20.0
-    _em_bear_mult = 16.0   # −20%
-    _em_bull_mult = 24.0   # +20%
+    # Base multiple: use trailing EV/EBITDA when available and sensible (5–80x),
+    # rounded to nearest whole number. Falls back to 20x sector-agnostic default.
+    _em_base_mult = (round(ev_ebitda) if (ev_ebitda and 5 <= ev_ebitda <= 80)
+                     else 20.0)
+    _em_bear_mult = round(_em_base_mult * 0.80)   # −20%
+    _em_bull_mult = round(_em_base_mult * 1.20)   # +20%
 
     _em_helper_base = _em_dcf_local(_em_base_mult)
 
@@ -1805,7 +1817,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _em_bear_px = _em_dcf_local(_em_bear_mult)
         _em_bull_px = _em_dcf_local(_em_bull_mult)
 
-    D["MULT_EM_BASE_X"]  = f"{_em_base_mult:.0f}x EV/EBITDA"
+    D["MULT_EM_BASE_X"]  = f"{_em_base_mult:.0f}x EV/EBITDA (trailing)"
     D["MULT_EM_BEAR_X"]  = f"{_em_bear_mult:.0f}x EV/EBITDA (−20%)"
     D["MULT_EM_BULL_X"]  = f"{_em_bull_mult:.0f}x EV/EBITDA (+20%)"
     D["MULT_EM_BASE_PX"] = f"${_em_base_px:.0f}" if _em_base_px else "N/A"
