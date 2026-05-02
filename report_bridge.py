@@ -1231,6 +1231,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "VERDICT_TEXT":     _verdict_text,
         "CURRENT_PRICE":    current_price,
         "PRICE_TARGET":     price_target,
+        "PRICE_TARGET_VS_CURRENT": (
+            f"{(price_target / current_price - 1) * 100:+.1f}% vs current"
+            if price_target and current_price and current_price > 0 else ""
+        ),
         "PRICE_TARGET_METHOD": _primary_method,
         "PRICE_TARGET_RATIONALE": _pt_rationale,
         "REPORT_DATE":      today,
@@ -2069,41 +2073,43 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _vv_lines.append(f"• EV/EBITDA {_x(ev_ebitda)} (LTM, trailing)")
     _vv_lines.append("")
     _vv_lines.append("Gordon Growth DCF:")
+    _wacc_pct = f"{wacc_b*100:.1f}%" if wacc_b else "N/A"
     _vv_lines.append(
         f"• Base: ${base_px:.0f} ({_vs(base_px, current_price)}) — "
-        f"WACC {wacc_b*100:.1f}%, TGR 3.0%"
+        f"WACC {_wacc_pct}, TGR {tgr_base*100:.2f}%"
         if base_px else "• Base: N/A"
     )
     _vv_lines.append(
         f"• Bear: ${bear_px:.0f} ({_vs(bear_px, current_price)}) — "
-        f"WACC +1%, TGR 2.0%"
+        f"WACC {_wacc_pct}, TGR {tgr_bear*100:.2f}%"
         if bear_px else "• Bear: N/A"
     )
     _vv_lines.append(
         f"• Bull: ${bull_px:.0f} ({_vs(bull_px, current_price)}) — "
-        f"WACC −1%, TGR 3.5%"
+        f"WACC {_wacc_pct}, TGR {tgr_bull*100:.2f}%"
         if bull_px else "• Bull: N/A"
     )
     _vv_lines.append("")
     _vv_lines.append("EV/EBITDA Exit Multiple DCF:")
     _vv_lines.append(
-        f"• Base: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) — 20x terminal multiple"
+        f"• Base: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) — {_em_base_mult_x:.0f}x terminal multiple"
         if _em_base_px else "• Base: N/A"
     )
     _vv_lines.append(
-        f"• Bear: ${_em_bear_px:.0f} ({_vs(_em_bear_px, current_price)}) — 16x (−20%)"
+        f"• Bear: ${_em_bear_px:.0f} ({_vs(_em_bear_px, current_price)}) — {_em_bear_mult_x:.0f}x (−{abs(1 - _em_bear_mult_x/_em_base_mult_x)*100:.0f}%)"
         if _em_bear_px else "• Bear: N/A"
     )
     _vv_lines.append(
-        f"• Bull: ${_em_bull_px:.0f} ({_vs(_em_bull_px, current_price)}) — 24x (+20%)"
+        f"• Bull: ${_em_bull_px:.0f} ({_vs(_em_bull_px, current_price)}) — {_em_bull_mult_x:.0f}x (+{abs(_em_bull_mult_x/_em_base_mult_x - 1)*100:.0f}%)"
         if _em_bull_px else "• Bull: N/A"
     )
     D["VALUATION_VERDICT_TEXT"] = "<br>".join(_vv_lines)
 
     # Method rationale
     D["MULTIPLES_METHOD_RATIONALE"] = (
-        f"Bear/Base/Bull stress 5yr avg EV/EBITDA terminal multiple ±20% "
-        f"(16x / 20x / 24x). Same projection assumptions as Excel DCF model. "
+        f"Bear/Base/Bull stress EV/EBITDA terminal multiple "
+        f"({_em_bear_mult_x:.0f}x / {_em_base_mult_x:.0f}x / {_em_bull_mult_x:.0f}x). "
+        f"Same projection assumptions as Excel DCF model. "
         f"Trailing: P/E {_x(trailing_pe)} ({pe_delta} vs 5yr avg {_x(pe_5yr)}), "
         f"P/FCF {_x(trailing_pfc)} ({pfcf_delta} vs 5yr avg {_x(pfcf_5yr)})."
     )
