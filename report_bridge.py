@@ -358,11 +358,12 @@ def _credit_note(sp, moody, tier, d_ebd, ebit_int, net_str):
 
 # ── Verdict ───────────────────────────────────────────────────────────────────
 
-def _verdict(score):
+def _verdict(score, offset=0.0):
+    """Verdict label. Pass offset=-12.5 when qualitative inputs were not entered (max=87.5)."""
     if score is None: return "Analysis Pending"
-    if score >= 75:   return "High Conviction Buy"
-    if score >= 65:   return "Good Business at Fair Price"
-    if score >= 50:   return "Hold — Monitor"
+    if score >= 75 + offset:   return "High Conviction Buy"
+    if score >= 65 + offset:   return "Good Business at Fair Price"
+    if score >= 50 + offset:   return "Hold — Monitor"
     return "Avoid"
 
 # ── CSS class helpers (mirrors pipeline.py) ───────────────────────────────────
@@ -382,8 +383,9 @@ def _sensitivity_class(current_px, calc_px):
 def _compute_css(d, current_price):
     c = {}
     score = float(str(d.get("FINAL_SCORE", 0)).replace(",", "") or 0)
-    c["VERDICT_CLASS"]     = "verdict-green" if score >= 70 else ("verdict-amber" if score >= 50 else "verdict-red")
-    c["SCORE_FINAL_CLASS"] = "score-final-green" if score >= 70 else ("score-final-amber" if score >= 50 else "score-final-red")
+    _css_offset = -12.5 if str(d.get("SCORE_MAX", "100")) == "87.5" else 0.0
+    c["VERDICT_CLASS"]     = "verdict-green" if score >= 70 + _css_offset else ("verdict-amber" if score >= 50 + _css_offset else "verdict-red")
+    c["SCORE_FINAL_CLASS"] = "score-final-green" if score >= 70 + _css_offset else ("score-final-amber" if score >= 50 + _css_offset else "score-final-red")
 
     def dcol(s):
         return "#00695c" if ("−" in str(s) or str(s).startswith("-")) else "#b45309"
@@ -1028,18 +1030,37 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         f"CapEx {_pct(_capex_intensity)} of revenue; FCF/NI {_pct(fcf_ni_v)}. No material execution flags from financial data."
     )
 
+    # ── Score max and verdict offset (qualitative inputs) ─────────────────────
+    _qual_entered  = bool(t_bc or t_ltp)
+    _score_max     = 100 if _qual_entered else 87.5
+    _score_offset  = 0.0 if _qual_entered else -12.5
+    _score_note    = ("" if _qual_entered else
+                      "Qualitative inputs (Business Clarity, Long-Term Potential) not provided. "
+                      "Score shown out of 87.5 — verdict bands adjusted accordingly. "
+                      "Completing these inputs unlocks the full 100-pt scorecard.")
+    _score_note_html = (
+        "" if _qual_entered else
+        '<div style="font-family:var(--font-mono);font-size:10px;color:var(--warn);'
+        'letter-spacing:0.5px;margin:8px 0 0;padding:8px 14px;background:var(--warn-bg);'
+        'border-left:2px solid var(--warn);border-radius:0 4px 4px 0">'
+        + _score_note + "</div>"
+    )
+
     # ── Assemble DATA dict ─────────────────────────────────────────────────────
     D = {
         # Header
         "COMPANY_NAME":     company_name,
         "TICKER_LINE":      ticker_line,
         "DESCRIPTION_LINE": industry,
-        "VERDICT_TEXT":     _verdict(final_score),
+        "VERDICT_TEXT":     _verdict(final_score, offset=_score_offset),
         "CURRENT_PRICE":    current_price,
         "PRICE_TARGET":     price_target,
         "REPORT_DATE":      today,
         "FINAL_SCORE":      round(final_score, 1) if final_score else 0,
         "FINAL_SCORE_CALC": str(round(final_score, 1)) if final_score else "0",
+        "SCORE_MAX":        _score_max,
+        "SCORE_NOTE":       _score_note,
+        "SCORE_NOTE_HTML":  _score_note_html,
         "N_ACTUALS":        str(len(is_data)),
 
         # Overview

@@ -581,7 +581,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div>
         <div class="verdict-score-row">
           <span class="verdict-score-num">{{FINAL_SCORE}}</span>
-          <span class="verdict-score-den">/100</span>
+          <span class="verdict-score-den">/{{SCORE_MAX}}</span>
         </div>
         <div class="verdict-score-sub">JS Proprietary Score · {{REPORT_DATE}}</div>
       </div>
@@ -605,7 +605,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <div class="hero-meta-card">
       <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;{{MARKET_CAP}} &nbsp;·&nbsp; <strong>EV</strong> &nbsp;{{ENTERPRISE_VALUE}}</div>
       <div class="hero-meta-line"><strong>{{NET_CASH_DEBT}}</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;{{ROIC_VALUE}}</div>
-      <div class="hero-meta-line">Score: <strong>{{FINAL_SCORE}}/100</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
+      <div class="hero-meta-line">Score: <strong>{{FINAL_SCORE}}/{{SCORE_MAX}}</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
     </div>
   </div>
 </div>
@@ -1029,8 +1029,9 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div class="scorecard-header">
     <span>Weighted total across 13 criteria</span>
-    <span class="score-final {{SCORE_FINAL_CLASS}}">{{FINAL_SCORE}} / 100 — {{VERDICT_TEXT}}</span>
+    <span class="score-final {{SCORE_FINAL_CLASS}}">{{FINAL_SCORE}} / {{SCORE_MAX}} — {{VERDICT_TEXT}}</span>
   </div>
+  {{SCORE_NOTE_HTML}}
   <table class="scorecard-table">
     <thead>
       <tr>
