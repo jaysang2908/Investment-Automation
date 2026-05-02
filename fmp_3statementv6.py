@@ -2245,15 +2245,20 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     _nwc_pct_row = row
     def nwc_pct_fn(i, yr, c):
         if i == 0:
-            # Average cols 2..n_hist (skip col 1 which has no delta)
+            # Year 1: clamped historical average [-2%, +5%] — prevents outlier years (e.g. inventory
+            # destocks) from permanently inflating or depressing UFCF.
             _avg_start = cl(HIST_COLS[1]) if n_hist > 1 else cl(HIST_COLS[0])
-            return (f"=AVERAGE({_avg_start}{_nwc_pct_row}:{cl(HIST_COLS[-1])}{_nwc_pct_row})",
+            return (f"=MAX(-0.02,MIN(0.05,AVERAGE({_avg_start}{_nwc_pct_row}:{cl(HIST_COLS[-1])}{_nwc_pct_row})))",
                     C_BLUE, C_ALT)
-        return f"={cl(PROJ_COLS[0])}{_nwc_pct_row}", C_BLUE, C_ALT
+        # Years 2–n_proj: linear fade to 0 by terminal year.
+        # Factor = (n_proj − i) / n_proj  →  Year 2 = Y1*(n−1)/n … Year n = Y1*1/n
+        _factor_num = n_proj - i
+        return (f"={cl(PROJ_COLS[0])}{_nwc_pct_row}*{_factor_num}/{n_proj}",
+                C_BLUE, C_ALT)
 
     row = assm_row(row, "Change in NWC as % of Revenue",
-        hist_nwc_pct_f, nwc_pct_fn, f"={cl(PROJ_COLS[0])}{_nwc_pct_row}",
-        note_text="Historical: ΔNWC/Revenue from Balance Sheet (positive = NWC consumes cash as business grows).  Yr 1 = avg; Yrs 2-5 & terminal = Yr 1.")
+        hist_nwc_pct_f, nwc_pct_fn, 0,
+        note_text="Yr 1 = clamped avg of historicals [-2%, +5%]. Yrs 2-5 fade linearly to 0. Terminal = 0 (steady-state: NWC tracks revenue).")
     nwc_pct_row = row - 1
 
     # Tax rate — historical from P&L; Year 1 = avg; Years 2+ = Year 1
@@ -2767,9 +2772,8 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         avg_capex_pct = _avg(hist_capex_pct)
         avg_tax       = _avg(hist_tax) if hist_tax else last_tax
 
-        # NWC%: historical average ΔNWC/Revenue from balance sheet (matches Excel NWC row).
-        # Stored as +ΔNWC/Revenue — positive when NWC consumes cash as business grows.
-        # _py_ufcf subtracts this: nopat + da - capex - rev*avg_nwc_pct
+        # NWC%: historical average ΔNWC/Revenue, clamped to [-2%, +5%], then faded to 0
+        # by terminal year — mirrors the Excel cap-and-fade assumption row.
         _nwc_hist = []
         for _ni in range(1, n_hist):
             _pa = (bs_data[_ni-1].get("totalCurrentAssets")     or 0) / 1e6
@@ -2778,8 +2782,9 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _cl = (bs_data[_ni].get("totalCurrentLiabilities")   or 0) / 1e6
             _dnwc = (_ca - _cl) - (_pa - _pl)
             if hist_rev[_ni] > 0:
-                _nwc_hist.append(_dnwc / hist_rev[_ni])  # +ΔNWC/Rev (matches Excel)
-        avg_nwc_pct = _avg(_nwc_hist) if _nwc_hist else 0.01
+                _nwc_hist.append(_dnwc / hist_rev[_ni])
+        _raw_nwc_pct   = _avg(_nwc_hist) if _nwc_hist else 0.01
+        _clamped_nwc   = max(-0.02, min(0.05, _raw_nwc_pct))  # cap: [-2%, +5%]
 
         if _wacc and (_wacc - _g) > 0.001 and shares > 0:
             # Project revenues and EBITDA (years 1-3 from analyst estimates, 4-5 from yr 3)
@@ -2812,16 +2817,23 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _term_rev    = _proj_revs[-1] * (1 + _g)
             _term_ebitda = _term_rev * _trailing_margin
 
-            def _py_ufcf(rev, ebitda):
+            def _py_ufcf(rev, ebitda, nwc_pct_=0.0):
                 da    = rev * avg_da_pct
                 nopat = (ebitda - da) * (1 - avg_tax)
-                return nopat + da - rev * avg_capex_pct - rev * avg_nwc_pct
+                return nopat + da - rev * avg_capex_pct - rev * nwc_pct_
 
-            _sum_pv  = sum(_py_ufcf(_proj_revs[i], _proj_ebitda[i]) / (1 + _wacc) ** (i + 0.5)
-                           for i in range(len(proj_years)))
+            # Each projection year gets a faded NWC% (Year 1 = clamped, linear → 0 by terminal).
+            _n_py = len(proj_years)
+            _sum_pv  = sum(
+                _py_ufcf(_proj_revs[i], _proj_ebitda[i],
+                         nwc_pct_=_clamped_nwc * (_n_py - i) / _n_py)
+                / (1 + _wacc) ** (i + 0.5)
+                for i in range(_n_py)
+            )
             _tv_disc = (1 + _wacc) ** len(proj_years)
 
-            _tv_gg   = _py_ufcf(_term_rev, _term_ebitda) / (_wacc - _g)
+            # Terminal UFCF uses nwc_pct_=0 (steady state: NWC growth tracks revenue exactly)
+            _tv_gg   = _py_ufcf(_term_rev, _term_ebitda, nwc_pct_=0.0) / (_wacc - _g)
             _ip_gg   = (_sum_pv + _tv_gg / _tv_disc - net_debt - mi) / shares
 
             _tv_em   = _term_ebitda * _tev
