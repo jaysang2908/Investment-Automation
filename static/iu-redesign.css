@@ -141,6 +141,7 @@
   .field input:focus, .field select:focus { border-color: var(--gold); background: rgba(230,193,104,0.06); box-shadow: 0 0 0 3px var(--gold-dim); }
   #ticker { text-transform: uppercase; letter-spacing: 4px; font-size: 22px; font-weight: 600; }
   .field select { font-family: var(--font-body); font-size: 13px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8499' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  .field select option { background-color: #121b2c; color: #e6ebf3; }
 
   .gen-btn { width: 100%; padding: 16px; background: var(--gold); border: none; border-radius: var(--r-md); font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #1a1408; cursor: pointer; transition: all var(--dur-base); display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 8px 24px rgba(230,193,104,0.18); }
   .gen-btn:hover { background: var(--gold-bright); transform: translateY(-1px); box-shadow: 0 12px 32px rgba(230,193,104,0.28); }
