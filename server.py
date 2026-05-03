@@ -511,6 +511,7 @@ def _build_dcf_response(stored):
                 "capex_pct":     h.get("capex_pct") or 0,
                 "tax_rate":      h.get("tax_rate") or 0.21,
                 "nwc_pct":       None,
+                "ocf_m":         None,
                 "fcf_m":         round(h["ufcf_mm"], 1) if h.get("ufcf_mm") else 0,
             })
         # Fill in rev_growth for first year if missing
@@ -594,6 +595,7 @@ def _build_dcf_response(stored):
                 "capex_pct":     round(capex / rev, 4)  if rev else 0,
                 "tax_rate":      round(tax_r, 4),
                 "nwc_pct":       nwc_pct_hist,
+                "ocf_m":         round(ocf / 1e6, 1),
                 "fcf_m":         round(fcf / 1e6, 1),
             })
         for i in range(1, len(history)):
