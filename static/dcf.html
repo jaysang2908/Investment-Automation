@@ -183,9 +183,6 @@
     .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
     .empty-state h3 { font-size: 12pt; color: var(--text-muted); margin-bottom: 8px; }
     .empty-state p { font-size: 9pt; font-family: 'IBM Plex Mono',monospace; }
-    .metric-direct-row { display: none; }
-    .ufcf-build-row { /* shown by default; hidden by JS in OCF/FCF mode */ }
-    .ebitda-ufcf-row { /* shown by default; hidden by JS in OCF/FCF mode */ }
     /* ── METRIC CARD ── */
     .metric-card { background:var(--surface); border:1px solid var(--border2); border-radius:8px; margin-bottom:20px; overflow:hidden; }
     .metric-tab { font-family:'IBM Plex Mono',monospace; font-size:8.5pt; letter-spacing:1.5px; text-transform:uppercase; padding:9px 22px; border-radius:4px; border:1px solid var(--border2); background:rgba(255,255,255,0.04); color:var(--text-muted); cursor:pointer; transition:all 0.18s; }
@@ -256,21 +253,37 @@
   <!-- ── METRIC SELECTOR CARD ── -->
   <div class="metric-card" id="metricCard" style="display:none">
     <div class="panel-header">
-      Cash Flow Metric — EM Anchor
-      <span style="font-weight:400;font-size:7pt;letter-spacing:1px;color:var(--text-dim)">Drives Exit Multiple terminal value &amp; chart</span>
+      Earnings Multiple Anchor Selection
+      <span style="font-weight:400;font-size:7pt;letter-spacing:1px;color:var(--text-dim)">Terminal value anchor · EM valuation · Chart display</span>
     </div>
-    <div style="padding:14px 20px;display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="metric-tab active" data-m="ebitda" onclick="onMetricChange('ebitda')">EBITDA</button>
-        <button class="metric-tab" data-m="ufcf"   onclick="onMetricChange('ufcf')">UFCF</button>
-        <button class="metric-tab" data-m="ocf"    onclick="onMetricChange('ocf')">OCF</button>
-        <button class="metric-tab" data-m="fcf"    onclick="onMetricChange('fcf')">FCF</button>
-      </div>
-      <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:10px">
+    <div style="padding:14px 20px;display:flex;align-items:flex-start;gap:28px;flex-wrap:wrap">
+      <!-- Left: metric tabs + description + guardrails -->
+      <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="metric-tab active" data-m="ebitda" onclick="onMetricChange('ebitda')">EBITDA</button>
+          <button class="metric-tab" data-m="ufcf"   onclick="onMetricChange('ufcf')">UFCF</button>
+          <button class="metric-tab" data-m="ocf"    onclick="onMetricChange('ocf')">OCF</button>
+          <button class="metric-tab" data-m="fcf"    onclick="onMetricChange('fcf')">FCF</button>
+        </div>
         <div id="metricDescText" style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-muted);line-height:1.55">
-          Exit Multiple terminal = Year-5 EBITDA × multiple. GGM always uses UFCF perpetuity.
+          EM terminal = last hist. EBITDA × (1+g)^5 × exit multiple. GGM always uses UFCF perpetuity.
         </div>
         <div id="metricGuardrails" style="display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--border);border-radius:4px;overflow:hidden"></div>
+      </div>
+      <!-- Right: EM growth rate + exit multiple inputs -->
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:220px;border-left:1px solid var(--border);padding-left:24px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">EM Inputs</div>
+        <div class="wacc-row" style="border-bottom:none;padding:3px 0">
+          <span class="wacc-lbl">YoY Growth Rate</span>
+          <span><input class="wacc-input" id="emGrowthRate" type="number" step="0.5" min="-20" max="50" value="8.0" oninput="calculate()"> <span class="input-unit">%</span></span>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);line-height:1.5">
+          Terminal = last hist. × (1+g)^5 × multiple
+        </div>
+        <div class="wacc-row" style="border-bottom:none;padding:3px 0;margin-top:4px">
+          <span class="wacc-lbl" id="exitMultLabel">Exit EBITDA Multiple</span>
+          <span><input class="wacc-input" id="exitMultCard" type="number" step="0.5" min="1" max="100" value="15.0" oninput="calculate()"> <span class="input-unit">×</span></span>
+        </div>
       </div>
     </div>
   </div>
@@ -317,7 +330,7 @@
               <td><input class="proj-input" id="rg3" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="rg4" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
-            <tr class="ebitda-ufcf-row">
+            <tr>
               <td class="label-col" id="lbl_em">EBITDA Margin %</td>
               <td class="hist-val" id="hr1_em">—</td><td class="hist-val" id="hr2_em">—</td><td class="hist-val" id="hr3_em">—</td><td class="hist-val" id="hr4_em">—</td><td class="hist-val" id="hr5_em">—</td>
               <td><input class="proj-input" id="em0" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -327,38 +340,7 @@
               <td><input class="proj-input" id="em4" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
             <tr class="section-hdr" id="cfDriversHdr"><td colspan="11">Cash Flow Drivers</td></tr>
-            <!-- OCF direct rows — shown in OCF mode, sit at top of this section -->
-            <tr class="metric-direct-row" data-metric="ocf">
-              <td class="label-col">OCF ($M)</td>
-              <td class="hist-val" id="hr1_ocf">—</td><td class="hist-val" id="hr2_ocf">—</td><td class="hist-val" id="hr3_ocf">—</td><td class="hist-val" id="hr4_ocf">—</td><td class="hist-val" id="hr5_ocf">—</td>
-              <td id="pr1_ocf">—</td><td id="pr2_ocf">—</td><td id="pr3_ocf">—</td><td id="pr4_ocf">—</td><td id="pr5_ocf">—</td>
-            </tr>
-            <tr class="metric-direct-row" data-metric="ocf">
-              <td class="label-col" id="lbl_ocg">OCF YoY Growth %</td>
-              <td class="hist-val" id="hr1_ocg">—</td><td class="hist-val" id="hr2_ocg">—</td><td class="hist-val" id="hr3_ocg">—</td><td class="hist-val" id="hr4_ocg">—</td><td class="hist-val" id="hr5_ocg">—</td>
-              <td><input class="proj-input" id="ocg0" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="ocg1" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="ocg2" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="ocg3" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="ocg4" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-            </tr>
-            <!-- FCF direct rows — shown in FCF mode -->
-            <tr class="metric-direct-row" data-metric="fcf">
-              <td class="label-col">FCF ($M)</td>
-              <td class="hist-val" id="hr1_fcf">—</td><td class="hist-val" id="hr2_fcf">—</td><td class="hist-val" id="hr3_fcf">—</td><td class="hist-val" id="hr4_fcf">—</td><td class="hist-val" id="hr5_fcf">—</td>
-              <td id="pr1_fcf">—</td><td id="pr2_fcf">—</td><td id="pr3_fcf">—</td><td id="pr4_fcf">—</td><td id="pr5_fcf">—</td>
-            </tr>
-            <tr class="metric-direct-row" data-metric="fcf">
-              <td class="label-col" id="lbl_fcg">FCF YoY Growth %</td>
-              <td class="hist-val" id="hr1_fcg">—</td><td class="hist-val" id="hr2_fcg">—</td><td class="hist-val" id="hr3_fcg">—</td><td class="hist-val" id="hr4_fcg">—</td><td class="hist-val" id="hr5_fcg">—</td>
-              <td><input class="proj-input" id="fcg0" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="fcg1" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="fcg2" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="fcg3" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-              <td><input class="proj-input" id="fcg4" type="number" step="0.5" oninput="calculate()"><span class="input-unit">%</span></td>
-            </tr>
-            <!-- UFCF build-up rows — shown for EBITDA/UFCF, hidden for OCF/FCF -->
-            <tr class="ufcf-build-row">
+            <tr>
               <td class="label-col" id="lbl_da">D&amp;A % Revenue</td>
               <td class="hist-val" id="hr1_da">—</td><td class="hist-val" id="hr2_da">—</td><td class="hist-val" id="hr3_da">—</td><td class="hist-val" id="hr4_da">—</td><td class="hist-val" id="hr5_da">—</td>
               <td><input class="proj-input" id="da0" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -367,7 +349,7 @@
               <td><input class="proj-input" id="da3" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="da4" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
-            <tr class="ufcf-build-row">
+            <tr>
               <td class="label-col" id="lbl_cx">CapEx % Revenue</td>
               <td class="hist-val" id="hr1_cx">—</td><td class="hist-val" id="hr2_cx">—</td><td class="hist-val" id="hr3_cx">—</td><td class="hist-val" id="hr4_cx">—</td><td class="hist-val" id="hr5_cx">—</td>
               <td><input class="proj-input" id="cx0" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -376,7 +358,7 @@
               <td><input class="proj-input" id="cx3" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="cx4" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
-            <tr class="ufcf-build-row">
+            <tr>
               <td class="label-col" id="lbl_nw">NWC Δ % Revenue</td>
               <td class="hist-val" id="hr1_nw">—</td><td class="hist-val" id="hr2_nw">—</td><td class="hist-val" id="hr3_nw">—</td><td class="hist-val" id="hr4_nw">—</td><td class="hist-val" id="hr5_nw">—</td>
               <td><input class="proj-input" id="nw0" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -385,7 +367,7 @@
               <td><input class="proj-input" id="nw3" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="nw4" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
-            <tr class="ufcf-build-row">
+            <tr>
               <td class="label-col" id="lbl_tx">Tax Rate %</td>
               <td class="hist-val" id="hr1_tx">—</td><td class="hist-val" id="hr2_tx">—</td><td class="hist-val" id="hr3_tx">—</td><td class="hist-val" id="hr4_tx">—</td><td class="hist-val" id="hr5_tx">—</td>
               <td><input class="proj-input" id="tx0" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -393,6 +375,23 @@
               <td><input class="proj-input" id="tx2" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="tx3" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="tx4" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <!-- Historical Cash Flow Reference — read-only, FMP actuals -->
+            <tr class="section-hdr"><td colspan="11">Historical Cash Flow Reference</td></tr>
+            <tr>
+              <td class="label-col">EBITDA ($M)</td>
+              <td class="hist-val" id="hr1_ebitda_m">—</td><td class="hist-val" id="hr2_ebitda_m">—</td><td class="hist-val" id="hr3_ebitda_m">—</td><td class="hist-val" id="hr4_ebitda_m">—</td><td class="hist-val" id="hr5_ebitda_m">—</td>
+              <td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td>
+            </tr>
+            <tr>
+              <td class="label-col">OCF ($M)</td>
+              <td class="hist-val" id="hr1_ocf">—</td><td class="hist-val" id="hr2_ocf">—</td><td class="hist-val" id="hr3_ocf">—</td><td class="hist-val" id="hr4_ocf">—</td><td class="hist-val" id="hr5_ocf">—</td>
+              <td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td>
+            </tr>
+            <tr>
+              <td class="label-col">FCF / UFCF ($M)</td>
+              <td class="hist-val" id="hr1_fcf">—</td><td class="hist-val" id="hr2_fcf">—</td><td class="hist-val" id="hr3_fcf">—</td><td class="hist-val" id="hr4_fcf">—</td><td class="hist-val" id="hr5_fcf">—</td>
+              <td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td><td style="color:var(--text-dim)">—</td>
             </tr>
           </tbody>
         </table>
@@ -416,7 +415,6 @@
       <div class="wacc-section">
         <div class="wacc-row"><span class="wacc-lbl">Terminal Growth Rate</span><span><input class="wacc-input" id="tgr" type="number" step="0.1" min="-2" max="8" value="3.0" oninput="calculate()"> <span class="input-unit">%</span></span></div>
         <div class="tgr-guide">Typical 2–4% · Mature compounder: ~2% · High-growth: ≤4%<br>Must stay below WACC to avoid perpetuity error</div>
-        <div class="wacc-row"><span class="wacc-lbl" id="exitMultLabel">Exit EBITDA Multiple</span><span><input class="wacc-input" id="exitMult" type="number" step="0.5" min="1" max="100" value="15.0" oninput="calculate()"> <span class="input-unit">×</span></span></div>
         <div class="toggle-row"><input type="checkbox" id="midYear" onchange="calculate()"><label for="midYear" class="toggle-lbl">Mid-year discounting</label></div>
       </div>
       <div class="panel-header" style="border-top:1px solid var(--border2)">Results</div>
@@ -569,10 +567,10 @@ const METRIC_LABELS = { ebitda: 'EBITDA', ufcf: 'UFCF', ocf: 'OCF', fcf: 'FCF' }
 // METRIC SELECTOR
 // ═══════════════════════════════════════════════════════════════
 const metricDescriptions = {
-  ebitda: 'EM terminal = Year-5 EBITDA × exit multiple. GGM uses UFCF perpetuity. Projection inputs: EBITDA margin + full cash flow build-up.',
-  ufcf:   'EM terminal = Year-5 UFCF × exit multiple. GGM also uses UFCF. Both driven by the full revenue → UFCF build-up below.',
-  ocf:    'EM terminal = Year-5 OCF × exit multiple. Enter OCF growth rates directly — bypasses EBITDA/D&A/CapEx build-up. GGM uses UFCF defaults.',
-  fcf:    'EM terminal = Year-5 FCF × exit multiple. Enter FCF growth rates directly — bypasses EBITDA/D&A/CapEx build-up. GGM uses UFCF defaults.',
+  ebitda: 'EM terminal = last hist. EBITDA × (1+g)^5 × exit multiple. Growth rate g set to the right. GGM always uses UFCF perpetuity — unaffected by this selection.',
+  ufcf:   'EM terminal = last hist. UFCF × (1+g)^5 × exit multiple. Growth rate g set to the right. GGM also uses UFCF perpetuity from the build-up below.',
+  ocf:    'EM terminal = last hist. OCF × (1+g)^5 × exit multiple. Growth rate g set to the right. GGM uses UFCF perpetuity — unaffected by this selection.',
+  fcf:    'EM terminal = last hist. FCF × (1+g)^5 × exit multiple. Growth rate g set to the right. GGM uses UFCF perpetuity — unaffected by this selection.',
 };
 
 function onMetricChange(metric) {
@@ -580,43 +578,6 @@ function onMetricChange(metric) {
 
   // Update active tab button
   document.querySelectorAll('.metric-tab').forEach(b => b.classList.toggle('active', b.dataset.m === metric));
-
-  const isDirect = metric === 'ocf' || metric === 'fcf';
-
-  // EBITDA Margin row: hide for OCF/FCF (not needed — projecting CF directly)
-  document.querySelectorAll('.ebitda-ufcf-row').forEach(r => {
-    r.style.display = isDirect ? 'none' : '';
-  });
-
-  // UFCF build-up rows: hide for OCF/FCF
-  document.querySelectorAll('.ufcf-build-row').forEach(r => {
-    r.style.display = isDirect ? 'none' : '';
-  });
-
-  // OCF direct rows
-  document.querySelectorAll('.metric-direct-row[data-metric="ocf"]').forEach(r => {
-    r.style.display = metric === 'ocf' ? '' : 'none';
-  });
-
-  // FCF direct rows
-  document.querySelectorAll('.metric-direct-row[data-metric="fcf"]').forEach(r => {
-    r.style.display = metric === 'fcf' ? '' : 'none';
-  });
-
-  // Update CF drivers section header
-  const cfHdr = document.getElementById('cfDriversHdr');
-  if (cfHdr) {
-    const td = cfHdr.querySelector('td');
-    if (td) {
-      if (metric === 'ocf')      td.textContent = 'Operating Cash Flow — Direct Input';
-      else if (metric === 'fcf') td.textContent = 'Free Cash Flow — Direct Input';
-      else                       td.textContent = 'Cash Flow Drivers';
-    }
-  }
-
-  // Seed direct inputs on first switch
-  if (metric === 'ocf') seedDirectInputs('ocf');
-  if (metric === 'fcf') seedDirectInputs('fcf');
 
   // Update labels
   const lbl = METRIC_LABELS[metric] || 'EBITDA';
@@ -629,6 +590,9 @@ function onMetricChange(metric) {
   document.querySelectorAll('.metric-guardrail-item').forEach(el => {
     el.style.background = el.dataset.metric === metric ? 'rgba(201,168,76,0.06)' : '';
   });
+
+  // Reseed growth rate from trailing history for this metric
+  seedEmGrowthRate(metric);
 
   calculate();
 }
@@ -694,19 +658,17 @@ function updateLabelAverages() {
   });
 }
 
-function seedDirectInputs(metric) {
+function seedEmGrowthRate(metric) {
   if (!STATE.data) return;
   const hist = STATE.data.history;
-  const n    = hist.length;
-  const prefix = metric === 'ocf' ? 'ocg' : 'fcg';
-  const histKey = metric === 'ocf' ? 'ocf_m' : 'fcf_m';
-
-  // Only seed if all inputs are still empty
-  const allEmpty = [0,1,2,3,4].every(i => !document.getElementById(`${prefix}${i}`).value);
-  if (!allEmpty) return;
-
-  // Compute average trailing growth from last 2 available periods
-  const vals = hist.map(h => h[histKey]).filter(v => v != null);
+  const histKeyMap = { ebitda: null, ufcf: 'fcf_m', ocf: 'ocf_m', fcf: 'fcf_m' };
+  let vals;
+  if (metric === 'ebitda') {
+    vals = hist.map(h => h.revenue_m * (h.ebitda_margin || 0)).filter(v => v != null && v > 0);
+  } else {
+    const key = histKeyMap[metric] || 'fcf_m';
+    vals = hist.map(h => h[key]).filter(v => v != null);
+  }
   const growths = [];
   for (let i = 1; i < vals.length; i++) {
     if (vals[i-1] && vals[i-1] !== 0) growths.push((vals[i] / vals[i-1] - 1) * 100);
@@ -714,30 +676,32 @@ function seedDirectInputs(metric) {
   const seed = growths.length >= 2
     ? growths.slice(-2).reduce((a,b) => a+b, 0) / 2
     : (growths.length === 1 ? growths[0] : 8);
+  const el = document.getElementById('emGrowthRate');
+  if (el) el.value = Math.max(-20, Math.min(50, seed)).toFixed(1);
+}
 
-  for (let i = 0; i < 5; i++) {
-    const el = document.getElementById(`${prefix}${i}`);
-    if (el) el.value = seed.toFixed(1);
-  }
+function getLastHistMetricValue(metric) {
+  if (!STATE.data) return 0;
+  const hist = STATE.data.history;
+  const last = hist[hist.length - 1] || {};
+  if (metric === 'ebitda') return last.revenue_m * (last.ebitda_margin || 0);
+  if (metric === 'ufcf')   return last.fcf_m || 0;
+  if (metric === 'ocf')    return last.ocf_m || 0;
+  if (metric === 'fcf')    return last.fcf_m || 0;
+  return 0;
+}
+
+function getTerminalMetricBase5() {
+  const g    = getVal('emGrowthRate') / 100;
+  const base = getLastHistMetricValue(STATE.selectedMetric || 'ebitda');
+  return base * Math.pow(1 + g, 5);
 }
 
 function getDirectMetricValues(years) {
-  const metric = STATE.selectedMetric || 'ebitda';
-  if (metric === 'ebitda') return years.map(y => y.ebitda);
-  if (metric === 'ufcf')   return years.map(y => y.ufcf);
-
-  // OCF / FCF: compound from last historical value using direct growth % inputs
-  const hist    = STATE.data ? STATE.data.history : [];
-  const n       = hist.length;
-  const histKey = metric === 'ocf' ? 'ocf_m' : 'fcf_m';
-  const prefix  = metric === 'ocf' ? 'ocg'   : 'fcg';
-  let base = (hist[n - 1] || {})[histKey] || 0;
-
-  return [0,1,2,3,4].map(i => {
-    const g = getVal(`${prefix}${i}`) / 100;
-    base = base * (1 + g);
-    return base;
-  });
+  // Returns projected metric values for years 1-5 — used for chart and EM terminal
+  const g    = getVal('emGrowthRate') / 100;
+  const base = getLastHistMetricValue(STATE.selectedMetric || 'ebitda');
+  return [1,2,3,4,5].map(i => base * Math.pow(1 + g, i));
 }
 
 function getHistMetricValues() {
@@ -808,50 +772,30 @@ async function loadTicker() {
     // Reset chart for new ticker
     if (_chart) { _chart.destroy(); _chart = null; }
 
-    // Reset metric to EBITDA default
+    // Reset metric selector to EBITDA default
     STATE.selectedMetric = 'ebitda';
     document.querySelectorAll('.metric-tab').forEach(b => b.classList.toggle('active', b.dataset.m === 'ebitda'));
-    document.querySelectorAll('.metric-direct-row').forEach(r => r.style.display = 'none');
-    document.querySelectorAll('.ebitda-ufcf-row, .ufcf-build-row').forEach(r => r.style.display = '');
     setTxt('exitMultLabel', 'Exit EBITDA Multiple');
     setTxt('sensEMTitle',   'Sensitivity — Exit Multiple (WACC × EBITDA Multiple)');
     setTxt('chartTitle',    'EBITDA — Historical & Projected ($M)');
     setTxt('metricDescText', metricDescriptions.ebitda);
-    const cfHdr = document.getElementById('cfDriversHdr');
-    if (cfHdr) { const td = cfHdr.querySelector('td'); if (td) td.textContent = 'Cash Flow Drivers'; }
-    // Clear direct input fields
-    ['ocg','fcg'].forEach(prefix => {
-      for (let i = 0; i < 5; i++) { const el = document.getElementById(`${prefix}${i}`); if (el) el.value = ''; }
-    });
 
-    // Populate OCF/FCF historical cells
-    (function populateDirectHistCells() {
+    // Populate historical CF reference rows (EBITDA, OCF, FCF)
+    (function populateHistCfCells() {
       const hist = data.history;
       const hn   = hist.length;
       for (let col = 1; col <= 5; col++) {
-        const h    = hist[hn - 5 + (col - 1)];
-        const prev = hist[hn - 5 + (col - 2)];
+        const h = hist[hn - 5 + (col - 1)];
         if (!h) continue;
+
+        const ebitdaEl = document.getElementById(`hr${col}_ebitda_m`);
+        if (ebitdaEl) ebitdaEl.textContent = fmtM(h.revenue_m * (h.ebitda_margin || 0));
 
         const ocfEl = document.getElementById(`hr${col}_ocf`);
         if (ocfEl) ocfEl.textContent = h.ocf_m != null ? fmtM(h.ocf_m) : '—';
 
-        const ocgEl = document.getElementById(`hr${col}_ocg`);
-        if (ocgEl) {
-          if (prev && prev.ocf_m != null && prev.ocf_m !== 0 && h.ocf_m != null)
-            ocgEl.textContent = `${((h.ocf_m / prev.ocf_m - 1) * 100).toFixed(1)}%`;
-          else ocgEl.textContent = '—';
-        }
-
         const fcfEl = document.getElementById(`hr${col}_fcf`);
         if (fcfEl) fcfEl.textContent = h.fcf_m != null ? fmtM(h.fcf_m) : '—';
-
-        const fcgEl = document.getElementById(`hr${col}_fcg`);
-        if (fcgEl) {
-          if (prev && prev.fcf_m != null && prev.fcf_m !== 0 && h.fcf_m != null)
-            fcgEl.textContent = `${((h.fcf_m / prev.fcf_m - 1) * 100).toFixed(1)}%`;
-          else fcgEl.textContent = '—';
-        }
       }
     })();
 
@@ -911,7 +855,8 @@ function populateInputs(d) {
     setVal(`tx${i}`, (d.tax_rate[i]*100).toFixed(1));
   }
   setVal('tgr', (d.tgr*100).toFixed(1));
-  setVal('exitMult', d.exit_multiple.toFixed(1));
+  setVal('exitMultCard', d.exit_multiple.toFixed(1));
+  seedEmGrowthRate(STATE.selectedMetric || 'ebitda');
   calculate();
 }
 
@@ -986,7 +931,7 @@ function calculate() {
   const ke   = rf + beta * erp;
   const wacc = ew * ke + dw * kd * (1 - tax);
   const tgr  = getVal('tgr') / 100;
-  const exitM = getVal('exitMult');
+  const exitM = getVal('exitMultCard');
   const mid   = document.getElementById('midYear').checked;
 
   // Projection
@@ -1019,18 +964,10 @@ function calculate() {
   }
 
   // Terminal values
-  const termUFCF    = years[4].ufcf * (1 + tgr);
-  const tvGGM       = (wacc - tgr) > 0.001 ? termUFCF / (wacc - tgr) : 0;
-  const metricVals  = getDirectMetricValues(years);
-  const terminalBase5 = metricVals[4];
-  const tvEM        = terminalBase5 * exitM;
-
-  // Update projected OCF/FCF display cells
-  if (STATE.selectedMetric === 'ocf') {
-    metricVals.forEach((v,i) => setTxt(`pr${i+1}_ocf`, fmtM(v)));
-  } else if (STATE.selectedMetric === 'fcf') {
-    metricVals.forEach((v,i) => setTxt(`pr${i+1}_fcf`, fmtM(v)));
-  }
+  const termUFCF      = years[4].ufcf * (1 + tgr);
+  const tvGGM         = (wacc - tgr) > 0.001 ? termUFCF / (wacc - tgr) : 0;
+  const terminalBase5 = getTerminalMetricBase5();
+  const tvEM          = terminalBase5 * exitM;
   const tDisc    = mid ? 4.5 : 5;
   const tDF      = 1 / Math.pow(1 + wacc, tDisc);
   const pvTvGGM  = tvGGM * tDF;
@@ -1189,10 +1126,12 @@ function calculate() {
 // SENSITIVITY TABLES
 // ═══════════════════════════════════════════════════════════════
 function buildSens(baseWacc, baseTgr, baseExitM, sumPV, years, netDebt, shares, price, mid, terminalBase5) {
-  terminalBase5 = terminalBase5 ?? years[4].ebitda; // fallback for safety
   const waccSteps = [-0.02,-0.01, 0, +0.01, +0.02].map(d => baseWacc + d);
   const tgrSteps  = [0.01, 0.02, 0.03, 0.04, 0.05];
-  const multSteps = [10, 12, 15, 18, 20];
+  // Dynamic multSteps: 5 steps centred on the user's exit multiple, spaced by ~2×
+  const mBase = Math.round(baseExitM * 2) / 2; // snap to 0.5
+  const mStep = mBase >= 20 ? 3 : mBase >= 12 ? 2 : 1.5;
+  const multSteps = [-2,-1,0,1,2].map(d => Math.max(1, +(mBase + d * mStep).toFixed(1)));
   const termUFCF = years[4].ufcf * (1 + baseTgr);
   const tDisc = mid ? 4.5 : 5;
 
@@ -1395,7 +1334,8 @@ async function loadScenario(name) {
     setVal(`tx${i}`, inp.tax_rate[i]);
   }
   setVal('tgr', inp.tgr);
-  setVal('exitMult', inp.exit_multiple);
+  setVal('exitMultCard', inp.exit_multiple);
+  if (inp.em_growth_rate != null) setVal('emGrowthRate', inp.em_growth_rate);
   setVal('wRf', inp.rf);
   setVal('wBeta', inp.beta);
   setVal('wErp', inp.erp);
@@ -1532,7 +1472,8 @@ function readAllInputs() {
     out.tax_rate.push(getVal(`tx${i}`));
   }
   out.tgr = getVal('tgr');
-  out.exit_multiple = getVal('exitMult');
+  out.exit_multiple = getVal('exitMultCard');
+  out.em_growth_rate = getVal('emGrowthRate');
   out.rf = getVal('wRf');
   out.beta = getVal('wBeta');
   out.erp = getVal('wErp');
