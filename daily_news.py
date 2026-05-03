@@ -251,7 +251,7 @@ def run():
         json.dump(cache, f, ensure_ascii=False)
 
     print(f"Saved {len(all_articles)} articles "
-          f"(FMP: {n_fmp}, Yahoo fallback: {n_yahoo}) → {CACHE_PATH}")
+          f"(FMP: {n_fmp}, Yahoo fallback: {n_yahoo}) -> {CACHE_PATH}")
 
 
 if __name__ == "__main__":
