@@ -26,6 +26,7 @@ import report_bridge as _rb
 from report_bridge import build_report_data, render_html_report
 from data_store import save_ticker_data, load_ticker_data
 from scenarios_db import init_db, save_scenario, list_scenarios, delete_scenario, get_scenario
+import csv_schema as _schema
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -34,12 +35,127 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 mdl.API_KEY    = os.environ.get("FMP_API_KEY", mdl.API_KEY)
 _rb.GEMINI_KEY = os.environ.get("GEMINI_KEY", "")
 APP_PASSWORD   = os.environ.get("APP_PASSWORD", "")
+GITHUB_TOKEN   = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_REPO    = os.environ.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
+GITHUB_BRANCH  = os.environ.get("GITHUB_BRANCH", "main")
 
 # ── Initialise scenario database ─────────────────────────────────────────────
 init_db()
 
 # ── In-memory report store (2-hour TTL) ───────────────────────────────────────
 _reports: dict = {}
+
+# ── outputs.csv path ──────────────────────────────────────────────────────────
+_CSV_PATH = os.path.join(os.path.dirname(__file__), "outputs.csv")
+
+
+def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
+                        current_price, market_cap, is_data, cf_data,
+                        biz_clarity=None, ltp=None):
+    """Write/update one row in outputs.csv for this ticker.
+
+    Reads the existing CSV, replaces the row for this ticker (or appends if new),
+    then writes back to disk.  If GITHUB_TOKEN is configured, also pushes to
+    GitHub so the data survives Render redeploys.
+    """
+    import base64 as _b64
+
+    def _f(v, dp=4):
+        return "" if v is None else f"{v:.{dp}f}"
+
+    dp = dcf_prices or {}
+    sm = scorecard_metrics or {}
+
+    # Trailing financials for Revenue_B / OCF_B / FCF_B
+    rev_b  = (is_data[-1].get("revenue") or 0) / 1e9 if is_data else None
+    ocf_b  = (cf_data[-1].get("operatingCashFlow") or 0) / 1e9 if cf_data else None
+    fcf_raw = cf_data[-1].get("freeCashFlow") if cf_data else None
+    if fcf_raw is None and cf_data:
+        fcf_raw = ((cf_data[-1].get("operatingCashFlow") or 0) +
+                   (cf_data[-1].get("capitalExpenditure") or 0))  # capex stored negative
+    fcf_b = (fcf_raw / 1e9) if fcf_raw is not None else None
+
+    mkt_cap_b = (market_cap / 1e9) if market_cap else None
+
+    new_row = {
+        "Ticker":         ticker,
+        "Price":          _f(current_price, 2),
+        "MktCap_B":       _f(mkt_cap_b, 2),
+        "GG_Price":       _f(dp.get("gg_price"),  2),
+        "GG_Upside":      _f(dp.get("gg_upside"), 4),
+        "EM_Price":       _f(dp.get("em_price"),  2),
+        "EM_Upside":      _f(dp.get("em_upside"), 4),
+        "PE_Current":     _f(sm.get("pe_current"),   1),
+        "PE_5yr":         _f(sm.get("pe_5yr_avg"),   1),
+        "PFCF_Current":   _f(sm.get("pfcf_current"), 1),
+        "PFCF_5yr":       _f(sm.get("pfcf_5yr_avg"), 1),
+        "ROIC":           _f(sm.get("roic")),
+        "Rev_CAGR":       _f(sm.get("rev_cagr")),
+        "FCF_NI":         _f(sm.get("fcf_ni")),
+        "D_EBITDA":       _f(sm.get("d_ebitda"), 2),
+        "Revenue_B":      _f(rev_b,  2),
+        "OCF_B":          _f(ocf_b,  2),
+        "FCF_B":          _f(fcf_b,  2),
+        "Auto_Score":     "" if sm.get("auto_score") is None else str(sm["auto_score"]),
+        "Floor_Cap":      "" if sm.get("floor_cap")  is None else str(sm["floor_cap"]),
+        "Manual_Clarity": biz_clarity or "",
+        "Manual_LTP":     ltp or "",
+        "Date":           datetime.date.today().isoformat(),
+    }
+    new_line = ",".join(new_row.get(c, "") for c in _schema.COLUMNS)
+
+    # ── Local write ───────────────────────────────────────────────────────────
+    try:
+        if os.path.exists(_CSV_PATH):
+            with open(_CSV_PATH, "r", encoding="utf-8") as f:
+                existing = f.read()
+        else:
+            existing = _schema.HEADER
+
+        # Migrate schema (handles old column layouts) then upsert this ticker's row.
+        existing = _schema.migrate(existing)
+
+        lines = existing.splitlines()
+        header_line = lines[0] if lines else _schema.HEADER.rstrip()
+        data_lines  = [l for l in lines[1:] if l.strip()]
+
+        # Remove any existing row for this ticker, then append the new one.
+        data_lines = [l for l in data_lines if l.split(",")[0].strip().upper() != ticker]
+        data_lines.append(new_line)
+        data_lines.sort(key=lambda l: l.split(",")[0].strip())  # keep alphabetical
+
+        updated_csv = header_line + "\n" + "\n".join(data_lines) + "\n"
+        with open(_CSV_PATH, "w", encoding="utf-8") as f:
+            f.write(updated_csv)
+    except Exception as e:
+        import sys
+        print(f"[outputs.csv] local write error: {e}", file=sys.stderr)
+        return
+
+    # ── Optional GitHub push (persists across Render redeploys) ──────────────
+    if not GITHUB_TOKEN:
+        return
+    try:
+        import base64 as _b64
+        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/outputs.csv"
+        gh_hdr = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept":        "application/vnd.github.v3+json",
+        }
+        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+
+        payload = {
+            "message": f"scorecard: update {ticker}",
+            "branch":  GITHUB_BRANCH,
+            "content": _b64.b64encode(updated_csv.encode()).decode(),
+        }
+        if sha:
+            payload["sha"] = sha
+        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=12)
+    except Exception as e:
+        import sys
+        print(f"[outputs.csv] GitHub push error: {e}", file=sys.stderr)
 
 def _prune():
     cutoff = datetime.datetime.now() - datetime.timedelta(hours=2)
@@ -216,6 +332,22 @@ def generate():
         with open(excel_path, "wb") as f:
             f.write(excel_bytes)
 
+        # ── Update outputs.csv → Dashboard picks up the new row immediately ────
+        try:
+            _update_outputs_csv(
+                ticker            = ticker,
+                scorecard_metrics = scorecard_metrics,
+                dcf_prices        = (dcf_refs or {}).get("dcf_prices") or {},
+                current_price     = current_price,
+                market_cap        = market_cap,
+                is_data           = is_data,
+                cf_data           = cf_data,
+                biz_clarity       = biz_clarity or None,
+                ltp               = ltp or None,
+            )
+        except Exception:
+            pass  # never block report delivery over a CSV write failure
+
         # Also keep in-memory for session (legacy dashboard live-reports panel)
         rid = uuid.uuid4().hex[:10]
         _reports[rid] = {
@@ -378,6 +510,7 @@ def _build_dcf_response(stored):
                 "da_pct":        h.get("da_pct") or 0,
                 "capex_pct":     h.get("capex_pct") or 0,
                 "tax_rate":      h.get("tax_rate") or 0.21,
+                "nwc_pct":       None,
                 "fcf_m":         round(h["ufcf_mm"], 1) if h.get("ufcf_mm") else 0,
             })
         # Fill in rev_growth for first year if missing
@@ -450,7 +583,9 @@ def _build_dcf_response(stored):
             pti        = is_.get("incomeBeforeTax") or is_.get("pretaxIncome") or 0
             te         = abs(is_.get("incomeTaxExpense") or 0)
             tax_r      = min(te / pti, 0.50) if pti > 0 else 0.21
-            history.append({
+            wc_chg = cf_.get("changesInWorkingCapital") or cf_.get("changeInWorkingCapital") or 0
+        nwc_pct_hist = round(-wc_chg / rev, 4) if rev else 0
+        history.append({
                 "year":          is_.get("fiscalYear") or is_.get("calendarYear") or is_["date"][:4],
                 "revenue_m":     round(rev / 1e6, 1),
                 "rev_growth":    None,
@@ -458,6 +593,7 @@ def _build_dcf_response(stored):
                 "da_pct":        round(da / rev, 4)     if rev else 0,
                 "capex_pct":     round(capex / rev, 4)  if rev else 0,
                 "tax_rate":      round(tax_r, 4),
+                "nwc_pct":       nwc_pct_hist,
                 "fcf_m":         round(fcf / 1e6, 1),
             })
         for i in range(1, len(history)):
@@ -535,6 +671,7 @@ def _build_dcf_response(stored):
         "history":        history,
         "defaults":       defaults,
         "dcf_base_price": gg_price,
+        "dcf_em_price":   dcf_px.get("em_price"),
         "data_source":    source,
         "fetched_date":   stored.get("fetched", ""),
         "analyst_ests": [
@@ -547,6 +684,41 @@ def _build_dcf_response(stored):
             for e in ae_raw
         ],
     }
+
+
+@app.route("/api/covered-tickers")
+def api_covered_tickers():
+    """Return all tickers from outputs.csv sorted by most recently generated first."""
+    import csv as _csv
+    if not os.path.exists(_CSV_PATH):
+        return jsonify([])
+    try:
+        with open(_CSV_PATH, "r", encoding="utf-8") as f:
+            rows = list(_csv.DictReader(f))
+        rows.sort(key=lambda r: r.get("Date", ""), reverse=True)
+        result = []
+        for row in rows:
+            t = (row.get("Ticker") or "").strip()
+            if not t:
+                continue
+            name = ""
+            stored = load_ticker_data(t)
+            if stored:
+                name = (stored.get("profile") or {}).get("companyName", "") or ""
+            def _f(v):
+                try: return float(v) if v not in ("", None) else None
+                except: return None
+            result.append({
+                "ticker":   t,
+                "name":     name,
+                "price":    _f(row.get("Price")),
+                "gg_price": _f(row.get("GG_Price")),
+                "em_price": _f(row.get("EM_Price")),
+                "date":     row.get("Date", ""),
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/reports/discovered")

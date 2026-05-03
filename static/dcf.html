@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #07090e; --surface: #0e1520; --surface2: #131c2c;
@@ -249,6 +250,8 @@
               <th class="hist-col" id="h1">FY—</th>
               <th class="hist-col" id="h2">FY—</th>
               <th class="hist-col" id="h3">FY—</th>
+              <th class="hist-col" id="h4">FY—</th>
+              <th class="hist-col" id="h5">FY—</th>
               <th class="proj-col" id="p1">FY+1E</th>
               <th class="proj-col" id="p2">FY+2E</th>
               <th class="proj-col" id="p3">FY+3E</th>
@@ -257,15 +260,15 @@
             </tr>
           </thead>
           <tbody id="projBody">
-            <tr class="section-hdr"><td colspan="9">Growth & Profitability</td></tr>
+            <tr class="section-hdr"><td colspan="11">Growth & Profitability</td></tr>
             <tr>
               <td class="label-col">Revenue ($M)</td>
-              <td class="hist-val" id="hr1_rev">—</td><td class="hist-val" id="hr2_rev">—</td><td class="hist-val" id="hr3_rev">—</td>
+              <td class="hist-val" id="hr1_rev">—</td><td class="hist-val" id="hr2_rev">—</td><td class="hist-val" id="hr3_rev">—</td><td class="hist-val" id="hr4_rev">—</td><td class="hist-val" id="hr5_rev">—</td>
               <td id="pr1_rev">—</td><td id="pr2_rev">—</td><td id="pr3_rev">—</td><td id="pr4_rev">—</td><td id="pr5_rev">—</td>
             </tr>
             <tr>
               <td class="label-col">Revenue Growth %</td>
-              <td class="hist-val" id="hr1_rg">—</td><td class="hist-val" id="hr2_rg">—</td><td class="hist-val" id="hr3_rg">—</td>
+              <td class="hist-val" id="hr1_rg">—</td><td class="hist-val" id="hr2_rg">—</td><td class="hist-val" id="hr3_rg">—</td><td class="hist-val" id="hr4_rg">—</td><td class="hist-val" id="hr5_rg">—</td>
               <td><input class="proj-input" id="rg0" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="rg1" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="rg2" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -274,17 +277,17 @@
             </tr>
             <tr>
               <td class="label-col">EBITDA Margin %</td>
-              <td class="hist-val" id="hr1_em">—</td><td class="hist-val" id="hr2_em">—</td><td class="hist-val" id="hr3_em">—</td>
+              <td class="hist-val" id="hr1_em">—</td><td class="hist-val" id="hr2_em">—</td><td class="hist-val" id="hr3_em">—</td><td class="hist-val" id="hr4_em">—</td><td class="hist-val" id="hr5_em">—</td>
               <td><input class="proj-input" id="em0" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="em1" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="em2" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="em3" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="em4" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
-            <tr class="section-hdr"><td colspan="9">Cash Flow Drivers</td></tr>
+            <tr class="section-hdr"><td colspan="11">Cash Flow Drivers</td></tr>
             <tr>
               <td class="label-col">D&amp;A % Revenue</td>
-              <td class="hist-val" id="hr1_da">—</td><td class="hist-val" id="hr2_da">—</td><td class="hist-val" id="hr3_da">—</td>
+              <td class="hist-val" id="hr1_da">—</td><td class="hist-val" id="hr2_da">—</td><td class="hist-val" id="hr3_da">—</td><td class="hist-val" id="hr4_da">—</td><td class="hist-val" id="hr5_da">—</td>
               <td><input class="proj-input" id="da0" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="da1" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="da2" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -293,7 +296,7 @@
             </tr>
             <tr>
               <td class="label-col">CapEx % Revenue</td>
-              <td class="hist-val" id="hr1_cx">—</td><td class="hist-val" id="hr2_cx">—</td><td class="hist-val" id="hr3_cx">—</td>
+              <td class="hist-val" id="hr1_cx">—</td><td class="hist-val" id="hr2_cx">—</td><td class="hist-val" id="hr3_cx">—</td><td class="hist-val" id="hr4_cx">—</td><td class="hist-val" id="hr5_cx">—</td>
               <td><input class="proj-input" id="cx0" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="cx1" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="cx2" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -302,7 +305,7 @@
             </tr>
             <tr>
               <td class="label-col">NWC Δ % Revenue</td>
-              <td class="hist-val">—</td><td class="hist-val">—</td><td class="hist-val">—</td>
+              <td class="hist-val" id="hr1_nw">—</td><td class="hist-val" id="hr2_nw">—</td><td class="hist-val" id="hr3_nw">—</td><td class="hist-val" id="hr4_nw">—</td><td class="hist-val" id="hr5_nw">—</td>
               <td><input class="proj-input" id="nw0" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="nw1" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="nw2" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -311,7 +314,7 @@
             </tr>
             <tr>
               <td class="label-col">Tax Rate %</td>
-              <td class="hist-val" id="hr1_tx">—</td><td class="hist-val" id="hr2_tx">—</td><td class="hist-val" id="hr3_tx">—</td>
+              <td class="hist-val" id="hr1_tx">—</td><td class="hist-val" id="hr2_tx">—</td><td class="hist-val" id="hr3_tx">—</td><td class="hist-val" id="hr4_tx">—</td><td class="hist-val" id="hr5_tx">—</td>
               <td><input class="proj-input" id="tx0" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="tx1" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="tx2" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
@@ -351,6 +354,17 @@
         <div class="result-label" style="margin-top:12px">Exit Multiple</div>
         <div class="rc-main"><span class="result-price" id="emPrice">—</span><span class="result-upside" id="emUpside"></span></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── CASH FLOW CHART ── -->
+  <div class="output-section" id="chartSection" style="display:none;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px 0;flex-wrap:wrap;gap:8px">
+      <span class="section-title" style="padding:0">EBITDA — Historical & Projected ($M)</span>
+      <span class="info-tag">Historical = FMP actuals &nbsp;·&nbsp; Projected = your assumptions</span>
+    </div>
+    <div style="padding:16px 20px 20px;height:260px;position:relative">
+      <canvas id="cfChart"></canvas>
     </div>
   </div>
 
@@ -435,23 +449,32 @@ let STATE = {
   ticker: null, data: null, currentDefaults: null
 };
 
-const QUICK_TICKERS = [
-  'NVDA','MSFT','AAPL','ADBE','COST','AMD','JNJ','META',
-  'TSM','V','KO','NFLX','GOOGL','AMZN','TSLA','JPM','BAC','WFC'
-];
+let _chart = null;
 
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
-(function init() {
+(async function init() {
+  // Populate quick picks from covered tickers (tickers with generated reports)
   const qp = document.getElementById('quickPicks');
-  QUICK_TICKERS.forEach(t => {
-    const b = document.createElement('button');
-    b.className = 'qpick';
-    b.textContent = t;
-    b.onclick = () => { document.getElementById('tickerInput').value = t; loadTicker(); };
-    qp.appendChild(b);
-  });
+  try {
+    const res = await fetch('/api/covered-tickers');
+    const tickers = await res.json();
+    if (Array.isArray(tickers) && tickers.length) {
+      tickers.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'qpick';
+        b.textContent = t.ticker;
+        if (t.name) b.title = t.name;
+        b.onclick = () => { document.getElementById('tickerInput').value = t.ticker; loadTicker(); };
+        qp.appendChild(b);
+      });
+    } else {
+      qp.innerHTML = '<span style="font-family:IBM Plex Mono,monospace;font-size:8pt;color:var(--text-dim)">No reports yet — run Generate first</span>';
+    }
+  } catch(e) {
+    console.warn('Could not load covered tickers', e);
+  }
   // Check URL param
   const u = new URLSearchParams(location.search);
   if (u.get('t')) {
@@ -482,8 +505,9 @@ async function loadTicker() {
     STATE.currentDefaults = JSON.parse(JSON.stringify(data.defaults));
 
     document.getElementById('companyName').textContent = data.name;
+    const freshTag = data.fetched_date ? `  ·  Data: ${data.fetched_date}` : '';
     document.getElementById('companyMeta').textContent =
-      `${ticker}  ·  ${(data.shares_m||0).toFixed(0)}M shares  ·  Net debt $${fmt1(data.net_debt_m)}M`;
+      `${ticker}  ·  ${(data.shares_m||0).toFixed(0)}M shares  ·  Net debt $${fmt1(data.net_debt_m)}M${freshTag}`;
     document.getElementById('priceDisplay').textContent = data.price ? `$${data.price.toFixed(2)}` : '';
     document.getElementById('currentPx').textContent = data.price ? `$${data.price.toFixed(2)}` : '—';
 
@@ -491,8 +515,8 @@ async function loadTicker() {
     const lastYr = data.last_year;
     const hist = data.history;
     const n = hist.length;
-    ['h1','h2','h3'].forEach((id,i) => {
-      const h = hist[n - 3 + i];
+    ['h1','h2','h3','h4','h5'].forEach((id,i) => {
+      const h = hist[n - 5 + i];
       document.getElementById(id).textContent = h ? `FY${h.year}` : '—';
     });
     for (let i=1;i<=5;i++) {
@@ -501,11 +525,11 @@ async function loadTicker() {
     }
 
     // Fill historical cells
-    const ROWS = ['rev','rg','em','da','cx','tx'];
-    const keys = ['revenue_m','rev_growth','ebitda_margin','da_pct','capex_pct','tax_rate'];
-    const pcts  = [false, true, true, true, true, true];
-    for (let col=1;col<=3;col++) {
-      const h = hist[n - 3 + (col-1)];
+    const ROWS = ['rev','rg','em','da','cx','tx','nw'];
+    const keys = ['revenue_m','rev_growth','ebitda_margin','da_pct','capex_pct','tax_rate','nwc_pct'];
+    const pcts  = [false, true, true, true, true, true, true];
+    for (let col=1;col<=5;col++) {
+      const h = hist[n - 5 + (col-1)];
       ROWS.forEach((r,i) => {
         const el = document.getElementById(`hr${col}_${r}`);
         if (!el || !h) return;
@@ -514,6 +538,9 @@ async function loadTicker() {
         el.textContent = pcts[i] ? `${(v*100).toFixed(1)}%` : `${fmtM(v*1)}`;
       });
     }
+
+    // Reset chart for new ticker
+    if (_chart) { _chart.destroy(); _chart = null; }
 
     // Populate projection inputs
     populateInputs(data.defaults);
@@ -533,6 +560,7 @@ async function loadTicker() {
 
     showLoading(false);
     document.getElementById('mainLayout').style.display = '';
+    document.getElementById('chartSection').style.display = '';
     document.getElementById('outputSection').style.display = '';
     document.getElementById('resultCards').style.display = '';
     document.getElementById('sensitivitySection').style.display = '';
@@ -665,7 +693,7 @@ function calculate() {
     const ebit    = ebitda - daAmt;
     const nopat   = ebit * (1 - tx);
     const capex   = rev * cx;
-    const dnwc    = (rev - prevRev) * nw;
+    const dnwc    = rev * nw;
     const ufcf    = nopat + daAmt - capex - dnwc;
     const t       = mid ? i + 0.5 : i + 1;
     const df      = 1 / Math.pow(1 + wacc, t);
@@ -768,26 +796,31 @@ function calculate() {
   setUpside('rc_ggm_up', pGGM, price);
   setUpside('rc_em_up',  pEM, price);
 
-  // ── Validation badge: compare client GGM vs Excel engine price ──
+  // ── Validation badge: compare client price vs engine price ──
   (function updateValBadge() {
     const badge = document.getElementById('valBadge');
     if (!badge) return;
-    const serverPx = STATE.data && STATE.data.dcf_base_price;
-    if (!serverPx || !pGGM) {
-      badge.innerHTML = '<span class="val-badge na">No server price to compare</span>';
-      return;
+    const ggServer = STATE.data && STATE.data.dcf_base_price;
+    const emServer = STATE.data && STATE.data.dcf_em_price;
+    function _badge(clientPx, serverPx, label) {
+      if (!serverPx || !clientPx) {
+        badge.innerHTML = '<span class="val-badge na">No engine price to compare</span>';
+        return;
+      }
+      const diff = (clientPx - serverPx) / serverPx;
+      const pct  = (diff * 100).toFixed(1);
+      const sign = diff >= 0 ? '+' : '';
+      const abs  = Math.abs(diff);
+      if (abs < 0.03)
+        badge.innerHTML = `<span class="val-badge match">${label} matches engine (${sign}${pct}%)</span>`;
+      else if (abs < 0.10)
+        badge.innerHTML = `<span class="val-badge close">${label} close to engine (${sign}${pct}%)</span>`;
+      else
+        badge.innerHTML = `<span class="val-badge diverge">${label} diverges from engine: ${sign}${pct}%</span>`;
     }
-    const diff = (pGGM - serverPx) / serverPx;
-    const pct  = (diff * 100).toFixed(1);
-    const sign = diff >= 0 ? '+' : '';
-    const absDiff = Math.abs(diff);
-    if (absDiff < 0.03) {
-      badge.innerHTML = `<span class="val-badge match">Matches Excel model (${sign}${pct}%)</span>`;
-    } else if (absDiff < 0.10) {
-      badge.innerHTML = `<span class="val-badge close">Close to Excel model (${sign}${pct}%)</span>`;
-    } else {
-      badge.innerHTML = `<span class="val-badge diverge">Diverges from Excel: ${sign}${pct}%</span>`;
-    }
+    if (ggServer) _badge(pGGM, ggServer, 'GGM');
+    else if (emServer) _badge(pEM, emServer, 'EM');
+    else badge.innerHTML = '<span class="val-badge na">No engine price to compare</span>';
   })();
   document.getElementById('rc_ggm_rows').innerHTML =
     rcRow('EV (DCF)',      fmtM(evGGM)) +
@@ -817,6 +850,9 @@ function calculate() {
     rcRow('Equity Weight',     `${(ew*100).toFixed(0)}%`) +
     rcRow('Debt Weight',       `${(dw*100).toFixed(0)}%`) +
     `<div class="rc-row"><span class="rc-key" style="color:var(--gold)">WACC</span><span class="rc-val" style="color:var(--gold);font-weight:600">${(wacc*100).toFixed(2)}%</span></div>`;
+
+  // ── Chart ──
+  buildChart(years);
 
   // ── Sensitivity tables ──
   buildSens(wacc, tgr, exitM, sumPV, years, netDebt, shares, price, mid);
@@ -881,6 +917,111 @@ function getCell(px, price) {
   if (px < price) return 'cell-below';
   if (px < price * 1.10) return 'cell-near';
   return 'cell-above';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASH FLOW CHART
+// ═══════════════════════════════════════════════════════════════
+function buildChart(years) {
+  if (!STATE.data || !document.getElementById('cfChart')) return;
+
+  const hist     = STATE.data.history;
+  const lastYear = STATE.data.last_year;
+  const n        = hist.length;
+
+  // Use all available history (up to 5 years)
+  const histSlice = hist.slice(-5);
+
+  const histLabels = histSlice.map(h => `FY${h.year}`);
+  const projLabels = Array.from({length: 5}, (_, i) => `FY${lastYear + i + 1}E`);
+  const labels     = [...histLabels, ...projLabels];
+
+  // Historical EBITDA ($M)
+  const hVals = histSlice.map(h => +(h.revenue_m * (h.ebitda_margin || 0)).toFixed(1));
+
+  // Projected EBITDA ($M) — from current calculate() outputs
+  const pVals = years.map(y => +y.ebitda.toFixed(1));
+
+  // Pad datasets so bars don't overlap: hist fills nulls for proj slots and vice versa
+  const histData = [...hVals, ...Array(5).fill(null)];
+  const projData = [...Array(histSlice.length).fill(null), ...pVals];
+
+  const HIST_COLOR   = 'rgba(99,115,145,0.72)';
+  const PROJ_COLOR   = 'rgba(201,168,76,0.72)';
+  const HIST_BORDER  = 'rgba(120,138,168,0.9)';
+  const PROJ_BORDER  = 'rgba(201,168,76,0.95)';
+
+  const datasets = [
+    {
+      label: 'Historical (FMP actuals)',
+      data: histData,
+      backgroundColor: HIST_COLOR,
+      borderColor: HIST_BORDER,
+      borderWidth: 1,
+      borderRadius: 3,
+    },
+    {
+      label: 'Projected (your inputs)',
+      data: projData,
+      backgroundColor: PROJ_COLOR,
+      borderColor: PROJ_BORDER,
+      borderWidth: 1,
+      borderRadius: 3,
+    },
+  ];
+
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: 'rgba(217,224,234,0.85)',
+          font: { family: "'IBM Plex Mono', monospace", size: 10 },
+          boxWidth: 12,
+          padding: 18,
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: ${fmtM(ctx.parsed.y)}`,
+        },
+        backgroundColor: 'rgba(14,21,32,0.96)',
+        titleColor: '#d9e0ea',
+        bodyColor: '#7a8499',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        padding: 10,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#7a8499', font: { family: "'IBM Plex Mono',monospace", size: 9 } },
+        grid:  { color: 'rgba(255,255,255,0.04)' },
+        border: { color: 'rgba(255,255,255,0.08)' },
+      },
+      y: {
+        ticks: {
+          color: '#7a8499',
+          font: { family: "'IBM Plex Mono',monospace", size: 9 },
+          callback: v => fmtM(v),
+        },
+        grid:  { color: 'rgba(255,255,255,0.04)' },
+        border: { color: 'rgba(255,255,255,0.08)' },
+      },
+    },
+  };
+
+  if (_chart) {
+    _chart.data.labels   = labels;
+    _chart.data.datasets = datasets;
+    _chart.update('none');
+  } else {
+    _chart = new Chart(document.getElementById('cfChart'), {
+      type: 'bar', data: { labels, datasets }, options: opts,
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
