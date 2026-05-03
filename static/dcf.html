@@ -203,6 +203,19 @@
     .chart-legend-swatch { width:12px; height:12px; border-radius:2px; flex-shrink:0; }
     @media(max-width:1100px){ .dcf-layout{grid-template-columns:1fr;} }
     @media(max-width:760px){ .sensitivity-section{grid-template-columns:1fr;} nav{padding:0 24px;} .nav-links{display:none;} }
+
+    /* ── EXPLAINER ── */
+    .explainer { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 24px 28px; margin-bottom: 24px; }
+    .explainer-title { font-family: 'IBM Plex Mono',monospace; font-size: 7.5pt; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+    .explainer-body { font-size: 9.5pt; color: var(--text-muted); line-height: 1.75; margin-bottom: 16px; }
+    .explainer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .explainer-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+    .explainer-card-title { font-family: 'IBM Plex Mono',monospace; font-size: 7.5pt; letter-spacing: 2px; text-transform: uppercase; color: var(--text); margin-bottom: 6px; }
+    .explainer-card-body { font-size: 8.5pt; color: var(--text-muted); line-height: 1.65; }
+    .explainer-note { font-family: 'IBM Plex Mono',monospace; font-size: 8pt; color: var(--text-dim); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .explainer-note strong { color: var(--amber); }
+    @media(max-width:900px){ .explainer-grid{grid-template-columns:1fr 1fr;} }
+    @media(max-width:600px){ .explainer-grid{grid-template-columns:1fr;} }
   </style>
 </head>
 <body>
@@ -219,6 +232,42 @@
 </nav>
 
 <div class="page">
+
+  <!-- ── EXPLAINER ── -->
+  <div class="explainer">
+    <div class="explainer-title">DCF Calculator — How It Works</div>
+    <div class="explainer-body">
+      Select any stock you have generated a report for and adjust the valuation inputs at your discretion.
+      Base inputs are pre-loaded from the generated DCF model, which already incorporates analyst estimates on revenue and key metrics.
+      Both valuation methods use Unlevered Free Cash Flow (UFCF) for the 5-year projection period — choose mid-year or end-of-year discounting convention.
+    </div>
+    <div class="explainer-grid">
+      <div class="explainer-card">
+        <div class="explainer-card-title">Gordon Growth Method (GGM)</div>
+        <div class="explainer-card-body">
+          Values the company by discounting projected cash flows into perpetuity using a Terminal Growth Rate (TGR).
+          Best suited to stable, cash-generative businesses. Reference points for TGR are auto-generated based on historical revenue growth and sector norms.
+        </div>
+      </div>
+      <div class="explainer-card">
+        <div class="explainer-card-title">Earnings Multiple Method (EM)</div>
+        <div class="explainer-card-body">
+          Values the company by applying a terminal multiple to an anchor metric — UFCF, EBITDA, Earnings, FCF, or OCF.
+          Select the multiple that best reflects how the market prices the sector. Trailing multiples are shown as guardrails.
+        </div>
+      </div>
+      <div class="explainer-card">
+        <div class="explainer-card-title">Guardrails &amp; Reference Points</div>
+        <div class="explainer-card-body">
+          Average historical growth rates and trailing valuation multiples are auto-generated alongside inputs to anchor your assumptions.
+          Scenario saves allow you to compare bear, base, and bull cases side by side.
+        </div>
+      </div>
+    </div>
+    <div class="explainer-note">
+      <strong>Due Diligence:</strong> Base inputs reflect the generated DCF model. All adjustments are at the user's discretion — cross-check outputs against current market data and company filings for reasonableness before drawing conclusions.
+    </div>
+  </div>
 
   <!-- ── TICKER BAR ── -->
   <div class="ticker-bar">
