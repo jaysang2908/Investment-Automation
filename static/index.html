@@ -98,7 +98,7 @@
       <li><a href="/dashboard.html">Dashboard</a></li>
       <li><a href="/daily.html">Daily Discoveries</a></li>
       <li><a href="/dcf">DCF Calculator</a></li>
-      <li><a href="/heatmap">Heatmap</a></li>
+      <li><a href="#" onclick="event.preventDefault();document.getElementById('heatmap-coming-soon').style.display='flex'" style="opacity:0.55;cursor:default">Heatmap</a></li>
       <li><a href="/news">News</a></li>
       <li><a href="#methodology">Methodology</a></li>
     </ul>
@@ -381,5 +381,16 @@
   animateRings();
 
 </script>
+
+<!-- Heatmap coming-soon overlay -->
+<div id="heatmap-coming-soon" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center" onclick="this.style.display='none'">
+  <div style="background:#1a2332;border:1px solid #2e4057;border-radius:12px;padding:48px 56px;text-align:center;max-width:420px;box-shadow:0 24px 60px rgba(0,0,0,0.5)" onclick="event.stopPropagation()">
+    <div style="font-size:32px;margin-bottom:16px">🗺️</div>
+    <div style="font-family:'Inter',sans-serif;font-size:22px;font-weight:700;color:#e8edf3;margin-bottom:10px">Heatmap</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;color:#5b8dd9;text-transform:uppercase;margin-bottom:20px">Coming Soon</div>
+    <div style="font-size:13px;color:#8a9bb0;line-height:1.6;margin-bottom:28px">Portfolio-wide visualisation of all scored tickers — valuation, quality, and momentum in one view. Available once 10–15 tickers have been generated.</div>
+    <button onclick="document.getElementById('heatmap-coming-soon').style.display='none'" style="background:#2e4a7a;color:#e8edf3;border:none;border-radius:6px;padding:10px 28px;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif">Close</button>
+  </div>
+</div>
 </body>
 </html>

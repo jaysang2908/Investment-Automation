@@ -2886,6 +2886,51 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                     f"EV/EBITDA Exit Multiple used as sole primary method."
                 )
 
+            # ── EV/Sales regime ────────────────────────────────────────────────
+            # Triggered when GG is disabled AND trailing EBITDA is also negative.
+            # In that case even the EM formula is unreliable (negative terminal EBITDA
+            # produces a negative or nonsense EM price). Use forward EV/Revenue
+            # with a sector-appropriate mature multiple, discounted back at WACC.
+            _trailing_ebitda_mm = hist_ebitda[-1]  # $mm, already computed above
+            _evs_regime = _neg_earnings_regime and (_trailing_ebitda_mm < 0)
+
+            _evs_price         = None
+            _evs_implied_cagr  = None
+            _evs_required_rev  = None   # $B
+            _evs_mature_mult   = None
+            _evs_subtype       = None
+            _evs_yr5_rev_b     = None
+
+            if _evs_regime:
+                _evs_subtype     = _secular_growth_subtype(ticker)
+                _evs_mature_mult = EVS_MATURE_MULTS.get(_evs_subtype, 4.0)
+
+                _trailing_rev_mm = hist_rev[-1]
+                # Year-5 revenue from DCF projections (already computed above)
+                _yr5_rev_mm = _proj_revs[-1] if _proj_revs else (
+                    _trailing_rev_mm * (1 + _rev_3yr_avg_dcf) ** 5
+                    if _trailing_rev_mm > 0 else None
+                )
+                _evs_yr5_rev_b = round(_yr5_rev_mm / 1e3, 2) if _yr5_rev_mm else None
+
+                if _yr5_rev_mm and _yr5_rev_mm > 0:
+                    _yr5_ev_mm  = _yr5_rev_mm * _evs_mature_mult
+                    _yr5_eq_mm  = _yr5_ev_mm - net_debt - mi
+                    _evs_pv_mm  = _yr5_eq_mm / (1 + _wacc) ** 5
+                    _evs_px_loc = _evs_pv_mm / shares if shares > 0 else None
+                    _evs_price  = (round(_evs_px_loc * _fx_to_usd, 2)
+                                   if _evs_px_loc and _evs_px_loc > 0 else None)
+
+                # Reverse check: what 5yr revenue CAGR does today's EV imply?
+                if price and price > 0 and shares > 0 and _trailing_rev_mm > 0:
+                    _curr_ev_mm = price / _fx_to_usd * shares + net_debt + mi
+                    _req_rev_mm = _curr_ev_mm / _evs_mature_mult
+                    _evs_required_rev = round(_req_rev_mm / 1e3, 2)   # $B
+                    if _req_rev_mm > 0:
+                        _evs_implied_cagr = round(
+                            (_req_rev_mm / _trailing_rev_mm) ** (1 / 5) - 1, 4
+                        )
+
             dcf_prices = {
                 "gg_price":      None if _neg_earnings_regime else round(_ip_gg_usd, 2),
                 "gg_bear_price": None if _neg_earnings_regime else _gg_px_at(_DCF_TGR_BEAR, wacc_s=_wacc_bear),
@@ -2904,11 +2949,20 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 "tgr_bull":      _DCF_TGR_BULL,
                 "growth_tier":   _TIER,
                 "rev_3yr_avg":   round(_rev_3yr_avg_dcf, 4),
-                "trailing_fcf_b":  round(_trailing_fcf_raw / 1e3, 2),
-                "trailing_ebit_b": round(_trailing_ebit_raw / 1e3, 2),
+                "trailing_fcf_b":    round(_trailing_fcf_raw / 1e3, 2),
+                "trailing_ebit_b":   round(_trailing_ebit_raw / 1e3, 2),
+                "trailing_ebitda_b": round(_trailing_ebitda_mm / 1e3, 2),
                 "neg_earnings_regime": _neg_earnings_regime,
+                "evs_regime":        _evs_regime,
+                "evs_price":         _evs_price,
+                "evs_implied_cagr":  _evs_implied_cagr,
+                "evs_required_rev":  _evs_required_rev,
+                "evs_mature_mult":   _evs_mature_mult,
+                "evs_subtype":       _evs_subtype,
+                "evs_yr5_rev_b":     _evs_yr5_rev_b,
                 "gg_upside":  None if _neg_earnings_regime else (round(_ip_gg_usd / price - 1, 4) if price else None),
                 "em_upside":  round(_ip_em_usd / price - 1, 4) if price else None,
+                "evs_upside": round(_evs_price / price - 1, 4) if (_evs_price and price) else None,
             }
     except Exception:
         pass  # never break model generation
@@ -2951,6 +3005,49 @@ def _sector_bucket(sector_str, ticker):
 
     # Default: stable compounder (consumer staples, healthcare, retail, utilities, etc.)
     return "stable_compounder"
+
+
+def _secular_growth_subtype(ticker):
+    """EV/Sales subtype for pre-profit secular-growth companies.
+
+    Used when both GG and EM are unreliable (negative EBITDA).
+    Returns one of: secular_growth_deeptech, secular_growth_software,
+    secular_growth_resources, tech_growth, stable_compounder, cyclical.
+    """
+    t = (ticker or "").upper()
+    # Space, deep hardware, quantum, autonomous, biotech/genomics
+    if t in {
+        "RKLB","SPCE","ASTR","RDW","ASTS","LUNR","ACHR","JOBY","LILM",
+        "IONQ","RGTI","QUBT","ARQQ","RXRX","SANA","NTLA","BEAM","EDIT","CRSP",
+        "ABCL","PACB","NNOX","LAZR","LIDR","VLDR","OUST","MVIS",
+    }:
+        return "secular_growth_deeptech"
+    # High-growth SaaS / software / data platforms with negative earnings
+    if t in {
+        "AI","PATH","GTLB","TASK","DOCN","CFLT","APPN","SUMO","BASE","BRZE",
+        "AMPL","SEMR","ZETA","RELY","OKTA","ZS","S","ESTC","MSTR",
+    }:
+        return "secular_growth_software"
+    # Clean energy, hydrogen, EV, critical materials
+    if t in {
+        "PLUG","FCEL","BLOOM","MP","CLNE","NKLA","HYLN","HYZN","FFIE","GOEV",
+        "FSR","PTRA","WKHS","RUN","NOVA",
+    }:
+        return "secular_growth_resources"
+    # Default for other pre-profit companies
+    return "secular_growth_deeptech"
+
+
+# EV/Sales mature multiples — used when trailing EBITDA < 0 makes EM unreliable.
+# Represents a normalised enterprise-value-to-revenue multiple at scale/maturity.
+EVS_MATURE_MULTS = {
+    "secular_growth_deeptech":  4.0,
+    "secular_growth_software":  6.0,
+    "secular_growth_resources": 2.5,
+    "tech_growth":              4.5,
+    "stable_compounder":        3.5,
+    "cyclical":                 1.5,
+}
 
 
 # Per-metric thresholds: (HIGH, MOD-HIGH, MOD-LOW).  Values below MOD-LOW → LOW.

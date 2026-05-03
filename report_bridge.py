@@ -751,11 +751,23 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     # Medium, growth ≥ 10%:  EM base (faster growers — multiples more relevant)
     # High:   EM base
     # OVERRIDE: if trailing FCF or EBIT < 0, GG perpetuity is undefined → force EM.
+    # OVERRIDE2: if trailing EBITDA is also < 0, EV/Sales is used instead of EM.
     _gg_disabled_reason = dcf_prices.get("gg_disabled_reason")
     _neg_earnings_regime = bool(dcf_prices.get("neg_earnings_regime")) or bool(_gg_disabled_reason)
+    _evs_regime  = bool(dcf_prices.get("evs_regime"))
+    evs_px       = dcf_prices.get("evs_price")
+    _evs_mult    = dcf_prices.get("evs_mature_mult")
+    _evs_subtype = dcf_prices.get("evs_subtype") or ""
+    _evs_cagr    = dcf_prices.get("evs_implied_cagr")
+    _evs_req_rev = dcf_prices.get("evs_required_rev")  # $B
+    _evs_yr5_rev = dcf_prices.get("evs_yr5_rev_b")     # $B
 
     _gb = _growth_base or 0
-    if _neg_earnings_regime:
+    if _evs_regime:
+        _primary_pt  = evs_px or em_px   # EV/Sales preferred; EM as last fallback
+        _evs_m_str   = f"{_evs_mult:.1f}x" if _evs_mult else "N/A"
+        _primary_method = f"EV/Sales ({_evs_m_str} mature multiple)"
+    elif _neg_earnings_regime:
         _primary_pt  = em_px
         _primary_method = f"EV/EBITDA Exit ({dcf_prices.get('em_base_mult', 15):.0f}x)"
     elif _tier == "low":
@@ -784,7 +796,35 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     # Three-line rationale shown under the price target at the top of the report
     _gb_pct = f"{_gb*100:.1f}%"
-    if _neg_earnings_regime:
+    if _evs_regime:
+        _evs_sub_labels = {
+            "secular_growth_deeptech":  "Deep Tech / Pre-Revenue Scale",
+            "secular_growth_software":  "High-Growth Software / SaaS",
+            "secular_growth_resources": "Clean Energy / Critical Resources",
+            "tech_growth":              "Technology Growth",
+            "stable_compounder":        "Stable Compounder",
+            "cyclical":                 "Cyclical",
+        }
+        _evs_sub_lbl  = _evs_sub_labels.get(_evs_subtype, "Pre-Profit Growth")
+        _evs_m_str    = f"{_evs_mult:.1f}x" if _evs_mult else "N/A"
+        _evs_yr5_str  = f"${_evs_yr5_rev:.1f}B" if _evs_yr5_rev else "N/A"
+        _evs_cagr_str = f"{_evs_cagr*100:.1f}%" if _evs_cagr is not None else "N/A"
+        _evs_req_str  = f"${_evs_req_rev:.1f}B" if _evs_req_rev is not None else "N/A"
+        _tfcf_b   = dcf_prices.get("trailing_fcf_b")
+        _tebit_b  = dcf_prices.get("trailing_ebit_b")
+        _tebitda_b = dcf_prices.get("trailing_ebitda_b")
+        _trail_str = (f" Trailing FCF ${_tfcf_b:+,.1f}B, EBIT ${_tebit_b:+,.1f}B, "
+                      f"EBITDA ${_tebitda_b:+,.1f}B."
+                      if all(v is not None for v in [_tfcf_b, _tebit_b, _tebitda_b]) else "")
+        _pt_rationale = (
+            f"{_evs_sub_lbl} — GG and EV/EBITDA both unreliable (negative EBITDA).{_trail_str} "
+            f"EV/Sales used: Year-5 revenue {_evs_yr5_str} × {_evs_m_str} mature multiple, "
+            f"discounted at WACC {wacc_b*100:.1f}%. Note: this price target is a report-only "
+            f"overlay — the Excel DCF model uses GG/EM rows and does not have an EV/Sales tab. "
+            f"Reverse check: current market cap implies {_evs_cagr_str} revenue CAGR to justify "
+            f"{_evs_m_str} EV/Sales on {_evs_req_str} required revenue in 5 years."
+        )
+    elif _neg_earnings_regime:
         _em_m = dcf_prices.get("em_base_mult", 15)
         _tfcf_b = dcf_prices.get("trailing_fcf_b")
         _tebit_b = dcf_prices.get("trailing_ebit_b")
@@ -861,6 +901,16 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 _examples = _DISCOUNT_DRIVERS.get(_bucket, _generic_discount)
                 _frame    = "Market is discounting the stock below what the fundamentals justify"
 
+            # EV/Sales regime: append a reverse-check line to the banner
+            _evs_reverse_line = ""
+            if _evs_regime and _evs_cagr is not None and _evs_req_rev is not None:
+                _evs_reverse_line = (
+                    f" Reverse check: at current market price, investors are paying for "
+                    f"{_evs_cagr*100:.1f}% annual revenue CAGR over 5 years "
+                    f"(${_evs_req_rev:.1f}B required vs ${_evs_yr5_rev:.1f}B modelled), "
+                    f"assuming a {_evs_m_str} mature EV/Sales multiple at scale."
+                ) if _evs_yr5_rev else ""
+
             _narrative_banner_html = (
                 f'<div style="margin:14px 0 18px;padding:12px 18px;'
                 f'background:var(--warn-bg);border-left:3px solid var(--warn);'
@@ -872,6 +922,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 f'current market price. {_frame}. '
                 f'Possible drivers (sector-typical): {_examples}. '
                 f'User judgment required: consider qualitatively whether the gap is justified.'
+                f'{_evs_reverse_line}'
                 f'</div>'
             )
 
@@ -1703,6 +1754,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FN6": "Valuation multiples: 5-year averages from FMP ratios API.",
         "FN7": f"Key risks: {_er_commentary[:120]}{'...' if len(_er_commentary) > 120 else ''}",
         "FN8": f"DCF: WACC {wacc_b*100:.1f}% (Damodaran-based), TGR 3.0%.",
+        "FN9": (
+            f'SEC EDGAR 10-K filings — {company_name} ({ticker}): '
+            f'<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany'
+            f'&CIK={ticker}&type=10-K&dateb=&owner=include&count=10" target="_blank">'
+            f'View 10-K filings on SEC EDGAR</a>.'
+        ),
         "DISCLAIMER_TEXT": "This report is auto-generated from public financial data. For informational purposes only. Not investment advice.",
     }
 
@@ -2115,7 +2172,16 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     D["MULT_EM_BULL_PX_CLASS"] = _pxcls(_em_bull_px)
 
     # Composite: Gordon Growth base (exact Excel GG output) + EV/EBITDA base (exact Excel EM output)
-    if _em_base_px and gg_px and current_price:
+    # EV/Sales regime: use evs_price as the single primary; no composite.
+    if _evs_regime and evs_px and current_price:
+        _evs_m_str_c = f"{_evs_mult:.1f}x" if _evs_mult else "N/A"
+        D["COMPOSITE_FAIR_VALUE"]  = f"${evs_px:.0f}"
+        D["COMPOSITE_UPSIDE_NOTE"] = (
+            f"EV/Sales (5yr forward) {_evs_m_str_c} mature multiple: "
+            f"${evs_px:.0f} ({_vs(evs_px, current_price)}) — "
+            f"GG and EV/EBITDA disabled (negative EBITDA)."
+        )
+    elif _em_base_px and gg_px and current_price:
         _comp_all = round((_em_base_px + gg_px) / 2, 0)
         D["COMPOSITE_FAIR_VALUE"]  = f"${_comp_all:.0f}"
         D["COMPOSITE_UPSIDE_NOTE"] = (
@@ -2177,19 +2243,37 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             if bull_px else "• Bull: N/A"
         )
     _vv_lines.append("")
-    _vv_lines.append("EV/EBITDA Exit Multiple DCF:")
-    _vv_lines.append(
-        f"• Base: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) — {_em_base_mult_x:.0f}x terminal multiple"
-        if _em_base_px else "• Base: N/A"
-    )
-    _vv_lines.append(
-        f"• Bear: ${_em_bear_px:.0f} ({_vs(_em_bear_px, current_price)}) — {_em_bear_mult_x:.0f}x (−{abs(1 - _em_bear_mult_x/_em_base_mult_x)*100:.0f}%)"
-        if _em_bear_px else "• Bear: N/A"
-    )
-    _vv_lines.append(
-        f"• Bull: ${_em_bull_px:.0f} ({_vs(_em_bull_px, current_price)}) — {_em_bull_mult_x:.0f}x (+{abs(_em_bull_mult_x/_em_base_mult_x - 1)*100:.0f}%)"
-        if _em_bull_px else "• Bull: N/A"
-    )
+    if _evs_regime:
+        _vv_lines.append(f"EV/EBITDA Exit Multiple DCF (unreliable — trailing EBITDA negative):")
+        _vv_lines.append("• N/A — EV/EBITDA meaningless when EBITDA is negative.")
+    else:
+        _vv_lines.append("EV/EBITDA Exit Multiple DCF:")
+        _vv_lines.append(
+            f"• Base: ${_em_base_px:.0f} ({_vs(_em_base_px, current_price)}) — {_em_base_mult_x:.0f}x terminal multiple"
+            if _em_base_px else "• Base: N/A"
+        )
+        _vv_lines.append(
+            f"• Bear: ${_em_bear_px:.0f} ({_vs(_em_bear_px, current_price)}) — {_em_bear_mult_x:.0f}x (−{abs(1 - _em_bear_mult_x/_em_base_mult_x)*100:.0f}%)"
+            if _em_bear_px else "• Bear: N/A"
+        )
+        _vv_lines.append(
+            f"• Bull: ${_em_bull_px:.0f} ({_vs(_em_bull_px, current_price)}) — {_em_bull_mult_x:.0f}x (+{abs(_em_bull_mult_x/_em_base_mult_x - 1)*100:.0f}%)"
+            if _em_bull_px else "• Bull: N/A"
+        )
+    if _evs_regime:
+        _vv_lines.append("")
+        _evs_m_str_vv = f"{_evs_mult:.1f}x" if _evs_mult else "N/A"
+        _vv_lines.append(f"EV/Sales (Forward) — Primary method:")
+        _vv_lines.append(
+            f"• Base (5yr fwd): ${evs_px:.0f} ({_vs(evs_px, current_price)}) — "
+            f"{_evs_m_str_vv} mature EV/Sales on ${_evs_yr5_rev:.1f}B Yr-5 revenue, WACC {wacc_b*100:.1f}%"
+            if evs_px and _evs_yr5_rev else "• Base: N/A"
+        )
+        if _evs_cagr is not None and _evs_req_rev is not None:
+            _vv_lines.append(
+                f"• Reverse check: market price implies {_evs_cagr*100:.1f}% 5yr revenue CAGR "
+                f"→ ${_evs_req_rev:.1f}B required at {_evs_m_str_vv}"
+            )
     D["VALUATION_VERDICT_TEXT"] = "<br>".join(_vv_lines)
 
     # Method rationale

@@ -9,3 +9,19 @@ services:
         sync: false
       - key: APP_PASSWORD
         sync: false
+      - key: GEMINI_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+
+  - type: cron
+    name: daily-news-refresh
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "0 6 * * *"
+    startCommand: python daily_news.py
+    envVars:
+      - key: FMP_API_KEY
+        sync: false

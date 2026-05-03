@@ -47,7 +47,7 @@
     .tscroll { overflow-x: auto; border: 1px solid var(--border-1); border-radius: 8px; background: var(--surface-1); }
 
     /* Table min-width calculated from all column min-widths (see thead) */
-    table { width: 100%; border-collapse: collapse; font-size: 10pt; min-width: 1410px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10pt; min-width: 1610px; }
     thead th { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; font-weight: 600; padding: 12px 14px; white-space: nowrap; background: var(--surface-2); border-bottom: 2px solid var(--border-2); text-align: left; }
     thead th.c { text-align: center; }
     tbody td { padding: 14px 14px; border-bottom: 1px solid var(--border-1); vertical-align: middle; white-space: nowrap; }
@@ -209,6 +209,8 @@
           <th style="min-width:190px">Company</th>
           <th style="min-width:130px">Score</th>
           <th class="c" style="min-width:90px">Verdict</th>
+          <th class="c" style="min-width:90px">Mkt Cap</th>
+          <th class="c" style="min-width:120px">Price Target</th>
           <th class="c" style="min-width:72px">DCF GG</th>
           <th class="c" style="min-width:72px">DCF EM</th>
           <th class="c" style="min-width:68px">ROIC</th>
@@ -264,31 +266,33 @@
 
 <script>
 // ── Coverage data (sorted by score desc) ──────────────────────────────────────
+// price = last known price from model run; pt = DCF base price target (null if not computable)
+// mcap = market cap $B; upside computed in JS as (pt-price)/price
 const D = [
-  {t:"NFLX",n:"Netflix Inc.",           ex:"NASDAQ",score:84.5,sn:"auto-score",   gg:0.134,  em:0.645,  roic:0.359,cagr:0.126,fcfni:0.86,de:0.5,  pe:null, pe5:null, pf:null, pf5:null,  url:"/reports/NFLX_report.html",note:"Prior run lacked P/E & P/FCF data; both now scored."},
-  {t:"NVDA",n:"NVIDIA Corporation",     ex:"NASDAQ",score:75.0,sn:"auto-score",   gg:-0.417,em:0.096,  roic:0.713,cagr:1.00, fcfni:0.81,de:0.0,  pe:37.7, pe5:60.2, pf:46.9, pf5:70.4, url:"/reports/NVDA_report.html"},
-  {t:"ADBE",n:"Adobe Inc.",             ex:"NASDAQ",score:72.8,sn:"auto-score",   gg:0.428,  em:1.211,  roic:0.573,cagr:0.105,fcfni:1.38,de:0.6,  pe:19.1, pe5:41.4, pf:13.8, pf5:29.6, url:"/reports/ADBE_report.html"},
-  {t:"COST",n:"Costco Wholesale Corp.", ex:"NASDAQ",score:63.5,sn:"auto-score",   gg:-0.849, em:-0.366, roic:0.375,cagr:0.066,fcfni:0.97,de:0.0,  pe:51.7, pe5:44.9, pf:53.4, pf5:50.8, url:"/reports/COST_report.html"},
-  {t:"V",   n:"Visa Inc.",              ex:"NYSE",  score:61.2,sn:"auto-score",   gg:0.036,  em:0.173,  roic:0.463,cagr:0.109,fcfni:1.08,de:1.0,  pe:null, pe5:null, pf:null, pf5:null,  url:"/reports/V_report.html"},
-  {t:"MSFT",n:"Microsoft Corporation",  ex:"NASDAQ",score:60.0,sn:"auto-score*",  gg:-0.377,em:0.629,  roic:0.297,cagr:0.124,fcfni:0.70,de:0.3,  pe:36.3, pe5:33.9, pf:51.6, pf5:41.2, url:"/reports/MSFT_report.html",note:"*Qual inputs (BC+LTP) not included in this run. Previous incl. qual. score: 74.5."},
-  {t:"AMD", n:"Advanced Micro Devices", ex:"NASDAQ",score:59.2,sn:"auto-score",   gg:-0.486, em:-0.105, roic:0.059,cagr:0.136,fcfni:1.55,de:0.0,  pe:80.5, pe5:123.1,pf:51.8, pf5:87.2, url:"/reports/AMD_report.html"},
-  {t:"AAPL",n:"Apple Inc.",             ex:"NASDAQ",score:57.5,sn:"auto-score*",  gg:-0.434,em:-0.158, roic:0.823,cagr:0.018,fcfni:0.88,de:0.7,  pe:34.1, pe5:29.9, pf:38.7, pf5:29.2, url:"/reports/AAPL_report.html",note:"*Qual inputs (BC+LTP) not included in this run. Previous incl. qual. score: 74.3."},
-  {t:"JNJ", n:"Johnson & Johnson",      ex:"NYSE",  score:54.0,sn:"auto-score",   gg:0.493,  em:0.622,  roic:0.192,cagr:0.056,fcfni:0.73,de:1.2,  pe:18.8, pe5:20.4, pf:25.6, pf5:22.9, url:"/reports/JNJ_report.html"},
-  {t:"META",n:"Meta Platforms Inc.",    ex:"NASDAQ",score:53.0,sn:"auto-score",   gg:null,   em:0.762,  roic:0.244,cagr:0.199,fcfni:0.76,de:0.6,  pe:27.5, pe5:22.5, pf:36.1, pf5:25.1, url:"/reports/META_report.html",note:"GG price implausible — EM shown only."},
-  {t:"TSM", n:"Taiwan Semiconductor",   ex:"NYSE",  score:52.8,sn:"auto-score",   gg:null,   em:null,   roic:0.447,cagr:0.193,fcfni:0.63,de:0.0,  pe:28.5, pe5:23.6, pf:45.0, pf5:45.9, url:"/reports/TSM_report.html",note:"DCF prices in TWD — FX conversion not applied."},
-  {t:"KO",  n:"The Coca-Cola Company",  ex:"NYSE",  score:47.0,sn:"auto-score",   gg:-0.067, em:0.052,  roic:0.168,cagr:0.037,fcfni:0.40,de:2.4,  pe:23.0, pe5:25.4, pf:56.8, pf5:38.2, url:"/reports/KO_report.html"},
-  {t:"ABBV",n:"AbbVie Inc.",            ex:"NYSE",  score:43.0,sn:"auto-score",   gg:0.820,  em:0.668,  roic:0.175,cagr:0.018,fcfni:4.22,de:2.4,  pe:96.3, pe5:54.2, pf:22.8, pf5:15.1, url:"/reports/ABBV_report.html",note:"FCF/NI >100% reflects amortisation of acquired intangibles (Allergan deal)."},
-  {t:"CSCO",n:"Cisco Systems Inc.",     ex:"NASDAQ",score:41.8,sn:"auto-score",   gg:-0.222, em:-0.056, roic:0.162,cagr:0.032,fcfni:1.31,de:1.8,  pe:26.8, pe5:20.1, pf:20.6, pf5:16.3, url:"/reports/CSCO_report.html"},
-  {t:"WMT", n:"Walmart Inc.",           ex:"NYSE",  score:40.0,sn:"auto-score",   gg:-0.894, em:-0.180, roic:0.166,cagr:0.053,fcfni:0.68,de:1.0,  pe:43.4, pe5:35.0, pf:63.7, pf5:44.7, url:"/reports/WMT_report.html"},
-  {t:"WFC", n:"Wells Fargo & Co.",      ex:"NYSE",  score:38.7,sn:"bank adj.",     gg:-0.835,em:-0.351,roic:0.049,cagr:0.140,fcfni:0.89,de:14.5,pe:13.9,pe5:11.2,pf:null,pf5:29.9,url:"/reports/WFC_report.html",note:"Bank: D/EBITDA gate exempt. Equity/Assets 8.5% (CET1 proxy) used for P3."},
-  {t:"SOFI",n:"SoFi Technologies Inc.", ex:"NASDAQ",score:36.0,sn:"bank adj.",     gg:0.324, em:1.283, roic:0.209,cagr:0.393,fcfni:8.28,de:0.0,  pe:62.6,pe5:47.5, pf:null,pf5:null,  url:"/reports/SOFI_report.html",note:"Bank: Equity/Assets 20.7% (well-capitalised). FCF/NI non-standard (bank economics)."},
-  {t:"INTC",n:"Intel Corporation",      ex:"NASDAQ",score:33.0,sn:"auto-score",   gg:null,  em:-0.310, roic:0.0, cagr:0.057,fcfni:18.54,de:3.2,pe:null,pe5:49.6,pf:null,pf5:null,url:"/reports/INTC_report.html",note:"GG DCF negative. FCF/NI >100% from heavy D&A. ROIC near-zero reflects capex cycle."},
-  {t:"TSLA",n:"Tesla Inc.",             ex:"NASDAQ",score:32.5,sn:"auto-score",   gg:-0.966, em:-0.679, roic:0.043,cagr:0.052,fcfni:1.64,de:0.0,  pe:382.3,pe5:167.1,pf:233.2,pf5:225.0,url:"/reports/TSLA_report.html"},
-  {t:"JPM", n:"JPMorgan Chase & Co.",   ex:"NYSE",  score:32.0,sn:"bank adj.",     gg:null,   em:null,   roic:0.059,cagr:0.221,fcfni:1.77,de:11.6,pe:15.8,pe5:11.6,pf:8.9,pf5:14.3,url:"/reports/JPM_report.html",note:"Bank: Equity/Assets 8.2%. DCF structurally unsuited for deposit-funded banks."},
-  {t:"C",   n:"Citigroup Inc.",         ex:"NYSE",  score:25.0,sn:"bank adj.",     gg:null,   em:null,   roic:0.025,cagr:0.189,fcfni:1.56,de:31.0,pe:14.9,pe5:9.5, pf:9.5, pf5:5.6, url:"/reports/C_report.html",note:"Bank: DCF prices negative (bank structure). Equity/Assets 8.0%. D/EBITDA non-comparable."},
-  {t:"BAC", n:"Bank of America Corp.",  ex:"NYSE",  score:23.7,sn:"bank adj.",     gg:null,   em:-0.228, roic:0.070,cagr:0.185,fcfni:0.41,de:9.1, pe:13.3,pe5:11.5,pf:32.1,pf5:19.1,url:"/reports/BAC_report.html",note:"Bank: Equity/Assets 8.9%. GG price implausible. D/EBITDA non-comparable."},
-  {t:"F",   n:"Ford Motor Company",     ex:"NYSE",  score:15.8,sn:"auto-score",   gg:null,  em:-0.944, roic:0.010,cagr:0.058,fcfni:1.52,de:19.3,pe:null,pe5:7.5,pf:4.2,pf5:6.5,url:"/reports/F_report.html",note:"GG DCF negative (extreme leverage). Score reflects updated FY2025 data."},
-  {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available — report shows financial data only."},
+  {t:"NFLX",n:"Netflix Inc.",           ex:"NASDAQ",score:84.5,sn:"auto-score",   price:93,  pt:122,  mcap:40,   gg:0.134,  em:0.645,  roic:0.359,cagr:0.126,fcfni:0.86,de:0.5,  pe:null, pe5:null, pf:null, pf5:null,  url:"/reports/NFLX_report.html",note:"Prior run lacked P/E & P/FCF data; both now scored."},
+  {t:"NVDA",n:"NVIDIA Corporation",     ex:"NASDAQ",score:75.0,sn:"auto-score",   price:199, pt:119,  mcap:4834, gg:-0.417,em:0.096,  roic:0.713,cagr:1.00, fcfni:0.81,de:0.0,  pe:37.7, pe5:60.2, pf:46.9, pf5:70.4, url:"/reports/NVDA_report.html"},
+  {t:"ADBE",n:"Adobe Inc.",             ex:"NASDAQ",score:72.8,sn:"auto-score",   price:244, pt:343,  mcap:100,  gg:0.428,  em:1.211,  roic:0.573,cagr:0.105,fcfni:1.38,de:0.6,  pe:19.1, pe5:41.4, pf:13.8, pf5:29.6, url:"/reports/ADBE_report.html"},
+  {t:"COST",n:"Costco Wholesale Corp.", ex:"NASDAQ",score:63.5,sn:"auto-score",   price:1000,pt:200,  mcap:444,  gg:-0.849, em:-0.366, roic:0.375,cagr:0.066,fcfni:0.97,de:0.0,  pe:51.7, pe5:44.9, pf:53.4, pf5:50.8, url:"/reports/COST_report.html"},
+  {t:"V",   n:"Visa Inc.",              ex:"NYSE",  score:61.2,sn:"auto-score",   price:315, pt:273,  mcap:608,  gg:0.036,  em:0.173,  roic:0.463,cagr:0.109,fcfni:1.08,de:1.0,  pe:null, pe5:null, pf:null, pf5:null,  url:"/reports/V_report.html"},
+  {t:"MSFT",n:"Microsoft Corporation",  ex:"NASDAQ",score:60.0,sn:"auto-score*",  price:411, pt:235,  mcap:3054, gg:-0.377,em:0.629,  roic:0.297,cagr:0.124,fcfni:0.70,de:0.3,  pe:36.3, pe5:33.9, pf:51.6, pf5:41.2, url:"/reports/MSFT_report.html",note:"*Qual inputs (BC+LTP) not included in this run. Previous incl. qual. score: 74.5."},
+  {t:"AMD", n:"Advanced Micro Devices", ex:"NASDAQ",score:59.2,sn:"auto-score",   price:278, pt:147,  mcap:454,  gg:-0.486, em:-0.105, roic:0.059,cagr:0.136,fcfni:1.55,de:0.0,  pe:80.5, pe5:123.1,pf:51.8, pf5:87.2, url:"/reports/AMD_report.html"},
+  {t:"AAPL",n:"Apple Inc.",             ex:"NASDAQ",score:57.5,sn:"auto-score*",  price:270, pt:158,  mcap:3972, gg:-0.434,em:-0.158, roic:0.823,cagr:0.018,fcfni:0.88,de:0.7,  pe:34.1, pe5:29.9, pf:38.7, pf5:29.2, url:"/reports/AAPL_report.html",note:"*Qual inputs (BC+LTP) not included in this run. Previous incl. qual. score: 74.3."},
+  {t:"JNJ", n:"Johnson & Johnson",      ex:"NYSE",  score:54.0,sn:"auto-score",   price:234, pt:186,  mcap:564,  gg:0.493,  em:0.622,  roic:0.192,cagr:0.056,fcfni:0.73,de:1.2,  pe:18.8, pe5:20.4, pf:25.6, pf5:22.9, url:"/reports/JNJ_report.html"},
+  {t:"META",n:"Meta Platforms Inc.",    ex:"NASDAQ",score:53.0,sn:"auto-score",   price:677, pt:1056, mcap:1706, gg:null,   em:0.762,  roic:0.244,cagr:0.199,fcfni:0.76,de:0.6,  pe:27.5, pe5:22.5, pf:36.1, pf5:25.1, url:"/reports/META_report.html",note:"GG price implausible — EM shown only."},
+  {t:"TSM", n:"Taiwan Semiconductor",   ex:"NYSE",  score:52.8,sn:"auto-score",   price:363, pt:null, mcap:1885, gg:null,   em:null,   roic:0.447,cagr:0.193,fcfni:0.63,de:0.0,  pe:28.5, pe5:23.6, pf:45.0, pf5:45.9, url:"/reports/TSM_report.html",note:"DCF prices in TWD — FX conversion not applied."},
+  {t:"KO",  n:"The Coca-Cola Company",  ex:"NYSE",  score:47.0,sn:"auto-score",   price:76,  pt:48,   mcap:326,  gg:-0.067, em:0.052,  roic:0.168,cagr:0.037,fcfni:0.40,de:2.4,  pe:23.0, pe5:25.4, pf:56.8, pf5:38.2, url:"/reports/KO_report.html"},
+  {t:"ABBV",n:"AbbVie Inc.",            ex:"NYSE",  score:43.0,sn:"auto-score",   price:208, pt:238,  mcap:369,  gg:0.820,  em:0.668,  roic:0.175,cagr:0.018,fcfni:4.22,de:2.4,  pe:96.3, pe5:54.2, pf:22.8, pf5:15.1, url:"/reports/ABBV_report.html",note:"FCF/NI >100% reflects amortisation of acquired intangibles (Allergan deal)."},
+  {t:"CSCO",n:"Cisco Systems Inc.",     ex:"NASDAQ",score:41.8,sn:"auto-score",   price:86,  pt:78,   mcap:341,  gg:-0.222, em:-0.056, roic:0.162,cagr:0.032,fcfni:1.31,de:1.8,  pe:26.8, pe5:20.1, pf:20.6, pf5:16.3, url:"/reports/CSCO_report.html"},
+  {t:"WMT", n:"Walmart Inc.",           ex:"NYSE",  score:40.0,sn:"auto-score",   price:128, pt:29,   mcap:1016, gg:-0.894, em:-0.180, roic:0.166,cagr:0.053,fcfni:0.68,de:1.0,  pe:43.4, pe5:35.0, pf:63.7, pf5:44.7, url:"/reports/WMT_report.html"},
+  {t:"WFC", n:"Wells Fargo & Co.",      ex:"NYSE",  score:38.7,sn:"bank adj.",    price:81,  pt:13,   mcap:270,  gg:-0.835,em:-0.351,roic:0.049,cagr:0.140,fcfni:0.89,de:14.5,pe:13.9,pe5:11.2,pf:null,pf5:29.9,url:"/reports/WFC_report.html",note:"Bank: D/EBITDA gate exempt. Equity/Assets 8.5% (CET1 proxy) used for P3."},
+  {t:"SOFI",n:"SoFi Technologies Inc.", ex:"NASDAQ",score:36.0,sn:"bank adj.",    price:19,  pt:41,   mcap:25,   gg:0.324, em:1.283, roic:0.209,cagr:0.393,fcfni:8.28,de:0.0,  pe:62.6,pe5:47.5, pf:null,pf5:null,  url:"/reports/SOFI_report.html",note:"Bank: Equity/Assets 20.7% (well-capitalised). FCF/NI non-standard (bank economics)."},
+  {t:"INTC",n:"Intel Corporation",      ex:"NASDAQ",score:33.0,sn:"auto-score",   price:68,  pt:44,   mcap:344,  gg:null,  em:-0.310, roic:0.0, cagr:0.057,fcfni:18.54,de:3.2,pe:null,pe5:49.6,pf:null,pf5:null,url:"/reports/INTC_report.html",note:"GG DCF negative. FCF/NI >100% from heavy D&A. ROIC near-zero reflects capex cycle."},
+  {t:"TSLA",n:"Tesla Inc.",             ex:"NASDAQ",score:32.5,sn:"auto-score",   price:401, pt:32,   mcap:1503, gg:-0.966, em:-0.679, roic:0.043,cagr:0.052,fcfni:1.64,de:0.0,  pe:382.3,pe5:167.1,pf:233.2,pf5:225.0,url:"/reports/TSLA_report.html"},
+  {t:"JPM", n:"JPMorgan Chase & Co.",   ex:"NYSE",  score:32.0,sn:"bank adj.",    price:310, pt:103,  mcap:837,  gg:null,   em:null,   roic:0.059,cagr:0.221,fcfni:1.77,de:11.6,pe:15.8,pe5:11.6,pf:8.9,pf5:14.3,url:"/reports/JPM_report.html",note:"Bank: Equity/Assets 8.2%. DCF structurally unsuited for deposit-funded banks."},
+  {t:"C",   n:"Citigroup Inc.",         ex:"NYSE",  score:25.0,sn:"bank adj.",    price:132, pt:null, mcap:231,  gg:null,   em:null,   roic:0.025,cagr:0.189,fcfni:1.56,de:31.0,pe:14.9,pe5:9.5, pf:9.5, pf5:5.6, url:"/reports/C_report.html",note:"Bank: DCF prices negative (bank structure). Equity/Assets 8.0%. D/EBITDA non-comparable."},
+  {t:"BAC", n:"Bank of America Corp.",  ex:"NYSE",  score:23.7,sn:"bank adj.",    price:54,  pt:19,   mcap:387,  gg:null,   em:-0.228, roic:0.070,cagr:0.185,fcfni:0.41,de:9.1, pe:13.3,pe5:11.5,pf:32.1,pf5:19.1,url:"/reports/BAC_report.html",note:"Bank: Equity/Assets 8.9%. GG price implausible. D/EBITDA non-comparable."},
+  {t:"F",   n:"Ford Motor Company",     ex:"NYSE",  score:15.8,sn:"auto-score",   price:13,  pt:19,   mcap:50,   gg:null,  em:-0.944, roic:0.010,cagr:0.058,fcfni:1.52,de:19.3,pe:null,pe5:7.5,pf:4.2,pf5:6.5,url:"/reports/F_report.html",note:"GG DCF negative (extreme leverage). Score reflects updated FY2025 data."},
+  {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,price:null,pt:null,mcap:null,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available — report shows financial data only."},
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

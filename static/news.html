@@ -264,6 +264,25 @@
       text-transform: uppercase;
       color: var(--ink-3);
     }
+    .src-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+    .src-badge.fmp {
+      color: #5b8dd9;
+      background: rgba(91,141,217,0.12);
+      border: 1px solid rgba(91,141,217,0.25);
+    }
+    .src-badge.yahoo {
+      color: var(--ink-4);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-2);
+    }
     .art-title {
       font-family: var(--font-display);
       font-size: 17px;
@@ -441,10 +460,10 @@
   <div class="ph-row">
     <div>
       <h1 class="ph-title">News Feed</h1>
-      <p class="ph-sub">Press releases and market headlines from FMP, filtered to your covered tickers.</p>
+      <p class="ph-sub">Market headlines and press releases from FMP newswire (Benzinga, Reuters, etc.) + Yahoo Finance, filtered to your covered tickers.</p>
     </div>
     <div class="ph-meta">
-      <div>Sourced from FMP API</div>
+      <div id="sourceStats">FMP + Yahoo Finance</div>
       <div style="margin-top:6px" id="lastUpdated">Loading...</div>
     </div>
   </div>
@@ -667,17 +686,32 @@
       return;
     }
 
+    // ── Source badge helper ──
+    function srcBadge(a) {
+      const type = (a.source_type || "yahoo").toLowerCase();
+      if (type === "fmp") {
+        return `<span class="src-badge fmp">FMP</span>`;
+      }
+      return `<span class="src-badge yahoo">Yahoo</span>`;
+    }
+
     // Featured: first article
     const top = filtered[0];
     const topTime = timeAgo(top.publishedDate);
+    const featImgHtml = top.image
+      ? `<img src="${escHtml(top.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.55" loading="lazy" onerror="this.remove()">`
+      : "";
     featured.innerHTML = `
       <article class="featured">
-        <div class="featured-img">
-          <span class="featured-img-tag">Featured</span>
+        <div class="featured-img" style="position:relative">
+          ${featImgHtml}
+          <span class="featured-img-tag" style="position:relative;z-index:1">Featured</span>
         </div>
         <div class="featured-body">
-          <div class="featured-eye">Latest · ${escHtml(topTime)}</div>
-          <h2 class="featured-title"><a href="${escHtml(top.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escHtml(top.title)}</a></h2>
+          <div class="featured-eye" style="display:flex;align-items:center;gap:8px">
+            ${srcBadge(top)}<span>Latest · ${escHtml(topTime)}</span>
+          </div>
+          <h2 class="featured-title" style="margin-top:10px"><a href="${escHtml(top.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escHtml(top.title)}</a></h2>
           <p class="featured-snippet">${escHtml(snippet(top.text, 260))}</p>
           <div class="featured-meta">
             ${top.site ? `<span class="src">${escHtml(top.site)}</span><span>·</span>` : ""}
@@ -696,7 +730,7 @@
       const t = timeShort(a.publishedDate);
       const tc = THUMB_CLASSES[i % THUMB_CLASSES.length];
       const thumbHtml = a.image
-        ? `<div class="art-thumb"><img src="${escHtml(a.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=art-thumb-placeholder ${tc}></div>'"></div>`
+        ? `<div class="art-thumb"><img src="${escHtml(a.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'art-thumb-placeholder ${tc}\\'></div>'"></div>`
         : `<div class="art-thumb"><div class="art-thumb-placeholder ${tc}"></div></div>`;
 
       return `
@@ -705,6 +739,7 @@
           <div class="art-body">
             <div class="art-tickers">
               ${a.symbol ? `<span class="tk-pill">${escHtml(a.symbol)}</span>` : ""}
+              ${srcBadge(a)}
               ${a.site ? `<span class="art-source">${escHtml(a.site)}</span>` : ""}
             </div>
             <h3 class="art-title">${escHtml(a.title)}</h3>
@@ -735,6 +770,26 @@
         meta.innerHTML = `Updated · <strong>${timeAgo(data.fetched + "Z")}</strong>`;
       } else {
         meta.textContent = "No data loaded";
+      }
+
+      // Show FMP / Yahoo split in header
+      const statsEl = document.getElementById("sourceStats");
+      if (statsEl && data.stats) {
+        const { fmp = 0, yahoo = 0, total = 0 } = data.stats;
+        statsEl.innerHTML =
+          `<span style="color:var(--ink-2)">${total} articles</span> · ` +
+          `<span style="color:#5b8dd9">FMP ${fmp}</span>` +
+          (yahoo ? ` · <span style="color:var(--ink-4)">Yahoo ${yahoo}</span>` : "");
+      } else if (statsEl) {
+        // Compute from articles if stats field absent (legacy cache)
+        const nFmp   = allArticles.filter(a => a.source_type === "fmp").length;
+        const nYahoo = allArticles.filter(a => a.source_type === "yahoo").length;
+        const nOther = allArticles.length - nFmp - nYahoo;
+        statsEl.innerHTML =
+          `<span style="color:var(--ink-2)">${allArticles.length} articles</span> · ` +
+          (nFmp   ? `<span style="color:#5b8dd9">FMP ${nFmp}</span> · ` : "") +
+          (nYahoo ? `<span style="color:var(--ink-4)">Yahoo ${nYahoo}</span>` : "") +
+          (nOther && !nFmp && !nYahoo ? `<span style="color:var(--ink-4)">Mixed sources</span>` : "");
       }
 
       if (data.stale) {

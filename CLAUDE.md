@@ -1,7 +1,25 @@
 # Investment Automation — Project Rules
 
-## End User
-This tool is used by a **professional investor**. All calculations, formulas, and reported numbers must be accurate to institutional standard. No approximations presented as facts, no silent sign errors, no formulas that produce plausible-looking but incorrect results. When in doubt, show the work.
+## End User & Mindset
+This tool is built for **professional-level investors** — people who run DCF models themselves, read 10-Ks, and will immediately notice a wrong number, a sloppy label, or an insight that doesn't hold up. The site is also being reviewed by senior finance professionals (e.g. structured credit directors at major banks) who will evaluate it as evidence of analytical rigour.
+
+That sets the bar for everything built here:
+
+- **Accuracy first.** All calculations, formulas, and reported numbers must be correct to institutional standard. No approximations presented as facts, no silent sign errors, no formulas that produce plausible-looking but wrong results. When in doubt, show the work.
+- **High attention to detail.** Labels, units, formatting, source attributions, and edge-case handling matter. A number displayed as "N/A" with a clear reason is better than a number that's silently zero or miscomputed.
+- **Insightful, not decorative.** Every piece of information shown — a scorecard tier, a news headline, a valuation overlay — should help the user make a better investment judgment. Features that add noise or require explanation rather than delivering immediate signal should not be built.
+- **Never dumb it down.** Users understand WACC, EBITDA multiples, FCF yield, credit spreads, and leverage ratios. Write labels, rationales, and UI text at the level of someone who reads Bloomberg and CFA-level material daily.
+- **Incomplete features must be clearly flagged.** If a section of the site is not yet functional (e.g. Heatmap), it must visibly say so — do not leave a broken or empty state that a professional reviewer would interpret as a mistake.
+
+## Ancillary Features Philosophy
+The site's non-report features (News, Dashboard, Heatmap, Daily Discoveries) exist to make the user's workflow more convenient and self-contained — not to replace the core DCF/scorecard output. Their design principle is:
+
+- **Stay current**: surface updated market information (news headlines, price moves) so the user can quickly cross-check assumptions after a report is generated without leaving the site.
+- **Link to sources**: wherever possible, provide direct access to primary reference data (news articles, filings) so the user can verify the model's inputs and check our work.
+- **Don't add noise**: only show information relevant to tickers the user has already run reports for. The system auto-discovers covered tickers from `static/reports/` and scopes all feeds to that universe.
+- **Respect API limits**: ancillary features run on a scheduled basis (not on every page load or every report generation) to avoid burning FMP free-tier quota. News is fetched via `daily_news.py` on a cron — not live. The FMP `/stable/stock_news` batch endpoint fetches all tickers in a single API call to minimise quota usage.
+
+When building or extending these features, default to scheduled/cached data over live API calls, and always tie the ticker universe to the user's generated report set.
 
 ---
 
@@ -155,6 +173,47 @@ Template variable: `{{NARRATIVE_GAP_BANNER}}` — produces empty string when gap
 
 In `_t_val()` (Part 4 valuation scoring), if current P/E or P/FCF is ≤ 0, return tier `"LOW"` with a note: "Multiple meaningless when earnings/FCF are negative." A loss-making company does not get cheaper as losses widen; the math may compute a "−300% vs benchmark" reading but that signals distress, not value. Likewise if the historical 5yr average is ≤ 0 (loss-period distortion), return tier `None` with an N/A note rather than scoring against a meaningless baseline.
 
+## Rule 9: EV/Sales Regime — Pre-Profit Secular-Growth Companies
+
+Triggered when `neg_earnings_regime = True` **AND** `trailing_EBITDA < 0`. At this point both GG and EV/EBITDA Exit Multiple are unreliable (negative EBITDA makes the EM terminal value nonsense). EV/Sales with a mature-business multiple is used instead.
+
+Detection in `build_dcf()`:
+```
+_evs_regime = _neg_earnings_regime AND (hist_ebitda[-1] < 0)
+```
+
+**`_secular_growth_subtype(ticker)`** classifies the company into:
+- `secular_growth_deeptech` → 4.0x mature EV/Sales (space, quantum, robotics, biotech)
+- `secular_growth_software` → 6.0x (SaaS/data platforms at scale)
+- `secular_growth_resources` → 2.5x (clean energy, critical materials)
+- `tech_growth` → 4.5x / `stable_compounder` → 3.5x / `cyclical` → 1.5x (fallbacks)
+
+**Forward price target:**
+```
+Year-5 EV = Year-5 revenue (from DCF projections) × mature EV/Sales multiple
+Year-5 equity value = Year-5 EV − net_debt − minority_interest
+EVS price = Year-5 equity value / (1 + WACC)^5 / shares_outstanding (in USD)
+```
+
+**Reverse check** (what CAGR does current market price imply?):
+```
+current_EV = price × shares + net_debt + mi
+required_rev_5yr = current_EV / mature_multiple
+implied_CAGR = (required_rev_5yr / trailing_rev)^(1/5) − 1
+```
+
+`dcf_prices` keys: `evs_regime` (bool), `evs_price`, `evs_implied_cagr`, `evs_required_rev` ($B), `evs_mature_mult`, `evs_subtype`, `evs_yr5_rev_b` ($B), `evs_upside`.
+
+In `report_bridge.py`:
+- `_evs_regime` takes precedence over `_neg_earnings_regime` for primary method selection.
+- Primary method label: `EV/Sales (Nx mature multiple)`.
+- Rationale includes trailing FCF/EBIT/EBITDA, Year-5 revenue, WACC used, and reverse-check CAGR.
+- Narrative-gap banner appends a reverse-check line when EV/Sales is active.
+- Composite fair value uses `evs_price` alone (no composite with GG/EM).
+- EV/EBITDA valuation verdict rows show "N/A — trailing EBITDA negative" rather than fabricated prices.
+
+**EV/Sales price target in the Excel model:** Not currently written to the DCF sheet (EV/Sales is a Python-only overlay — it doesn't map to Excel rows that assume positive EBITDA).
+
 ---
 
 ## Architecture Reference
@@ -187,7 +246,17 @@ In `_t_val()` (Part 4 valuation scoring), if current P/E or P/FCF is ≤ 0, retu
   "tgr_bull":      float,   # bull TGR for GG scenario
   "growth_tier":   str,     # "low" | "medium" | "high"
   "rev_3yr_avg":   float,   # 3yr avg annual revenue growth used for tier
-  "gg_upside":     float,   # (gg_price / current_price) - 1
-  "em_upside":     float,   # (em_price / current_price) - 1
+  "gg_upside":         float,   # (gg_price / current_price) - 1
+  "em_upside":         float,   # (em_price / current_price) - 1
+  "trailing_ebitda_b": float,   # trailing EBITDA in $B
+  "neg_earnings_regime": bool,  # trailing FCF < 0 OR trailing EBIT < 0
+  "evs_regime":        bool,    # neg_earnings_regime AND trailing EBITDA < 0
+  "evs_price":         float,   # EV/Sales fwd price target (USD)
+  "evs_implied_cagr":  float,   # 5yr revenue CAGR implied by current market price
+  "evs_required_rev":  float,   # required trailing revenue in $B at mature multiple
+  "evs_mature_mult":   float,   # sector-calibrated mature EV/Sales multiple
+  "evs_subtype":       str,     # secular_growth_deeptech | _software | _resources | ...
+  "evs_yr5_rev_b":     float,   # Year-5 projected revenue in $B
+  "evs_upside":        float,   # (evs_price / current_price) - 1
 }
 ```
