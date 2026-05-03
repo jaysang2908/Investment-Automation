@@ -107,7 +107,7 @@
   body::before { content:''; position:fixed; inset:0; background-image: radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px); background-size: 32px 32px; pointer-events:none; z-index:0; }
 
   nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; background: rgba(6,8,13,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-1); }
-  .nav-logo { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
+  .nav-logo { font-family: var(--font-mono); font-size: 16px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
   .nav-logo span { color: var(--gold); }
   .nav-links { display: flex; gap: 28px; list-style: none; }
   .nav-links a { font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-3); text-decoration: none; padding: 6px 0; position: relative; font-weight: 500; transition: color var(--dur-base); }
@@ -235,7 +235,7 @@
   body { font-family: var(--font-body); background: var(--bg); color: var(--ink-2); font-size: var(--t-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
 
   nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; background: rgba(6,8,13,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-1); }
-  .nav-logo { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
+  .nav-logo { font-family: var(--font-mono); font-size: 16px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
   .nav-logo span { color: var(--gold); }
   .nav-links { display: flex; gap: 28px; list-style: none; }
   .nav-links a { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-3); text-decoration: none; padding: 6px 0; position: relative; }
@@ -715,7 +715,7 @@
   body { font-family: var(--font-body); background: var(--bg); color: var(--ink-2); font-size: var(--t-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
 
   nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; background: rgba(6,8,13,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-1); }
-  .nav-logo { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
+  .nav-logo { font-family: var(--font-mono); font-size: 16px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
   .nav-logo span { color: var(--gold); }
   .nav-links { display: flex; gap: 28px; list-style: none; }
   .nav-links a { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-3); text-decoration: none; padding: 6px 0; position: relative; }
