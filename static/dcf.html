@@ -512,6 +512,18 @@
     </table>
   </div>
 
+  <!-- ── GGM NEGATIVE WARNING ── -->
+  <div id="ggmNegWarning" style="display:none;margin-bottom:16px;padding:16px 20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.35);border-radius:8px;border-left:4px solid #ef4444">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5pt;font-weight:600;color:#ef4444;letter-spacing:1px;margin-bottom:8px">&#9888; GORDON GROWTH MODEL — NEGATIVE VALUATION</div>
+    <div style="font-size:10pt;color:#c4cdd9;line-height:1.7">
+      The Gordon Growth Model is producing a negative implied value for this stock. This typically occurs when a company has recently reported losses, negative free cash flow, or negative EBIT — making a perpetuity-based DCF unreliable as a standalone valuation tool.
+      <br><br>
+      The Exit Multiple result (right card) may be more appropriate in this context. Users should conduct their own due diligence and apply judgement as to whether current assumptions reflect the forward outlook — particularly for turnaround situations or cyclical trough years. Manual override of projection assumptions (revenue growth, margins) is encouraged to stress-test a recovery scenario.
+      <br><br>
+      <span style="color:#f59e0b;font-family:'IBM Plex Mono',monospace;font-size:8.5pt">Note: Additional valuation methodologies (e.g. EV/Revenue for pre-profit companies) will be added in a future patch.</span>
+    </div>
+  </div>
+
   <!-- ── RESULT CARDS ── -->
   <div class="result-cards" id="resultCards" style="display:none">
     <div class="result-card">
@@ -1098,10 +1110,14 @@ function calculate() {
   setUpside('ggmUpside', pGGM, price);
   setUpside('emUpside',  pEM, price);
 
+  // ── GGM negative warning ──
+  const ggmWarn = document.getElementById('ggmNegWarning');
+  if (ggmWarn) ggmWarn.style.display = (pGGM <= 0) ? '' : 'none';
+
   // ── Update result cards ──
-  setTxt('rc_ggm_price', `$${pGGM.toFixed(2)}`);
+  setTxt('rc_ggm_price', pGGM > 0 ? `$${pGGM.toFixed(2)}` : 'N/A');
   setTxt('rc_em_price',  `$${pEM.toFixed(2)}`);
-  setUpside('rc_ggm_up', pGGM, price);
+  setUpside('rc_ggm_up', pGGM > 0 ? pGGM : null, price);
   setUpside('rc_em_up',  pEM, price);
 
   // ── Validation badge: compare client price vs engine price ──
