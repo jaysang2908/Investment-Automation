@@ -521,6 +521,21 @@ def _build_dcf_response(stored):
                 curr = history[i]["revenue_m"]
                 history[i]["rev_growth"] = round(curr / prev - 1, 4) if prev else None
 
+        # Backfill OCF, EBIT, NPAT from raw FMP data (always stored alongside Excel model)
+        raw_cf   = stored.get("cf_data")  or []
+        raw_is_d = stored.get("is_data")  or []
+        for i in range(len(history)):
+            if i < len(raw_cf):
+                history[i]["ocf_m"]  = round((raw_cf[i].get("operatingCashFlow") or 0) / 1e6, 1)
+            else:
+                history[i]["ocf_m"]  = None
+            if i < len(raw_is_d):
+                history[i]["ebit_m"] = round((raw_is_d[i].get("operatingIncome") or 0) / 1e6, 1)
+                history[i]["npat_m"] = round((raw_is_d[i].get("netIncome")       or 0) / 1e6, 1)
+            else:
+                history[i]["ebit_m"] = None
+                history[i]["npat_m"] = None
+
         # Projection defaults — exact from Excel
         def_rev    = [p.get("rev_growth")    or 0.05 for p in proj_rows]
         def_margin = [p.get("ebitda_margin") or (history[-1]["ebitda_margin"] if history else 0.20) for p in proj_rows]
@@ -583,10 +598,11 @@ def _build_dcf_response(stored):
             fcf        = cf_.get("freeCashFlow") or (ocf - capex)
             pti        = is_.get("incomeBeforeTax") or is_.get("pretaxIncome") or 0
             te         = abs(is_.get("incomeTaxExpense") or 0)
-            tax_r      = min(te / pti, 0.50) if pti > 0 else 0.21
-            wc_chg = cf_.get("changesInWorkingCapital") or cf_.get("changeInWorkingCapital") or 0
-        nwc_pct_hist = round(-wc_chg / rev, 4) if rev else 0
-        history.append({
+            tax_r        = min(te / pti, 0.50) if pti > 0 else 0.21
+            wc_chg       = cf_.get("changesInWorkingCapital") or cf_.get("changeInWorkingCapital") or 0
+            nwc_pct_hist = round(-wc_chg / rev, 4) if rev else 0
+            npat         = is_.get("netIncome") or 0
+            history.append({
                 "year":          is_.get("fiscalYear") or is_.get("calendarYear") or is_["date"][:4],
                 "revenue_m":     round(rev / 1e6, 1),
                 "rev_growth":    None,
@@ -597,6 +613,8 @@ def _build_dcf_response(stored):
                 "nwc_pct":       nwc_pct_hist,
                 "ocf_m":         round(ocf / 1e6, 1),
                 "fcf_m":         round(fcf / 1e6, 1),
+                "ebit_m":        round(ebit / 1e6, 1),
+                "npat_m":        round(npat / 1e6, 1),
             })
         for i in range(1, len(history)):
             prev = history[i-1]["revenue_m"]

@@ -436,12 +436,22 @@
               <td><input class="proj-input" id="tx3" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
               <td><input class="proj-input" id="tx4" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
             </tr>
-            <!-- Cash Flow Metrics — Historical actuals (FMP) + Model forecast -->
-            <tr class="section-hdr"><td colspan="11">Cash Flow Metrics ($M) — Historical &amp; Forecast</td></tr>
+            <!-- P&L & Cash Flow Metrics — Historical actuals (FMP) + Model forecast -->
+            <tr class="section-hdr"><td colspan="11">P&amp;L &amp; Cash Flow Metrics ($M) — Historical &amp; Forecast</td></tr>
             <tr>
               <td class="label-col">EBITDA</td>
               <td class="hist-val" id="hr1_ebitda_m">—</td><td class="hist-val" id="hr2_ebitda_m">—</td><td class="hist-val" id="hr3_ebitda_m">—</td><td class="hist-val" id="hr4_ebitda_m">—</td><td class="hist-val" id="hr5_ebitda_m">—</td>
               <td class="proj-cf-val" id="cf_pr1_ebitda">—</td><td class="proj-cf-val" id="cf_pr2_ebitda">—</td><td class="proj-cf-val" id="cf_pr3_ebitda">—</td><td class="proj-cf-val" id="cf_pr4_ebitda">—</td><td class="proj-cf-val" id="cf_pr5_ebitda">—</td>
+            </tr>
+            <tr>
+              <td class="label-col">EBIT</td>
+              <td class="hist-val" id="hr1_ebit_m">—</td><td class="hist-val" id="hr2_ebit_m">—</td><td class="hist-val" id="hr3_ebit_m">—</td><td class="hist-val" id="hr4_ebit_m">—</td><td class="hist-val" id="hr5_ebit_m">—</td>
+              <td class="proj-cf-val" colspan="5" style="color:var(--text-dim);font-size:7.5pt;text-align:center">— modelled via EBITDA − D&amp;A —</td>
+            </tr>
+            <tr>
+              <td class="label-col">Net Income (NPAT)</td>
+              <td class="hist-val" id="hr1_npat_m">—</td><td class="hist-val" id="hr2_npat_m">—</td><td class="hist-val" id="hr3_npat_m">—</td><td class="hist-val" id="hr4_npat_m">—</td><td class="hist-val" id="hr5_npat_m">—</td>
+              <td class="proj-cf-val" colspan="5" style="color:var(--text-dim);font-size:7.5pt;text-align:center">— not directly modelled —</td>
             </tr>
             <tr>
               <td class="label-col">UFCF</td>
@@ -839,6 +849,12 @@ async function loadTicker() {
 
         const ebitdaEl = document.getElementById(`hr${col}_ebitda_m`);
         if (ebitdaEl) ebitdaEl.textContent = fmtM(h.revenue_m * (h.ebitda_margin || 0));
+
+        const ebitEl = document.getElementById(`hr${col}_ebit_m`);
+        if (ebitEl) ebitEl.textContent = h.ebit_m != null ? fmtM(h.ebit_m) : '—';
+
+        const npatEl = document.getElementById(`hr${col}_npat_m`);
+        if (npatEl) npatEl.textContent = h.npat_m != null ? fmtM(h.npat_m) : '—';
 
         const ufcfEl = document.getElementById(`hr${col}_ufcf_m`);
         if (ufcfEl) ufcfEl.textContent = h.fcf_m != null ? fmtM(h.fcf_m) : '—';
