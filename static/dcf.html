@@ -491,6 +491,14 @@
       <div class="wacc-section">
         <div class="wacc-row"><span class="wacc-lbl">Risk-free Rate</span><span><input class="wacc-input" id="wRf" type="number" step="0.05" min="0" max="10" value="4.30" oninput="recalcWacc()"> <span class="input-unit">%</span></span></div>
         <div class="wacc-row"><span class="wacc-lbl">Beta</span><span class="wacc-right"><input class="wacc-input" id="wBeta" type="number" step="0.05" min="0" max="5" value="1.00" oninput="recalcWacc()"><span class="input-unit" style="visibility:hidden">%</span></span></div>
+        <div id="betaWarnNote" style="display:none;margin:4px 0 6px;padding:8px 12px;background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b;border-radius:0 4px 4px 0">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;font-weight:600;color:#f59e0b;letter-spacing:0.5px;margin-bottom:4px">⚠ LOW BETA — LOSS-MAKING COMPANY</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:#c4cdd9;line-height:1.5;margin-bottom:6px">FMP's 5yr monthly regression beta may understate equity risk. For volatile / pre-profit names consider 1.5–2.0+.</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="applyStressedBeta(1.5)" style="font-family:'IBM Plex Mono',monospace;font-size:7pt;padding:3px 8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:3px;color:#f59e0b;cursor:pointer">Apply β 1.5</button>
+            <button onclick="applyStressedBeta(2.0)" style="font-family:'IBM Plex Mono',monospace;font-size:7pt;padding:3px 8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:3px;color:#f59e0b;cursor:pointer">Apply β 2.0</button>
+          </div>
+        </div>
         <div class="wacc-row"><span class="wacc-lbl">Equity Risk Premium</span><span class="wacc-right"><input class="wacc-input" id="wErp" type="number" step="0.05" min="0" max="15" value="4.50" oninput="recalcWacc()"><span class="input-unit">%</span></span></div>
         <div class="wacc-row"><span class="wacc-lbl">Cost of Equity (Ke)</span><span class="wacc-right"><span class="wacc-computed" id="wKe">—</span></span></div>
         <div class="wacc-row"><span class="wacc-lbl">Pre-tax Cost of Debt</span><span><input class="wacc-input" id="wKd" type="number" step="0.1" min="0" max="20" value="4.00" oninput="recalcWacc()"> <span class="input-unit">%</span></span></div>
@@ -996,6 +1004,13 @@ function recalcWacc() {
   document.getElementById('wKe').textContent   = `${(ke*100).toFixed(2)}%`;
   document.getElementById('wKdAt').textContent = `${(kdAt*100).toFixed(2)}%`;
   document.getElementById('wDw').textContent   = `${(dw*100).toFixed(1)}%`;
+
+  // Beta warning: show when beta < 1.0 and company is loss-making
+  const betaWarn = document.getElementById('betaWarnNote');
+  if (betaWarn) {
+    const isLoss = STATE.data && STATE.data.is_loss_making;
+    betaWarn.style.display = (isLoss && beta < 1.0) ? '' : 'none';
+  }
   document.getElementById('wWacc').textContent = `${(wacc*100).toFixed(2)}%`;
   calculate();
 }
@@ -1645,6 +1660,12 @@ function setUpside(id, implied, current) {
 function showLoading(v) { document.getElementById('loadingMsg').style.display = v ? '' : 'none'; }
 function showError(msg) { const e=document.getElementById('errorMsg'); e.style.display=''; e.textContent=msg; }
 function hideError() { document.getElementById('errorMsg').style.display='none'; }
+function applyStressedBeta(floor) {
+  const current = getVal('wBeta');
+  setVal('wBeta', Math.max(current, floor).toFixed(2));
+  recalcWacc();
+  calculate();
+}
 </script>
 </body>
 </html>

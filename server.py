@@ -703,19 +703,28 @@ def _build_dcf_response(stored):
         gg_price      = dcf_px.get("gg_price")
         source        = "fmp"
 
+    # Loss-making flag: negative trailing EBIT or EBITDA (from dcf_prices or last history row)
+    _last_h   = history[-1] if history else {}
+    _neg_ebit = ((_last_h.get("ebit_m") or 0) < 0 or
+                 dcf_px.get("neg_earnings_regime", False))
+    _neg_ebitda = ((_last_h.get("revenue_m", 1) * (_last_h.get("ebitda_margin", 0))) < 0 or
+                   dcf_px.get("evs_regime", False))
+    is_loss_making = bool(_neg_ebit or _neg_ebitda)
+
     return {
-        "ticker":         ticker,
-        "name":           profile.get("companyName") or ticker,
-        "price":          current_price,
-        "shares_m":       round(shares_m, 2),
-        "net_debt_m":     round(net_debt_m, 1),
-        "last_year":      last_year,
-        "history":        history,
-        "defaults":       defaults,
-        "dcf_base_price": gg_price,
-        "dcf_em_price":   dcf_px.get("em_price"),
-        "data_source":    source,
-        "fetched_date":   stored.get("fetched", ""),
+        "ticker":          ticker,
+        "name":            profile.get("companyName") or ticker,
+        "price":           current_price,
+        "shares_m":        round(shares_m, 2),
+        "net_debt_m":      round(net_debt_m, 1),
+        "last_year":       last_year,
+        "history":         history,
+        "defaults":        defaults,
+        "dcf_base_price":  gg_price,
+        "dcf_em_price":    dcf_px.get("em_price"),
+        "data_source":     source,
+        "fetched_date":    stored.get("fetched", ""),
+        "is_loss_making":  is_loss_making,
         "analyst_ests": [
             {
                 "year":      str(e.get("date",""))[:4],
