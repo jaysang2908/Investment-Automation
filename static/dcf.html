@@ -509,8 +509,8 @@
         <div class="wacc-row" style="border-top:1px solid rgba(201,168,76,0.2);padding-top:8px;margin-top:4px"><span class="wacc-lbl" style="color:var(--gold)">WACC</span><span class="wacc-right"><span class="wacc-computed" id="wWacc">—</span></span></div>
         <div id="waccFloorWarn" style="display:none;margin:4px 0 6px;padding:8px 12px;background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b;border-radius:0 4px 4px 0">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;font-weight:600;color:#f59e0b;letter-spacing:0.5px;margin-bottom:4px">⚠ WACC BELOW PRACTICAL FLOOR</div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:#c4cdd9;line-height:1.5;margin-bottom:6px">In the current rate environment (Rf ~4.3%), a WACC below 7.5% is difficult to justify even for the most stable, low-risk businesses. Consider increasing Beta or ERP — FMP's 5yr regression beta commonly understates true equity risk for stable compounders. A 7.5–8.0% floor is appropriate as a minimum assumption.</div>
-          <button onclick="applyWaccFloor(0.075)" style="font-family:'IBM Plex Mono',monospace;font-size:7pt;padding:3px 8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:3px;color:#f59e0b;cursor:pointer">Floor to 7.5%</button>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:#c4cdd9;line-height:1.5;margin-bottom:6px">In the current rate environment (Rf ~4.3%), a WACC below 7.8% is difficult to justify even for the most stable, low-risk businesses. Consider increasing Beta or ERP — FMP's 5yr regression beta commonly understates true equity risk for stable compounders. A 7.8–8.5% floor is appropriate as a minimum assumption.</div>
+          <button onclick="applyWaccFloor(0.078)" style="font-family:'IBM Plex Mono',monospace;font-size:7pt;padding:3px 8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:3px;color:#f59e0b;cursor:pointer">Floor to 7.8%</button>
         </div>
         <div class="toggle-row" style="padding-top:6px"><input type="checkbox" id="midYear" onchange="calculate()"><label for="midYear" class="toggle-lbl">Mid-year discounting</label></div>
       </div>
@@ -1019,7 +1019,7 @@ function recalcWacc() {
 
   // WACC floor warning: show when WACC < 7.5% for any ticker
   const waccFloorWarn = document.getElementById('waccFloorWarn');
-  if (waccFloorWarn) waccFloorWarn.style.display = (wacc < 0.075) ? '' : 'none';
+  if (waccFloorWarn) waccFloorWarn.style.display = (wacc < 0.078) ? '' : 'none';
   document.getElementById('wWacc').textContent = `${(wacc*100).toFixed(2)}%`;
   calculate();
 }
