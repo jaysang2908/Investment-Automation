@@ -131,6 +131,8 @@
     .output-table tr.ufcf-row td { color: var(--gold); font-weight: 600; background: rgba(201,168,76,0.05); border-top: 1px solid rgba(201,168,76,0.2); }
     .output-table tr.tv-row td { color: var(--blue); border-top: 1px solid rgba(59,130,246,0.2); background: rgba(59,130,246,0.03); }
     .output-table tr.sum-row td { font-weight: 600; color: var(--text); background: rgba(255,255,255,0.03); border-top: 1px solid var(--border2); }
+    .output-table tr.ev-total-ggm td { font-weight: 700; color: var(--gold); background: rgba(201,168,76,0.07); border-top: 2px solid rgba(201,168,76,0.4); border-bottom: 1px solid rgba(201,168,76,0.2); }
+    .output-table tr.ev-total-em  td { font-weight: 700; color: var(--blue); background: rgba(59,130,246,0.07); border-top: 2px solid rgba(59,130,246,0.4);  border-bottom: 1px solid rgba(59,130,246,0.2); }
     .output-table tr:hover td { background: rgba(255,255,255,0.015); }
     .output-table tr.section-sep td { height: 6px; background: transparent; border: none; padding: 0; }
 
@@ -1090,24 +1092,21 @@ function calculate() {
     } else html += `<td>—</td>`;
     html += '</tr>';
   });
-  // Terminal + sum rows
+  // Terminal + sum rows — structured to show arithmetic explicitly
+  const _dash = years.map(()=>'<td>—</td>').join('');
   html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
-  html += `<tr class="tv-row"><td class="label-col">Terminal Value (GGM)</td>`
-    + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(tvGGM)}</td></tr>`;
-  html += `<tr class="tv-row"><td class="label-col">PV of TV (GGM)</td>`
-    + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(pvTvGGM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctGGM.toFixed(0)}% of EV)</span></td></tr>`;
-  html += `<tr class="tv-row"><td class="label-col">Terminal Value (Exit ×)</td>`
-    + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(tvEM)}</td></tr>`;
-  html += `<tr class="tv-row"><td class="label-col">PV of TV (Exit ×)</td>`
-    + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(pvTvEM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctEM.toFixed(0)}% of EV)</span></td></tr>`;
+  // Shared FCF base (same for both methods)
+  html += `<tr class="sum-row"><td class="label-col">Σ PV of FCFs (ex TV)</td>${_dash}<td>${fmtM(sumPV)}</td></tr>`;
+  // ── GGM block ──
   html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
-  html += `<tr class="sum-row"><td class="label-col">Σ PV of FCFs (ex TV)</td>`
-    + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(sumPV)}</td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">Terminal Value (GGM)</td>${_dash}<td>${fmtM(tvGGM)}</td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">+ PV of TV (GGM)</td>${_dash}<td>${fmtM(pvTvGGM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctGGM.toFixed(0)}% of EV)</span></td></tr>`;
+  html += `<tr class="ev-total-ggm"><td class="label-col">= EV (DCF — Gordon Growth)</td>${_dash}<td>${fmtM(evGGM)}</td></tr>`;
+  // ── Exit Multiple block ──
+  html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">Terminal Value (Exit ×)</td>${_dash}<td>${fmtM(tvEM)}</td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">+ PV of TV (Exit ×)</td>${_dash}<td>${fmtM(pvTvEM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctEM.toFixed(0)}% of EV)</span></td></tr>`;
+  html += `<tr class="ev-total-em"><td class="label-col">= EV (Exit × — ${METRIC_LABELS[STATE.selectedMetric] || 'EBITDA'} Multiple)</td>${_dash}<td>${fmtM(evEM)}</td></tr>`;
   ob.innerHTML = html;
 
   // Update projection row computed values
