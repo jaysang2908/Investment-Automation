@@ -569,7 +569,15 @@ def _build_dcf_response(stored):
         }
 
         current_price = excel.get("current_price") or float(profile.get("price") or 0) or None
-        shares_m      = excel.get("shares_mm") or (float(profile.get("sharesOutstanding") or 0) / 1e6)
+        # Shares fallback chain: Excel model → profile.sharesOutstanding → mktCap/price → IS weighted avg
+        _raw_is = stored.get("is_data") or []
+        _is_shares = float((_raw_is[-1].get("weightedAverageShsOut") or
+                            _raw_is[-1].get("weightedAverageShsOutDil") or 0)) if _raw_is else 0
+        shares_m = (excel.get("shares_mm") or
+                    float(profile.get("sharesOutstanding") or 0) / 1e6 or
+                    (float(profile.get("mktCap") or 0) / float(profile.get("price") or 1) / 1e6
+                     if profile.get("mktCap") and profile.get("price") else 0) or
+                    _is_shares / 1e6)
         net_debt_m    = excel.get("net_debt_mm") or 0
         last_year     = int(str(hist_rows[-1].get("year", 2024))[:4]) if hist_rows else 2024
         gg_price      = dcf_px.get("gg_price")
@@ -675,7 +683,13 @@ def _build_dcf_response(stored):
         }
 
         current_price = float(profile.get("price") or 0) or None
-        shares_m      = round(shares / 1e6, 2)
+        # Shares fallback: sharesOutstanding → mktCap/price → IS weighted avg
+        if not shares and market_cap and current_price:
+            shares = market_cap / current_price
+        if not shares and is_data:
+            shares = float(is_data[-1].get("weightedAverageShsOut") or
+                           is_data[-1].get("weightedAverageShsOutDil") or 0)
+        shares_m  = round(shares / 1e6, 2)
         net_debt_m    = round(net_debt / 1e6, 1)
         last_year     = int(years[-1]) if years else 2024
         gg_price      = dcf_px.get("gg_price")
