@@ -1081,13 +1081,13 @@ function calculate() {
     + `<td>${fmtM(tvGGM)}</td></tr>`;
   html += `<tr class="tv-row"><td class="label-col">PV of TV (GGM)</td>`
     + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(pvTvGGM)} <span style="font-size:7.5pt;color:var(--text-dim)">(${tvPctGGM.toFixed(0)}%)</span></td></tr>`;
+    + `<td>${fmtM(pvTvGGM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctGGM.toFixed(0)}% of EV)</span></td></tr>`;
   html += `<tr class="tv-row"><td class="label-col">Terminal Value (Exit ×)</td>`
     + years.map(()=>'<td>—</td>').join('')
     + `<td>${fmtM(tvEM)}</td></tr>`;
   html += `<tr class="tv-row"><td class="label-col">PV of TV (Exit ×)</td>`
     + years.map(()=>'<td>—</td>').join('')
-    + `<td>${fmtM(pvTvEM)} <span style="font-size:7.5pt;color:var(--text-dim)">(${tvPctEM.toFixed(0)}%)</span></td></tr>`;
+    + `<td>${fmtM(pvTvEM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctEM.toFixed(0)}% of EV)</span></td></tr>`;
   html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
   html += `<tr class="sum-row"><td class="label-col">Σ PV of FCFs (ex TV)</td>`
     + years.map(()=>'<td>—</td>').join('')
