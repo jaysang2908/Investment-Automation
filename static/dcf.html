@@ -1148,12 +1148,12 @@ function calculate() {
   html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
   html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">Terminal Value (GGM)</td>${_dash}<td>${fmtM(tvGGM)}</td></tr>`;
   html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">+ PV of TV (GGM)</td>${_dash}<td>${fmtM(pvTvGGM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctGGM.toFixed(0)}% of EV)</span></td></tr>`;
-  html += `<tr class="ev-total-ggm"><td class="label-col">= EV (DCF — Gordon Growth)</td>${_dash}<td>${fmtM(evGGM)}</td></tr>`;
+  html += `<tr class="ev-total-ggm"><td class="label-col">Method 1 — DCF (Gordon's Growth) &nbsp; EV =</td>${_dash}<td>${fmtM(evGGM)}</td></tr>`;
   // ── Exit Multiple block ──
   html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
   html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">Terminal Value (Exit ×)</td>${_dash}<td>${fmtM(tvEM)}</td></tr>`;
   html += `<tr class="tv-row"><td class="label-col" style="padding-left:28px">+ PV of TV (Exit ×)</td>${_dash}<td>${fmtM(pvTvEM)}<br><span style="font-size:7.5pt;color:var(--text-dim)">(TV: ${tvPctEM.toFixed(0)}% of EV)</span></td></tr>`;
-  html += `<tr class="ev-total-em"><td class="label-col">= EV (Exit × — ${METRIC_LABELS[STATE.selectedMetric] || 'EBITDA'} Multiple)</td>${_dash}<td>${fmtM(evEM)}</td></tr>`;
+  html += `<tr class="ev-total-em"><td class="label-col">Method 2 — DCF (${METRIC_LABELS[STATE.selectedMetric] || 'EBITDA'} Multiple) &nbsp; EV =</td>${_dash}<td>${fmtM(evEM)}</td></tr>`;
   ob.innerHTML = html;
 
   // Update projection row computed values
