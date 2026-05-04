@@ -466,19 +466,19 @@
               <td class="proj-cf-val" colspan="5" style="color:var(--text-dim);font-size:7.5pt;text-align:center">— not directly modelled —</td>
             </tr>
             <tr>
-              <td class="label-col">UFCF</td>
+              <td class="label-col">UFCF <span style="font-size:7pt;color:var(--text-dim)">(NOPAT+D&amp;A−CapEx−ΔNWC)</span></td>
               <td class="hist-val" id="hr1_ufcf_m">—</td><td class="hist-val" id="hr2_ufcf_m">—</td><td class="hist-val" id="hr3_ufcf_m">—</td><td class="hist-val" id="hr4_ufcf_m">—</td><td class="hist-val" id="hr5_ufcf_m">—</td>
               <td class="proj-cf-val" id="cf_pr1_ufcf">—</td><td class="proj-cf-val" id="cf_pr2_ufcf">—</td><td class="proj-cf-val" id="cf_pr3_ufcf">—</td><td class="proj-cf-val" id="cf_pr4_ufcf">—</td><td class="proj-cf-val" id="cf_pr5_ufcf">—</td>
             </tr>
             <tr>
-              <td class="label-col">OCF</td>
+              <td class="label-col">OCF <span style="font-size:7pt;color:var(--text-dim)">(CF statement)</span></td>
               <td class="hist-val" id="hr1_ocf">—</td><td class="hist-val" id="hr2_ocf">—</td><td class="hist-val" id="hr3_ocf">—</td><td class="hist-val" id="hr4_ocf">—</td><td class="hist-val" id="hr5_ocf">—</td>
               <td class="proj-cf-val" id="cf_pr1_ocf">—</td><td class="proj-cf-val" id="cf_pr2_ocf">—</td><td class="proj-cf-val" id="cf_pr3_ocf">—</td><td class="proj-cf-val" id="cf_pr4_ocf">—</td><td class="proj-cf-val" id="cf_pr5_ocf">—</td>
             </tr>
             <tr>
-              <td class="label-col">FCF</td>
+              <td class="label-col">FCF <span style="font-size:7pt;color:var(--text-dim)">(OCF − CapEx, CF stmt)</span></td>
               <td class="hist-val" id="hr1_fcf">—</td><td class="hist-val" id="hr2_fcf">—</td><td class="hist-val" id="hr3_fcf">—</td><td class="hist-val" id="hr4_fcf">—</td><td class="hist-val" id="hr5_fcf">—</td>
-              <td class="proj-cf-val" id="cf_pr1_fcf">—</td><td class="proj-cf-val" id="cf_pr2_fcf">—</td><td class="proj-cf-val" id="cf_pr3_fcf">—</td><td class="proj-cf-val" id="cf_pr4_fcf">—</td><td class="proj-cf-val" id="cf_pr5_fcf">—</td>
+              <td class="proj-cf-val" colspan="5" style="color:var(--text-dim);font-size:7.5pt;text-align:center">— not projected separately (unlevered model — FCF ≈ UFCF) —</td>
             </tr>
           </tbody>
         </table>
@@ -868,14 +868,22 @@ async function loadTicker() {
         const npatEl = document.getElementById(`hr${col}_npat_m`);
         if (npatEl) npatEl.textContent = h.npat_m != null ? fmtM(h.npat_m) : '—';
 
+        // UFCF: IS-computed (NOPAT+D&A−CapEx−ΔNWC), falls back to fcf_m (= ufcf_mm for Excel path)
         const ufcfEl = document.getElementById(`hr${col}_ufcf_m`);
-        if (ufcfEl) ufcfEl.textContent = h.fcf_m != null ? fmtM(h.fcf_m) : '—';
+        if (ufcfEl) {
+          const v = h.ufcf_hist_m != null ? h.ufcf_hist_m : h.fcf_m;
+          ufcfEl.textContent = v != null ? fmtM(v) : '—';
+        }
 
         const ocfEl = document.getElementById(`hr${col}_ocf`);
         if (ocfEl) ocfEl.textContent = h.ocf_m != null ? fmtM(h.ocf_m) : '—';
 
+        // FCF: from CF statement (freeCashFlow = OCF − CapEx), distinct from model UFCF
         const fcfEl = document.getElementById(`hr${col}_fcf`);
-        if (fcfEl) fcfEl.textContent = h.fcf_m != null ? fmtM(h.fcf_m) : '—';
+        if (fcfEl) {
+          const v = h.fcf_cfs_m != null ? h.fcf_cfs_m : h.fcf_m;
+          fcfEl.textContent = v != null ? fmtM(v) : '—';
+        }
       }
     })();
 
@@ -1135,7 +1143,7 @@ function calculate() {
     setTxt(`cf_pr${idx}_ebitda`, fmtM(y.ebitda));
     setTxt(`cf_pr${idx}_ufcf`,   fmtM(y.ufcf));
     setTxt(`cf_pr${idx}_ocf`,    fmtM(y.nopat + y.daAmt - y.dnwc));
-    setTxt(`cf_pr${idx}_fcf`,    fmtM(y.ufcf));
+    // cf_pr${idx}_fcf not set — colspan note used instead (FCF not separately projected in unlevered model)
   });
 
   // ── Update sidebar results ──
@@ -1174,7 +1182,8 @@ function calculate() {
       `narrative or sentiment-driven premiums, sector-specific valuation conventions not fully captured by a UFCF/EV framework ` +
       `(e.g. financials, where deposit liabilities inflate net debt; regulated utilities; asset-heavy cyclicals), ` +
       `M&amp;A or event-driven pricing, or a genuine market mispricing. ` +
-      `Review projection assumptions and consider whether the DCF methodology is appropriate for this sector before drawing conclusions.`;
+      `Review projection assumptions and consider whether the DCF methodology is appropriate for this sector before drawing conclusions. ` +
+      `<span style="color:#f59e0b;font-family:'IBM Plex Mono',monospace;font-size:8.5pt">Note: Sector-specific valuation enhancements (e.g. DDM / P-Book for banks, regulated-asset-base for utilities) are planned for a future patch.</span>`;
 
     divWarn.style.display = '';
   })();

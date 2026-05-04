@@ -521,14 +521,18 @@ def _build_dcf_response(stored):
                 curr = history[i]["revenue_m"]
                 history[i]["rev_growth"] = round(curr / prev - 1, 4) if prev else None
 
-        # Backfill OCF, EBIT, NPAT from raw FMP data (always stored alongside Excel model)
+        # Backfill OCF, FCF (CF stmt), EBIT, NPAT from raw FMP data (always stored alongside Excel)
         raw_cf   = stored.get("cf_data")  or []
         raw_is_d = stored.get("is_data")  or []
         for i in range(len(history)):
             if i < len(raw_cf):
-                history[i]["ocf_m"]  = round((raw_cf[i].get("operatingCashFlow") or 0) / 1e6, 1)
+                history[i]["ocf_m"]     = round((raw_cf[i].get("operatingCashFlow") or 0) / 1e6, 1)
+                history[i]["fcf_cfs_m"] = round((raw_cf[i].get("freeCashFlow")      or 0) / 1e6, 1)
             else:
-                history[i]["ocf_m"]  = None
+                history[i]["ocf_m"]     = None
+                history[i]["fcf_cfs_m"] = None
+            # ufcf_hist_m = model UFCF = fcf_m (= ufcf_mm from Excel)
+            history[i]["ufcf_hist_m"] = history[i].get("fcf_m")
             if i < len(raw_is_d):
                 history[i]["ebit_m"] = round((raw_is_d[i].get("operatingIncome") or 0) / 1e6, 1)
                 history[i]["npat_m"] = round((raw_is_d[i].get("netIncome")       or 0) / 1e6, 1)
@@ -610,6 +614,8 @@ def _build_dcf_response(stored):
             wc_chg       = cf_.get("changesInWorkingCapital") or cf_.get("changeInWorkingCapital") or 0
             nwc_pct_hist = round(-wc_chg / rev, 4) if rev else 0
             npat         = is_.get("netIncome") or 0
+            # UFCF (IS-computed): NOPAT + D&A − CapEx + WC change (sign: + = cash inflow)
+            ufcf_hist    = ebit * (1 - tax_r) + da - capex + wc_chg
             history.append({
                 "year":          is_.get("fiscalYear") or is_.get("calendarYear") or is_["date"][:4],
                 "revenue_m":     round(rev / 1e6, 1),
@@ -620,7 +626,9 @@ def _build_dcf_response(stored):
                 "tax_rate":      round(tax_r, 4),
                 "nwc_pct":       nwc_pct_hist,
                 "ocf_m":         round(ocf / 1e6, 1),
-                "fcf_m":         round(fcf / 1e6, 1),
+                "fcf_m":         round(fcf / 1e6, 1),        # freeCashFlow from CF stmt (OCF − CapEx)
+                "ufcf_hist_m":   round(ufcf_hist / 1e6, 1),  # IS-computed UFCF (pre-interest)
+                "fcf_cfs_m":     round(fcf / 1e6, 1),        # FCF from CF statement (same source)
                 "ebit_m":        round(ebit / 1e6, 1),
                 "npat_m":        round(npat / 1e6, 1),
             })
