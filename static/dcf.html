@@ -306,6 +306,12 @@
   </div>
   <div id="loadingMsg" class="loading" style="display:none">Loading data…</div>
 
+  <!-- ── VALUATION DIVERGENCE WARNING ── -->
+  <div id="divWarnMsg" style="display:none;margin-bottom:14px;padding:16px 20px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.3);border-radius:8px;border-left:4px solid #f59e0b">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5pt;font-weight:600;color:#f59e0b;letter-spacing:1px;margin-bottom:8px">⚠ MATERIAL VALUATION DIVERGENCE</div>
+    <div id="divWarnBody" style="font-size:10pt;color:#c4cdd9;line-height:1.7"></div>
+  </div>
+
   <!-- ── METRIC SELECTOR CARD ── -->
   <!-- ── GGM NEGATIVE WARNING ── -->
   <div id="ggmNegWarning" style="display:none;margin-bottom:16px;padding:16px 20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.35);border-radius:8px;border-left:4px solid #ef4444">
@@ -1141,6 +1147,37 @@ function calculate() {
   // ── GGM negative warning ──
   const ggmWarn = document.getElementById('ggmNegWarning');
   if (ggmWarn) ggmWarn.style.display = (pGGM <= 0) ? '' : 'none';
+
+  // ── Valuation divergence warning (>65% gap vs market price) ──
+  (function updateDivWarn() {
+    const divWarn = document.getElementById('divWarnMsg');
+    const divBody = document.getElementById('divWarnBody');
+    if (!divWarn || !divBody || !price) { if (divWarn) divWarn.style.display = 'none'; return; }
+
+    const DIV_THRESHOLD = 0.65;
+    const ggmDiv = pGGM > 0 ? Math.abs(pGGM / price - 1) : 0;
+    const emDiv  = Math.abs(pEM  / price - 1);
+    const ggmPct = ((pGGM / price - 1) * 100).toFixed(0);
+    const emPct  = ((pEM  / price - 1) * 100).toFixed(0);
+    const ggmFlag = pGGM > 0 && ggmDiv > DIV_THRESHOLD;
+    const emFlag  = emDiv  > DIV_THRESHOLD;
+
+    if (!ggmFlag && !emFlag) { divWarn.style.display = 'none'; return; }
+
+    const parts = [];
+    if (ggmFlag) parts.push(`Gordon Growth: <strong style="color:#f59e0b">$${pGGM.toFixed(2)}</strong> (${ggmPct >= 0 ? '+' : ''}${ggmPct}% vs market)`);
+    if (emFlag)  parts.push(`Exit Multiple: <strong style="color:#f59e0b">$${pEM.toFixed(2)}</strong> (${emPct >= 0 ? '+' : ''}${emPct}% vs market)`);
+
+    divBody.innerHTML = parts.join(' &nbsp;·&nbsp; ') +
+      `<br><br>The fundamental DCF output diverges materially from the current market price. ` +
+      `This does not necessarily indicate a modelling error — common drivers include: ` +
+      `narrative or sentiment-driven premiums, sector-specific valuation conventions not fully captured by a UFCF/EV framework ` +
+      `(e.g. financials, where deposit liabilities inflate net debt; regulated utilities; asset-heavy cyclicals), ` +
+      `M&amp;A or event-driven pricing, or a genuine market mispricing. ` +
+      `Review projection assumptions and consider whether the DCF methodology is appropriate for this sector before drawing conclusions.`;
+
+    divWarn.style.display = '';
+  })();
 
   // ── Update result cards ──
   setTxt('rc_ggm_price', pGGM > 0 ? `$${pGGM.toFixed(2)}` : 'N/A');
