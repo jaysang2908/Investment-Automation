@@ -383,19 +383,50 @@ def _verdict(score, offset=0.0):
     if score >= 50 + offset:   return "Hold — Monitor"
     return "Avoid"
 
+_QUAL_LIFT_TOLERANCE = 0.10  # 10pp — band within which qualitative lift is trusted
+
 def _conservative_verdict(quant_score, full_score):
-    """Take the more conservative (lower) verdict between the two scores.
+    """Asymmetric verdict reconciliation between quant-only and full scores.
+
+    Original behaviour took min(Quant, Full) unconditionally, which meant
+    qualitative inputs (Business Clarity, Long-Term Potential) could ONLY
+    ever drag the verdict down — providing high-conviction qualitative
+    signals had no upside, only downside. That's not conservatism, it's a
+    one-way ratchet that disincentivises filling in the qualitative form.
+
+    New rules:
+      • Quals DRAG (Full ≤ Quant): take lower (Full). Honest negative quals
+        should pull the verdict down — if you flag weak Business Clarity,
+        the verdict respects that.
+      • Quals LIFT modestly (Full > Quant by ≤ 10pp): use Full. Quant and
+        quals corroborate; reward the additional positive signal.
+      • Quals LIFT aggressively (Full > Quant by > 10pp): take Quant.
+        A large qualitative lift over fundamentals warrants skepticism —
+        defer to the objective number until the quant catches up.
 
     quant_score: out of 87.5 (objective only).
     full_score:  out of 100  (with qualitative inputs); may be None if not provided.
     """
     quant_pct = (quant_score / 87.5) if quant_score else None
     full_pct  = (full_score / 100.0) if full_score else None
-    q_lbl, q_rank = _verdict_from_pct(quant_pct)
+
     if full_pct is None:
-        return q_lbl
-    f_lbl, f_rank = _verdict_from_pct(full_pct)
-    return q_lbl if q_rank <= f_rank else f_lbl
+        return _verdict_from_pct(quant_pct)[0]
+    if quant_pct is None:
+        return _verdict_from_pct(full_pct)[0]
+
+    # Quals drag → conservative: take lower verdict
+    if full_pct <= quant_pct:
+        q_lbl, q_rank = _verdict_from_pct(quant_pct)
+        f_lbl, f_rank = _verdict_from_pct(full_pct)
+        return q_lbl if q_rank <= f_rank else f_lbl
+
+    # Quals lift > 10pp → skeptical: defer to quant
+    if (full_pct - quant_pct) > _QUAL_LIFT_TOLERANCE:
+        return _verdict_from_pct(quant_pct)[0]
+
+    # Quals lift modestly → corroborating: use full
+    return _verdict_from_pct(full_pct)[0]
 
 # ── CSS class helpers (mirrors pipeline.py) ───────────────────────────────────
 
@@ -1059,11 +1090,57 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_bc  = _norm_qual(biz_clarity)
     t_ltp = _norm_qual(ltp)
 
+    # ── Continuous engine scores (preferred) — fall back to discrete tier map ──
+    # build_scorecard now ships a continuous score (0..12) for each auto criterion.
+    # We use these directly so HTML weighted totals exactly match the Excel literal
+    # scores written in col F. Legacy cached metrics (no score_* keys) fall back
+    # to the discrete TIER_PTS mapping to preserve backwards compatibility.
     P = TIER_PTS
-    p1 = round((P[t_bc or "MOD"]*2.5 + P[t_moat]*10.0 + P[t_ltp or "MOD"]*10.0 + P[t_mgmt]*7.5) / 10, 1)
-    p2 = round((P[t_rev]*10.0 + P[t_fcf_ni]*10.0 + P[t_cap_ret]*5.0 + P[t_roic]*7.5) / 10, 1)
-    p3 = round((P[t_debd]*5.0 + P[t_eint]*7.5 + P[t_exec]*2.5) / 10, 1)
-    p4 = round((P[t_pe]*10.0 + P[t_pfcf]*10.0) / 10, 1)
+    def _sc(key, tier_fallback):
+        """Continuous score from engine; falls back to TIER_PTS[tier] for legacy."""
+        s = scorecard_metrics.get(key)
+        if isinstance(s, (int, float)):
+            return float(s)
+        return float(P.get(tier_fallback, 0))
+
+    s_moat    = _sc("score_moat",     t_moat)
+    s_mgmt    = _sc("score_mgmt",     t_mgmt)
+    s_cap_ret = _sc("score_cap_ret",  t_cap_ret)
+    s_exec    = _sc("score_exec",     t_exec)
+    s_rev     = _sc("score_rev_cagr", t_rev)
+    s_fcf_ni  = _sc("score_fcf_ni",   t_fcf_ni)
+    s_roic    = _sc("score_roic",     t_roic)
+    s_debd    = _sc("score_leverage", t_debd)
+    s_eint    = _sc("score_ebit_int", t_eint)
+    s_pe      = _sc("score_pe",       t_pe)
+    s_pfcf    = _sc("score_pfcf",     t_pfcf)
+
+    # Qualitative inputs (BC, LTP) remain on the discrete tier scale — user
+    # dropdowns only expose HIGH/MOD/LOW, so no continuous interpolation applies.
+    s_bc  = float(P[t_bc  or "MOD"])
+    s_ltp = float(P[t_ltp or "MOD"])
+
+    # Outlier reward (score > 10) flows into part totals so a NVDA-grade
+    # criterion lifts the headline number, not only per-criterion in Excel.
+    # Qualitative scores are capped at 10 since user dropdowns only emit
+    # discrete HIGH/MOD/LOW with no continuous outlier signal.
+    def _cap(x): return min(float(x), 10.0)
+
+    # Regime-aware weights (#9). When the engine emits a `weights` dict (banks,
+    # EVS pre-profit), use it; otherwise fall back to the default schema so
+    # legacy cached metrics still render correctly.
+    # Defaults match build_scorecard's engine weights — fixes a pre-existing
+    # discrepancy where report_bridge used Exec=2.5 vs the engine's 5.0.
+    _DEFAULT_W = {"BC": 2.5, "Moat": 10.0, "LTP": 10.0, "Mgmt": 7.5,
+                  "RevCAGR": 10.0, "FCFNI": 10.0, "CapRet": 5.0, "ROIC": 7.5,
+                  "Lev": 5.0, "EBITInt": 7.5, "Exec": 5.0,
+                  "PE": 10.0, "PFCF": 10.0}
+    W = scorecard_metrics.get("weights") or _DEFAULT_W
+
+    p1 = round((_cap(s_bc)*W["BC"] + s_moat*W["Moat"] + _cap(s_ltp)*W["LTP"] + s_mgmt*W["Mgmt"]) / 10, 1)
+    p2 = round((s_rev*W["RevCAGR"] + s_fcf_ni*W["FCFNI"] + s_cap_ret*W["CapRet"] + s_roic*W["ROIC"]) / 10, 1)
+    p3 = round((s_debd*W["Lev"] + s_eint*W["EBITInt"] + s_exec*W["Exec"]) / 10, 1)
+    p4 = round((s_pe*W["PE"] + s_pfcf*W["PFCF"]) / 10, 1)
     # Use adj_score (Excel engine total) when available for accuracy; fall back to p-sums
     final_score = adj_score or auto_score or round(p1 + p2 + p3 + p4, 1)
 

@@ -3095,11 +3095,93 @@ def _tier(value, thresholds, inverted=False):
         return "LOW"
 
 
+# Continuous scoring — eliminates threshold cliffs of the discrete tier system.
+# Anchors: LOW=0, MOD-LOW=3 (at ml), MOD-HIGH=7 (at mh), HIGH=10 (at h).
+# Above HIGH, reward up to SCORE_CAP (12) for genuine outliers (NVDA-level ROIC,
+# net-cash balance sheets, etc.) so top-decile names differentiate from "just HIGH".
+SCORE_CAP = 12.0
+
+def _score(value, thresholds, inverted=False):
+    """Continuous piecewise-linear score [0, SCORE_CAP] from a metric value.
+
+    Higher score = better. Used to drive scorecard totals so a 0.1pp move near
+    a tier boundary no longer produces a 3-4pt swing in weighted score.
+    Returns 0.0 if value is None.
+    """
+    if value is None:
+        return 0.0
+    h, mh, ml = thresholds
+
+    if not inverted:
+        # Higher is better (ROIC, FCF/NI, rev CAGR, etc.)
+        if value >= h:
+            extra = (value - h) / max(h - mh, 1e-9) * 3.0
+            return min(SCORE_CAP, 10.0 + max(0.0, extra))
+        if value >= mh:
+            return 7.0 + (value - mh) / max(h - mh, 1e-9) * 3.0
+        if value >= ml:
+            return 3.0 + (value - ml) / max(mh - ml, 1e-9) * 4.0
+        if value > 0 and ml > 0:
+            return max(0.0, value / ml * 3.0)
+        return 0.0
+
+    # Inverted: lower is better (D/EBITDA — h is tightest, ml is loosest acceptable)
+    if value <= h:
+        extra = (h - value) / max(mh - h, 1e-9) * 3.0
+        return min(SCORE_CAP, 10.0 + max(0.0, extra))
+    if value <= mh:
+        return 7.0 + (mh - value) / max(mh - h, 1e-9) * 3.0
+    if value <= ml:
+        return 3.0 + (ml - value) / max(ml - mh, 1e-9) * 4.0
+    # Beyond MOD-LOW: linearly decay to 0 over the next 50% of the ml range
+    if value <= 1.5 * ml:
+        return max(0.0, (1.5 * ml - value) / max(0.5 * ml, 1e-9) * 3.0)
+    return 0.0
+
+
+def _proxy_score(n_pos, n_total):
+    """Continuous score for proxy criteria (moat, mgmt, exec) based on indicator pass count.
+
+    4/4 indicators → 10, 3/4 → 7.5, 2/4 → 5.0, 1/4 → 2.5, 0/4 → 0.
+    Smoother than the discrete HIGH/MOD-HIGH/MOD-LOW/LOW mapping (10/7/3/0)
+    that previously rewarded crossing arbitrary indicator-count thresholds.
+    """
+    if not n_total:
+        return 0.0
+    return round(n_pos / n_total * 10.0, 2)
+
+
+def _val_score(delta, premium_ok=False):
+    """Continuous valuation score from delta vs benchmark.
+
+    delta = (current_multiple - benchmark) / benchmark.
+    Negative delta (cheap) → high score; positive (expensive) → low score.
+    `premium_ok` (high ROIC + high growth) softens the penalty on premium names.
+    """
+    if delta is None:
+        return None
+    # Anchor points: -20% delta → 10, 0% → 7, +25% → 3, +50% → 0
+    if delta <= -0.20:
+        # Reward deep discounts up to -40% → SCORE_CAP
+        extra = (-0.20 - delta) / 0.20 * 2.0
+        return min(SCORE_CAP, 10.0 + max(0.0, extra))
+    if delta <= 0.0:
+        return 7.0 + (0.0 - delta) / 0.20 * 3.0
+    if delta <= 0.25:
+        return 3.0 + (0.25 - delta) / 0.25 * 4.0
+    if delta <= 0.50:
+        base = max(0.0, (0.50 - delta) / 0.25 * 3.0)
+        # Premium partly justified by quality+growth → softer floor
+        return base + (1.5 if premium_ok else 0.0)
+    return 0.0
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # SCORECARD
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
-                    biz_clarity=None, ltp=None):
+                    biz_clarity=None, ltp=None, dcf_gg_price=None,
+                    evs_regime=False):
     """
     JS Scorecard tab — auto-scores 11 of 13 criteria.
     Quantitative: Revenue CAGR, FCF/NI, Capital Returns, ROIC, D/EBITDA, EBIT/Int
@@ -3110,6 +3192,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     biz_clarity / ltp (optional): user-supplied tier values from the web form.
     When provided, they pre-fill the corresponding tier cells in the Excel
     scorecard so the workbook reflects what the HTML report shows.
+
+    dcf_gg_price (optional): Gordon Growth fair value from build_dcf. When
+    provided, used to compute DCF-implied P/E and P/FCF as a third valuation
+    anchor (alongside 5yr historical avg and sector peer median). The lowest
+    of the three becomes the benchmark — prevents post-2020 multiple expansion
+    from making everything look "in line with history".
     """
     # is_bank is set later via profile fetch; initialise here so equity_assets
     # block (which runs before the fetch) can reference it safely.
@@ -3186,15 +3274,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     int_exp = abs(is0.get("interestExpense") or 0)
     ebit_int = ebit0 / int_exp if int_exp > 0 else None
 
-    # 4b. Bank capital adequacy — Equity/Assets (proxy for CET1 ratio)
-    #     Only meaningful for financial institutions; replaces D/EBITDA for banks.
-    equity_assets = None
-    if is_bank:
-        total_equity = (bs0.get("totalStockholdersEquity") or
-                        bs0.get("totalEquity") or 0)
-        total_assets = bs0.get("totalAssets") or 0
-        if total_assets > 0 and total_equity > 0:
-            equity_assets = total_equity / total_assets
+    # 4b. Bank capital adequacy — computed after profile fetch (is_bank set there)
+    equity_assets = None   # populated below once is_bank is confirmed
 
     # 5. Capital Returns
     def _ret(cf):
@@ -3297,6 +3378,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     "mortgage", "credit union", "investment bank", "diversified financial"}
         is_bank = any(kw in sector_str.lower() for kw in _BANK_KW)
         print(f"  Sector: {sector_str!r}  is_bank={is_bank}")
+        # Equity/Assets (CET1 proxy) — computed here so is_bank is already confirmed
+        if is_bank:
+            total_equity = (bs0.get("totalStockholdersEquity") or
+                            bs0.get("totalEquity") or 0)
+            total_assets = bs0.get("totalAssets") or 0
+            if total_assets > 0 and total_equity > 0:
+                equity_assets = total_equity / total_assets
         peer_list_sc = []
         for key, peers in SECTOR_PEERS.items():
             if key.lower() in sector_str.lower() or sector_str.lower() in key.lower():
@@ -3344,84 +3432,235 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _thresholds = SECTOR_THRESHOLDS[_bucket]
     print(f"  Sector bucket: {_bucket!r}  (thresholds: {_thresholds})")
 
+    # Continuous scoring penalty for trend-deterioration flags.
+    # ≈ 1 tier drop in the discrete system (4-pt average gap), preserves the
+    # original behavioural intent without re-introducing cliff edges.
+    _TREND_PENALTY = 3.5
+
     def _t_rev(v):
         if v is None:
-            return None, "N/A — insufficient data"
+            return None, 0.0, "N/A — insufficient data"
         t = _tier(v, _thresholds["rev_cagr"])
-        return t, f"{v:.1%}"
+        s = _score(v, _thresholds["rev_cagr"])
+        return t, s, f"{v:.1%}"
 
     def _t_fcf(v, pen):
         if v is None:
-            return None, "N/A — insufficient data"
+            return None, 0.0, "N/A — insufficient data"
         v2 = abs(v)
         t  = _tier(v2, _thresholds["fcf_ni"])
-        s  = f"{v:.0%}"
+        s  = _score(v2, _thresholds["fcf_ni"])
+        note = f"{v:.0%}"
         if pen:
             t = down_tier(t)
-            s += "  [trend penalty: declined >15pp vs 3yr ago]"
-        return t, s
+            s = max(0.0, s - _TREND_PENALTY)
+            note += "  [trend penalty: declined >15pp vs 3yr ago]"
+        return t, s, note
+
+    # Capital returns: discrete logic (no underlying continuous metric to interpolate).
+    # Map tier → score using the same 4-anchor scale as continuous helpers.
+    _CAP_RET_SCORE = {"HIGH": 10.0, "MOD-HIGH": 7.0, "MOD-LOW": 3.0, "LOW": 0.0}
 
     def _t_ret(tot, yrs, df):
         if tot == 0:
-            return "LOW", "No capital returns in latest year"
+            return "LOW", 0.0, "No capital returns in latest year"
         s = f"${tot / 1e6:,.0f}mm latest FY"
         if yrs < 3 or df:
             r = "debt-funded" if df else f"only {yrs}/{len(cf_data)}yr history"
-            return "MOD-LOW", f"{s} — {r}"
-        if yrs < 5:
-            return "MOD-HIGH", f"{s} — {yrs}yr equity-funded"
-        return "HIGH", f"{s} — {yrs}yr+ consistent equity-funded"
+            tier_v, score_v, note_v = "MOD-LOW", 3.0, f"{s} — {r}"
+        elif yrs < 5:
+            tier_v, score_v, note_v = "MOD-HIGH", 7.0, f"{s} — {yrs}yr equity-funded"
+        else:
+            tier_v, score_v, note_v = "HIGH", 10.0, f"{s} — {yrs}yr+ consistent equity-funded"
+
+        # FCF payout ratio (#5) — discipline check on top of consistency.
+        # Sustained payouts above 100% of FCF are funded by debt or cash burn,
+        # not by recurring cash generation; healthy range is roughly 40–80%.
+        # Buyback ROI vs current price would also belong here, but is deferred
+        # because it requires fetching historical-price-full from FMP (extra
+        # daily-quota cost). Existing FMP fields are sufficient for payout ratio.
+        fcf0 = cf0.get("freeCashFlow")
+        if not fcf0:
+            ocf0 = cf0.get("operatingCashFlow") or 0
+            cap0 = abs(cf0.get("capitalExpenditure") or 0)
+            fcf0 = ocf0 - cap0
+        if fcf0 and fcf0 > 0:
+            payout = tot / fcf0
+            if payout > 1.0:
+                score_v = max(0.0, score_v - 2.5)
+                note_v += f"  [payout {payout:.0%} of FCF — > 100%, unsustainable]"
+            elif payout < 0.20 and tot > 0:
+                note_v += f"  [payout {payout:.0%} of FCF — low, building cash]"
+            else:
+                note_v += f"  [payout {payout:.0%} of FCF]"
+        elif fcf0 is not None and fcf0 <= 0:
+            score_v = max(0.0, score_v - 2.5)
+            note_v += "  [FCF negative — capital returns funded externally]"
+        return tier_v, score_v, note_v
 
     def _t_roic(v, pen):
         if v is None:
-            return None, "N/A — insufficient data"
+            return None, 0.0, "N/A — insufficient data"
         t = _tier(v, _thresholds["roic"])
-        s = f"{v:.1%}"
+        s = _score(v, _thresholds["roic"])
+        note = f"{v:.1%}"
         if pen:
             t = down_tier(t)
-            s += "  [trend penalty: declined >5pp vs 3yr ago]"
-        return t, s
+            s = max(0.0, s - _TREND_PENALTY)
+            note += "  [trend penalty: declined >5pp vs 3yr ago]"
+        return t, s, note
 
     def _t_de(de, nc):
         if nc > 0:
-            return "HIGH", f"Net cash ${nc / 1e6:,.0f}mm — no net leverage"
+            # Net cash → cap-out score (treated as "better than HIGH" — outlier reward)
+            return "HIGH", SCORE_CAP, f"Net cash ${nc / 1e6:,.0f}mm — no net leverage"
         if de is None:
-            return None, "N/A"
+            return None, 0.0, "N/A"
         t = _tier(de, _thresholds["d_ebitda"], inverted=True)
-        return t, f"{de:.1f}x"
+        s = _score(de, _thresholds["d_ebitda"], inverted=True)
+        return t, s, f"{de:.1f}x"
+
+    # EBIT/Interest thresholds (h, mh, ml) — higher = better (not inverted).
+    _EBIT_INT_THR = (10.0, 4.0, 2.0)
 
     def _t_ei(v):
         if v is None:
-            return "HIGH", "No interest expense — debt-free"
-        t = ("HIGH"     if v > 10.0 else
-             "MOD-HIGH" if v > 4.0  else
-             "MOD-LOW"  if v > 2.0  else "LOW")
-        return t, f"{v:.1f}x"
+            return "HIGH", SCORE_CAP, "No interest expense — debt-free"
+        t = _tier(v, _EBIT_INT_THR)
+        s = _score(v, _EBIT_INT_THR)
+        return t, s, f"{v:.1f}x"
+
+    # Equity/Assets thresholds for banks (h, mh, ml).
+    _EQUITY_ASSETS_THR = (0.10, 0.08, 0.06)
 
     def _t_equity_assets(v):
         """Capital adequacy (Equity/Assets) for banks — proxy for CET1 ratio.
         Regulators target >8% (minimum) to >10-12% (well-capitalised)."""
         if v is None:
-            return None, "N/A — insufficient data"
-        t = ("HIGH"     if v > 0.10 else
-             "MOD-HIGH" if v > 0.08 else
-             "MOD-LOW"  if v > 0.06 else "LOW")
-        return t, f"{v:.1%}  [Equity/Assets — CET1 proxy; well-capitalised >10%]"
+            return None, 0.0, "N/A — insufficient data"
+        t = _tier(v, _EQUITY_ASSETS_THR)
+        s = _score(v, _EQUITY_ASSETS_THR)
+        return t, s, f"{v:.1%}  [Equity/Assets — CET1 proxy; well-capitalised >10%]"
 
-    tier_rev_cagr,  note_rev_cagr  = _t_rev(rev_cagr)
-    tier_fcf_ni,    note_fcf_ni    = _t_fcf(fcf_ni_latest, fcf_ni_trend)
-    tier_cap_ret,   note_cap_ret   = _t_ret(tot_ret, ret_yrs_cnt, debt_funded)
-    tier_roic,      note_roic      = _t_roic(roic_latest, roic_trend)
-    tier_d_ebitda,  note_d_ebitda  = _t_de(d_ebitda, net_cash_v)
-    tier_ebit_int,  note_ebit_int  = _t_ei(ebit_int)
+    # ── Quality-of-earnings checks (#4) ───────────────────────────────────────
+    # Two independent red flags that catch aggressive-accounting names without
+    # any extra API call. Penalties subtract from the continuous score (not a
+    # tier down-shift) so they compose cleanly with the trend penalties.
+    #   • Sloan accruals: 3yr avg (NI − CFO) / Total Assets > 10% → high
+    #     accruals = earnings driven by non-cash items. Long-documented anomaly
+    #     (Sloan 1996); persistently high accruals = future earnings reversal.
+    #   • CFO/NI 3yr avg < 80% → cash conversion lagging reported earnings;
+    #     either revenue rec is aggressive or working capital is bloating.
+    sloan_series = []
+    cfo_ni_series_q = []
+    for i in range(min(len(is_data), len(bs_data), len(cf_data))):
+        ni_i  = is_data[i].get("netIncome") or 0
+        cfo_i = cf_data[i].get("operatingCashFlow") or 0
+        ta_i  = bs_data[i].get("totalAssets") or 0
+        if ta_i > 0 and ni_i:
+            sloan_series.append((ni_i - cfo_i) / ta_i)
+        if ni_i:
+            cfo_ni_series_q.append(cfo_i / ni_i)
+    sloan_3yr_avg  = (sum(sloan_series[-3:]) / len(sloan_series[-3:])
+                      if len(sloan_series) >= 1 else None)
+    cfo_ni_3yr_avg = (sum(cfo_ni_series_q[-3:]) / len(cfo_ni_series_q[-3:])
+                      if len(cfo_ni_series_q) >= 1 else None)
+
+    qoe_fcf_ni_penalty = 0.0
+    qoe_fcf_ni_note    = ""
+    if sloan_3yr_avg is not None and sloan_3yr_avg > 0.10:
+        qoe_fcf_ni_penalty = 2.0
+        qoe_fcf_ni_note = f"  [QoE: Sloan accruals {sloan_3yr_avg:+.1%} 3yr avg — high]"
+    qoe_roic_penalty = 0.0
+    qoe_roic_note    = ""
+    if cfo_ni_3yr_avg is not None and cfo_ni_3yr_avg < 0.80:
+        qoe_roic_penalty = 1.5
+        qoe_roic_note = f"  [QoE: CFO/NI {cfo_ni_3yr_avg:.0%} 3yr avg — cash conv weak]"
+
+    # ── Through-cycle normalization (#2) ──────────────────────────────────────
+    # Latest-year ROIC / FCF-NI / D-EBITDA can flatter cyclicals at the peak
+    # (XOM 2022, F 2021) and panic on them at the trough. Smoothing brings the
+    # scoring closer to mid-cycle reality.
+    #   • cyclical bucket → 5yr median (full through-cycle view)
+    #   • all other buckets → 70/30 blend of latest + 5yr median (mostly latest,
+    #     with a modest pull toward trend so a single great/bad year doesn't
+    #     dominate the score). Trend penalties run on top of the smoothed value.
+    def _median(xs):
+        ys = sorted(x for x in xs if x is not None)
+        if not ys: return None
+        n = len(ys)
+        return ys[n // 2] if n % 2 else (ys[n // 2 - 1] + ys[n // 2]) / 2
+
+    def _smooth(latest, series):
+        med = _median(series)
+        if latest is None: return med
+        if med is None:    return latest
+        if _bucket == "cyclical":
+            return med
+        return latest * 0.7 + med * 0.3
+
+    # Build d_ebitda series (only latest was computed above)
+    d_ebitda_series = []
+    for i in range(min(len(is_data), len(bs_data), len(cf_data))):
+        _bsi = bs_data[i]; _isi = is_data[i]; _cfi = cf_data[i]
+        _td = (_bsi.get("shortTermDebt") or 0) + (_bsi.get("longTermDebt") or 0)
+        _ed = _isi.get("ebitda") or 0
+        if not _ed:
+            _da = abs(_isi.get("depreciationAndAmortization") or
+                      _cfi.get("depreciationAndAmortization") or 0)
+            _ed = (_isi.get("operatingIncome") or 0) + _da
+        d_ebitda_series.append(_td / _ed if _ed > 0 else None)
+
+    rev_cagr_n      = rev_cagr  # rev CAGR is already a multi-year metric
+    fcf_ni_for_t    = _smooth(fcf_ni_latest, fcf_ni_series)
+    roic_for_t      = _smooth(roic_latest,   roic_series)
+    d_ebitda_for_t  = _smooth(d_ebitda,      d_ebitda_series)
+    if _bucket == "cyclical" and (fcf_ni_for_t != fcf_ni_latest or
+                                  roic_for_t != roic_latest or
+                                  d_ebitda_for_t != d_ebitda):
+        print(f"  Through-cycle smoothing (cyclical):  ROIC {roic_latest} → {roic_for_t}  |  "
+              f"FCF/NI {fcf_ni_latest} → {fcf_ni_for_t}  |  D/EBITDA {d_ebitda} → {d_ebitda_for_t}")
+
+    tier_rev_cagr,  score_rev_cagr,  note_rev_cagr  = _t_rev(rev_cagr_n)
+    tier_fcf_ni,    score_fcf_ni,    note_fcf_ni    = _t_fcf(fcf_ni_for_t, fcf_ni_trend)
+    tier_cap_ret,   score_cap_ret,   note_cap_ret   = _t_ret(tot_ret, ret_yrs_cnt, debt_funded)
+    tier_roic,      score_roic,      note_roic      = _t_roic(roic_for_t, roic_trend)
+    tier_d_ebitda,  score_d_ebitda,  note_d_ebitda  = _t_de(d_ebitda_for_t, net_cash_v)
+    tier_ebit_int,  score_ebit_int,  note_ebit_int  = _t_ei(ebit_int)
+
+    # Annotate through-cycle smoothing in notes when it materially shifted the input
+    def _smooth_note(latest, smoothed):
+        if latest is None or smoothed is None: return ""
+        if abs(smoothed - latest) < 0.005:     return ""
+        tag = "5yr median" if _bucket == "cyclical" else "70/30 latest+5yr median"
+        return f"  [through-cycle: {tag}, latest {latest:.1%} → smoothed {smoothed:.1%}]"
+    if isinstance(roic_latest, float):
+        note_roic   += _smooth_note(roic_latest,    roic_for_t)
+    if isinstance(fcf_ni_latest, float):
+        note_fcf_ni += _smooth_note(fcf_ni_latest,  fcf_ni_for_t)
+    if isinstance(d_ebitda, float) and isinstance(d_ebitda_for_t, float):
+        if abs(d_ebitda - d_ebitda_for_t) >= 0.05:
+            tag = "5yr median" if _bucket == "cyclical" else "70/30 latest+5yr median"
+            note_d_ebitda += f"  [through-cycle: {tag}, latest {d_ebitda:.1f}x → smoothed {d_ebitda_for_t:.1f}x]"
+
+    # Apply QoE penalties (#4) on top of the tier-derived scores.
+    if qoe_fcf_ni_penalty and score_fcf_ni:
+        score_fcf_ni = max(0.0, score_fcf_ni - qoe_fcf_ni_penalty)
+        note_fcf_ni += qoe_fcf_ni_note
+    if qoe_roic_penalty and score_roic:
+        score_roic = max(0.0, score_roic - qoe_roic_penalty)
+        note_roic  += qoe_roic_note
 
     # Dynamic leverage criterion — bank-aware
     if is_bank:
-        tier_leverage  = _t_equity_assets(equity_assets)[0]
-        note_leverage  = _t_equity_assets(equity_assets)[1]
+        _ea_t, _ea_s, _ea_n = _t_equity_assets(equity_assets)
+        tier_leverage  = _ea_t
+        score_leverage = _ea_s
+        note_leverage  = _ea_n
         leverage_label = "Capital Adequacy  (Equity / Assets)"
     else:
         tier_leverage  = tier_d_ebitda
+        score_leverage = score_d_ebitda
         note_leverage  = note_d_ebitda
         leverage_label = "Credit Risk  (D / EBITDA)"
 
@@ -3440,52 +3679,101 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     w_d_sc = D_sc / V_sc if V_sc > 0 else 0.2
     rough_wacc = w_e_sc * rough_re + w_d_sc * rough_rd * (1 - tax_r_sc)
 
-    moat_ind = []; moat_parts = []
+    moat_ind = []; moat_parts = []; moat_total = 0
     if gm_latest is not None:
         ok = gm_latest > 0.40
         if ok: moat_ind.append(True)
+        moat_total += 1
         moat_parts.append(f"GM {gm_latest:.1%} {'✓' if ok else '✗'} (>40%)")
     if gm_3yr_delta is not None:
         ok = gm_3yr_delta > 0.01
         if ok: moat_ind.append(True)
+        moat_total += 1
         moat_parts.append(f"GM trend {gm_3yr_delta:+.1%} {'✓' if ok else '✗'} (>+1pp)")
     if roic_latest is not None:
         spread = roic_latest - rough_wacc
         ok = spread > 0.05
         if ok: moat_ind.append(True)
+        moat_total += 1
         moat_parts.append(f"ROIC-WACC {spread:+.1%} {'✓' if ok else '✗'} (>+5pp)")
     ok_std = rev_std < 0.08
     if ok_std: moat_ind.append(True)
+    moat_total += 1
     moat_parts.append(f"Rev consistency σ={rev_std:.1%} {'✓' if ok_std else '✗'} (<8%)")
     n_moat = len(moat_ind)
     tier_moat = ("HIGH" if n_moat >= 4 else "MOD-HIGH" if n_moat == 3
                  else "MOD-LOW" if n_moat == 2 else "LOW")
-    note_moat = "  |  ".join(moat_parts) + f"  [{n_moat}/4 indicators positive — proxy score]"
+    score_moat = _proxy_score(n_moat, moat_total)
+    note_moat = "  |  ".join(moat_parts) + f"  [{n_moat}/{moat_total} indicators positive — proxy score]"
 
     # ── Management proxy (4 indicators → tier) ───────────────────────────────
-    mgmt_ind = []; mgmt_parts = []
+    mgmt_ind = []; mgmt_parts = []; mgmt_total = 0
     if roic_latest is not None and roic_3ya is not None:
         chg = roic_latest - roic_3ya
         ok  = chg >= -0.02
         if ok: mgmt_ind.append(True)
+        mgmt_total += 1
         mgmt_parts.append(f"ROIC trend {chg:+.1%} {'✓' if ok else '✗'} (≥-2pp)")
     elif roic_latest is not None:
         mgmt_parts.append(f"ROIC {roic_latest:.1%} (no trend data)")
     if gm_3yr_delta is not None:
         ok = gm_3yr_delta >= -0.01
         if ok: mgmt_ind.append(True)
+        mgmt_total += 1
         mgmt_parts.append(f"GM maintained {gm_3yr_delta:+.1%} {'✓' if ok else '✗'}")
     if om_3yr_delta is not None:
         ok = om_3yr_delta >= -0.02
         if ok: mgmt_ind.append(True)
+        mgmt_total += 1
         mgmt_parts.append(f"Op margin {om_3yr_delta:+.1%} {'✓' if ok else '✗'} (≥-2pp)")
     ok_ret = tier_cap_ret in ("HIGH", "MOD-HIGH")
     if ok_ret: mgmt_ind.append(True)
+    mgmt_total += 1
     mgmt_parts.append(f"Capital returns {tier_cap_ret or 'N/A'} {'✓' if ok_ret else '✗'}")
+
+    # Share count change over 5yr (#6) — dilution flag.
+    # Net dilution >2%/yr suggests SBC + acquisitions overwhelming buybacks.
+    # Net buyback (negative dilution) is a positive capital allocation signal.
+    sh_old = is_data[0].get("weightedAverageShsOut") or is_data[0].get("weightedAverageShsOutDil")
+    sh_new = is_data[-1].get("weightedAverageShsOut") or is_data[-1].get("weightedAverageShsOutDil")
+    if sh_old and sh_new and sh_old > 0:
+        n_yrs = max(len(is_data) - 1, 1)
+        sh_cagr = (sh_new / sh_old) ** (1 / n_yrs) - 1
+        ok_sh = sh_cagr <= 0.02
+        if ok_sh: mgmt_ind.append(True)
+        mgmt_total += 1
+        if sh_cagr < 0:
+            mgmt_parts.append(f"Share count {sh_cagr*100:+.1f}%/yr ✓ (net buyback)")
+        else:
+            mgmt_parts.append(f"Share count {sh_cagr*100:+.1f}%/yr {'✓' if ok_sh else '✗'} (≤+2%/yr)")
+
+    # Goodwill / equity (#6) — M&A discipline check.
+    # >40% goodwill on equity = balance sheet built by acquisition; pair with
+    # flat/declining ROIC = capital allocation red flag.
+    gw_latest = bs_data[-1].get("goodwill") or 0
+    eq_latest = bs_data[-1].get("totalStockholdersEquity") or bs_data[-1].get("totalEquity") or 0
+    if gw_latest and eq_latest and eq_latest > 0:
+        gw_eq = gw_latest / eq_latest
+        ok_gw = gw_eq < 0.40
+        if ok_gw: mgmt_ind.append(True)
+        mgmt_total += 1
+        mgmt_parts.append(f"Goodwill/Equity {gw_eq:.0%} {'✓' if ok_gw else '✗'} (<40%)")
+    elif eq_latest > 0:
+        # Zero / no goodwill is a positive (organic balance sheet)
+        mgmt_ind.append(True); mgmt_total += 1
+        mgmt_parts.append("Goodwill/Equity 0% ✓ (organic)")
+
     n_mgmt = len(mgmt_ind)
-    tier_mgmt = ("HIGH" if n_mgmt >= 4 else "MOD-HIGH" if n_mgmt == 3
-                 else "MOD-LOW" if n_mgmt == 2 else "LOW")
-    note_mgmt = "  |  ".join(mgmt_parts) + f"  [{n_mgmt}/4 indicators positive — proxy score]"
+    # Scale tier thresholds to mgmt_total (now 4-6 with #6 additions): HIGH ≥85%
+    # of indicators, MOD-HIGH ≥60%, MOD-LOW ≥35%, else LOW.
+    if mgmt_total > 0:
+        _frac = n_mgmt / mgmt_total
+        tier_mgmt = ("HIGH" if _frac >= 0.85 else "MOD-HIGH" if _frac >= 0.60
+                     else "MOD-LOW" if _frac >= 0.35 else "LOW")
+    else:
+        tier_mgmt = "LOW"
+    score_mgmt = _proxy_score(n_mgmt, mgmt_total)
+    note_mgmt = "  |  ".join(mgmt_parts) + f"  [{n_mgmt}/{mgmt_total} indicators positive — proxy score]"
 
     # ── Execution Risk proxy (rev + margin volatility → tier) ────────────────
     rev_risk_idx = (3 if rev_std < 0.05 else 2 if rev_std < 0.10
@@ -3494,34 +3782,67 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     else 1 if om_std < 0.08 else 0)
     exec_idx  = (rev_risk_idx + om_risk_idx) // 2
     tier_exec = TIER_ORDER[exec_idx]
+    # Continuous score from average of the two 0-3 sub-indices, scaled to 0-10.
+    score_exec = round((rev_risk_idx + om_risk_idx) / 6.0 * 10.0, 2)
     note_exec = (f"Rev growth σ={rev_std:.1%}  |  Op margin σ={om_std:.1%}"
                  f"  [proxy — lower σ = lower risk = higher score]")
 
     # ── Valuation: P/E and P/FCF vs 5yr historical average ───────────────────
-    def _t_val(current, hist_avg, sect_med, label, roic_v, cagr_v):
+    # ── DCF-implied valuation anchor (#8) ─────────────────────────────────────
+    # Compute what P/E and P/FCF the GG fair value implies given current TTM
+    # earnings and FCF per share. Using this as a third benchmark protects
+    # against multiple-expansion regimes (e.g. 2020-2024 mega-cap tech) where
+    # the 5yr historical average is itself elevated. _t_val will take the
+    # minimum of (5yr avg, sector peer median, DCF-implied) as the benchmark.
+    dcf_implied_pe   = None
+    dcf_implied_pfcf = None
+    if dcf_gg_price and dcf_gg_price > 0 and is_data and cf_data:
+        _ttm_ni  = is_data[-1].get("netIncome") or 0
+        _ttm_cfo = cf_data[-1].get("operatingCashFlow") or 0
+        _ttm_cap = abs(cf_data[-1].get("capitalExpenditure") or 0)
+        _ttm_fcf = cf_data[-1].get("freeCashFlow") or (_ttm_cfo - _ttm_cap)
+        _shares  = (is_data[-1].get("weightedAverageShsOut") or
+                    is_data[-1].get("weightedAverageShsOutDil") or 0)
+        if _shares > 0:
+            _eps   = _ttm_ni  / _shares
+            _fcfps = _ttm_fcf / _shares
+            if _eps > 0:
+                dcf_implied_pe = round(dcf_gg_price / _eps, 1)
+            if _fcfps > 0:
+                dcf_implied_pfcf = round(dcf_gg_price / _fcfps, 1)
+        print(f"  DCF-implied multiples (GG ${dcf_gg_price:.2f}): "
+              f"P/E={dcf_implied_pe}  P/FCF={dcf_implied_pfcf}")
+
+    def _t_val(current, hist_avg, sect_med, label, roic_v, cagr_v, dcf_imp=None):
         if not current:
-            return None, f"N/A — {label} not available from yfinance"
+            return None, 0.0, f"N/A — {label} not available from yfinance"
         # Negative multiples mean the denominator (earnings or FCF) is negative.
         # The ratio is mathematically defined but economically meaningless — a
         # company losing money does not get cheaper as losses widen. Score LOW
         # so the scorecard does not falsely flag distressed names as bargains.
         if current <= 0:
-            return "LOW", (f"Current {current:.1f}x — {label} negative "
-                           f"(earnings/FCF below zero, multiple meaningless)")
+            return "LOW", 0.0, (f"Current {current:.1f}x — {label} negative "
+                                f"(earnings/FCF below zero, multiple meaningless)")
         premium_ok = (roic_v is not None and roic_v > 0.25 and
                       cagr_v is not None and cagr_v > 0.15)
-        benchmark  = hist_avg or sect_med
-        parts_v    = [f"Current {current:.1f}x"]
-        if hist_avg:   parts_v.append(f"5yr avg {hist_avg:.1f}x")
-        if sect_med:   parts_v.append(f"Sector median {sect_med:.1f}x")
+        # Take the most conservative (lowest) positive benchmark across the
+        # three anchors so multiple expansion in any single source doesn't
+        # let the company look "fairly valued" against an inflated reference.
+        _bench_candidates = [b for b in (hist_avg, sect_med, dcf_imp) if b and b > 0]
+        benchmark = min(_bench_candidates) if _bench_candidates else None
+        parts_v   = [f"Current {current:.1f}x"]
+        if hist_avg:    parts_v.append(f"5yr avg {hist_avg:.1f}x")
+        if sect_med:    parts_v.append(f"Sector median {sect_med:.1f}x")
+        if dcf_imp:     parts_v.append(f"DCF-implied {dcf_imp:.1f}x")
         note_v = "  |  ".join(parts_v)
         if not benchmark:
-            return None, note_v + "  [no benchmark — review manually]"
+            return None, 0.0, note_v + "  [no benchmark — review manually]"
         if benchmark <= 0:
             # 5yr avg distorted by loss years; cannot derive meaningful spread.
-            return None, note_v + "  [historical avg distorted by loss years — review manually]"
+            return None, 0.0, note_v + "  [historical avg distorted by loss years — review manually]"
         delta = (current - benchmark) / benchmark
         note_v += f"  [{delta:+.0%} vs benchmark"
+        # Tier label preserved for HTML/Excel display
         if delta > 0.25:
             tier_v = "MOD-LOW" if premium_ok else "LOW"
             if premium_ok:
@@ -3533,26 +3854,43 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         else:
             tier_v = "HIGH"
         note_v += "]"
-        return tier_v, note_v
+        score_v = _val_score(delta, premium_ok=premium_ok)
+        return tier_v, score_v, note_v
 
     pe_current    = forward_pe or trailing_pe
-    tier_pe,   note_pe   = _t_val(pe_current,    pe_5yr_avg,   sector_pe_med,
-                                   "P/E",   roic_latest, rev_cagr)
-    tier_pfcf, note_pfcf = _t_val(trailing_pfcf, pfcf_5yr_avg, sector_pfcf_med,
-                                   "P/FCF", roic_latest, rev_cagr)
+    tier_pe,   score_pe,   note_pe   = _t_val(pe_current,    pe_5yr_avg,   sector_pe_med,
+                                               "P/E",   roic_latest, rev_cagr,
+                                               dcf_imp=dcf_implied_pe)
+    tier_pfcf, score_pfcf, note_pfcf = _t_val(trailing_pfcf, pfcf_5yr_avg, sector_pfcf_med,
+                                               "P/FCF", roic_latest, rev_cagr,
+                                               dcf_imp=dcf_implied_pfcf)
 
-    # ── Hard floor gates ──────────────────────────────────────────────────────
-    # Banks are exempt: D/EBITDA and EBIT/Interest are structurally extreme for
-    # deposit-funded institutions and do not signal distress. Capital adequacy
-    # (Equity/Assets) is scored separately as the P3 leverage criterion.
+    # ── Soft credit floor cap (#7) ────────────────────────────────────────────
+    # Replaces the binary floor gates (D/EBITDA >4 → cap 64; EBIT/Int <2 → cap 64;
+    # both → cap 59). Two problems with cliffs: (1) D/EBITDA = 4.01 vs 3.99 made a
+    # 5-pt swing, (2) the cap was the same magnitude regardless of how badly the
+    # threshold was breached. Continuous formula:
+    #
+    #   cap = 100 − 5·max(0, D/EBITDA − 3.0) − 4·max(0, 3.0 − EBIT/Int)
+    #
+    # Bounded to [40, 100]. Activates from D/EBITDA > 3.0 and EBIT/Int < 3.0,
+    # so genuine distress is penalised before crossing the old hard thresholds.
+    # Banks remain exempt — the same structural reasons apply (deposit funding).
     if is_bank:
-        gate1 = False
-        gate2 = False
+        soft_cap = 100.0
+        cap_d_pen = 0.0
+        cap_e_pen = 0.0
     else:
-        gate1 = d_ebitda is not None and d_ebitda > 4.0 and net_cash_v <= 0
-        gate2 = ebit_int is not None and ebit_int < 2.0
-    floor_cap = (59 if gate1 and gate2 else
-                 64 if gate1 or gate2 else None)
+        cap_d_pen = (5.0 * max(0.0, (d_ebitda - 3.0))
+                     if d_ebitda is not None and net_cash_v <= 0 else 0.0)
+        cap_e_pen = (4.0 * max(0.0, (3.0 - ebit_int))
+                     if ebit_int is not None else 0.0)
+        soft_cap = max(40.0, min(100.0, 100.0 - cap_d_pen - cap_e_pen))
+    # Only treat as a "cap" when it actually constrains (i.e. < 100).
+    floor_cap = round(soft_cap, 1) if soft_cap < 99.5 else None
+    # Legacy gate booleans retained for the warning banner only.
+    gate1 = (d_ebitda is not None and d_ebitda > 4.0 and net_cash_v <= 0)
+    gate2 = (ebit_int is not None and ebit_int < 2.0)
 
     # ── Normalise user-supplied qualitative tiers (HIGH / MOD / LOW) ──────────
     def _norm_qual(v):
@@ -3568,31 +3906,80 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _bc_tier  = _norm_qual(biz_clarity)
     _ltp_tier = _norm_qual(ltp)
 
+    # ── Regime-aware weight schema (#9) ───────────────────────────────────────
+    # Default weights (sum = 100). Regime modifiers redistribute weight when
+    # specific criteria become structurally meaningless:
+    #   • banks:  P/FCF is meaningless (deposit-funded, no capex/FCF rhythm) →
+    #             zero P/FCF weight, double P/E weight to 20 (single equity-
+    #             multiple anchor, since P/TBV is not yet computed).
+    #   • evs_regime (pre-profit secular growth): ROIC, FCF/NI, Capital Returns,
+    #             Interest Cover, P/E, P/FCF are all distorted or undefined when
+    #             trailing earnings/FCF are negative. Zero those (50 weight) and
+    #             redistribute to growth + qualitative + moat — the only signals
+    #             that meaningfully differentiate pre-profit names.
+    W = {
+        "BC": 2.5, "Moat": 10.0, "LTP": 10.0, "Mgmt": 7.5,
+        "RevCAGR": 10.0, "FCFNI": 10.0, "CapRet": 5.0, "ROIC": 7.5,
+        "Lev": 5.0, "EBITInt": 7.5, "Exec": 5.0,
+        "PE": 10.0, "PFCF": 10.0,
+    }
+    if is_bank:
+        W["PE"]      = 20.0   # single equity-multiple anchor (P/TBV not yet implemented)
+        W["PFCF"]    = 0.0    # meaningless for deposit-funded institutions
+        W["EBITInt"] = 0.0    # traditional interest cover nonsensical for banks (interest IS their raw-material cost)
+        W["Lev"]     = 12.5   # absorbs the freed 7.5 — capital adequacy is the bank risk metric
+    if evs_regime:
+        # zero distorted criteria
+        W["ROIC"]    = 0.0
+        W["FCFNI"]   = 0.0
+        W["CapRet"]  = 0.0
+        W["EBITInt"] = 0.0
+        W["PE"]      = 0.0
+        W["PFCF"]    = 0.0
+        # redistribute the freed 50.0 weight to growth + qualitative + moat
+        W["RevCAGR"] = 25.0   # +15 — primary signal for pre-profit
+        W["Moat"]    = 20.0   # +10 — gross-margin trajectory included
+        W["LTP"]     = 25.0   # +15 — TAM judgment dominates
+        W["BC"]      = 7.5    # +5  — segment economics matter more
+        W["Mgmt"]    = 12.5   # +5  — capital stewardship critical pre-profit
+        # Lev (5) + Exec (5) unchanged → total = 25+20+25+7.5+12.5+5+5 = 100 ✓
+    _wsum = sum(W.values())
+    if _wsum and abs(_wsum - 100.0) > 0.01:
+        print(f"  ⚠ Regime weights sum to {_wsum} (expected 100)")
+    print(f"  Weight regime: is_bank={is_bank}  evs_regime={evs_regime}  weights={W}")
+
     # ── Criteria table definition ─────────────────────────────────────────────
-    # (part, label, weight, auto_tier, note, is_auto)
+    # (part, label, weight, auto_tier, auto_score, note, is_auto)
+    # auto_score is the continuous score (0..SCORE_CAP). For auto rows the
+    # literal value is written to Excel col F so totals reflect the smooth
+    # underlying metric, not the discrete tier mapping. Qualitative rows pass
+    # None for auto_score and the tier→score formula computes from col E.
     # Business Clarity and Long-Term Potential are qualitative — pre-filled from
     # the web form when provided; otherwise left blank for manual input.
-    CRITERIA = [
-        ("P1", "Business Clarity",                  2.5,  _bc_tier,
+    CRITERIA_RAW = [
+        ("P1", "Business Clarity",                  W["BC"],   _bc_tier,      None,
          ("User-supplied via web form" if _bc_tier else
           "Segment data not on current FMP plan — assign manually after reviewing 10-K"),
          _bc_tier is not None),
-        ("P1", "Moat Profile",                       10.0, tier_moat,     note_moat,      True),
-        ("P1", "Long-Term Potential",                10.0, _ltp_tier,
+        ("P1", "Moat Profile",                       W["Moat"], tier_moat,     score_moat,     note_moat,      True),
+        ("P1", "Long-Term Potential",                W["LTP"],  _ltp_tier,     None,
          ("User-supplied via web form" if _ltp_tier else
           "Structural/TAM outlook — assign manually (genuinely qualitative)"),
          _ltp_tier is not None),
-        ("P1", "Management",                          7.5, tier_mgmt,     note_mgmt,      True),
-        ("P2", "Revenue 3yr CAGR",                  10.0, tier_rev_cagr, note_rev_cagr,  True),
-        ("P2", "Cash Quality  (FCF / Net Income)",  10.0, tier_fcf_ni,   note_fcf_ni,    True),
-        ("P2", "Capital Returns",                    5.0,  tier_cap_ret,  note_cap_ret,   True),
-        ("P2", "ROIC",                               7.5,  tier_roic,     note_roic,      True),
-        ("P3", leverage_label,                        5.0,  tier_leverage, note_leverage,  True),
-        ("P3", "Interest Cover  (EBIT / Interest)",  7.5,  tier_ebit_int, note_ebit_int,  True),
-        ("P3", "Execution Risk",                     5.0,  tier_exec,     note_exec,      True),
-        ("P4", "Valuation vs Median  (P/E)",        10.0, tier_pe,       note_pe,        tier_pe   is not None),
-        ("P4", "Valuation vs Median  (P/FCF)",      10.0, tier_pfcf,     note_pfcf,      tier_pfcf is not None),
+        ("P1", "Management",                          W["Mgmt"], tier_mgmt,     score_mgmt,     note_mgmt,      True),
+        ("P2", "Revenue 3yr CAGR",                  W["RevCAGR"], tier_rev_cagr, score_rev_cagr, note_rev_cagr,  True),
+        ("P2", "Cash Quality  (FCF / Net Income)",  W["FCFNI"], tier_fcf_ni,   score_fcf_ni,   note_fcf_ni,    True),
+        ("P2", "Capital Returns",                    W["CapRet"], tier_cap_ret,  score_cap_ret,  note_cap_ret,   True),
+        ("P2", "ROIC",                               W["ROIC"], tier_roic,     score_roic,     note_roic,      True),
+        ("P3", leverage_label,                        W["Lev"],  tier_leverage, score_leverage, note_leverage,  True),
+        ("P3", "Interest Cover  (EBIT / Interest)",  W["EBITInt"], tier_ebit_int, score_ebit_int, note_ebit_int,  True),
+        ("P3", "Execution Risk",                     W["Exec"], tier_exec,     score_exec,     note_exec,      True),
+        ("P4", "Valuation vs Median  (P/E)",        W["PE"],   tier_pe,       score_pe,       note_pe,        tier_pe   is not None),
+        ("P4", "Valuation vs Median  (P/FCF)",      W["PFCF"], tier_pfcf,     score_pfcf,     note_pfcf,      tier_pfcf is not None),
     ]
+    # Drop zero-weight criteria entirely so the Excel sheet doesn't waste rows
+    # on N/A lines for the regime that has zeroed them.
+    CRITERIA = [c for c in CRITERIA_RAW if c[2] > 0]
 
     # ── Cell writing helpers ──────────────────────────────────────────────────
     def wcell(r, col, val="", bold=False, color=C_BLACK, bg=C_WHITE,
@@ -3683,24 +4070,32 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             + (f"  |  Equity/Assets = {equity_assets:.1%}" if equity_assets else ""),
             bold=False, color="1B5E20", bg="C8E6C9", size=9
         )
-    elif gate1 or gate2:
+    elif floor_cap is not None:
         msgs = []
-        if gate1:
-            msgs.append(f"LEVERAGE GATE: D/EBITDA {d_ebitda:.1f}x > 4.0x")
-        if gate2:
-            msgs.append(f"COVERAGE GATE: EBIT/Interest {ebit_int:.1f}x < 2.0x")
+        if cap_d_pen > 0:
+            msgs.append(f"D/EBITDA {d_ebitda:.1f}x → −{cap_d_pen:.1f} pts")
+        if cap_e_pen > 0:
+            msgs.append(f"EBIT/Interest {ebit_int:.1f}x → −{cap_e_pen:.1f} pts")
+        # Severity of cap drives banner color: tighter cap = redder
+        if floor_cap < 60:
+            bg, fg, ico = "B71C1C", C_WHITE, "⚠"
+        elif floor_cap < 75:
+            bg, fg, ico = "F57C00", C_WHITE, "⚠"
+        else:
+            bg, fg, ico = "FFE0B2", "5D4037", "•"
         ws.row_dimensions[row].height = 20
         row = merge_row(
             row,
-            "⚠  HARD FLOOR GATE(S) TRIGGERED — " + "  |  ".join(msgs) +
-            f"  →  Overall score capped at {floor_cap}",
-            bold=True, color=C_WHITE, bg="B71C1C", size=10
+            f"{ico}  SOFT FLOOR CAP {floor_cap:.0f}/100 applied — "
+            + "  |  ".join(msgs)
+            + f"  (kicks in at D/EBITDA > 3.0x or EBIT/Int < 3.0x; smooth, no cliffs)",
+            bold=True, color=fg, bg=bg, size=10
         )
     else:
         ws.row_dimensions[row].height = 16
         row = merge_row(
             row,
-            "✓  No hard floor gates triggered  (D/EBITDA and EBIT/Interest within safe thresholds)",
+            "✓  No floor cap (D/EBITDA and EBIT/Interest within safe thresholds)",
             bold=False, color="1B5E20", bg="C8E6C9", size=9
         )
 
@@ -3729,7 +4124,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     crit_rows = []  # track for SUM formula
 
     current_part = None
-    for part, label, weight, auto_tier, note, is_auto in CRITERIA:
+    for part, label, weight, auto_tier, auto_score, note, is_auto in CRITERIA:
         # Part separator header
         if part != current_part:
             current_part = part
@@ -3778,10 +4173,17 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         c_tier.border    = brd()
         c_tier.alignment = Alignment(horizontal="center", vertical="center")
 
-        # F: Score (formula)
-        score_f = SCORE_FORMULA.replace("{e}", e_addr)
-        c_score = wcell(row, 6, score_f, bold=True, bg=row_bg,
-                        halign="center", fmt='0;(0);"-"')
+        # F: Score
+        # For auto-scored rows: write the continuous engine score as a literal
+        # value (smooth, no threshold cliffs). For qualitative rows: keep the
+        # tier→score formula so user dropdown changes recompute live in Excel.
+        if is_auto and auto_score is not None:
+            c_score = wcell(row, 6, round(float(auto_score), 2), bold=True, bg=row_bg,
+                            halign="center", fmt='0.00;(0.00);"-"')
+        else:
+            score_f = SCORE_FORMULA.replace("{e}", e_addr)
+            c_score = wcell(row, 6, score_f, bold=True, bg=row_bg,
+                            halign="center", fmt='0.00;(0.00);"-"')
         c_score.font = fnt(bold=True, color=C_BLACK)
 
         # G: Weighted score (formula)
@@ -3875,7 +4277,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     row = merge_row(
         row,
         "SCORING GUIDE:  ≥80 STRONG BUY  |  65–79 BUY  |  50–64 HOLD  |  35–49 REDUCE  |  <35 SELL  "
-        "  ||  Floor gates (non-banks only): D/EBITDA >4x OR EBIT/Int <2x → cap 64;  both → cap 59  "
+        "  ||  Soft cap (non-banks only): −5pts per 1.0x of D/EBITDA above 3.0x; −4pts per 1.0x of EBIT/Int below 3.0x; min 40  "
         "  ||  Banks: gates exempt; P3 uses Equity/Assets (CET1 proxy) instead of D/EBITDA",
         bold=False, color="444444", bg="F4F8FB", size=8, indent=2
     )
@@ -3883,27 +4285,52 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     # ── Metrics dict for portfolio heatmap ────────────────────────────────────
     # auto_score = raw points out of 100 earned from the 11 auto-scored criteria.
     # Max = 87.5  (Business Clarity 2.5 + Long-Term Potential 10.0 = 12.5 manual)
-    _TIER_VAL = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
+    # Uses continuous scores (0..SCORE_CAP) — no longer the discrete tier mapping.
+    # Each weighted contribution = (score/10) * weight, mirroring Excel formula
+    # `weight * score * 10` divided by 100 normalisation. SCORE_CAP=12 means a
+    # criterion can earn up to 1.2 * its weight (rewards genuine outliers).
     _auto_criteria = [
-        (tier_moat,      10.0),
-        (tier_mgmt,       7.5),
-        (tier_rev_cagr,  10.0),
-        (tier_fcf_ni,    10.0),
-        (tier_cap_ret,    5.0),
-        (tier_roic,       7.5),
-        (tier_leverage,   5.0),   # D/EBITDA for non-banks; Equity/Assets for banks
-        (tier_ebit_int,   7.5),
-        (tier_exec,       5.0),
-        (tier_pe,        10.0),
-        (tier_pfcf,      10.0),
+        (tier_moat,      score_moat,      W["Moat"]),
+        (tier_mgmt,      score_mgmt,      W["Mgmt"]),
+        (tier_rev_cagr,  score_rev_cagr,  W["RevCAGR"]),
+        (tier_fcf_ni,    score_fcf_ni,    W["FCFNI"]),
+        (tier_cap_ret,   score_cap_ret,   W["CapRet"]),
+        (tier_roic,      score_roic,      W["ROIC"]),
+        (tier_leverage,  score_leverage,  W["Lev"]),     # D/EBITDA for non-banks; Equity/Assets for banks
+        (tier_ebit_int,  score_ebit_int,  W["EBITInt"]),
+        (tier_exec,      score_exec,      W["Exec"]),
+        (tier_pe,        score_pe,        W["PE"]),
+        (tier_pfcf,      score_pfcf,      W["PFCF"]),
     ]
-    _scored = [(t, w) for t, w in _auto_criteria if t in _TIER_VAL]
+    # Drop zero-weighted criteria so they don't even appear in the total
+    _auto_criteria = [c for c in _auto_criteria if c[2] > 0]
+    _active_weight = sum(w for _, _, w in _auto_criteria)   # total achievable weight (regime-adjusted)
+    _scored = [(t, s, w) for t, s, w in _auto_criteria if t is not None and s is not None]
     if _scored:
-        _auto_score = round(sum((_TIER_VAL[t] / 10) * w for t, w in _scored), 1)
+        # Outlier reward flows into the total: per-criterion scores above 10
+        # (NVDA-grade ROIC, net-cash balance sheet, etc.) lift the total above
+        # 87.5 — by design, so genuinely top-decile names differentiate from
+        # "just HIGH" in the headline number, not only per-criterion in Excel.
+        # Practical max ~105/87.5; display shows numerator/denominator so users
+        # can read >87.5 as "above typical max" without confusion.
+        _raw_sum = sum((s / 10.0) * w for _, s, w in _scored)
+        _scored_weight = sum(w for _, _, w in _scored)
+        # Denominator normalization: if some criteria returned N/A (data gap,
+        # not a regime zero), rescale to the full active weight pool so the
+        # company isn't penalized for criteria it structurally cannot score on.
+        # Sparse-data guardrail: if fewer than 50% of active criteria scored,
+        # don't amplify — the surviving signals aren't representative enough
+        # to extrapolate. Flag via low_data_confidence so callers can warn.
+        _low_data_confidence = (_scored_weight < 0.5 * _active_weight) if _active_weight else True
+        if (_scored_weight > 0 and _scored_weight < _active_weight
+                and not _low_data_confidence):
+            _raw_sum = _raw_sum * (_active_weight / _scored_weight)
+        _auto_score = round(_raw_sum, 1)
         if floor_cap is not None:
             _auto_score = min(_auto_score, floor_cap)
     else:
         _auto_score = None
+        _low_data_confidence = True
 
     metrics = {
         "roic":          roic_latest,
@@ -3915,6 +4342,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "sector_bucket": _bucket,
         "auto_score":    _auto_score,
         "floor_cap":     floor_cap,
+        "low_data_confidence": _low_data_confidence,
+        "scored_weight":       round(_scored_weight, 1) if _scored else 0.0,
+        "active_weight":       round(_active_weight, 1),
         "pe_current":    pe_current,
         "pe_5yr_avg":         pe_5yr_avg,
         "pfcf_current":       trailing_pfcf,
@@ -3933,6 +4363,25 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "tier_ebit_int":  tier_ebit_int,
         "tier_pe":        tier_pe,
         "tier_pfcf":      tier_pfcf,
+        # Continuous scores (0..SCORE_CAP) for each auto-scored criterion.
+        # report_bridge prefers these over tier-based lookup so HTML weighted
+        # totals exactly match the Excel literal scores written in col F.
+        "score_moat":      score_moat,
+        "score_mgmt":      score_mgmt,
+        "score_cap_ret":   score_cap_ret,
+        "score_exec":      score_exec,
+        "score_rev_cagr":  score_rev_cagr,
+        "score_fcf_ni":    score_fcf_ni,
+        "score_roic":      score_roic,
+        "score_leverage":  score_leverage,
+        "score_ebit_int":  score_ebit_int,
+        "score_pe":        score_pe,
+        "score_pfcf":      score_pfcf,
+        # Regime-aware weight schema (#9). report_bridge uses these to compute
+        # p1/p2/p3/p4 totals so the HTML weighted scores match the Excel sheet
+        # under bank or EVS regime adjustments.
+        "weights":         dict(W),
+        "evs_regime":      evs_regime,
     }
 
     print("  Scorecard tab built.")

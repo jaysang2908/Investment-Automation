@@ -253,6 +253,8 @@ def generate():
         _, scorecard_metrics = mdl.build_scorecard(
             wb, ticker, is_data, bs_data, cf_data, years,
             biz_clarity=biz_clarity or None, ltp=ltp or None,
+            dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
+            evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
         )
 
         buf = io.BytesIO()
@@ -275,10 +277,16 @@ def generate():
             pass
 
         # ── Compute adjusted score first (need it for HTML report) ───────────
+        # Weights are regime-aware (banks/EVS) — read from engine output rather
+        # than hardcoding 2.5/10.0, which would understate qualitative weight
+        # for EVS pre-profit names (BC=7.5, LTP=25).
         TIER_PTS    = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
         auto_score  = scorecard_metrics.get("auto_score") or 0
-        bc_pts      = TIER_PTS.get(biz_clarity, 0) * 2.5 / 10   # max 2.5
-        ltp_pts     = TIER_PTS.get(ltp, 0) * 10.0 / 10           # max 10.0
+        _W          = scorecard_metrics.get("weights") or {}
+        _w_bc       = float(_W.get("BC",  2.5))
+        _w_ltp      = float(_W.get("LTP", 10.0))
+        bc_pts      = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
+        ltp_pts     = TIER_PTS.get(ltp,         0) * _w_ltp / 10
         adj_score   = round(auto_score + bc_pts + ltp_pts, 1)
         floor_cap   = scorecard_metrics.get("floor_cap")
         if floor_cap is not None:
@@ -964,8 +972,12 @@ def api_update_qualitative(ticker):
         auto_score = float(body.get("auto_score") or 0)
 
     TIER_PTS  = {"HIGH": 10, "MOD": 7, "LOW": 0}
-    bc_pts    = TIER_PTS.get(biz_clarity, 0) * 2.5 / 10
-    ltp_pts   = TIER_PTS.get(ltp,         0) * 10.0 / 10
+    # Regime-aware BC/LTP weights (banks/EVS) — see comment in /generate handler
+    _W        = scorecard_metrics.get("weights") or {}
+    _w_bc     = float(_W.get("BC",  2.5))
+    _w_ltp    = float(_W.get("LTP", 10.0))
+    bc_pts    = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
+    ltp_pts   = TIER_PTS.get(ltp,         0) * _w_ltp / 10
     adj_score = round(auto_score + bc_pts + ltp_pts, 1)
     floor_cap = scorecard_metrics.get("floor_cap")
     if floor_cap is not None:

@@ -115,12 +115,19 @@ for ticker, biz_clarity, ltp in TICKERS:
             wb, ticker, is_data, bs_data, cf_data, years,
             pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
         )
-        _, scorecard_metrics = mdl.build_scorecard(wb, ticker, is_data, bs_data, cf_data, years)
+        _, scorecard_metrics = mdl.build_scorecard(
+            wb, ticker, is_data, bs_data, cf_data, years,
+            dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
+            evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
+        )
 
-        # Compute adj_score
+        # Compute adj_score using regime-aware BC/LTP weights from engine
         auto_score = scorecard_metrics.get("auto_score") or 0
-        bc_pts  = TIER_PTS.get(biz_clarity, 0) * 2.5 / 10
-        ltp_pts = TIER_PTS.get(ltp, 0) * 10.0 / 10
+        _W      = scorecard_metrics.get("weights") or {}
+        _w_bc   = float(_W.get("BC",  2.5))
+        _w_ltp  = float(_W.get("LTP", 10.0))
+        bc_pts  = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
+        ltp_pts = TIER_PTS.get(ltp,         0) * _w_ltp / 10
         adj_score = round(auto_score + bc_pts + ltp_pts, 1)
         floor_cap = scorecard_metrics.get("floor_cap")
         if floor_cap is not None:
