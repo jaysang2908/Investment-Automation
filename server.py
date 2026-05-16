@@ -237,31 +237,25 @@ def generate():
             for d in is_data
         ]
 
+        # Pre-fetch EDGAR bank credit data (free API, no quota impact)
+        # Only fetches for known bank tickers; returns {} for all others
+        _bank_credit = mdl.fetch_bank_credit_data(ticker)
+
         # ── Build Excel workbook ──────────────────────────────────────────────
         wb       = Workbook()
         pl_refs  = mdl.build_pl(wb, is_data, years, ticker)
         mdl.build_cover(wb, ticker, years, is_data)
         bs_refs  = mdl.build_bs(wb, bs_data, years, ticker)
         cf_refs  = mdl.build_cf(wb, cf_data, years, ticker)
-        mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs)
+        mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs,
+                         bank_credit=_bank_credit)
         mdl.build_segments(wb, ticker, years)
         wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating)
         dcf_refs  = mdl.build_dcf(
             wb, ticker, is_data, bs_data, cf_data, years,
             pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
         )
-        _, scorecard_metrics = mdl.build_scorecard(
-            wb, ticker, is_data, bs_data, cf_data, years,
-            biz_clarity=biz_clarity or None, ltp=ltp or None,
-            dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
-            evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
-        )
-
-        buf = io.BytesIO()
-        wb.save(buf)
-        excel_bytes = buf.getvalue()
-
-        # ── Fetch analyst estimates (forward EPS/revenue for multiples table) ─
+        # ── Fetch analyst estimates (needed for forward P/E & P/FCF in scorecard) ─
         analyst_ests = []
         try:
             _ae = _req.get(
@@ -276,19 +270,33 @@ def generate():
         except Exception:
             pass
 
+        _, scorecard_metrics = mdl.build_scorecard(
+            wb, ticker, is_data, bs_data, cf_data, years,
+            biz_clarity=biz_clarity or None, ltp=ltp or None,
+            dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
+            evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
+            bank_credit=_bank_credit,
+            analyst_ests=analyst_ests,
+        )
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        excel_bytes = buf.getvalue()
+
         # ── Compute adjusted score first (need it for HTML report) ───────────
         # Weights are regime-aware (banks/EVS) — read from engine output rather
         # than hardcoding 2.5/10.0, which would understate qualitative weight
         # for EVS pre-profit names (BC=7.5, LTP=25).
-        TIER_PTS    = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
-        auto_score  = scorecard_metrics.get("auto_score") or 0
-        _W          = scorecard_metrics.get("weights") or {}
-        _w_bc       = float(_W.get("BC",  2.5))
-        _w_ltp      = float(_W.get("LTP", 10.0))
-        bc_pts      = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
-        ltp_pts     = TIER_PTS.get(ltp,         0) * _w_ltp / 10
-        adj_score   = round(auto_score + bc_pts + ltp_pts, 1)
-        floor_cap   = scorecard_metrics.get("floor_cap")
+        TIER_PTS       = {"HIGH": 10, "MOD-HIGH": 7, "MOD-LOW": 3, "LOW": 0}
+        auto_score     = scorecard_metrics.get("auto_score") or 0      # normalized 0-10, for display
+        auto_score_raw = scorecard_metrics.get("auto_score_raw") or 0  # raw 0-87.5, for adj base
+        _W             = scorecard_metrics.get("weights") or {}
+        _w_bc          = float(_W.get("BC",  2.5))
+        _w_ltp         = float(_W.get("LTP", 10.0))
+        bc_pts         = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
+        ltp_pts        = TIER_PTS.get(ltp,         0) * _w_ltp / 10
+        adj_score      = round((auto_score_raw + bc_pts + ltp_pts) / 10, 1)  # normalize to 0-10
+        floor_cap      = scorecard_metrics.get("floor_cap")  # already normalized 0-10
         if floor_cap is not None:
             adj_score = min(adj_score, floor_cap)
 
@@ -942,7 +950,8 @@ def api_update_qualitative(ticker):
         return jsonify({"error": f"No cached data for {ticker}. Generate the report first."}), 404
 
     scorecard_metrics = stored.get("scorecard_metrics") or {}
-    auto_score = float(scorecard_metrics.get("auto_score") or 0)
+    auto_score     = float(scorecard_metrics.get("auto_score") or 0)      # normalized 0-10
+    auto_score_raw = float(scorecard_metrics.get("auto_score_raw") or 0)  # raw 0-87.5
 
     # Self-heal: if scorecard_metrics is empty, recompute from stored financials
     if not auto_score and stored.get("is_data"):
@@ -954,8 +963,10 @@ def api_update_qualitative(ticker):
                 stored["is_data"], stored["bs_data"], stored["cf_data"],
                 stored.get("years") or [],
                 biz_clarity=biz_clarity or None, ltp=ltp or None,
+                analyst_ests=stored.get("analyst_ests") or [],
             )
-            auto_score = float(recomputed.get("auto_score") or 0)
+            auto_score     = float(recomputed.get("auto_score") or 0)
+            auto_score_raw = float(recomputed.get("auto_score_raw") or 0)
             scorecard_metrics = recomputed
             # Persist so future calls are instant
             save_ticker_data(
@@ -967,9 +978,11 @@ def api_update_qualitative(ticker):
         except Exception:
             pass
 
-    # Final fallback: use the auto_score hint the dashboard sent (from hardcoded D array)
+    # Final fallback: use the auto_score hint the dashboard sent (from hardcoded D array).
+    # Dashboard scores are now on 0-10 scale; treat them as both auto_score and raw.
     if not auto_score:
-        auto_score = float(body.get("auto_score") or 0)
+        auto_score     = float(body.get("auto_score") or 0)
+        auto_score_raw = auto_score * 87.5 / 10.0  # reverse-normalize for adj computation
 
     TIER_PTS  = {"HIGH": 10, "MOD": 7, "LOW": 0}
     # Regime-aware BC/LTP weights (banks/EVS) — see comment in /generate handler
@@ -978,8 +991,8 @@ def api_update_qualitative(ticker):
     _w_ltp    = float(_W.get("LTP", 10.0))
     bc_pts    = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
     ltp_pts   = TIER_PTS.get(ltp,         0) * _w_ltp / 10
-    adj_score = round(auto_score + bc_pts + ltp_pts, 1)
-    floor_cap = scorecard_metrics.get("floor_cap")
+    adj_score = round((auto_score_raw + bc_pts + ltp_pts) / 10, 1)  # normalize to 0-10
+    floor_cap = scorecard_metrics.get("floor_cap")  # already normalized 0-10
     if floor_cap is not None:
         adj_score = min(adj_score, float(floor_cap))
 

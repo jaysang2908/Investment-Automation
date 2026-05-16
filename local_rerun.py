@@ -117,8 +117,7 @@ def main():
     old_rows  = _read_csv()
     all_tickers = sorted(old_rows.keys()) if old_rows else []
 
-    # Only re-run tickers not yet updated in this session (still on old dates)
-    REMAINING = {"NFLX", "NKE", "NVDA", "PEP", "SNAP", "SOFI", "TGT", "TSLA", "TSM", "V", "WMT"}
+    REMAINING = {"NFLX", "NVDA", "ADBE", "COST", "META", "JNJ", "JPM", "BAC"}
     tickers = [t for t in all_tickers if t in REMAINING]
 
     if not tickers:
@@ -183,13 +182,18 @@ def main():
             except Exception:
                 pass
 
+            # Pre-fetch EDGAR bank credit data (free API, no quota impact)
+            # Only fetches for known bank tickers; returns {} for all others
+            _bank_credit = mdl.fetch_bank_credit_data(ticker)
+
             # Build workbook
             wb        = Workbook()
             pl_refs   = mdl.build_pl(wb, is_data, years, ticker)
             mdl.build_cover(wb, ticker, years, is_data)
             bs_refs   = mdl.build_bs(wb, bs_data, years, ticker)
             cf_refs   = mdl.build_cf(wb, cf_data, years, ticker)
-            mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs)
+            mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs,
+                             bank_credit=_bank_credit)
             mdl.build_segments(wb, ticker, years)
             wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, None)
             dcf_refs  = mdl.build_dcf(
@@ -202,17 +206,20 @@ def main():
                 ltp=ltp_manual or None,
                 dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
                 evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
+                bank_credit=_bank_credit,
+                analyst_ests=analyst_ests,
             )
 
             # Adj score
-            auto_score = scorecard_metrics.get("auto_score") or 0
+            auto_score     = scorecard_metrics.get("auto_score") or 0      # normalized 0-10, for display/printing
+            auto_score_raw = scorecard_metrics.get("auto_score_raw") or 0  # raw 0-87.5, for adj base
             _W      = scorecard_metrics.get("weights") or {}
             _w_bc   = float(_W.get("BC",  2.5))
             _w_ltp  = float(_W.get("LTP", 10.0))
             bc_pts  = TIER_PTS.get(bc_manual,  0) * _w_bc  / 10
             ltp_pts = TIER_PTS.get(ltp_manual, 0) * _w_ltp / 10
-            adj_score = round(auto_score + bc_pts + ltp_pts, 1)
-            floor_cap = scorecard_metrics.get("floor_cap")
+            adj_score = round((auto_score_raw + bc_pts + ltp_pts) / 10, 1)  # normalize to 0-10
+            floor_cap = scorecard_metrics.get("floor_cap")  # already normalized 0-10
             if floor_cap is not None:
                 adj_score = min(adj_score, float(floor_cap))
 

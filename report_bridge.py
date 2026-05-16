@@ -404,11 +404,11 @@ def _conservative_verdict(quant_score, full_score):
         A large qualitative lift over fundamentals warrants skepticism —
         defer to the objective number until the quant catches up.
 
-    quant_score: out of 87.5 (objective only).
-    full_score:  out of 100  (with qualitative inputs); may be None if not provided.
+    quant_score: out of 10 (objective only).
+    full_score:  out of 10  (with qualitative inputs); may be None if not provided.
     """
-    quant_pct = (quant_score / 87.5) if quant_score else None
-    full_pct  = (full_score / 100.0) if full_score else None
+    quant_pct = quant_score / 10.0 if quant_score else None   # was quant_score / 87.5
+    full_pct  = full_score  / 10.0 if full_score  else None   # was full_score / 100.0
 
     if full_pct is None:
         return _verdict_from_pct(quant_pct)[0]
@@ -444,7 +444,7 @@ def _sensitivity_class(current_px, calc_px):
 
 def _compute_css(d, current_price):
     c = {}
-    # Use percentage of max so the same colour bands apply to both 87.5 and 100 scales.
+    # Use percentage of max so the same colour bands apply to both quant and full 0-10 scales.
     score = float(str(d.get("FINAL_SCORE", 0)).replace(",", "") or 0)
     _smax = float(str(d.get("SCORE_MAX", "100")) or 100) or 100
     _pct  = score / _smax if _smax else 0
@@ -1141,8 +1141,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     p2 = round((s_rev*W["RevCAGR"] + s_fcf_ni*W["FCFNI"] + s_cap_ret*W["CapRet"] + s_roic*W["ROIC"]) / 10, 1)
     p3 = round((s_debd*W["Lev"] + s_eint*W["EBITInt"] + s_exec*W["Exec"]) / 10, 1)
     p4 = round((s_pe*W["PE"] + s_pfcf*W["PFCF"]) / 10, 1)
-    # Use adj_score (Excel engine total) when available for accuracy; fall back to p-sums
-    final_score = adj_score or auto_score or round(p1 + p2 + p3 + p4, 1)
+    # Use adj_score (Excel engine total) when available for accuracy; fall back to p-sums.
+    # p-sums are on the raw 0-87.5 scale; normalize the fallback to 0-10.
+    _p_sum_raw  = round(p1 + p2 + p3 + p4, 1)
+    _p_sum_norm = round(min(10.0, _p_sum_raw / 87.5 * 10), 1)
+    final_score = adj_score or auto_score or _p_sum_norm
 
     # ── 5-year financial table ─────────────────────────────────────────────────
     fin = {}
@@ -1369,15 +1372,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         f"CapEx {_pct(_capex_intensity)} of revenue; FCF/NI {_pct(fcf_ni_v)}. No material execution flags from financial data."
     )
 
-    # ── Dual scoring: Quant (max 87.5) + Full (max 100) ──────────────────────
-    # Both are always computed. Quant is objective-only and lives on a 0–87.5
-    # scale (same 11 auto-criteria the Excel engine scores). Full adds the two
-    # qualitative inputs (Business Clarity + LTP) for a 0–100 scale.
-    # The verdict uses the *more conservative* of the two (rank-min).
+    # ── Dual scoring: Quant (0-10) + Full (0-10) ─────────────────────────────
+    # Both are always computed on the same normalized 0-10 scale.
+    # Quant is objective-only (11 auto-criteria). Full adds Business Clarity
+    # (2.5 wt) + Long-Term Potential (10.0 wt). The verdict uses the more
+    # conservative of the two (rank-min).
     _qual_entered  = bool(t_bc or t_ltp)
-    _quant_score   = round(auto_score, 1) if auto_score else round(p1 + p2 + p3 + p4 -
-                                                                    (P[t_bc or "MOD"]*2.5 +
-                                                                     P[t_ltp or "MOD"]*10.0)/10, 1)
+    # Fallback: p-sum minus qual contribution, then normalize to 0-10.
+    _quant_fallback = round(min(10.0, (p1 + p2 + p3 + p4 -
+                                       (P[t_bc or "MOD"]*2.5 +
+                                        P[t_ltp or "MOD"]*10.0)/10) / 87.5 * 10), 1)
+    _quant_score   = round(auto_score, 1) if auto_score else _quant_fallback
     _full_score    = round(adj_score, 1) if (adj_score and _qual_entered) else None
     _verdict_text  = _conservative_verdict(_quant_score, _full_score)
 
@@ -1385,12 +1390,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     # full score when available, else quant — but the verdict is independent
     # and always uses the conservative rule above.
     final_score    = _full_score if _full_score is not None else _quant_score
-    _score_max     = 100 if _full_score is not None else 87.5
+    _score_max     = 10  # both quant and full are now on the same 0-10 scale
 
     _score_note    = ("" if _qual_entered else
                       "Qualitative inputs (Business Clarity, Long-Term Potential) not provided. "
-                      "Quant score shown out of 87.5 — verdict applies %-bands to that scale. "
-                      "Completing these inputs unlocks the full 100-pt scorecard.")
+                      "Quant score shown out of 10 — verdict applies %-bands to that scale. "
+                      "Completing these inputs unlocks the full 0-10 scorecard.")
     _score_note_html = (
         "" if _qual_entered else
         '<div style="font-family:var(--font-mono);font-size:10px;color:var(--warn);'
@@ -1404,18 +1409,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _dual_score_html = (
             f'<div class="verdict-score-row">'
             f'<span class="verdict-score-num">{round(_full_score,1)}</span>'
-            f'<span class="verdict-score-den">/100</span>'
+            f'<span class="verdict-score-den">/10</span>'
             f'</div>'
             f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">'
-            f'Quant: <strong>{round(_quant_score,1)}/87.5</strong> &nbsp;·&nbsp; '
-            f'Full: <strong>{round(_full_score,1)}/100</strong>'
+            f'Quant: <strong>{round(_quant_score,1)}/10</strong> &nbsp;·&nbsp; '
+            f'Full: <strong>{round(_full_score,1)}/10</strong>'
             f'</div>'
         )
     else:
         _dual_score_html = (
             f'<div class="verdict-score-row">'
             f'<span class="verdict-score-num">{round(_quant_score,1)}</span>'
-            f'<span class="verdict-score-den">/87.5</span>'
+            f'<span class="verdict-score-den">/10</span>'
             f'</div>'
             f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">'
             f'Quant only — qualitative inputs pending'
@@ -1443,9 +1448,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FINAL_SCORE_CALC": str(round(final_score, 1)) if final_score else "0",
         "SCORE_MAX":        _score_max,
         "QUANT_SCORE":      round(_quant_score, 1) if _quant_score else 0,
-        "QUANT_SCORE_MAX":  87.5,
+        "QUANT_SCORE_MAX":  10,
         "FULL_SCORE":       round(_full_score, 1) if _full_score else "—",
-        "FULL_SCORE_MAX":   100,
+        "FULL_SCORE_MAX":   10,
         "DUAL_SCORE_HTML":  _dual_score_html,
         "SCORE_NOTE":       _score_note,
         "SCORE_NOTE_HTML":  _score_note_html,

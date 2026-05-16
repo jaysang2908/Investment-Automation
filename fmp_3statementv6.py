@@ -84,6 +84,16 @@ SECTOR_PEERS = {
     "Energy":          ["XOM",  "CVX",  "COP",  "SLB",  "PSX"],
 }
 
+# CIK lookup for EDGAR bank credit data fetch (SEC EDGAR XBRL API)
+_BANK_CIKS = {
+    "JPM": "0000019617",
+    "BAC": "0000070858",
+    "C":   "0000831001",
+    "WFC": "0000072971",
+    "GS":  "0000886982",
+    "MS":  "0000895421",
+}
+
 # ── Colours ───────────────────────────────────────────────────────────────────
 C_TITLE      = "1F2D3D"
 C_SECTION    = "2E4057"
@@ -978,9 +988,104 @@ def build_cf(wb, data, years, ticker):
             "net_change": net_change_row}
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# EDGAR BANK CREDIT DATA FETCH
+# ═══════════════════════════════════════════════════════════════════════════════
+def fetch_bank_credit_data(ticker):
+    """Fetch bank credit quality metrics from SEC EDGAR XBRL API.
+    Returns dict with keys: nco_rates (dict yr->float), nco_latest (float),
+    nco_2yr_delta (float), chargeoffs (dict yr->$), gross_loans (dict yr->$),
+    allowance (dict yr->$), provision (dict yr->$).
+    Returns empty dict on any failure — callers must handle missing keys gracefully.
+    Only meaningful for bank tickers; non-bank tickers return {}.
+    """
+    cik = _BANK_CIKS.get(ticker.upper())
+    if not cik:
+        return {}
+
+    _HDR = {"User-Agent": "justin.song91@gmail.com"}
+
+    def _fetch(tag, min_year="2020"):
+        try:
+            url = (f"https://data.sec.gov/api/xbrl/companyconcept/"
+                   f"CIK{cik}/us-gaap/{tag}.json")
+            r = requests.get(url, headers=_HDR, timeout=10)
+            if r.status_code != 200:
+                return {}
+            units = r.json().get("units", {}).get("USD", [])
+            annual = [x for x in units
+                      if x.get("form") in ("10-K", "10-K/A")
+                      and x.get("end", "") >= f"{min_year}-01-01"]
+            by_year = {}
+            for row in annual:
+                yr = row["end"][:4]
+                if yr not in by_year or row.get("filed","") > by_year[yr].get("filed",""):
+                    by_year[yr] = row
+            return {yr: row["val"] for yr, row in by_year.items()}
+        except Exception:
+            return {}
+
+    # Net charge-offs — try two tags, use whichever has recent data
+    chargeoffs = _fetch("FinancingReceivableExcludingAccruedInterestAllowanceForCreditLossWriteoffAfterRecovery")
+    if not chargeoffs or max(chargeoffs.keys(), default="0") < "2022":
+        chargeoffs = _fetch("FinancingReceivableAllowanceForCreditLossesWriteOffs")
+
+    # Gross loans
+    gross_loans = _fetch("FinancingReceivableExcludingAccruedInterestBeforeAllowanceForCreditLoss")
+
+    # Allowance for credit losses
+    allowance = _fetch("FinancingReceivableAllowanceForCreditLossExcludingAccruedInterest")
+    if not allowance or max(allowance.keys(), default="0") < "2022":
+        allowance = _fetch("FinancingReceivableAllowanceForCreditLosses")
+
+    # Provision for credit losses
+    provision = _fetch("FinancingReceivableExcludingAccruedInterestCreditLossExpenseReversal")
+    if not provision or max(provision.keys(), default="0") < "2022":
+        provision = _fetch("ProvisionForLoanLeaseAndOtherLosses")
+    if not provision or max(provision.keys(), default="0") < "2022":
+        provision = _fetch("ProvisionForLoanLossesExpensed")
+
+    # Compute NCO rates: net_chargeoffs / avg(gross_loans[yr], gross_loans[yr-1])
+    nco_rates = {}
+    common_years = sorted(set(chargeoffs.keys()) & set(gross_loans.keys()), reverse=True)
+    for yr in common_years:
+        loan_curr = gross_loans[yr]
+        loan_prev = gross_loans.get(str(int(yr) - 1), loan_curr)
+        avg_loans = (loan_curr + loan_prev) / 2
+        if avg_loans > 0:
+            nco_rates[yr] = chargeoffs[yr] / avg_loans
+
+    years_sorted = sorted(nco_rates.keys(), reverse=True)
+    nco_latest  = nco_rates[years_sorted[0]] if years_sorted else None
+
+    # 3yr average — more representative of structural credit quality than a single year.
+    # Smooths one-off spikes (e.g. COVID 2020) and reflects the bank's underwriting
+    # standard across a full rate cycle rather than the most recent 12 months.
+    _last3 = [nco_rates[y] for y in years_sorted[:3] if nco_rates.get(y) is not None]
+    nco_3yr_avg = sum(_last3) / len(_last3) if _last3 else None
+
+    # Trend: latest vs 2 years ago (directional signal for management proxy)
+    nco_2yr_ago   = nco_rates[years_sorted[2]] if len(years_sorted) >= 3 else None
+    nco_2yr_delta = (nco_latest - nco_2yr_ago) if (nco_latest is not None and nco_2yr_ago is not None) else None
+
+    print(f"  EDGAR bank credit ({ticker}): NCO 3yr avg={nco_3yr_avg:.2%}  latest={nco_latest:.2%}" if nco_3yr_avg else
+          f"  EDGAR bank credit ({ticker}): no NCO data")
+
+    return {
+        "nco_rates":    nco_rates,
+        "nco_latest":   nco_latest,
+        "nco_3yr_avg":  nco_3yr_avg,
+        "nco_2yr_delta": nco_2yr_delta,
+        "chargeoffs":   chargeoffs,
+        "gross_loans":  gross_loans,
+        "allowance":    allowance,
+        "provision":    provision,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # RATIOS & FCF BRIDGE TAB  (unchanged from v3)
 # ═══════════════════════════════════════════════════════════════════════════════
-def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs):
+def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs, bank_credit=None):
     ws = wb.create_sheet("Ratios & FCF")
     n  = len(years)
     nc = n + 1
@@ -1308,6 +1413,57 @@ def build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs,
         cell.fill  = fll("8B0000")
         cell.border = brd()
         cell.alignment = Alignment(horizontal="center")
+
+    # ── BANK CREDIT QUALITY (EDGAR XBRL) ──────────────────────────────────────
+    if bank_credit and bank_credit.get("nco_rates"):
+        row = write_section_hdr(ws, row, "BANK CREDIT QUALITY  (source: SEC EDGAR 10-K XBRL)", nc, C_SUMMARY_HD)
+        row = write_section_hdr(ws, row,
+            "NCO Rate = Net Charge-offs / Avg Gross Loans  |  Coverage = Allowance / Net Charge-offs  |  Prov/NII = Provision / Net Interest Income",
+            nc, "555555")
+
+        def _edgar_vals(src_dict, scalar=1.0):
+            """Return list of values aligned to years list, None if year missing."""
+            return [src_dict.get(y) and src_dict[y] * scalar if src_dict.get(y) is not None else None for y in years]
+
+        def _nco_rate_vals():
+            return [bank_credit["nco_rates"].get(y) for y in years]
+
+        def _coverage_vals():
+            out = []
+            for y in years:
+                co  = bank_credit["chargeoffs"].get(y)
+                al  = bank_credit["allowance"].get(y)
+                out.append(al / co if (co and al and co > 0) else None)
+            return out
+
+        def _prov_nii_vals():
+            nii_map = {}
+            for is_, yr in zip(is_data, years):
+                nii = is_.get("netInterestIncome") or 0
+                if nii:
+                    nii_map[yr] = nii
+            out = []
+            for y in years:
+                prov = bank_credit["provision"].get(y)
+                nii  = nii_map.get(y)
+                out.append(prov / nii if (prov and nii and nii > 0) else None)
+            return out
+
+        nco_r  = _nco_rate_vals()
+        co_r   = _edgar_vals(bank_credit["chargeoffs"], 1/1e9)
+        gl_r   = _edgar_vals(bank_credit["gross_loans"], 1/1e9)
+        al_r   = _edgar_vals(bank_credit["allowance"],  1/1e9)
+        pv_r   = _edgar_vals(bank_credit["provision"],  1/1e9)
+        cov_r  = _coverage_vals()
+        pni_r  = _prov_nii_vals()
+
+        row = write_data_row(ws, row, "Net Charge-offs ($B)",       co_r,  years, color=C_BLUE)
+        row = write_data_row(ws, row, "Gross Loans ($B)",           gl_r,  years, color=C_BLUE)
+        row = write_data_row(ws, row, "NCO Rate %",                 nco_r, years, color=C_BLUE, is_pct=True)
+        row = write_data_row(ws, row, "Allowance for Credit Losses ($B)", al_r, years, color=C_BLUE)
+        row = write_data_row(ws, row, "Coverage Ratio (Allowance / NCO)", cov_r, years, color=C_BLUE, is_ratio=True)
+        row = write_data_row(ws, row, "Provision for Credit Losses ($B)", pv_r, years, color=C_BLUE)
+        row = write_data_row(ws, row, "Provision / Net Interest Income %", pni_r, years, color=C_BLUE, is_pct=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SEGMENTATION TAB  (unchanged from v3)
@@ -3181,7 +3337,7 @@ def _val_score(delta, premium_ok=False):
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     biz_clarity=None, ltp=None, dcf_gg_price=None,
-                    evs_regime=False):
+                    evs_regime=False, bank_credit=None, analyst_ests=None):
     """
     JS Scorecard tab — auto-scores 11 of 13 criteria.
     Quantitative: Revenue CAGR, FCF/NI, Capital Returns, ROIC, D/EBITDA, EBIT/Int
@@ -3411,6 +3567,33 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         print(f"  Sector peer P/E median={sector_pe_med}  P/FCF median={sector_pfcf_med}")
     except Exception as e_peers:
         print(f"  Sector peer fetch failed: {e_peers}")
+
+    # Bank-specific: ROE and NIM series.
+    # ROIC is meaningless for deposit-funded institutions — deposit liabilities
+    # inflate invested capital by trillions, producing near-zero ROIC even for
+    # highly profitable banks. Substitute ROE (netIncome / avg equity) throughout
+    # all scoring that references roic_latest / roic_3ya / roic_series.
+    _roe_series = []; _nim_series = []
+    if is_bank:
+        for _i in range(min(len(is_data), len(bs_data))):
+            _ni_b  = is_data[_i].get("netIncome") or 0
+            _eq_b  = (bs_data[_i].get("totalStockholdersEquity") or
+                      bs_data[_i].get("totalEquity") or 0)
+            _ta_b  = bs_data[_i].get("totalAssets") or 0
+            _nii_b = is_data[_i].get("netInterestIncome") or 0
+            _roe_series.append(_ni_b / _eq_b if _eq_b > 0 else None)
+            _nim_series.append(_nii_b / _ta_b if _ta_b > 0 else None)
+        roic_series = _roe_series
+        roic_latest = roic_series[-1] if roic_series else None
+        roic_3ya    = roic_series[-4] if len(roic_series) >= 4 else None
+        roic_trend  = (roic_latest is not None and roic_3ya is not None
+                       and (roic_3ya - roic_latest) > 0.05)
+        if roic_latest is not None:
+            print(f"  Bank ROE (replaces ROIC): latest={roic_latest:.1%}")
+    _nim_latest    = _nim_series[-1] if _nim_series else None
+    _nim_3yr_ago   = _nim_series[-4] if len(_nim_series) >= 4 else None
+    _nim_3yr_delta = ((_nim_latest - _nim_3yr_ago)
+                      if (_nim_latest is not None and _nim_3yr_ago is not None) else None)
 
     # yfinance: beta only (for rough WACC in moat proxy) — graceful fallback
     try:
@@ -3680,26 +3863,59 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     rough_wacc = w_e_sc * rough_re + w_d_sc * rough_rd * (1 - tax_r_sc)
 
     moat_ind = []; moat_parts = []; moat_total = 0
-    if gm_latest is not None:
-        ok = gm_latest > 0.40
-        if ok: moat_ind.append(True)
+    if is_bank:
+        # Bank moat: NIM viability, NIM stability, ROE vs cost of equity, revenue consistency.
+        # Gross margin is structurally near-zero for deposit-funded institutions and is
+        # not a meaningful moat indicator — NIM and ROE>CoE are the bank equivalents.
+        if _nim_latest is not None:
+            ok = _nim_latest > 0.025
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"NIM {_nim_latest:.2%} {'✓' if ok else '✗'} (>2.5%)")
+        if _nim_3yr_delta is not None:
+            ok = _nim_3yr_delta >= -0.002
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"NIM trend {_nim_3yr_delta*100:+.1f}bps {'✓' if ok else '✗'} (>=-20bps)")
+        if roic_latest is not None:  # roic_latest = ROE for banks
+            spread = roic_latest - rough_re  # ROE vs cost of equity
+            ok = spread > 0.02
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"ROE {roic_latest:.1%} vs CoE {rough_re:.1%} spread {spread:+.1%} {'✓' if ok else '✗'} (>+2pp)")
+        ok_std = rev_std < 0.08
+        if ok_std: moat_ind.append(True)
         moat_total += 1
-        moat_parts.append(f"GM {gm_latest:.1%} {'✓' if ok else '✗'} (>40%)")
-    if gm_3yr_delta is not None:
-        ok = gm_3yr_delta > 0.01
-        if ok: moat_ind.append(True)
+        moat_parts.append(f"Rev consistency σ={rev_std:.1%} {'✓' if ok_std else '✗'} (<8%)")
+        # NCO rate level check — 3yr average for structural credit quality of loan book.
+        # 3yr avg smooths one-off spikes and reflects underwriting standard across a rate cycle.
+        _nco_rate = (bank_credit or {}).get("nco_3yr_avg")
+        if _nco_rate is not None:
+            ok = _nco_rate < 0.010  # 3yr avg NCO rate < 1.0%
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"NCO 3yr avg {_nco_rate:.2%} {'pass' if ok else 'fail'} (<1.0%)")
+    else:
+        if gm_latest is not None:
+            ok = gm_latest > 0.40
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"GM {gm_latest:.1%} {'✓' if ok else '✗'} (>40%)")
+        if gm_3yr_delta is not None:
+            ok = gm_3yr_delta > 0.01
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"GM trend {gm_3yr_delta:+.1%} {'✓' if ok else '✗'} (>+1pp)")
+        if roic_latest is not None:
+            spread = roic_latest - rough_wacc
+            ok = spread > 0.05
+            if ok: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(f"ROIC-WACC {spread:+.1%} {'✓' if ok else '✗'} (>+5pp)")
+        ok_std = rev_std < 0.08
+        if ok_std: moat_ind.append(True)
         moat_total += 1
-        moat_parts.append(f"GM trend {gm_3yr_delta:+.1%} {'✓' if ok else '✗'} (>+1pp)")
-    if roic_latest is not None:
-        spread = roic_latest - rough_wacc
-        ok = spread > 0.05
-        if ok: moat_ind.append(True)
-        moat_total += 1
-        moat_parts.append(f"ROIC-WACC {spread:+.1%} {'✓' if ok else '✗'} (>+5pp)")
-    ok_std = rev_std < 0.08
-    if ok_std: moat_ind.append(True)
-    moat_total += 1
-    moat_parts.append(f"Rev consistency σ={rev_std:.1%} {'✓' if ok_std else '✗'} (<8%)")
+        moat_parts.append(f"Rev consistency σ={rev_std:.1%} {'✓' if ok_std else '✗'} (<8%)")
     n_moat = len(moat_ind)
     tier_moat = ("HIGH" if n_moat >= 4 else "MOD-HIGH" if n_moat == 3
                  else "MOD-LOW" if n_moat == 2 else "LOW")
@@ -3713,14 +3929,33 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         ok  = chg >= -0.02
         if ok: mgmt_ind.append(True)
         mgmt_total += 1
-        mgmt_parts.append(f"ROIC trend {chg:+.1%} {'✓' if ok else '✗'} (≥-2pp)")
+        _trend_label = "ROE trend" if is_bank else "ROIC trend"
+        mgmt_parts.append(f"{_trend_label} {chg:+.1%} {'✓' if ok else '✗'} (>=-2pp)")
     elif roic_latest is not None:
-        mgmt_parts.append(f"ROIC {roic_latest:.1%} (no trend data)")
-    if gm_3yr_delta is not None:
-        ok = gm_3yr_delta >= -0.01
-        if ok: mgmt_ind.append(True)
-        mgmt_total += 1
-        mgmt_parts.append(f"GM maintained {gm_3yr_delta:+.1%} {'✓' if ok else '✗'}")
+        _metric_label = "ROE" if is_bank else "ROIC"
+        mgmt_parts.append(f"{_metric_label} {roic_latest:.1%} (no trend data)")
+    if is_bank:
+        # Replace gross-margin check with NIM stability — the bank equivalent of
+        # "are margins being defended?" GM is structurally near-zero for banks.
+        if _nim_3yr_delta is not None:
+            ok = _nim_3yr_delta >= -0.002
+            if ok: mgmt_ind.append(True)
+            mgmt_total += 1
+            mgmt_parts.append(f"NIM maintained {_nim_3yr_delta*100:+.1f}bps {'✓' if ok else '✗'} (>=-20bps)")
+        # NCO trend check — rising charge-offs signal deteriorating underwriting discipline
+        _nco_trend = (bank_credit or {}).get("nco_2yr_delta")
+        if _nco_trend is not None:
+            ok = _nco_trend < 0.003  # rising < 30bps over 2yr
+            if ok: mgmt_ind.append(True)
+            mgmt_total += 1
+            trend_pp = _nco_trend * 100
+            mgmt_parts.append(f"NCO trend {trend_pp:+.2f}pp {'pass' if ok else 'fail'} (<+30bps/2yr)")
+    else:
+        if gm_3yr_delta is not None:
+            ok = gm_3yr_delta >= -0.01
+            if ok: mgmt_ind.append(True)
+            mgmt_total += 1
+            mgmt_parts.append(f"GM maintained {gm_3yr_delta:+.1%} {'✓' if ok else '✗'}")
     if om_3yr_delta is not None:
         ok = om_3yr_delta >= -0.02
         if ok: mgmt_ind.append(True)
@@ -3857,13 +4092,142 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         score_v = _val_score(delta, premium_ok=premium_ok)
         return tier_v, score_v, note_v
 
+    # ── Forward P/E and forward P/FCF derivation ──────────────────────────────
+    # Forward P/E  : analyst FY+1 consensus EPS estimate (already fetched by caller).
+    # Forward P/FCF: trailing FCF margin × analyst FY+1 revenue estimate.
+    #   Only used when trailing FCF margin is positive — negative-FCF businesses
+    #   cannot extrapolate a reliable forward FCF from the margin anchor.
+    _sc_price        = float(prof_sc.get("price") or 0) or None
+    forward_pe_val   = None
+    forward_pfcf_val = None
+
+    if analyst_ests and _sc_price:
+        # Forward P/E
+        try:
+            _fwd_eps = float((analyst_ests[0] or {}).get("estimatedEpsAvg") or 0) or None
+            if _fwd_eps and _fwd_eps > 0:
+                forward_pe_val = round(_sc_price / _fwd_eps, 1)
+                print(f"  Fwd P/E: price={_sc_price:.2f}  eps_est={_fwd_eps:.2f}"
+                      f"  fwd_pe={forward_pe_val:.1f}x")
+        except Exception:
+            pass
+
+        # Forward P/FCF via FCF-margin anchor
+        try:
+            _fwd_rev = float((analyst_ests[0] or {}).get("estimatedRevenueAvg") or 0) or None
+            if _fwd_rev and cf_data and is_data:
+                _ttm_rev   = is_data[-1].get("revenue") or 0
+                _ttm_fcf   = (cf_data[-1].get("freeCashFlow") or
+                              (cf_data[-1].get("operatingCashFlow", 0) +
+                               cf_data[-1].get("capitalExpenditure", 0)))
+                _fcf_margin = _ttm_fcf / _ttm_rev if _ttm_rev > 0 else None
+                if _fcf_margin and _fcf_margin > 0:
+                    _shares_sc  = (is_data[-1].get("weightedAverageShsOut") or
+                                   is_data[-1].get("weightedAverageShsOutDil") or 0)
+                    _fwd_fcf    = _fwd_rev * _fcf_margin
+                    _fwd_fcfps  = _fwd_fcf / _shares_sc if _shares_sc > 0 else None
+                    if _fwd_fcfps and _fwd_fcfps > 0:
+                        forward_pfcf_val = round(_sc_price / _fwd_fcfps, 1)
+                        print(f"  Fwd P/FCF: fcf_margin={_fcf_margin:.1%}"
+                              f"  fwd_rev=${_fwd_rev/1e9:.1f}B"
+                              f"  fwd_pfcf={forward_pfcf_val:.1f}x")
+        except Exception:
+            pass
+
     pe_current    = forward_pe or trailing_pe
-    tier_pe,   score_pe,   note_pe   = _t_val(pe_current,    pe_5yr_avg,   sector_pe_med,
+    # For banks the 5yr P/E average often embeds zero-rate / crisis-era compression
+    # (e.g. 2020-2021 when bank P/Es were unusually depressed). Using a compressed
+    # benchmark penalises banks that simply re-rated to normal post-rate-normalisation.
+    # Floor at 10.0x — below which we consider the historical average distorted.
+    _pe_5yr_bench = pe_5yr_avg
+    if is_bank and _pe_5yr_bench is not None and _pe_5yr_bench < 10.0:
+        print(f"  Bank P/E floor: 5yr avg {_pe_5yr_bench:.1f}x -> 10.0x (zero-rate compression)")
+        _pe_5yr_bench = 10.0
+    tier_pe,   score_pe,   note_pe   = _t_val(pe_current,    _pe_5yr_bench,  sector_pe_med,
                                                "P/E",   roic_latest, rev_cagr,
                                                dcf_imp=dcf_implied_pe)
     tier_pfcf, score_pfcf, note_pfcf = _t_val(trailing_pfcf, pfcf_5yr_avg, sector_pfcf_med,
                                                "P/FCF", roic_latest, rev_cagr,
                                                dcf_imp=dcf_implied_pfcf)
+
+    # ── Valuation blend: 40% trailing / 40% forward / 20% absolute ───────────
+    # Three-way blend anchors the score against:
+    #   (1) how cheap the stock is vs its own history / peers  (trailing relative)
+    #   (2) how cheap it is on next-year estimates             (forward relative)
+    #   (3) whether the absolute multiple is expensive at all  (absolute lookup)
+    # If no forward data is available, the forward component falls back to the
+    # trailing score, making the effective split 80/20 relative/absolute.
+    #
+    # Absolute P/E  (0–12): ≤15x=12 | 15–20x=10 | 20–25x=7 | 25–35x=4 | 35–50x=1.5 | >50x=0
+    # Absolute PFCF (0–12): ≤15x=12 | 15–20x=10 | 20–30x=7.5 | 30–40x=4 | 40–55x=1.5 | >55x=0
+    #
+    # Bank cap: banks carry PE weight=20 (2×). Cap the absolute PE score at 6.0
+    # for banks to prevent the weight amplification from dominating the blend.
+    # Banks have PFCF weight=0 so PFCF blending is skipped for them entirely.
+    _TRAIL_W      = 0.40
+    _FWD_W        = 0.40
+    _ABS_W        = 0.20
+    _ABS_BANK_CAP = 6.0
+
+    def _abs_pe_score(pe):
+        if pe is None or pe <= 0: return 0.0
+        if pe <= 15: return 12.0
+        if pe <= 20: return 10.0
+        if pe <= 25: return  7.0
+        if pe <= 35: return  4.0
+        if pe <= 50: return  1.5
+        return 0.0
+
+    def _abs_pfcf_score(pfcf):
+        if pfcf is None or pfcf <= 0: return 0.0
+        if pfcf <= 15: return 12.0
+        if pfcf <= 20: return 10.0
+        if pfcf <= 30: return  7.5
+        if pfcf <= 40: return  4.0
+        if pfcf <= 55: return  1.5
+        return 0.0
+
+    # Forward relative scores — use same _t_val vs same benchmarks as trailing
+    _fwd_pe_score   = None
+    _fwd_pfcf_score = None
+    if forward_pe_val and forward_pe_val > 0:
+        _, _fwd_pe_score, _ = _t_val(forward_pe_val, _pe_5yr_bench, sector_pe_med,
+                                      "Fwd P/E", roic_latest, rev_cagr)
+        print(f"  Fwd P/E relative score: {_fwd_pe_score:.2f}")
+    if forward_pfcf_val and forward_pfcf_val > 0 and not is_bank:
+        _, _fwd_pfcf_score, _ = _t_val(forward_pfcf_val, pfcf_5yr_avg, sector_pfcf_med,
+                                         "Fwd P/FCF", roic_latest, rev_cagr)
+        print(f"  Fwd P/FCF relative score: {_fwd_pfcf_score:.2f}")
+
+    # P/E blend
+    if score_pe is not None and pe_current and pe_current > 0:
+        _abs_pe  = _abs_pe_score(pe_current)
+        if is_bank:
+            _abs_pe = min(_abs_pe, _ABS_BANK_CAP)
+        _rel_pe  = score_pe
+        _fpe     = _fwd_pe_score if _fwd_pe_score is not None else _rel_pe
+        _blended_pe = round(_TRAIL_W * _rel_pe + _FWD_W * _fpe + _ABS_W * _abs_pe, 4)
+        _fwd_note  = f"fwd_pe={forward_pe_val:.1f}x→{_fpe:.2f}" if _fwd_pe_score is not None else "no_fwd_data(fallback)"
+        _bank_note = f" [bank cap {_ABS_BANK_CAP}]" if is_bank and _abs_pe == _ABS_BANK_CAP else ""
+        note_pe   += (f"  [trail={_rel_pe:.2f} | {_fwd_note} | abs={_abs_pe:.1f}{_bank_note}"
+                      f" → blended 40/40/20={_blended_pe:.2f}]")
+        print(f"  PE blend 40/40/20: trail={_rel_pe:.2f}  fwd={_fpe:.2f}"
+              f"  abs={_abs_pe:.1f}  → {_blended_pe:.2f}")
+        score_pe = _blended_pe
+
+    # P/FCF blend (non-banks only)
+    if score_pfcf is not None and trailing_pfcf and trailing_pfcf > 0 and not is_bank:
+        _abs_pfcf  = _abs_pfcf_score(trailing_pfcf)
+        _rel_pfcf  = score_pfcf
+        _fpfcf     = _fwd_pfcf_score if _fwd_pfcf_score is not None else _rel_pfcf
+        _blended_pfcf = round(_TRAIL_W * _rel_pfcf + _FWD_W * _fpfcf + _ABS_W * _abs_pfcf, 4)
+        _fwd_pfcf_note = (f"fwd_pfcf={forward_pfcf_val:.1f}x→{_fpfcf:.2f}"
+                          if _fwd_pfcf_score is not None else "no_fwd_data(fallback)")
+        note_pfcf += (f"  [trail={_rel_pfcf:.2f} | {_fwd_pfcf_note} | abs={_abs_pfcf:.1f}"
+                      f" → blended 40/40/20={_blended_pfcf:.2f}]")
+        print(f"  PFCF blend 40/40/20: trail={_rel_pfcf:.2f}  fwd={_fpfcf:.2f}"
+              f"  abs={_abs_pfcf:.1f}  → {_blended_pfcf:.2f}")
+        score_pfcf = _blended_pfcf
 
     # ── Soft credit floor cap (#7) ────────────────────────────────────────────
     # Replaces the binary floor gates (D/EBITDA >4 → cap 64; EBIT/Int <2 → cap 64;
@@ -4283,8 +4647,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     )
 
     # ── Metrics dict for portfolio heatmap ────────────────────────────────────
-    # auto_score = raw points out of 100 earned from the 11 auto-scored criteria.
-    # Max = 87.5  (Business Clarity 2.5 + Long-Term Potential 10.0 = 12.5 manual)
+    # auto_score = normalized 0-10 score from the 11 auto-scored criteria.
+    # auto_score_raw = raw 0-87.5 value (used by callers to compute adj_score).
+    # Raw max = 87.5 (Business Clarity 2.5 + Long-Term Potential 10.0 = 12.5 manual)
     # Uses continuous scores (0..SCORE_CAP) — no longer the discrete tier mapping.
     # Each weighted contribution = (score/10) * weight, mirroring Excel formula
     # `weight * score * 10` divided by 100 normalisation. SCORE_CAP=12 means a
@@ -4325,10 +4690,16 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         if (_scored_weight > 0 and _scored_weight < _active_weight
                 and not _low_data_confidence):
             _raw_sum = _raw_sum * (_active_weight / _scored_weight)
-        _auto_score = round(_raw_sum, 1)
+        _auto_score_raw = round(_raw_sum, 1)
         if floor_cap is not None:
-            _auto_score = min(_auto_score, floor_cap)
+            _auto_score_raw = min(_auto_score_raw, floor_cap)
+        # Normalize to 0-10 scale. Fixed 87.5 denominator regardless of regime so
+        # scores are comparable across bank/standard/EVS weight regimes. Cap at 10.0
+        # — SCORE_CAP outliers can push raw above 87.5 by design (rewards top-decile
+        # names) but display caps at 10 for readability.
+        _auto_score = round(min(10.0, _auto_score_raw / 87.5 * 10), 1)
     else:
+        _auto_score_raw = None
         _auto_score = None
         _low_data_confidence = True
 
@@ -4340,8 +4711,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "equity_assets": equity_assets,   # CET1 proxy; only set for banks
         "is_bank":       is_bank,
         "sector_bucket": _bucket,
-        "auto_score":    _auto_score,
-        "floor_cap":     floor_cap,
+        "auto_score":     _auto_score,        # normalized 0-10 for display
+        "auto_score_raw": _auto_score_raw,    # raw 0-87.5 for adj_score computation in callers
+        "floor_cap":     round(floor_cap / 87.5 * 10, 1) if floor_cap is not None else None,
         "low_data_confidence": _low_data_confidence,
         "scored_weight":       round(_scored_weight, 1) if _scored else 0.0,
         "active_weight":       round(_active_weight, 1),
