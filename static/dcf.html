@@ -672,6 +672,101 @@
     </div>
   </div>
 
+  <!-- ── INVESTMENT OUTCOME CALCULATOR ── -->
+  <div class="output-section" id="outcomeSection" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+      <span class="section-title" style="padding:0">Investment Outcome — What If You Invested</span>
+      <span class="info-tag">Assumes convergence to fair value over horizon, then TGR thereafter</span>
+    </div>
+    <div style="padding:18px 20px 8px;display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)">Investment Amount</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11pt;color:var(--text-muted)">$</span>
+          <input class="rdcf-input" id="invAmount" type="number" step="1000" min="100" value="10000" style="width:120px;font-size:11pt" oninput="updateInvestmentOutcome()">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:240px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)">Holding Horizon</span>
+          <span id="invHorizonLabel" style="font-family:'IBM Plex Mono',monospace;font-size:9pt;color:var(--gold);font-weight:500">5 years</span>
+        </div>
+        <input id="invHorizon" type="range" min="1" max="10" step="1" value="5" oninput="updateInvestmentOutcome()" style="accent-color:var(--gold);width:100%">
+        <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim)">
+          <span>1y</span><span>3y</span><span>5y</span><span>7y</span><span>10y</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border);padding-left:24px">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:7pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)">Methodology</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-muted);line-height:1.6;max-width:340px">
+          Annualized IRR = (FairValue / CurrentPrice)<sup>1/N</sup> − 1. Future value compounds at IRR over your horizon. Bear / Bull use GGM &amp; EM bounds.
+        </span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)">
+      <div style="background:var(--surface);padding:18px 22px" id="outcome_bear">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:6px">Bear Case</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);margin-bottom:10px" id="outcome_bear_basis">Lower of GGM / EM</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22pt;font-weight:500;color:var(--text);line-height:1.1" id="outcome_bear_fv">$—</div>
+        <div style="display:flex;gap:14px;margin-top:10px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">Total Return</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10pt;color:var(--text)" id="outcome_bear_tr">—</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">Annualized IRR</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10pt;color:var(--text)" id="outcome_bear_irr">—</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;height:6px;background:rgba(26,24,20,0.05);border-radius:3px;overflow:hidden">
+          <div id="outcome_bear_bar" style="height:100%;background:var(--red);width:0%;transition:width 0.3s ease"></div>
+        </div>
+      </div>
+      <div style="background:var(--surface);padding:18px 22px" id="outcome_base">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Base Case</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);margin-bottom:10px" id="outcome_base_basis">Composite (avg of GGM &amp; EM)</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22pt;font-weight:500;color:var(--text);line-height:1.1" id="outcome_base_fv">$—</div>
+        <div style="display:flex;gap:14px;margin-top:10px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">Total Return</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10pt;color:var(--text)" id="outcome_base_tr">—</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">Annualized IRR</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10pt;color:var(--text)" id="outcome_base_irr">—</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;height:6px;background:rgba(26,24,20,0.05);border-radius:3px;overflow:hidden">
+          <div id="outcome_base_bar" style="height:100%;background:var(--gold);width:0%;transition:width 0.3s ease"></div>
+        </div>
+      </div>
+      <div style="background:var(--surface);padding:18px 22px" id="outcome_bull">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:6px">Bull Case</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);margin-bottom:10px" id="outcome_bull_basis">Higher of GGM / EM</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22pt;font-weight:500;color:var(--text);line-height:1.1" id="outcome_bull_fv">$—</div>
+        <div style="display:flex;gap:14px;margin-top:10px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">Total Return</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10pt;color:var(--text)" id="outcome_bull_tr">—</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">Annualized IRR</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10pt;color:var(--text)" id="outcome_bull_irr">—</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;height:6px;background:rgba(26,24,20,0.05);border-radius:3px;overflow:hidden">
+          <div id="outcome_bull_bar" style="height:100%;background:var(--green);width:0%;transition:width 0.3s ease"></div>
+        </div>
+      </div>
+    </div>
+    <div id="outcomeNote" style="padding:12px 20px;font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border)">
+      <strong style="color:var(--text-muted)">Interpretation:</strong>
+      A positive IRR assumes the market closes the gap between current price and your modelled fair value over the chosen horizon.
+      Re-rating timing is uncertain — use this as a return-magnitude reference, not a calendar forecast.
+      Compare the annualized IRR against your required hurdle rate (typically WACC or your portfolio's target).
+    </div>
+  </div>
+
   <!-- ── SENSITIVITY ── -->
   <div class="sensitivity-section" id="sensitivitySection" style="display:none">
     <div class="sens-panel">
@@ -1365,6 +1460,11 @@ function calculate() {
   setTxt('rc_em_price',  `$${pEM.toFixed(2)}`);
   setUpside('rc_ggm_up', pGGM > 0 ? pGGM : null, price);
   setUpside('rc_em_up',  pEM, price);
+
+  // ── Cache fair values for Investment Outcome Calculator ──
+  STATE.lastFairValues = { pGGM, pEM, price };
+  document.getElementById('outcomeSection').style.display = '';
+  updateInvestmentOutcome();
 
   // ── Validation badge: compare client price vs engine price ──
   (function updateValBadge() {
@@ -2093,6 +2193,82 @@ function readAllInputs() {
   out.wacc_tax = getVal('wTax');
   out.equity_weight = getVal('wEw');
   return out;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INVESTMENT OUTCOME CALCULATOR
+// ═══════════════════════════════════════════════════════════════
+function updateInvestmentOutcome() {
+  const fv = STATE.lastFairValues;
+  if (!fv || !fv.price) return;
+
+  const amount  = parseFloat(document.getElementById('invAmount').value) || 0;
+  const horizon = parseInt(document.getElementById('invHorizon').value, 10) || 5;
+  document.getElementById('invHorizonLabel').textContent = `${horizon} year${horizon !== 1 ? 's' : ''}`;
+
+  const { pGGM, pEM, price } = fv;
+  const validGGM = pGGM && pGGM > 0;
+  const validEM  = pEM  && pEM  > 0;
+
+  // Derive bear / base / bull from the two anchors
+  let bear, base, bull, bearBasis, bullBasis;
+  if (validGGM && validEM) {
+    bear = Math.min(pGGM, pEM);
+    bull = Math.max(pGGM, pEM);
+    base = (pGGM + pEM) / 2;
+    bearBasis = pGGM < pEM ? 'Gordon Growth Model' : 'Exit Multiple';
+    bullBasis = pGGM > pEM ? 'Gordon Growth Model' : 'Exit Multiple';
+  } else if (validEM) {
+    bear = pEM * 0.85; base = pEM; bull = pEM * 1.15;
+    bearBasis = 'Exit Multiple − 15%'; bullBasis = 'Exit Multiple + 15%';
+  } else if (validGGM) {
+    bear = pGGM * 0.85; base = pGGM; bull = pGGM * 1.15;
+    bearBasis = 'GGM − 15%'; bullBasis = 'GGM + 15%';
+  } else {
+    return;  // Both methods invalid — leave outcome section unpopulated
+  }
+
+  document.getElementById('outcome_bear_basis').textContent = bearBasis;
+  document.getElementById('outcome_bull_basis').textContent = bullBasis;
+
+  function fmtUsd(v) {
+    if (v >= 1e6) return `$${(v/1e6).toFixed(2)}M`;
+    if (v >= 1e3) return `$${(v/1e3).toFixed(1)}k`;
+    return `$${v.toFixed(0)}`;
+  }
+  function fmtPct(p) {
+    const sign = p >= 0 ? '+' : '';
+    return `${sign}${(p*100).toFixed(1)}%`;
+  }
+
+  function applyScenario(prefix, fairValue, accentVar) {
+    const multiple = fairValue / price;
+    const futureValue = amount * multiple;
+    const totalReturn = multiple - 1;
+    const irr = Math.pow(multiple, 1 / horizon) - 1;
+
+    document.getElementById(`outcome_${prefix}_fv`).textContent  = fmtUsd(futureValue);
+    document.getElementById(`outcome_${prefix}_tr`).textContent  = fmtPct(totalReturn);
+    document.getElementById(`outcome_${prefix}_irr`).textContent = fmtPct(irr);
+
+    // Color total return and IRR based on sign
+    const trColor  = totalReturn >= 0 ? 'var(--green)' : 'var(--red)';
+    const irrColor = irr >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById(`outcome_${prefix}_tr`).style.color  = trColor;
+    document.getElementById(`outcome_${prefix}_irr`).style.color = irrColor;
+  }
+
+  applyScenario('bear', bear, 'red');
+  applyScenario('base', base, 'gold');
+  applyScenario('bull', bull, 'green');
+
+  // Normalize progress bars relative to bull case (so widest bar = 100%)
+  const maxMult = Math.max(bull / price, 1.01);
+  function setBar(prefix, fairValue) {
+    const pct = Math.min(100, Math.max(2, (fairValue / price / maxMult) * 100));
+    document.getElementById(`outcome_${prefix}_bar`).style.width = `${pct}%`;
+  }
+  setBar('bear', bear); setBar('base', base); setBar('bull', bull);
 }
 
 function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
