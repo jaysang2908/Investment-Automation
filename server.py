@@ -319,8 +319,7 @@ def build_coverage():
 
 @app.route("/")
 def index():
-    coverage = build_coverage()
-    return render_template("index.html", coverage=coverage, active_page="generate")
+    return send_file(os.path.join(os.path.dirname(__file__), "static", "index.html"))
 
 
 @app.route("/generate", methods=["POST"])
@@ -737,13 +736,12 @@ def download_html(rid):
 
 @app.route("/dashboard")
 def dashboard_page():
-    coverage = build_coverage()
-    return render_template("dashboard.html", coverage=coverage, active_page="dashboard")
+    return send_file(os.path.join(os.path.dirname(__file__), "static", "dashboard.html"))
 
 
 @app.route("/dcf")
 def dcf_page():
-    return render_template("dcf.html", active_page="dcf")
+    return send_file(os.path.join(os.path.dirname(__file__), "static", "dcf.html"))
 
 
 @app.route("/api/dcf-data/<ticker>")
@@ -1122,7 +1120,7 @@ def discovered_reports():
 
 @app.route("/news")
 def news_page():
-    return render_template("news.html", active_page="news")
+    return send_file(os.path.join(os.path.dirname(__file__), "static", "news.html"))
 
 
 @app.route("/api/news")
