@@ -799,6 +799,20 @@
     </div>
   </div>
 
+  <!-- ── TORNADO CHART (RANKED SENSITIVITY) ── -->
+  <div class="output-section" id="tornadoSection" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+      <span class="section-title" style="padding:0">Tornado — Which Assumption Moves Fair Value Most</span>
+      <span class="info-tag">Ranked by impact on Gordon Growth fair value</span>
+    </div>
+    <div id="tornadoBody" style="padding:18px 24px"></div>
+    <div style="padding:12px 20px;font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border)">
+      <strong style="color:var(--text-muted)">How to read:</strong>
+      Each row stresses one input ±a sensible delta (WACC ±1.0pp, TGR ±0.5pp, EBITDA margin ±2pp, CapEx ±2pp, Revenue growth ±2pp) while holding all others at your current inputs.
+      Bars show the resulting % change in GGM fair value. The top row is your highest-leverage assumption — stress-test that one most carefully before committing to a thesis.
+    </div>
+  </div>
+
   <!-- ── SENSITIVITY ── -->
   <div class="sensitivity-section" id="sensitivitySection" style="display:none">
     <div class="sens-panel">
@@ -1498,6 +1512,7 @@ function calculate() {
   document.getElementById('outcomeSection').style.display = '';
   updateInvestmentOutcome();
   updateReturnDecomposition();
+  updateTornado();
 
   // ── Validation badge: compare client price vs engine price ──
   (function updateValBadge() {
@@ -2438,6 +2453,217 @@ function updateReturnDecomposition() {
       <td style="padding:5px 0;text-align:right;color:var(--text)">${v}</td>
     </tr>`;
   }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TORNADO CHART — Ranked sensitivity
+// ═══════════════════════════════════════════════════════════════
+function _readAllDcfInputs() {
+  // Snapshot current state of every input that drives the GGM fair value
+  const inp = {
+    wacc_components: {
+      rf: getVal('wRf')/100, beta: getVal('wBeta'), erp: getVal('wErp')/100,
+      kd: getVal('wKd')/100, tax: getVal('wTax')/100, ew: getVal('wEw')/100,
+    },
+    tgr: getVal('tgr')/100,
+    mid: document.getElementById('midYear').checked,
+    rg: [], em: [], da: [], cx: [], nw: [], tx: [],
+  };
+  for (let i = 0; i < 5; i++) {
+    inp.rg.push(getVal(`rg${i}`)/100);
+    inp.em.push(getVal(`em${i}`)/100);
+    inp.da.push(getVal(`da${i}`)/100);
+    inp.cx.push(getVal(`cx${i}`)/100);
+    inp.nw.push(getVal(`nw${i}`)/100);
+    inp.tx.push(getVal(`tx${i}`)/100);
+  }
+  return inp;
+}
+
+function _computeGGMPrice(inp) {
+  if (!STATE.data) return null;
+  const data    = STATE.data;
+  const lastRev = data.history[data.history.length-1].revenue_m;
+  const shares  = data.shares_m;
+  const netDebt = data.net_debt_m;
+
+  const w = inp.wacc_components;
+  const ke   = w.rf + w.beta * w.erp;
+  const wacc = w.ew * ke + (1 - w.ew) * w.kd * (1 - w.tax);
+  const tgr  = inp.tgr;
+  if (wacc - tgr <= 0.001) return null;
+
+  let rev = lastRev;
+  let sumPV = 0;
+  let lastUfcf = 0;
+
+  for (let i = 0; i < 5; i++) {
+    rev = rev * (1 + inp.rg[i]);
+    const ebitda = rev * inp.em[i];
+    const daAmt  = rev * inp.da[i];
+    const ebit   = ebitda - daAmt;
+    const nopat  = ebit  * (1 - inp.tx[i]);
+    const capex  = rev   * inp.cx[i];
+    const dnwc   = rev   * inp.nw[i];
+    const ufcf   = nopat + daAmt - capex - dnwc;
+    const t      = inp.mid ? i + 0.5 : i + 1;
+    sumPV       += ufcf / Math.pow(1 + wacc, t);
+    lastUfcf     = ufcf;
+  }
+
+  const termUfcf = lastUfcf * (1 + tgr);
+  const tv       = termUfcf / (wacc - tgr);
+  const tDisc    = inp.mid ? 4.5 : 5;
+  const pvTv     = tv / Math.pow(1 + wacc, tDisc);
+  const ev       = sumPV + pvTv;
+  const equity   = ev - netDebt;
+  return equity / shares;
+}
+
+function updateTornado() {
+  if (!STATE.data || !STATE.lastFairValues || !STATE.lastFairValues.pGGM || STATE.lastFairValues.pGGM <= 0) {
+    document.getElementById('tornadoSection').style.display = 'none';
+    return;
+  }
+  const basePrice = STATE.lastFairValues.pGGM;
+  if (basePrice <= 0) { document.getElementById('tornadoSection').style.display = 'none'; return; }
+
+  const baseInp = _readAllDcfInputs();
+
+  // Define stress scenarios — each touches one input by ±delta
+  const stresses = [
+    {
+      label: 'WACC',  delta: '±1.0pp',
+      down: inp => { inp.wacc_components.beta = Math.max(0, inp.wacc_components.beta - (0.01 / inp.wacc_components.erp || 0)); },
+      up:   inp => { inp.wacc_components.beta = inp.wacc_components.beta + (0.01 / inp.wacc_components.erp || 0); },
+    },
+    {
+      label: 'Terminal Growth Rate',  delta: '±0.5pp',
+      down: inp => { inp.tgr -= 0.005; },
+      up:   inp => { inp.tgr += 0.005; },
+    },
+    {
+      label: 'EBITDA Margin (all yrs)',  delta: '±2.0pp',
+      down: inp => { inp.em = inp.em.map(v => Math.max(0, v - 0.02)); },
+      up:   inp => { inp.em = inp.em.map(v => v + 0.02); },
+    },
+    {
+      label: 'Revenue Growth (all yrs)',  delta: '±2.0pp',
+      down: inp => { inp.rg = inp.rg.map(v => v - 0.02); },
+      up:   inp => { inp.rg = inp.rg.map(v => v + 0.02); },
+    },
+    {
+      label: 'CapEx % Revenue',  delta: '±2.0pp',
+      down: inp => { inp.cx = inp.cx.map(v => Math.max(0, v - 0.02)); },
+      up:   inp => { inp.cx = inp.cx.map(v => v + 0.02); },
+    },
+    {
+      label: 'D&A % Revenue',  delta: '±1.0pp',
+      down: inp => { inp.da = inp.da.map(v => Math.max(0, v - 0.01)); },
+      up:   inp => { inp.da = inp.da.map(v => v + 0.01); },
+    },
+    {
+      label: 'Tax Rate',  delta: '±3.0pp',
+      down: inp => { inp.tx = inp.tx.map(v => Math.max(0, v - 0.03)); },
+      up:   inp => { inp.tx = inp.tx.map(v => Math.min(0.5, v + 0.03)); },
+    },
+    {
+      label: 'NWC Δ % Revenue',  delta: '±1.0pp',
+      down: inp => { inp.nw = inp.nw.map(v => v - 0.01); },
+      up:   inp => { inp.nw = inp.nw.map(v => v + 0.01); },
+    },
+  ];
+
+  // Helper to deep-clone snapshot
+  const clone = o => JSON.parse(JSON.stringify(o));
+
+  const rows = stresses.map(s => {
+    const inpDown = clone(baseInp); s.down(inpDown);
+    const inpUp   = clone(baseInp); s.up(inpUp);
+    const pDown = _computeGGMPrice(inpDown);
+    const pUp   = _computeGGMPrice(inpUp);
+    const dDown = pDown ? (pDown - basePrice) / basePrice : 0;
+    const dUp   = pUp   ? (pUp   - basePrice) / basePrice : 0;
+    const span  = Math.abs(dDown) + Math.abs(dUp);
+    return { label: s.label, delta: s.delta, dDown, dUp, span, pDown, pUp };
+  });
+
+  // Sort by total absolute span, descending
+  rows.sort((a, b) => b.span - a.span);
+
+  // Max absolute swing for axis scaling
+  const maxAbs = Math.max(0.05, ...rows.map(r => Math.max(Math.abs(r.dDown), Math.abs(r.dUp))));
+
+  // Render
+  const body = document.getElementById('tornadoBody');
+  body.innerHTML = '';
+  // Axis label / base price reference
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;justify-content:space-between;font-family:IBM Plex Mono,monospace;font-size:8pt;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:14px';
+  header.innerHTML = `
+    <span>Input (stress)</span>
+    <span>GGM = $${basePrice.toFixed(2)} (base) &nbsp;·&nbsp; bar = % change in fair value</span>
+  `;
+  body.appendChild(header);
+
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:200px 1fr 80px;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border)';
+
+    const label = document.createElement('div');
+    label.innerHTML = `
+      <div style="font-family:IBM Plex Sans,sans-serif;font-size:10pt;color:var(--text);font-weight:500">${r.label}</div>
+      <div style="font-family:IBM Plex Mono,monospace;font-size:7pt;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">${r.delta}</div>
+    `;
+
+    // Bar visualization — horizontal, with zero in the center
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = 'position:relative;height:24px;background:rgba(26,24,20,0.04);border-radius:3px';
+    // center axis
+    const axis = document.createElement('div');
+    axis.style.cssText = 'position:absolute;left:50%;top:0;width:1px;height:100%;background:var(--border2);z-index:2';
+    barWrap.appendChild(axis);
+
+    // Negative half (down-stress)
+    const negWidth = Math.abs(r.dDown) / maxAbs * 50;
+    const negColor = r.dDown < 0 ? 'var(--red)' : 'var(--green)';
+    const negBar = document.createElement('div');
+    negBar.style.cssText = `position:absolute;right:50%;top:2px;height:20px;width:${negWidth}%;background:${negColor};opacity:0.75;border-radius:3px 0 0 3px`;
+    negBar.title = `Down-stress → ${(r.dDown*100).toFixed(1)}% (fair value $${r.pDown ? r.pDown.toFixed(2) : '—'})`;
+    barWrap.appendChild(negBar);
+
+    // Positive half (up-stress)
+    const posWidth = Math.abs(r.dUp) / maxAbs * 50;
+    const posColor = r.dUp >= 0 ? 'var(--green)' : 'var(--red)';
+    const posBar = document.createElement('div');
+    posBar.style.cssText = `position:absolute;left:50%;top:2px;height:20px;width:${posWidth}%;background:${posColor};opacity:0.75;border-radius:0 3px 3px 0`;
+    posBar.title = `Up-stress → ${(r.dUp*100).toFixed(1)}% (fair value $${r.pUp ? r.pUp.toFixed(2) : '—'})`;
+    barWrap.appendChild(posBar);
+
+    // Labels on bars
+    const negLbl = document.createElement('span');
+    negLbl.style.cssText = `position:absolute;right:calc(50% + ${negWidth}% + 6px);top:50%;transform:translateY(-50%);font-family:IBM Plex Mono,monospace;font-size:8pt;color:var(--text-muted);white-space:nowrap`;
+    negLbl.textContent = `${(r.dDown*100).toFixed(1)}%`;
+    barWrap.appendChild(negLbl);
+
+    const posLbl = document.createElement('span');
+    posLbl.style.cssText = `position:absolute;left:calc(50% + ${posWidth}% + 6px);top:50%;transform:translateY(-50%);font-family:IBM Plex Mono,monospace;font-size:8pt;color:var(--text-muted);white-space:nowrap`;
+    posLbl.textContent = `${r.dUp >= 0 ? '+' : ''}${(r.dUp*100).toFixed(1)}%`;
+    barWrap.appendChild(posLbl);
+
+    // Span
+    const span = document.createElement('div');
+    span.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9pt;color:var(--gold);text-align:right;font-weight:500';
+    span.textContent = `${(r.span*100).toFixed(1)}%`;
+    span.title = 'Total swing (|down| + |up|)';
+
+    row.appendChild(label);
+    row.appendChild(barWrap);
+    row.appendChild(span);
+    body.appendChild(row);
+  });
+
+  document.getElementById('tornadoSection').style.display = '';
 }
 
 function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
