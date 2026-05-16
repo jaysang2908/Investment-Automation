@@ -16,30 +16,6 @@
     "message": "FY2023 FCF/NI ratio 16.8x (FCF $3.2B, NI $0.2B) -- large divergence may indicate working capital swings or non-cash items"
   },
   {
-    "ticker": "NVDA",
-    "date": "2026-04-30",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2024",
-    "message": "FY2024 revenue $60.9B vs FY2023 $27.0B (+125.9%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "NVDA",
-    "date": "2026-04-30",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2025",
-    "message": "FY2025 revenue $130.5B vs FY2024 $60.9B (+114.2%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "NVDA",
-    "date": "2026-04-30",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2026",
-    "message": "FY2026 revenue $215.9B vs FY2025 $130.5B (+65.5%) -- verify for M&A or restatement"
-  },
-  {
     "ticker": "SOFI",
     "date": "2026-04-30",
     "severity": "WARNING",
@@ -352,27 +328,51 @@
     "message": "FY2025 balance sheet identity gap: Assets $211.4B - Liabilities $85.1B - Equity $114.3B = $12079M residual (5.7% of assets)"
   },
   {
-    "ticker": "JNJ",
-    "date": "2026-05-15",
-    "severity": "WARNING",
-    "check": "ebitda_below_ebit",
-    "year": "2023",
-    "message": "FY2023 EBITDA $23.3B < EBIT $23.4B -- EBITDA should be >= EBIT (D&A is additive); possible data error"
-  },
-  {
-    "ticker": "JPM",
-    "date": "2026-05-15",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2023",
-    "message": "FY2023 revenue $236.3B vs FY2022 $153.8B (+53.6%) -- verify for M&A or restatement"
-  },
-  {
     "ticker": "KO",
     "date": "2026-05-15",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
     "message": "FY2025 balance sheet identity gap: Assets $104.8B - Liabilities $70.5B - Equity $32.2B = $2106M residual (2.0% of assets)"
+  },
+  {
+    "ticker": "JPM",
+    "date": "2026-05-16",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2023",
+    "message": "FY2023 revenue $236.3B vs FY2022 $153.8B (+53.6%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "JNJ",
+    "date": "2026-05-16",
+    "severity": "WARNING",
+    "check": "ebitda_below_ebit",
+    "year": "2023",
+    "message": "FY2023 EBITDA $23.3B < EBIT $23.4B -- EBITDA should be >= EBIT (D&A is additive); possible data error"
+  },
+  {
+    "ticker": "NVDA",
+    "date": "2026-05-16",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2024",
+    "message": "FY2024 revenue $60.9B vs FY2023 $27.0B (+125.9%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "NVDA",
+    "date": "2026-05-16",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2025",
+    "message": "FY2025 revenue $130.5B vs FY2024 $60.9B (+114.2%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "NVDA",
+    "date": "2026-05-16",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2026",
+    "message": "FY2026 revenue $215.9B vs FY2025 $130.5B (+65.5%) -- verify for M&A or restatement"
   }
 ]
