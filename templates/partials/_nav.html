@@ -1,13 +1,18 @@
 <nav>
   <a href="/" class="nav-logo">Investment<span>.</span>Utopia</a>
-  <ul class="nav-links">
-    <li><a href="/" {% if active_page == 'generate' %}class="active"{% endif %}>Generate</a></li>
-    <li><a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
-    <li><a href="/dcf" {% if active_page == 'dcf' %}class="active"{% endif %}>DCF Calculator</a></li>
-    <li><a href="/news" {% if active_page == 'news' %}class="active"{% endif %}>News</a></li>
-  </ul>
-  <div style="display:flex;gap:8px;align-items:center">
-    <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
-    <span class="pulse"></span>
+  <div style="display:flex;align-items:center;gap:32px">
+    <ul class="nav-links">
+      <li><a href="/#generate" {% if active_page == 'generate' %}class="active"{% endif %}>Safe</a></li>
+      <li><a href="/#speculative" style="color:#FF6B35">Unsafe</a></li>
+      <li><a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
+      <li><a href="/daily.html" {% if active_page == 'daily' %}class="active"{% endif %}>Daily Discoveries</a></li>
+      <li><a href="/dcf" {% if active_page == 'dcf' %}class="active"{% endif %}>DCF Calculator</a></li>
+      <li><a href="#" onclick="event.preventDefault();document.getElementById('heatmap-coming-soon').style.display='flex'" style="opacity:0.55;cursor:default">Heatmap</a></li>
+      <li><a href="/news" {% if active_page == 'news' %}class="active"{% endif %}>News</a></li>
+    </ul>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
+      <span class="pulse"></span>
+    </div>
   </div>
 </nav>
