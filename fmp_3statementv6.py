@@ -4265,6 +4265,41 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     if _peg_note:
         print(f"  {_peg_note}")
 
+    # ── Earnings revision momentum ────────────────────────────────────────────
+    # Proxy: FY+1 consensus EPS vs trailing TTM EPS. Captures whether analysts
+    # expect EPS to accelerate or contract — a de-risking or warning signal.
+    # Applied as a small modifier (±0.25–0.5 pts) on the blended P/E score.
+    _n_analysts_eps        = 0
+    _eps_revision_pct      = None
+    _eps_revision_dir      = "N/A"
+    _rev_momentum_modifier = 0.0
+    if analyst_ests and is_data:
+        try:
+            _n_analysts_eps = int(analyst_ests[0].get("numAnalystsEps") or 0)
+            _fwd_eps_rev    = float(analyst_ests[0].get("estimatedEpsAvg") or 0) or None
+            _shs_rev        = (is_data[-1].get("weightedAverageShsOut") or
+                               is_data[-1].get("weightedAverageShsOutDil") or 0)
+            _ttm_ni_rev     = is_data[-1].get("netIncome") or 0
+            _ttm_eps_rev    = (_ttm_ni_rev / _shs_rev) if _shs_rev > 0 else None
+            if _fwd_eps_rev and _ttm_eps_rev and _ttm_eps_rev > 0 and _fwd_eps_rev > 0:
+                _eps_revision_pct = (_fwd_eps_rev / _ttm_eps_rev) - 1
+                if   _eps_revision_pct >  0.20: _eps_revision_dir = "Strong upgrade cycle"
+                elif _eps_revision_pct >  0.05: _eps_revision_dir = "Modest upgrade expected"
+                elif _eps_revision_pct > -0.05: _eps_revision_dir = "Flat consensus"
+                else:                           _eps_revision_dir = "Earnings headwind"
+            elif _fwd_eps_rev and _ttm_eps_rev and _ttm_eps_rev < 0 and _fwd_eps_rev > 0:
+                _eps_revision_dir = "Turning profitable"
+            if _eps_revision_pct is not None:
+                if   _eps_revision_pct >  0.20: _rev_momentum_modifier =  0.5
+                elif _eps_revision_pct >  0.05: _rev_momentum_modifier =  0.25
+                elif _eps_revision_pct < -0.15: _rev_momentum_modifier = -0.5
+                elif _eps_revision_pct < -0.05: _rev_momentum_modifier = -0.25
+        except Exception:
+            pass
+        print(f"  EPS revision: dir={_eps_revision_dir}"
+              f"  pct={f'{_eps_revision_pct:.0%}' if _eps_revision_pct is not None else 'N/A'}"
+              f"  modifier={_rev_momentum_modifier:+.2f}  n_analysts={_n_analysts_eps}")
+
     # P/E blend
     if score_pe is not None and pe_current and pe_current > 0:
         _abs_pe  = _abs_pe_score(pe_current, peg=_peg_val)
@@ -4283,6 +4318,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
               f"  {_peg_note}")
         score_pe = _blended_pe
 
+    # Apply earnings revision momentum modifier to P/E score
+    if score_pe is not None and _rev_momentum_modifier != 0.0:
+        score_pe = round(max(0.0, min(12.0, score_pe + _rev_momentum_modifier)), 4)
+        note_pe += f"  [revision:{_eps_revision_dir}→{_rev_momentum_modifier:+.2f}]"
+        print(f"  PE revision modifier: {_rev_momentum_modifier:+.2f} → adjusted={score_pe:.2f}")
+
     # P/FCF blend (non-banks only)
     if score_pfcf is not None and trailing_pfcf and trailing_pfcf > 0 and not is_bank:
         _abs_pfcf  = _abs_pfcf_score(trailing_pfcf)
@@ -4296,6 +4337,28 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         print(f"  PFCF blend 40/40/20: trail={_rel_pfcf:.2f}  fwd={_fpfcf:.2f}"
               f"  abs={_abs_pfcf:.1f}  → {_blended_pfcf:.2f}")
         score_pfcf = _blended_pfcf
+
+    # ── FCF yield vs 10-year treasury spread ─────────────────────────────────
+    # FCF yield = 1 / P/FCF. A positive spread above the 10Y treasury means the
+    # stock offers a real return premium over risk-free; negative spread warns that
+    # treasuries beat the company's FCF yield.
+    _fcf_yield        = (1.0 / trailing_pfcf) if trailing_pfcf and trailing_pfcf > 0 else None
+    _rf_rate_sc, _    = fetch_fred("DGS10")
+    _rf_rate_sc       = _rf_rate_sc or 0.043
+    _fcf_yield_spread = (_fcf_yield - _rf_rate_sc) if _fcf_yield is not None else None
+    _fcf_spread_modifier = 0.0
+    if _fcf_yield_spread is not None and score_pfcf is not None:
+        if   _fcf_yield_spread >  0.05: _fcf_spread_modifier =  0.5
+        elif _fcf_yield_spread >  0.02: _fcf_spread_modifier =  0.25
+        elif _fcf_yield_spread < -0.02: _fcf_spread_modifier = -0.5
+        elif _fcf_yield_spread <  0.0:  _fcf_spread_modifier = -0.25
+        if _fcf_spread_modifier != 0.0:
+            score_pfcf = round(max(0.0, min(12.0, score_pfcf + _fcf_spread_modifier)), 4)
+            note_pfcf += (f"  [fcf_yield={_fcf_yield:.1%} vs rf={_rf_rate_sc:.1%}"
+                          f"  spread={_fcf_yield_spread:+.1%}→modifier={_fcf_spread_modifier:+.2f}]")
+            print(f"  FCF yield spread: {_fcf_yield:.1%} - {_rf_rate_sc:.1%}"
+                  f" = {_fcf_yield_spread:+.1%}  modifier={_fcf_spread_modifier:+.2f}"
+                  f"  → adjusted score_pfcf={score_pfcf:.2f}")
 
     # ── Soft credit floor cap (#7) ────────────────────────────────────────────
     # Replaces the binary floor gates (D/EBITDA >4 → cap 64; EBIT/Int <2 → cap 64;
@@ -4771,6 +4834,29 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         _auto_score = None
         _low_data_confidence = True
 
+    # ── Score confidence flag ─────────────────────────────────────────────────
+    _n_fcf_years = sum(
+        1 for r in cf_data
+        if (r.get("freeCashFlow") or
+            (r.get("operatingCashFlow", 0) + r.get("capitalExpenditure", 0))) not in (None, 0)
+    )
+    if _low_data_confidence:
+        _conf_level = "LOW"
+        _conf_note  = "fewer than 50% of scorecard criteria scored"
+    elif _n_fcf_years < 3:
+        _conf_level = "LOW"
+        _conf_note  = f"only {_n_fcf_years} year(s) of FCF history"
+    elif _n_analysts_eps == 0:
+        _conf_level = "MEDIUM"
+        _conf_note  = f"{_n_fcf_years} yr FCF history; no analyst EPS coverage"
+    elif _n_fcf_years < 5 or _n_analysts_eps < 5:
+        _conf_level = "MEDIUM"
+        _conf_note  = f"{_n_fcf_years} yr FCF history; {_n_analysts_eps} analyst(s) covering"
+    else:
+        _conf_level = "HIGH"
+        _conf_note  = f"{_n_fcf_years} yr FCF history; {_n_analysts_eps} analyst(s) covering"
+    print(f"  Confidence: {_conf_level} ({_conf_note})")
+
     metrics = {
         "roic":          roic_latest,
         "rev_cagr":      rev_cagr,
@@ -4822,6 +4908,22 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         # under bank or EVS regime adjustments.
         "weights":         dict(W),
         "evs_regime":      evs_regime,
+        # Forward multiples (for display in report)
+        "forward_pe_val":          forward_pe_val,
+        "forward_pfcf_val":        forward_pfcf_val,
+        # FCF yield vs 10-year treasury spread
+        "fcf_yield":               _fcf_yield,
+        "fcf_yield_spread":        _fcf_yield_spread,
+        "rf_rate_scorecard":       _rf_rate_sc if _fcf_yield is not None else None,
+        "fcf_spread_modifier":     _fcf_spread_modifier,
+        # Earnings revision momentum
+        "eps_revision_pct":        _eps_revision_pct,
+        "eps_revision_dir":        _eps_revision_dir,
+        "n_analysts_eps":          _n_analysts_eps,
+        "rev_momentum_modifier":   _rev_momentum_modifier,
+        # Score confidence
+        "confidence_level":        _conf_level,
+        "confidence_note":         _conf_note,
     }
 
     print("  Scorecard tab built.")

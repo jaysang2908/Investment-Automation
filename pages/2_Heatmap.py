@@ -21,7 +21,8 @@ if password != st.secrets["APP_PASSWORD"]:
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO      = st.secrets.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
 BRANCH    = st.secrets.get("GITHUB_BRANCH", "main")
-CSV_URL   = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/outputs.csv"
+CSV_URL     = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/outputs.csv"
+HISTORY_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/score_history.csv"
 AUTO_MAX  = 87.5
 MANUAL_MAX = 12.5
 
@@ -53,6 +54,16 @@ def load_data():
     if r.status_code != 200:
         return pd.DataFrame()
     return pd.read_csv(StringIO(r.text), on_bad_lines="skip")
+
+@st.cache_data(ttl=300)
+def load_history():
+    try:
+        r = requests.get(HISTORY_URL, timeout=8)
+        if r.status_code != 200:
+            return pd.DataFrame()
+        return pd.read_csv(StringIO(r.text), on_bad_lines="skip")
+    except Exception:
+        return pd.DataFrame()
 
 def save_data(df):
     token = st.secrets.get("GITHUB_TOKEN")
@@ -112,6 +123,32 @@ df["Total_Score"] = (df["Auto_Score"]
 df["Verdict"]     = df["Total_Score"].apply(_verdict)
 df = df.sort_values("Total_Score", ascending=False).reset_index(drop=True)
 
+# ── Score trend (vs previous run from score_history.csv) ──────────────────────
+hist_df = load_history()
+if not hist_df.empty and "Auto_Score" in hist_df.columns and "Ticker" in hist_df.columns:
+    hist_df["Auto_Score"] = pd.to_numeric(hist_df["Auto_Score"], errors="coerce")
+    hist_df["Date"]       = pd.to_datetime(hist_df.get("Date"), errors="coerce")
+
+    def _trend(ticker, current_score):
+        rows = (hist_df[hist_df["Ticker"] == ticker]
+                .sort_values("Date", ascending=False)
+                .reset_index(drop=True))
+        if len(rows) < 2:
+            return "New"
+        prev = rows.loc[1, "Auto_Score"]
+        if pd.isna(prev) or pd.isna(current_score):
+            return "—"
+        delta = float(current_score) - float(prev)
+        if abs(delta) < 0.15:
+            return "→ 0.0"
+        arrow = "▲" if delta > 0 else "▼"
+        sign  = "+" if delta > 0 else ""
+        return f"{arrow} {sign}{delta:.1f}"
+
+    df["Trend"] = df.apply(lambda r: _trend(r["Ticker"], r["Auto_Score"]), axis=1)
+else:
+    df["Trend"] = "New"
+
 # ── Verdict distribution bar ──────────────────────────────────────────────────
 st.subheader("Verdict Distribution")
 counts  = df["Verdict"].value_counts()
@@ -157,7 +194,7 @@ st.info(
 
 # Columns shown in the main styled table — manual inputs at far right
 MAIN_COLS = [
-    "Ticker", "Verdict", "Total_Score", "Auto_Score",
+    "Ticker", "Verdict", "Trend", "Total_Score", "Auto_Score",
     "Price", "MktCap_B",
     "GG_Price", "GG_Upside", "EM_Price", "EM_Upside",
     "PE_Current", "PE_5yr", "PFCF_Current", "PFCF_5yr",
@@ -258,6 +295,13 @@ def _style_de(val):
 def _style_manual(val):
     return "background-color:#1565C0;color:white"
 
+def _style_trend(val):
+    v = str(val)
+    if v.startswith("▲"):  return "color:#2e7d32;font-weight:bold;text-align:center"
+    if v.startswith("▼"):  return "color:#c62828;font-weight:bold;text-align:center"
+    if v == "New":          return "color:#1565c0;font-weight:bold;text-align:center"
+    return "color:#78909c;text-align:center"
+
 
 # Build format dict — only for columns that exist in disp
 fmt = {}
@@ -292,6 +336,7 @@ styled = (
     disp.style
     .format(fmt, na_rep="—")
     .map(_style_verdict,  subset=["Verdict"])
+    .map(_style_trend,    subset=["Trend"] if "Trend" in disp.columns else [])
     .map(_style_score,    subset=_score_cols)
     .map(_style_roic,     subset=["ROIC"] if "ROIC" in disp.columns else [])
     .map(_style_upside,   subset=[c for c in ["GG Upside/(Down)", "EM Upside/(Down)"] if c in disp.columns])

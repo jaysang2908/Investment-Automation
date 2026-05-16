@@ -534,7 +534,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                       wacc_val, dcf_prices, scorecard_metrics,
                       manual_rating=None, current_price=None, market_cap=None,
                       biz_clarity=None, ltp=None, adj_score=None,
-                      analyst_ests=None, analyst_targets=None):
+                      analyst_ests=None, analyst_targets=None,
+                      insider_data=None):
 
     is0, bs0, cf0 = is_data[-1], bs_data[-1], cf_data[-1]
     today = datetime.date.today().strftime("%B %Y")
@@ -609,6 +610,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     trailing_pfc      = scorecard_metrics.get("pfcf_current")
     pfcf_5yr          = scorecard_metrics.get("pfcf_5yr_avg")
     ev_ebitda_5yr_avg = scorecard_metrics.get("ev_ebitda_5yr_avg")
+
+    # New signal data — FCF yield spread, revision momentum, forward multiples, confidence
+    forward_pe_val_v   = scorecard_metrics.get("forward_pe_val")
+    forward_pfcf_val_v = scorecard_metrics.get("forward_pfcf_val")
+    fcf_yield_v        = scorecard_metrics.get("fcf_yield")
+    fcf_yield_spread_v = scorecard_metrics.get("fcf_yield_spread")
+    rf_rate_sc_v       = scorecard_metrics.get("rf_rate_scorecard")
+    eps_revision_pct_v = scorecard_metrics.get("eps_revision_pct")
+    eps_revision_dir_v = scorecard_metrics.get("eps_revision_dir") or "N/A"
+    n_analysts_eps_v   = scorecard_metrics.get("n_analysts_eps") or 0
+    confidence_level_v = scorecard_metrics.get("confidence_level", "MEDIUM")
+    confidence_note_v  = scorecard_metrics.get("confidence_note", "")
 
     # ── Fallbacks: compute ROIC / rev_cagr directly if scorecard cache is stale ─
     if roic_v is None:
@@ -956,6 +969,54 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 f'{_evs_reverse_line}'
                 f'</div>'
             )
+
+    # ── Score confidence banner ───────────────────────────────────────────────
+    _conf_styles = {
+        "HIGH":   ("#e8f5e9", "#2e7d32", "✓"),
+        "MEDIUM": ("#fff8e1", "#b45309", "~"),
+        "LOW":    ("#fce4e4", "#c62828", "⚠"),
+    }
+    _cc, _ct, _ci = _conf_styles.get(confidence_level_v, _conf_styles["MEDIUM"])
+    _confidence_banner_html = (
+        f'<div style="margin:6px 0 14px;padding:8px 14px;background:{_cc};'
+        f'border-left:3px solid {_ct};border-radius:0 4px 4px 0;'
+        f'font-size:11.5px;line-height:1.4;color:{_ct}">'
+        f'<strong>{_ci} Score confidence: {confidence_level_v}</strong>'
+        f'{(" — " + confidence_note_v) if confidence_note_v else ""}'
+        f'</div>'
+    )
+
+    # ── FCF yield vs treasury spread display string ───────────────────────────
+    _fcf_yield_spread_html = "N/A"
+    if fcf_yield_v is not None and rf_rate_sc_v is not None and fcf_yield_spread_v is not None:
+        _spread_color = "#2e7d32" if fcf_yield_spread_v >= 0 else "#c62828"
+        _spread_sign  = "+" if fcf_yield_spread_v >= 0 else ""
+        _fcf_yield_spread_html = (
+            f"{fcf_yield_v:.1%} FCF yield vs {rf_rate_sc_v:.1%} 10Y Treasury"
+            f' — <span style="color:{_spread_color};font-weight:600">'
+            f'{_spread_sign}{fcf_yield_spread_v:.1%} spread</span>'
+        )
+
+    # ── Earnings revision momentum display string ─────────────────────────────
+    _rev_dir_colors = {
+        "Strong upgrade cycle":   "#2e7d32",
+        "Turning profitable":     "#2e7d32",
+        "Modest upgrade expected": "#558b2f",
+        "Flat consensus":         "#78909c",
+        "Earnings headwind":      "#c62828",
+    }
+    _rev_color = _rev_dir_colors.get(eps_revision_dir_v, "#78909c")
+    _revision_html = (
+        f'<span style="color:{_rev_color};font-weight:600">{eps_revision_dir_v}</span>'
+    )
+    if eps_revision_pct_v is not None:
+        _sign = "+" if eps_revision_pct_v >= 0 else ""
+        _revision_html += f" ({_sign}{eps_revision_pct_v:.0%} fwd vs trailing EPS)"
+    if n_analysts_eps_v:
+        _revision_html += (
+            f" &nbsp;·&nbsp; {n_analysts_eps_v} analyst"
+            f"{'s' if n_analysts_eps_v != 1 else ''} covering"
+        )
 
     # ── Pre-compute scenario and risk metrics ─────────────────────────────────
     _gm_vals = [(is_.get("grossProfit") or 0) / max(1, is_.get("revenue") or 1) for is_ in is_data]
@@ -1443,6 +1504,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "PRICE_TARGET_METHOD": _primary_method,
         "PRICE_TARGET_RATIONALE": _pt_rationale,
         "NARRATIVE_GAP_BANNER":   _narrative_banner_html,
+        "CONFIDENCE_BANNER":      _confidence_banner_html,
         "REPORT_DATE":      today,
         "FINAL_SCORE":      round(final_score, 1) if final_score else 0,
         "FINAL_SCORE_CALC": str(round(final_score, 1)) if final_score else "0",
@@ -1471,17 +1533,21 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "TRAILING_PE":          _x(trailing_pe),
         "TRAILING_PE_10YR":     (_x(pe_5yr) + " (5yr avg)") if pe_5yr else "N/A",
         "TRAILING_PE_DELTA":    pe_delta,
-        "FORWARD_PE":           "N/A",
-        "FORWARD_PE_EST":       "Awaiting analyst estimates",
+        "FORWARD_PE":           _x(forward_pe_val_v) if forward_pe_val_v else "N/A",
+        "FORWARD_PE_EST":       (f"FY+1 consensus: {_x(forward_pe_val_v)}x"
+                                 if forward_pe_val_v else "Awaiting analyst estimates"),
         "FORWARD_PE_10YR":      _x(pe_5yr),
         "FORWARD_PE_DELTA":     pe_delta,
         "TRAILING_PFCF":        _x(trailing_pfc),
         "TRAILING_PFCF_10YR":   (_x(pfcf_5yr) + " (5yr avg)") if pfcf_5yr else "N/A",
         "TRAILING_PFCF_DELTA":  pfcf_delta,
-        "FORWARD_PFCF":         "N/A",
-        "FORWARD_PFCF_EST":     "Awaiting analyst estimates",
+        "FORWARD_PFCF":         _x(forward_pfcf_val_v) if forward_pfcf_val_v else "N/A",
+        "FORWARD_PFCF_EST":     (f"FY+1 consensus (FCF-margin anchor): {_x(forward_pfcf_val_v)}x"
+                                 if forward_pfcf_val_v else "Awaiting analyst estimates"),
         "FORWARD_PFCF_10YR":    _x(pfcf_5yr),
         "FORWARD_PFCF_DELTA":   pfcf_delta,
+        "FCF_YIELD_SPREAD":     _fcf_yield_spread_html,
+        "EARNINGS_REVISION":    _revision_html,
         "EV_EBITDA_TRAILING":   _x(ev_ebitda),
         "EV_EBITDA_FWD_NOTE":   f"Trailing: {_x(ev_ebitda)}; fwd pending analyst estimates",
         "EV_REV_LTM":           _x(ev_rev),
@@ -2015,6 +2081,99 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     # Flag for render_html_report to decide whether to show COMING SOON
     D["ANALYSTS_HAVE_DATA"] = D.get("CONSENSUS_PT", "—") != "—"
+
+    # ── Insider buying signal ─────────────────────────────────────────────────
+    # Uses open-market transactions only (P-Purchase / S-Sale) from trailing
+    # 6 months.  Dollar-weighted: a $5M open-market buy by the CEO is more
+    # meaningful than five $50K automatic-plan purchases.
+    _ins = insider_data or []
+    _ins_buys  = [e for e in _ins if e.get("transactionType") == "P-Purchase"]
+    _ins_sells = [e for e in _ins if e.get("transactionType") == "S-Sale"]
+
+    def _ins_val(txns):
+        total = 0.0
+        for t in txns:
+            try:
+                total += float(t.get("securitiesTransacted") or 0) * float(t.get("price") or 0)
+            except (TypeError, ValueError):
+                pass
+        return total
+
+    _buy_val  = _ins_val(_ins_buys)
+    _sell_val = _ins_val(_ins_sells)
+    _net_val  = _buy_val - _sell_val
+
+    if not _ins:
+        _ins_signal      = "No data"
+        _ins_signal_col  = "#78909c"
+        _ins_detail      = "No open-market insider transactions in the past 6 months."
+    elif _net_val > 100_000 and len(_ins_buys) >= len(_ins_sells):
+        _ins_signal      = "Accumulating"
+        _ins_signal_col  = "#2e7d32"
+        _ins_detail      = (f"Net buy: ${_net_val/1e6:.2f}M across "
+                            f"{len(_ins_buys)} purchase(s) / {len(_ins_sells)} sale(s) "
+                            f"(6-month trailing)")
+    elif _net_val < -500_000 and len(_ins_sells) > len(_ins_buys):
+        _ins_signal      = "Distributing"
+        _ins_signal_col  = "#c62828"
+        _ins_detail      = (f"Net sell: ${abs(_net_val)/1e6:.2f}M across "
+                            f"{len(_ins_buys)} purchase(s) / {len(_ins_sells)} sale(s) "
+                            f"(6-month trailing)")
+    else:
+        _ins_signal      = "Neutral"
+        _ins_signal_col  = "#78909c"
+        _ins_detail      = (f"{len(_ins_buys)} purchase(s) / {len(_ins_sells)} sale(s); "
+                            f"net ${_net_val/1e6:+.2f}M — no clear directional signal")
+
+    # Top 3 notable transactions for detail table
+    _all_ins = sorted(_ins_buys + _ins_sells,
+                      key=lambda t: float(t.get("securitiesTransacted") or 0)
+                                    * float(t.get("price") or 0),
+                      reverse=True)[:3]
+    _ins_rows_html = ""
+    for _t in _all_ins:
+        try:
+            _ttype = "Buy" if _t.get("transactionType") == "P-Purchase" else "Sell"
+            _tcolor = "#2e7d32" if _ttype == "Buy" else "#c62828"
+            _name = _t.get("reportingName") or "—"
+            _role = (_t.get("typeOfOwner") or "").title()
+            _shrs = int(float(_t.get("securitiesTransacted") or 0))
+            _px   = float(_t.get("price") or 0)
+            _val  = _shrs * _px
+            _dt   = str(_t.get("transactionDate") or "")[:10]
+            _ins_rows_html += (
+                f'<tr><td>{_name}</td><td style="color:#555">{_role}</td>'
+                f'<td style="color:{_tcolor};font-weight:600">{_ttype}</td>'
+                f'<td style="font-family:monospace">{_shrs:,} @ ${_px:.2f}'
+                f' (${_val/1e3:.0f}K)</td>'
+                f'<td style="color:#555">{_dt}</td></tr>'
+            )
+        except Exception:
+            pass
+
+    _ins_table_html = ""
+    if _ins_rows_html:
+        _ins_table_html = (
+            f'<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:8px">'
+            f'<thead><tr style="border-bottom:1px solid #ddd">'
+            f'<th style="text-align:left;padding:4px 8px;color:#555">Name</th>'
+            f'<th style="text-align:left;padding:4px 8px;color:#555">Role</th>'
+            f'<th style="text-align:left;padding:4px 8px;color:#555">Type</th>'
+            f'<th style="text-align:left;padding:4px 8px;color:#555">Transaction</th>'
+            f'<th style="text-align:left;padding:4px 8px;color:#555">Date</th>'
+            f'</tr></thead><tbody>{_ins_rows_html}</tbody></table>'
+        )
+
+    _insider_signal_html = (
+        f'<div style="padding:10px 14px;background:var(--bg-page);'
+        f'border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px">'
+        f'<div><strong style="color:var(--ink)">Insider Activity (6-month trailing):</strong>'
+        f' <span style="color:{_ins_signal_col};font-weight:600">{_ins_signal}</span>'
+        f' &nbsp;·&nbsp; <span style="color:var(--ink-2)">{_ins_detail}</span></div>'
+        f'{_ins_table_html}'
+        f'</div>'
+    )
+    D["INSIDER_SIGNAL_HTML"] = _insider_signal_html
 
     # ── Multiples Valuation — always computed from internal projections ─────────
     # Project FY+1/FY+2 earnings using trailing CAGR + historical margins so

@@ -46,7 +46,10 @@ init_db()
 _reports: dict = {}
 
 # ── outputs.csv path ──────────────────────────────────────────────────────────
-_CSV_PATH = os.path.join(os.path.dirname(__file__), "outputs.csv")
+_CSV_PATH     = os.path.join(os.path.dirname(__file__), "outputs.csv")
+_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "score_history.csv")
+_HISTORY_COLS = ["Ticker", "Date", "Auto_Score", "Total_Score", "Verdict"]
+_HISTORY_HDR  = ",".join(_HISTORY_COLS) + "\n"
 
 
 def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
@@ -156,6 +159,72 @@ def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
     except Exception as e:
         import sys
         print(f"[outputs.csv] GitHub push error: {e}", file=sys.stderr)
+
+def _verdict_label(total_score):
+    try:
+        s = float(total_score)
+    except (TypeError, ValueError):
+        return "N/A"
+    if s >= 70.0: return "STRONG BUY"
+    if s >= 56.9: return "BUY"
+    if s >= 43.8: return "HOLD"
+    if s >= 30.6: return "REDUCE"
+    return "SELL"
+
+
+def _append_score_history(ticker, auto_score_raw, adj_score_raw):
+    """Append a single score snapshot to score_history.csv (append-only log).
+
+    auto_score_raw : raw 0–87.5 auto score (matches Auto_Score in outputs.csv).
+    adj_score_raw  : raw 0–100 adjusted score (auto + manual qual pts).
+    """
+    import base64 as _b64
+    verdict = _verdict_label(adj_score_raw)
+    row = ",".join([
+        ticker,
+        datetime.date.today().isoformat(),
+        f"{auto_score_raw:.1f}" if auto_score_raw is not None else "",
+        f"{adj_score_raw:.1f}"  if adj_score_raw  is not None else "",
+        verdict,
+    ]) + "\n"
+
+    # ── Local append ──────────────────────────────────────────────────────────
+    try:
+        write_header = not os.path.exists(_HISTORY_PATH)
+        with open(_HISTORY_PATH, "a", encoding="utf-8") as f:
+            if write_header:
+                f.write(_HISTORY_HDR)
+            f.write(row)
+    except Exception as e:
+        import sys
+        print(f"[score_history] local write error: {e}", file=sys.stderr)
+        return
+
+    # ── GitHub push (persists across Render redeploys) ────────────────────────
+    if not GITHUB_TOKEN:
+        return
+    try:
+        with open(_HISTORY_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/score_history.csv"
+        gh_hdr = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept":        "application/vnd.github.v3+json",
+        }
+        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        payload = {
+            "message": f"history: {ticker} score snapshot",
+            "branch":  GITHUB_BRANCH,
+            "content": _b64.b64encode(content.encode()).decode(),
+        }
+        if sha:
+            payload["sha"] = sha
+        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=12)
+    except Exception as e:
+        import sys
+        print(f"[score_history] GitHub push error: {e}", file=sys.stderr)
+
 
 def _prune():
     cutoff = datetime.datetime.now() - datetime.timedelta(hours=2)
@@ -270,6 +339,23 @@ def generate():
         except Exception:
             pass
 
+        # ── Fetch insider trading (trailing 6 months, open-market only) ──────────
+        insider_data = []
+        try:
+            _cutoff_ins = (datetime.date.today() - datetime.timedelta(days=180)).isoformat()
+            _id = _req.get(
+                f"https://financialmodelingprep.com/stable/insider-trading"
+                f"?symbol={ticker}&limit=50&apikey={mdl.API_KEY}", timeout=8
+            ).json()
+            if isinstance(_id, list):
+                insider_data = [
+                    e for e in _id
+                    if (e.get("transactionDate") or "") >= _cutoff_ins
+                    and e.get("transactionType") in ("P-Purchase", "S-Sale")
+                ]
+        except Exception:
+            pass
+
         _, scorecard_metrics = mdl.build_scorecard(
             wb, ticker, is_data, bs_data, cf_data, years,
             biz_clarity=biz_clarity or None, ltp=ltp or None,
@@ -318,6 +404,7 @@ def generate():
             ltp               = ltp or None,
             adj_score         = adj_score,
             analyst_ests      = analyst_ests,
+            insider_data      = insider_data,
         )
         html_content = render_html_report(report_data)
 
@@ -363,6 +450,17 @@ def generate():
             )
         except Exception:
             pass  # never block report delivery over a CSV write failure
+
+        # ── Append to score history (append-only log for trend tracking) ─────
+        try:
+            _append_score_history(
+                ticker        = ticker,
+                auto_score_raw = scorecard_metrics.get("auto_score_raw") or 0,
+                adj_score_raw  = round((scorecard_metrics.get("auto_score_raw") or 0)
+                                       + bc_pts + ltp_pts, 1),
+            )
+        except Exception:
+            pass
 
         # Also keep in-memory for session (legacy dashboard live-reports panel)
         rid = uuid.uuid4().hex[:10]

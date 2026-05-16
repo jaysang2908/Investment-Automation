@@ -166,7 +166,9 @@ def try_generate(ticker):
             pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
         )
         _, scorecard_metrics = mdl.build_scorecard(
-            wb, ticker, is_data, bs_data, cf_data, years
+            wb, ticker, is_data, bs_data, cf_data, years,
+            dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
+            evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
         )
 
         auto  = scorecard_metrics.get("auto_score") or 0
