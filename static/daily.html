@@ -1,132 +1,158 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Discoveries — Investment Utopia</title>
+  <title>Daily Discoveries — Equity.Research</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('eq.theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}}());
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/iu-redesign.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
   <style>
-    html { scroll-behavior: smooth; }
-    .page-hero {
-      padding: 100px 40px 60px;
-      max-width: 900px;
-      margin: 0 auto;
+    .disc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--sp-4);
+      margin-top: var(--sp-4);
     }
-    .page-eyebrow {
+    .disc-card {
+      display: block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: var(--sp-4) var(--sp-5);
+      text-decoration: none;
+      color: inherit;
+      transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+    }
+    .disc-card:hover {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-sm);
+    }
+    .disc-card-ticker {
       font-family: var(--font-mono);
-      font-size: 10px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 16px;
+      font-size: 18pt;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: 1px;
+      margin-bottom: var(--sp-1);
     }
-    .page-title {
-      font-family: var(--font-display);
-      font-size: clamp(32px, 5vw, 52px);
-      font-weight: 700;
-      color: var(--ink-1);
-      line-height: 1.15;
-      margin-bottom: 18px;
-    }
-    .page-sub {
+    .disc-card-meta {
+      font-family: var(--font-mono);
+      font-size: 8pt;
       color: var(--ink-3);
-      font-size: 15px;
-      line-height: 1.7;
-      max-width: 560px;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--sp-3);
     }
-    .disc-section {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 0 40px 80px;
+    .disc-card-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 7pt;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: var(--r-sm);
+      background: var(--h-n-bg);
+      color: var(--accent);
+      border: 1px solid rgba(201,139,60,0.25);
+      margin-bottom: var(--sp-3);
     }
-    .disc-meta {
+    .disc-card-cta {
+      font-family: var(--font-mono);
+      font-size: 8.5pt;
+      color: var(--accent);
+      margin-top: var(--sp-2);
+    }
+    .disc-meta-bar {
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 32px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border-1);
-    }
-    .disc-count {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--ink-4);
-      letter-spacing: 1px;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-3);
+      padding-bottom: var(--sp-3);
+      border-bottom: 1px solid var(--border);
     }
     .disc-dot {
-      width: 6px; height: 6px;
-      background: var(--gold);
+      width: 7px; height: 7px;
+      background: var(--accent);
       border-radius: 50%;
       animation: pulse-dot 2s ease infinite;
+      flex-shrink: 0;
     }
     @keyframes pulse-dot {
       0%,100% { opacity: 1; }
       50% { opacity: 0.3; }
     }
+    .disc-count {
+      font-family: var(--font-mono);
+      font-size: 9pt;
+      color: var(--ink-3);
+      letter-spacing: 0.5px;
+    }
     .empty-state {
       text-align: center;
       padding: 80px 20px;
-      color: var(--ink-4);
+      color: var(--ink-3);
       font-family: var(--font-mono);
-      font-size: 12px;
-      letter-spacing: 1px;
+      font-size: 11pt;
       line-height: 2;
-    }
-    @media (max-width: 860px) {
-      .page-hero, .disc-section { padding-left: 20px; padding-right: 20px; }
-      nav { padding: 0 20px; }
-      .nav-links { display: none; }
     }
   </style>
 </head>
 <body>
 
-<nav>
-  <a href="/" class="nav-logo">Investment Utopia</a>
-  <div style="display:flex;align-items:center;gap:32px">
-    <ul class="nav-links">
-      <li><a href="/#generate">Generate</a></li>
-      <li><a href="/dashboard.html">Dashboard</a></li>
-      <li><a href="/daily.html" class="active">Daily Discoveries</a></li>
-      <li><a href="/dcf">DCF Calculator</a></li>
-      <li><a href="/heatmap">Heatmap</a></li>
-      <li><a href="/news">News</a></li>
-    </ul>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="pulse"></div>
-      <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3);letter-spacing:1px">Live · FMP</span>
-    </div>
+<nav class="nav">
+  <a href="/" class="brand">
+    <span class="brand-mk">ER</span>
+    <span>Equity.Research</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/">Generate</a></li>
+    <li><a href="/dashboard">Dashboard</a></li>
+    <li><a href="/daily" class="active">Daily</a></li>
+    <li><a href="/dcf">DCF</a></li>
+    <li><a href="/heatmap">Heatmap</a></li>
+    <li><a href="/news">News</a></li>
+  </ul>
+  <div class="nav-aside">
+    <span class="live-badge">● Live</span>
+    <span id="navTime" class="live-badge">--:-- UTC</span>
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">◐</button>
   </div>
 </nav>
 
-<div class="page-hero">
-  <div class="page-eyebrow">Auto-Research Engine</div>
-  <h1 class="page-title">Daily Discoveries</h1>
-  <p class="page-sub">
-    Up to 3 new company reports generated automatically each day — full DCF, WACC,
-    reverse-DCF, and forward multiples. Rotates nightly.
-  </p>
-</div>
+<main class="shell page">
+  <div class="shell-card">
 
-<div class="disc-section">
-  <div class="disc-meta">
-    <div class="disc-dot"></div>
-    <span class="disc-count" id="discCount">Loading…</span>
-  </div>
-
-  <div class="cards" id="discoveryGrid" style="min-height:120px">
-    <div id="disc-loading" style="color:var(--ink-4);font-family:var(--font-mono);font-size:11px;letter-spacing:1px;grid-column:1/-1;padding:20px 0">
-      Fetching today's discoveries…
+    <div class="page-head">
+      <p class="page-lede" style="font-family:var(--font-mono);font-size:8pt;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:var(--sp-2)">Auto-Research Engine</p>
+      <h1 class="page-title">Daily Discoveries</h1>
+      <p class="page-lede">
+        Up to 3 new company reports generated automatically each day — full DCF, WACC,
+        reverse-DCF, and forward multiples. Rotates nightly.
+      </p>
     </div>
-  </div>
-</div>
 
-<footer>
-  <div class="footer-logo">Investment Utopia</div>
-  <div class="footer-disc">For informational purposes only. Not investment advice. Financials sourced from FMP API.</div>
+    <div class="disc-meta-bar">
+      <div class="disc-dot"></div>
+      <span class="disc-count" id="discCount">Loading…</span>
+    </div>
+
+    <div class="disc-grid" id="discoveryGrid">
+      <div id="disc-loading" style="font-family:var(--font-mono);font-size:10pt;color:var(--ink-3);grid-column:1/-1;padding:20px 0">
+        Fetching today's discoveries…
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <span class="footer-brand">Equity.Research</span>
+  <span>For informational purposes only. Not investment advice. Financials sourced from FMP API.</span>
 </footer>
 
 <script>
@@ -152,17 +178,12 @@
         a.href = url;
         a.target = '_blank';
         a.rel = 'noopener';
-        a.className = 'card';
-        a.style.textDecoration = 'none';
+        a.className = 'disc-card';
         a.innerHTML = `
-          <div class="card-head">
-            <div>
-              <div class="card-co">${ticker}</div>
-              <div class="card-tk">Auto-Generated · Daily Discovery${date ? ' · ' + date : ''}</div>
-            </div>
-            <div class="card-tk" style="background:var(--gold-dim);border:1px solid rgba(230,193,104,0.25);padding:4px 10px;height:fit-content;white-space:nowrap;border-radius:4px">NEW</div>
-          </div>
-          <div class="card-cta" style="margin-top:20px">View Report →</div>`;
+          <div class="disc-card-ticker">${ticker}</div>
+          <div class="disc-card-meta">Auto-Generated · Daily Discovery${date ? ' · ' + date : ''}</div>
+          <div class="disc-card-tag">NEW</div>
+          <div class="disc-card-cta">View Report →</div>`;
         grid.appendChild(a);
       });
     } catch(e) {
@@ -172,5 +193,6 @@
   }
   loadDiscoveries();
 </script>
+<script src="/js/app.js"></script>
 </body>
 </html>

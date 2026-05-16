@@ -1,173 +1,138 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>News — Investment Utopia</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>News Feed — Equity.Research</title>
+  <script>(function(){var s=localStorage.getItem('eq.theme');if(s==='dark'||s==='light')document.documentElement.setAttribute('data-theme',s);})()</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/iu-redesign.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
   <style>
-    /* ── PAGE LAYOUT ── */
-    .page-head {
-      padding: 56px 32px 28px;
-      max-width: 1280px;
-      margin: 0 auto;
-    }
-    .ph-eyebrow {
+    /* Ticker chips */
+    .chip {
       font-family: var(--font-mono);
-      font-size: var(--t-eyebrow);
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 14px;
+      font-size: var(--t-xs);
+      padding: 5px 11px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+      white-space: nowrap;
+      font-weight: var(--weight-medium);
     }
-    .ph-row {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 32px;
-    }
-    .ph-title {
-      font-family: var(--font-display);
-      font-size: 36px;
-      font-weight: 600;
-      color: var(--ink-1);
-      line-height: 1.15;
-      letter-spacing: -0.5px;
-    }
-    .ph-sub {
-      font-size: var(--t-body);
-      color: var(--ink-3);
-      margin-top: 10px;
-      max-width: 560px;
-      font-weight: 300;
-      line-height: 1.6;
-    }
-    .ph-meta {
-      font-family: var(--font-mono);
-      font-size: var(--t-eyebrow);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--ink-4);
-      text-align: right;
-      flex-shrink: 0;
-    }
-    .ph-meta strong { color: var(--ink-1); font-weight: 600; }
+    .chip:hover { color: var(--ink); background: var(--surface-3); }
+    .chip.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+    [data-theme="dark"] .chip.on { color: var(--bg); }
 
-    /* ── STALE BANNER ── */
-    .stale-banner {
-      display: none;
-      background: var(--warn-bg);
-      border: 1px solid rgba(251,191,36,0.25);
-      border-radius: var(--r-md);
-      padding: 12px 18px;
-      margin: 0 32px 20px;
-      max-width: calc(1280px - 64px);
-      margin-left: auto;
-      margin-right: auto;
-      font-family: var(--font-mono);
-      font-size: var(--t-small);
-      color: var(--warn);
-      letter-spacing: 0.5px;
-    }
-
-    /* ── FILTER BAR ── */
+    /* Filter bar */
     .filter-bar {
-      max-width: 1280px;
-      margin: 0 auto 24px;
-      padding: 0 32px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--s-2);
       flex-wrap: wrap;
+      padding: var(--s-3) 0 var(--s-4);
     }
     .filter-label {
       font-family: var(--font-mono);
-      font-size: var(--t-micro);
-      letter-spacing: 2px;
+      font-size: var(--t-tiny);
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--ink-5);
-      margin-right: 4px;
+      color: var(--muted);
+      margin-right: var(--s-2);
     }
-    .tk-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tk-filters { display: flex; gap: var(--s-1); flex-wrap: wrap; }
 
-    /* ── TWO-COLUMN LAYOUT ── */
-    .layout {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 32px 80px;
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 40px;
-    }
-
-    /* ── FEATURED ARTICLE ── */
-    .featured {
-      background: var(--surface-1);
-      border: 1px solid var(--border-1);
+    /* Stale banner */
+    .stale-banner {
+      display: none;
+      background: color-mix(in oklab, var(--status-warn) 10%, var(--surface));
+      border: 1px solid color-mix(in oklab, var(--status-warn) 30%, transparent);
       border-radius: var(--r-lg);
+      padding: var(--s-3) var(--s-4);
+      margin-bottom: var(--s-4);
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      color: var(--status-warn);
+    }
+
+    /* Two-column layout */
+    .news-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: var(--s-8);
+    }
+    @media (max-width: 960px) {
+      .news-layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+    }
+
+    /* Featured article */
+    .featured {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
       overflow: hidden;
-      margin-bottom: 32px;
+      margin-bottom: var(--s-6);
       display: grid;
       grid-template-columns: 1.1fr 1fr;
     }
+    @media (max-width: 680px) { .featured { grid-template-columns: 1fr; } }
     .featured-img {
       aspect-ratio: 4/3;
-      background: linear-gradient(135deg, #1a2438 0%, #0c1320 100%);
+      background: linear-gradient(135deg, var(--surface-hi) 0%, var(--surface-3) 100%);
       position: relative;
       display: flex;
       align-items: flex-end;
-      padding: 24px;
-    }
-    .featured-img::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 30% 30%, var(--gold-glow) 0%, transparent 60%);
-      opacity: 0.5;
+      padding: var(--s-5);
     }
     .featured-img-tag {
       position: relative;
       font-family: var(--font-mono);
-      font-size: var(--t-micro);
-      letter-spacing: 2px;
+      font-size: var(--t-tiny);
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--ink-4);
-      border: 1px solid var(--border-3);
+      color: var(--muted);
+      border: 1px solid var(--line-strong);
       padding: 4px 10px;
       border-radius: var(--r-sm);
+      background: var(--surface);
     }
     .featured-body {
-      padding: 32px;
+      padding: var(--s-6);
       display: flex;
       flex-direction: column;
       justify-content: center;
     }
     .featured-eye {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
       font-family: var(--font-mono);
-      font-size: var(--t-micro);
-      letter-spacing: 2.5px;
+      font-size: var(--t-tiny);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 14px;
+      color: var(--accent-ink);
+      margin-bottom: var(--s-3);
     }
     .featured-title {
-      font-family: var(--font-display);
-      font-size: 24px;
+      font-family: var(--font-serif);
+      font-size: 20px;
       font-weight: 600;
-      color: var(--ink-1);
-      line-height: 1.25;
-      letter-spacing: -0.2px;
-      margin-bottom: 14px;
+      color: var(--ink);
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-bottom: var(--s-3);
     }
     .featured-snippet {
-      font-size: var(--t-body);
-      color: var(--ink-3);
+      font-size: var(--t-sm);
+      color: var(--muted);
       line-height: 1.7;
-      font-weight: 300;
-      margin-bottom: 18px;
+      margin-bottom: var(--s-4);
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
@@ -175,403 +140,257 @@
     }
     .featured-meta {
       display: flex;
-      gap: 12px;
+      gap: var(--s-3);
       align-items: center;
       font-family: var(--font-mono);
-      font-size: var(--t-eyebrow);
-      letter-spacing: 1px;
-      color: var(--ink-4);
-      text-transform: uppercase;
+      font-size: var(--t-tiny);
+      color: var(--muted);
     }
-    .featured-meta .src { color: var(--ink-2); font-weight: 600; }
-    .featured-tickers { display: flex; gap: 6px; margin-top: 16px; }
+    .featured-meta .src { color: var(--ink-2); font-weight: var(--weight-semi); }
+    .featured-tickers { display: flex; gap: var(--s-1); margin-top: var(--s-3); }
     .tk-pill {
       font-family: var(--font-mono);
-      font-size: var(--t-eyebrow);
-      letter-spacing: 1px;
-      color: var(--gold);
-      background: var(--gold-dim);
-      padding: 3px 10px;
+      font-size: var(--t-tiny);
+      color: var(--accent-ink);
+      background: color-mix(in oklab, var(--accent) 10%, var(--surface));
+      padding: 3px 9px;
       border-radius: var(--r-sm);
       text-decoration: none;
+      border: 1px solid color-mix(in oklab, var(--accent) 20%, transparent);
     }
 
-    /* ── SECTION HEADER ── */
+    /* Section header */
     .sec-head-row {
       display: flex;
-      align-items: flex-end;
+      align-items: baseline;
       justify-content: space-between;
-      margin: 0 0 16px;
+      margin: var(--s-5) 0 var(--s-3);
+      padding-bottom: var(--s-3);
+      border-bottom: 1px solid var(--line);
     }
     .sec-h2 {
-      font-family: var(--font-display);
-      font-size: var(--t-h3);
-      font-weight: 600;
-      color: var(--ink-1);
-      letter-spacing: -0.2px;
+      font-size: var(--t-heading);
+      font-weight: var(--weight-semi);
+      color: var(--ink);
+      letter-spacing: -0.01em;
     }
     .sec-count {
       font-family: var(--font-mono);
-      font-size: var(--t-eyebrow);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--ink-4);
+      font-size: var(--t-xs);
+      color: var(--muted);
     }
 
-    /* ── ARTICLE LIST (editorial) ── */
+    /* Article list */
     .articles { display: flex; flex-direction: column; }
     .art {
       display: grid;
-      grid-template-columns: 100px 1fr 110px;
-      gap: 20px;
-      padding: 20px 0;
-      border-bottom: 1px solid var(--border-1);
+      grid-template-columns: 90px 1fr 100px;
+      gap: var(--s-5);
+      padding: var(--s-4) 0;
+      border-bottom: 1px solid var(--line);
       cursor: pointer;
       text-decoration: none;
       align-items: start;
-      transition: background var(--dur-fast);
+      transition: background var(--dur-fast) var(--ease);
+      border-radius: var(--r-md);
+      margin: 0 calc(-1 * var(--s-2));
+      padding-left: var(--s-2);
+      padding-right: var(--s-2);
     }
-    .art:hover { background: rgba(255,255,255,0.012); }
-    .art:hover .art-title { color: var(--gold); }
-
+    .art:hover { background: var(--surface-2); }
     .art-time {
       font-family: var(--font-mono);
-      font-size: var(--t-eyebrow);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--ink-4);
-      padding-top: 4px;
+      font-size: var(--t-tiny);
+      color: var(--muted);
+      padding-top: 3px;
     }
-    .art-time strong {
-      color: var(--ink-1);
-      display: block;
-      font-size: 11px;
-      margin-bottom: 2px;
-      font-weight: 600;
-    }
-    .art-body { padding-right: 8px; }
-    .art-tickers {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .art-source {
-      font-family: var(--font-mono);
-      font-size: var(--t-micro);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--ink-3);
-    }
+    .art-time strong { color: var(--ink); display: block; font-size: var(--t-xs); margin-bottom: 2px; font-weight: var(--weight-semi); }
+    .art-body { padding-right: var(--s-2); }
+    .art-tickers { display: flex; gap: var(--s-1); margin-bottom: var(--s-2); align-items: center; flex-wrap: wrap; }
+    .art-source { font-family: var(--font-mono); font-size: var(--t-micro); color: var(--muted); }
     .src-badge {
       font-family: var(--font-mono);
-      font-size: 9px;
-      letter-spacing: 1px;
+      font-size: var(--t-micro);
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      padding: 2px 7px;
-      border-radius: 3px;
-      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: var(--r-xs);
+      font-weight: var(--weight-semi);
     }
-    .src-badge.fmp {
-      color: #5b8dd9;
-      background: rgba(91,141,217,0.12);
-      border: 1px solid rgba(91,141,217,0.25);
-    }
-    .src-badge.yahoo {
-      color: var(--ink-4);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border-2);
-    }
+    .src-badge.fmp { color: var(--status-info); background: color-mix(in oklab, var(--status-info) 10%, var(--surface)); border: 1px solid color-mix(in oklab, var(--status-info) 20%, transparent); }
+    .src-badge.yahoo { color: var(--muted); background: var(--surface-3); border: 1px solid var(--line); }
     .art-title {
-      font-family: var(--font-display);
-      font-size: 17px;
+      font-family: var(--font-serif);
+      font-size: 15px;
       font-weight: 600;
-      color: var(--ink-1);
-      line-height: 1.3;
-      margin-bottom: 8px;
-      transition: color var(--dur-base);
-      letter-spacing: -0.1px;
+      color: var(--ink);
+      line-height: 1.35;
+      margin-bottom: var(--s-1);
+      letter-spacing: -0.01em;
     }
-    .art-snippet {
-      font-size: var(--t-small);
-      color: var(--ink-3);
-      line-height: 1.65;
-      font-weight: 300;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .art-thumb {
-      width: 110px;
-      height: 80px;
-      border-radius: var(--r-md);
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .art-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .art-thumb-placeholder {
-      width: 100%;
-      height: 100%;
-      background: var(--surface-2);
-    }
-    .art-thumb-placeholder.t1 { background: linear-gradient(135deg, #2a1f3d 0%, #0c1320 100%); }
-    .art-thumb-placeholder.t2 { background: linear-gradient(135deg, #1a3a2e 0%, #0c1320 100%); }
-    .art-thumb-placeholder.t3 { background: linear-gradient(135deg, #3a2818 0%, #0c1320 100%); }
-    .art-thumb-placeholder.t4 { background: linear-gradient(135deg, #1a2e3a 0%, #0c1320 100%); }
-    .art-thumb-placeholder.t5 { background: linear-gradient(135deg, #3a1a2a 0%, #0c1320 100%); }
+    .art:hover .art-title { color: var(--accent-ink); }
+    .art-snippet { font-size: var(--t-sm); color: var(--muted); line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .art-thumb { width: 100px; height: 72px; border-radius: var(--r-lg); overflow: hidden; flex-shrink: 0; }
+    .art-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .art-thumb-placeholder { width: 100%; height: 100%; background: var(--surface-hi); border-radius: var(--r-lg); }
 
-    /* ── EMPTY STATE ── */
+    /* Empty state */
     .empty-state {
       text-align: center;
-      padding: 80px 20px;
-      color: var(--ink-4);
+      padding: var(--s-16) var(--s-6);
+      color: var(--muted);
     }
-    .empty-state h3 {
-      font-family: var(--font-display);
-      font-size: var(--t-h3);
-      color: var(--ink-3);
-      margin-bottom: 12px;
-    }
-    .empty-state p {
-      font-family: var(--font-mono);
-      font-size: var(--t-small);
-      letter-spacing: 0.5px;
-      line-height: 1.7;
-    }
-    .empty-state code {
-      background: rgba(255,255,255,0.06);
-      padding: 2px 8px;
-      border-radius: var(--r-sm);
-    }
+    .empty-state h3 { font-size: var(--t-heading); color: var(--ink); margin: 0 0 var(--s-2); font-weight: var(--weight-semi); }
+    .empty-state p { font-size: var(--t-sm); line-height: 1.6; }
+    .empty-state code { background: var(--surface-3); padding: 2px 7px; border-radius: var(--r-xs); font-family: var(--font-mono); }
 
-    /* ── SIDEBAR ── */
-    aside { display: flex; flex-direction: column; gap: 20px; }
+    /* Sidebar */
+    aside { display: flex; flex-direction: column; gap: var(--s-4); }
     .s-panel {
-      background: var(--surface-1);
-      border: 1px solid var(--border-1);
-      border-radius: var(--r-lg);
-      padding: 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-xl);
+      padding: var(--s-4);
     }
     .s-panel-eye {
       font-family: var(--font-mono);
-      font-size: var(--t-micro);
-      letter-spacing: 2.5px;
+      font-size: var(--t-tiny);
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--ink-4);
-      margin-bottom: 16px;
+      color: var(--muted);
+      margin-bottom: var(--s-4);
+      font-weight: var(--weight-semi);
     }
-
     .mover {
       display: grid;
       grid-template-columns: 1fr auto auto;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border-1);
+      gap: var(--s-3);
+      padding: var(--s-2) 0;
+      border-bottom: 1px solid var(--line);
       align-items: center;
     }
     .mover:last-child { border-bottom: none; }
-    .mover-tk { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--gold); letter-spacing: 1px; }
-    .mover-name { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
-    .mover-px { font-family: var(--font-mono); font-size: var(--t-small); color: var(--ink-1); font-variant-numeric: tabular-nums; }
-    .mover-pct {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-variant-numeric: tabular-nums;
-      padding: 3px 8px;
-      border-radius: var(--r-sm);
-      min-width: 56px;
-      text-align: right;
-    }
-    .mover-pct.up { color: var(--pos); background: var(--pos-bg); }
-    .mover-pct.dn { color: var(--neg); background: var(--neg-bg); }
+    .mover-tk { font-family: var(--font-mono); font-size: var(--t-xs); font-weight: var(--weight-bold); color: var(--accent-ink); letter-spacing: 0.04em; }
+    .mover-name { font-size: var(--t-tiny); color: var(--muted); margin-top: 2px; }
+    .mover-px { font-family: var(--font-mono); font-size: var(--t-sm); color: var(--ink); font-variant-numeric: tabular-nums; }
+    .mover-pct { font-family: var(--font-mono); font-size: var(--t-tiny); font-variant-numeric: tabular-nums; padding: 3px 7px; border-radius: var(--r-xs); min-width: 48px; text-align: right; font-weight: var(--weight-semi); }
+    .mover-pct.up { color: var(--score-gg); background: var(--h-gg-bg); }
+    .mover-pct.dn { color: var(--score-rr); background: var(--h-rr-bg); }
 
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--border-1);
-      padding: 28px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-    }
-    .footer-logo {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--ink-4);
-    }
-    .footer-logo span { color: var(--gold); }
-    .footer-disc {
-      font-size: var(--t-small);
-      color: var(--ink-4);
-      max-width: 520px;
-      text-align: right;
-      line-height: 1.6;
-    }
+    /* Sentiment bars */
+    .sentiment-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-1) 0; }
+    .sent-label { font-family: var(--font-mono); font-size: var(--t-tiny); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); min-width: 80px; }
+    .sent-track { flex: 1; display: inline-block; height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; position: relative; }
+    .sent-fill { position: absolute; height: 100%; border-radius: 2px; }
+    .sent-val { font-family: var(--font-mono); font-size: var(--t-tiny); min-width: 40px; text-align: right; font-weight: var(--weight-semi); }
 
-    /* ── RESPONSIVE ── */
-    @media(max-width: 1000px) {
-      .layout { grid-template-columns: 1fr; }
-      aside { display: none; }
-      .ph-row { flex-direction: column; align-items: flex-start; }
-      .ph-meta { text-align: left; }
-    }
-    @media(max-width: 680px) {
-      .page-head { padding: 56px 20px 24px; }
-      .filter-bar, .layout { padding-left: 20px; padding-right: 20px; }
+    @media (max-width: 680px) {
       .art { grid-template-columns: 1fr; }
       .art-thumb { display: none; }
-      .art-time { padding-bottom: 0; }
-      footer { flex-direction: column; padding: 24px 20px; }
-      .footer-disc { text-align: center; }
     }
   </style>
 </head>
 <body>
+  <main class="shell page">
+    <div class="shell-card">
 
-<!-- NAV -->
-<nav>
-  <a href="/" class="nav-logo">Investment Utopia</a>
-  <div style="display:flex;align-items:center;gap:36px">
-    <ul class="nav-links">
-      <li><a href="/">Generate</a></li>
-      <li><a href="/dashboard.html">Dashboard</a></li>
-      <li><a href="/dcf">DCF Calculator</a></li>
-      <li><a href="/heatmap">Heatmap</a></li>
-      <li><a href="/news" class="active">News</a></li>
-    </ul>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
-      <span class="pulse"></span>
+      <!-- NAV -->
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="brand">
+          <span class="brand-mk" aria-hidden="true"></span>
+          <span>Equity<span style="color: var(--accent);">.</span>Research</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/">Generate</a></li>
+          <li><a href="/dashboard.html">Dashboard</a></li>
+          <li><a href="/dcf">DCF Calculator</a></li>
+          <li><a href="/heatmap">Heatmap</a></li>
+          <li><a href="/news" aria-current="page">News</a></li>
+        </ul>
+        <div class="nav-aside">
+          <span class="nav-time" id="navTime">—</span>
+          <span class="live-badge"><span class="dot"></span>Live · FMP</span>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+            <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- PAGE HEADER -->
+      <header class="page-head">
+        <div>
+          <div class="eyebrow">▲ Market Pulse</div>
+          <h1 class="page-title">News Feed</h1>
+          <p class="page-lede">Market headlines and press releases from FMP newswire + Yahoo Finance, filtered to your covered tickers.</p>
+        </div>
+        <div class="page-head-actions" style="align-items: flex-start; flex-direction: column; gap: var(--s-1); text-align: right;">
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink);" id="sourceStats">FMP + Yahoo Finance</span>
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted);" id="lastUpdated">Loading…</span>
+        </div>
+      </header>
+
+      <!-- STALE BANNER -->
+      <div class="stale-banner" id="staleBanner">
+        Data may be stale — last updated more than 26 hours ago. News will refresh on next scheduled run.
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar">
+        <span class="filter-label">Filter</span>
+        <div class="tk-filters" id="chipsWrap">
+          <button class="chip on" data-ticker="">All</button>
+        </div>
+      </div>
+
+      <!-- MAIN LAYOUT -->
+      <div class="news-layout">
+        <main>
+          <div id="featuredSlot"></div>
+          <div class="sec-head-row" id="secHead" style="display:none">
+            <h2 class="sec-h2">Latest Headlines</h2>
+            <span class="sec-count" id="artCount"></span>
+          </div>
+          <div class="articles" id="articlesList"></div>
+        </main>
+
+        <aside>
+          <div class="s-panel">
+            <div class="s-panel-eye">Watchlist Movers · Today</div>
+            <div class="mover"><div><div class="mover-tk">NVDA</div><div class="mover-name">NVIDIA Corp.</div></div><div class="mover-px">—</div><div class="mover-pct dn">live</div></div>
+            <div class="mover"><div><div class="mover-tk">MSFT</div><div class="mover-name">Microsoft</div></div><div class="mover-px">—</div><div class="mover-pct up">live</div></div>
+            <div class="mover"><div><div class="mover-tk">AAPL</div><div class="mover-name">Apple Inc.</div></div><div class="mover-px">—</div><div class="mover-pct up">live</div></div>
+            <div class="mover"><div><div class="mover-tk">TSLA</div><div class="mover-name">Tesla</div></div><div class="mover-px">—</div><div class="mover-pct dn">live</div></div>
+            <div class="mover"><div><div class="mover-tk">META</div><div class="mover-name">Meta Platforms</div></div><div class="mover-px">—</div><div class="mover-pct up">live</div></div>
+          </div>
+
+          <div class="s-panel">
+            <div class="s-panel-eye">Sector Sentiment · 24h</div>
+            <div style="display:flex;flex-direction:column;gap:var(--s-2);margin-top:var(--s-1)">
+              <div class="sentiment-row"><span class="sent-label">Technology</span><span class="sent-track"><i class="sent-fill" style="left:50%;width:30%;background:var(--score-gg)"></i></span><span class="sent-val" style="color:var(--score-gg)">+0.64</span></div>
+              <div class="sentiment-row"><span class="sent-label">Financials</span><span class="sent-track"><i class="sent-fill" style="left:50%;width:16%;background:var(--score-g)"></i></span><span class="sent-val" style="color:var(--score-g)">+0.36</span></div>
+              <div class="sentiment-row"><span class="sent-label">Healthcare</span><span class="sent-track"><i class="sent-fill" style="left:50%;width:8%;background:var(--score-n)"></i></span><span class="sent-val" style="color:var(--score-n)">+0.16</span></div>
+              <div class="sentiment-row"><span class="sent-label">Energy</span><span class="sent-track"><i class="sent-fill" style="right:50%;width:14%;background:var(--score-rr)"></i></span><span class="sent-val" style="color:var(--score-rr)">−0.28</span></div>
+              <div class="sentiment-row"><span class="sent-label">Consumer</span><span class="sent-track"><i class="sent-fill" style="right:50%;width:6%;background:var(--score-r)"></i></span><span class="sent-val" style="color:var(--score-r)">−0.12</span></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- FOOTER -->
+      <footer class="footer">
+        <div>
+          <a class="brand" href="/"><span class="brand-mk"></span>Equity<span style="color: var(--accent);">.</span>Research</a>
+          <p style="margin: var(--s-3) 0 0; max-width: 380px; line-height: 1.6;">News sourced via FMP API and Yahoo Finance. Cached daily. For informational purposes only.</p>
+        </div>
+        <div><h4>Workbench</h4><a href="/">Generate</a><a href="/dashboard.html">Dashboard</a><a href="/dcf">DCF Calculator</a><a href="/heatmap">Heatmap</a></div>
+        <div><h4>Data</h4><a href="#">FMP API · v3.2</a><a href="#">10-K parser</a><a href="#">Methodology</a><a href="#">Changelog</a></div>
+        <div><h4>Account</h4><a href="#">Settings</a><a href="#">Saved scenarios</a><a href="#">Export</a><a href="#">Sign out</a></div>
+        <div class="legal"><span>© 2026 Equity.Research · WIP build · v0.4.2</span><span>Not investment advice</span></div>
+      </footer>
+
     </div>
-  </div>
-</nav>
-
-<!-- PAGE HEADER -->
-<header class="page-head">
-  <div class="ph-eyebrow">Market Pulse</div>
-  <div class="ph-row">
-    <div>
-      <h1 class="ph-title">News Feed</h1>
-      <p class="ph-sub">Market headlines and press releases from FMP newswire (Benzinga, Reuters, etc.) + Yahoo Finance, filtered to your covered tickers.</p>
-    </div>
-    <div class="ph-meta">
-      <div id="sourceStats">FMP + Yahoo Finance</div>
-      <div style="margin-top:6px" id="lastUpdated">Loading...</div>
-    </div>
-  </div>
-</header>
-
-<!-- STALE BANNER -->
-<div class="stale-banner" id="staleBanner">
-  Data may be stale — last updated more than 26 hours ago. News will refresh on next scheduled run.
-</div>
-
-<!-- FILTER BAR -->
-<div class="filter-bar">
-  <span class="filter-label">Filter</span>
-  <div class="tk-filters" id="chipsWrap">
-    <button class="chip on" data-ticker="">All</button>
-  </div>
-</div>
-
-<!-- MAIN LAYOUT -->
-<div class="layout">
-  <main>
-    <div id="featuredSlot"></div>
-
-    <div class="sec-head-row" id="secHead" style="display:none">
-      <h2 class="sec-h2">Latest Headlines</h2>
-      <span class="sec-count" id="artCount"></span>
-    </div>
-
-    <div class="articles" id="articlesList"></div>
   </main>
-
-  <aside>
-    <div class="s-panel">
-      <div class="s-panel-eye">Watchlist Movers · Today</div>
-      <div class="mover">
-        <div><div class="mover-tk">NVDA</div><div class="mover-name">NVIDIA Corp.</div></div>
-        <div class="mover-px">—</div>
-        <div class="mover-pct dn">live</div>
-      </div>
-      <div class="mover">
-        <div><div class="mover-tk">MSFT</div><div class="mover-name">Microsoft</div></div>
-        <div class="mover-px">—</div>
-        <div class="mover-pct up">live</div>
-      </div>
-      <div class="mover">
-        <div><div class="mover-tk">AAPL</div><div class="mover-name">Apple Inc.</div></div>
-        <div class="mover-px">—</div>
-        <div class="mover-pct up">live</div>
-      </div>
-      <div class="mover">
-        <div><div class="mover-tk">TSLA</div><div class="mover-name">Tesla</div></div>
-        <div class="mover-px">—</div>
-        <div class="mover-pct dn">live</div>
-      </div>
-      <div class="mover">
-        <div><div class="mover-tk">META</div><div class="mover-name">Meta Platforms</div></div>
-        <div class="mover-px">—</div>
-        <div class="mover-pct up">live</div>
-      </div>
-    </div>
-
-    <div class="s-panel">
-      <div class="s-panel-eye">Sector Sentiment · 24h</div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Technology</span>
-          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
-            <i style="position:absolute;left:50%;width:30%;height:100%;background:var(--pos);border-radius:2px"></i>
-          </span>
-          <span style="font-family:var(--font-mono);font-size:10px;color:var(--pos);min-width:40px;text-align:right">+0.64</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Financials</span>
-          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
-            <i style="position:absolute;left:50%;width:16%;height:100%;background:var(--pos);border-radius:2px"></i>
-          </span>
-          <span style="font-family:var(--font-mono);font-size:10px;color:var(--pos);min-width:40px;text-align:right">+0.36</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Healthcare</span>
-          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
-            <i style="position:absolute;left:50%;width:8%;height:100%;background:var(--pos);border-radius:2px"></i>
-          </span>
-          <span style="font-family:var(--font-mono);font-size:10px;color:var(--pos);min-width:40px;text-align:right">+0.16</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Energy</span>
-          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
-            <i style="position:absolute;right:50%;width:14%;height:100%;background:var(--neg);border-radius:2px"></i>
-          </span>
-          <span style="font-family:var(--font-mono);font-size:10px;color:var(--neg);min-width:40px;text-align:right">−0.28</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;min-width:80px">Consumer</span>
-          <span style="flex:1;display:inline-block;height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative">
-            <i style="position:absolute;right:50%;width:6%;height:100%;background:var(--neg);border-radius:2px"></i>
-          </span>
-          <span style="font-family:var(--font-mono);font-size:10px;color:var(--neg);min-width:40px;text-align:right">−0.12</span>
-        </div>
-      </div>
-    </div>
-  </aside>
-</div>
-
-<footer>
-  <div class="footer-logo">Investment Utopia</div>
-  <div class="footer-disc">News sourced via FMP API. Cached daily. For informational purposes only.</div>
-</footer>
 
 <script>
 (function() {
@@ -586,7 +405,6 @@
   let activeTicker = "";
   const THUMB_CLASSES = ["t1","t2","t3","t4","t5"];
 
-  // ── Relative time ──
   function timeAgo(dateStr) {
     if (!dateStr) return "";
     const now  = new Date();
@@ -597,8 +415,8 @@
     const hours = Math.floor(diffMs / 3600000);
     const days  = Math.floor(diffMs / 86400000);
     if (mins < 1)   return "just now";
-    if (mins < 60)  return mins + (mins === 1 ? " min ago" : " min ago");
-    if (hours < 24) return hours + (hours === 1 ? " hr ago" : " hr ago");
+    if (mins < 60)  return mins + " min ago";
+    if (hours < 24) return hours + " hr ago";
     if (days < 30)  return days + (days === 1 ? " day ago" : " days ago");
     return then.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
   }
@@ -615,7 +433,6 @@
     return { main: then.toLocaleDateString("en-US", { month:"short", day:"numeric" }), sub: hhmm };
   }
 
-  // ── Truncate snippet ──
   function snippet(text, maxLen) {
     if (!text) return "";
     const sentences = text.match(/[^.!?]+[.!?]+/g);
@@ -632,7 +449,6 @@
     return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
 
-  // ── Build chips ──
   function buildChips(tickers) {
     const wrap = document.getElementById("chipsWrap");
     const merged = new Set(CORE_TICKERS);
@@ -656,7 +472,6 @@
     renderArticles();
   }
 
-  // ── Render articles ──
   function renderArticles() {
     const featured = document.getElementById("featuredSlot");
     const container = document.getElementById("articlesList");
@@ -671,35 +486,23 @@
       featured.innerHTML = "";
       secHead.style.display = "none";
       if (!allArticles.length) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <h3>No news cached yet</h3>
-            <p>Run <code>python daily_news.py</code> to populate the news feed.</p>
-          </div>`;
+        container.innerHTML = `<div class="empty-state"><h3>No news cached yet</h3><p>Run <code>python daily_news.py</code> to populate the news feed.</p></div>`;
       } else {
-        container.innerHTML = `
-          <div class="empty-state">
-            <h3>No articles for ${activeTicker}</h3>
-            <p>No recent news matched this ticker in the latest fetch.</p>
-          </div>`;
+        container.innerHTML = `<div class="empty-state"><h3>No articles for ${activeTicker}</h3><p>No recent news matched this ticker in the latest fetch.</p></div>`;
       }
       return;
     }
 
-    // ── Source badge helper ──
     function srcBadge(a) {
       const type = (a.source_type || "yahoo").toLowerCase();
-      if (type === "fmp") {
-        return `<span class="src-badge fmp">FMP</span>`;
-      }
+      if (type === "fmp") return `<span class="src-badge fmp">FMP</span>`;
       return `<span class="src-badge yahoo">Yahoo</span>`;
     }
 
-    // Featured: first article
     const top = filtered[0];
     const topTime = timeAgo(top.publishedDate);
     const featImgHtml = top.image
-      ? `<img src="${escHtml(top.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.55" loading="lazy" onerror="this.remove()">`
+      ? `<img src="${escHtml(top.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.7" loading="lazy" onerror="this.remove()">`
       : "";
     featured.innerHTML = `
       <article class="featured">
@@ -708,10 +511,8 @@
           <span class="featured-img-tag" style="position:relative;z-index:1">Featured</span>
         </div>
         <div class="featured-body">
-          <div class="featured-eye" style="display:flex;align-items:center;gap:8px">
-            ${srcBadge(top)}<span>Latest · ${escHtml(topTime)}</span>
-          </div>
-          <h2 class="featured-title" style="margin-top:10px"><a href="${escHtml(top.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escHtml(top.title)}</a></h2>
+          <div class="featured-eye">${srcBadge(top)}<span>Latest · ${escHtml(topTime)}</span></div>
+          <h2 class="featured-title"><a href="${escHtml(top.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escHtml(top.title)}</a></h2>
           <p class="featured-snippet">${escHtml(snippet(top.text, 260))}</p>
           <div class="featured-meta">
             ${top.site ? `<span class="src">${escHtml(top.site)}</span><span>·</span>` : ""}
@@ -721,18 +522,15 @@
         </div>
       </article>`;
 
-    // Rest of articles
     const rest = filtered.slice(1);
     secHead.style.display = rest.length ? "flex" : "none";
     artCount.textContent = `${rest.length} article${rest.length === 1 ? "" : "s"}`;
 
     container.innerHTML = rest.map((a, i) => {
       const t = timeShort(a.publishedDate);
-      const tc = THUMB_CLASSES[i % THUMB_CLASSES.length];
       const thumbHtml = a.image
-        ? `<div class="art-thumb"><img src="${escHtml(a.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'art-thumb-placeholder ${tc}\\'></div>'"></div>`
-        : `<div class="art-thumb"><div class="art-thumb-placeholder ${tc}"></div></div>`;
-
+        ? `<div class="art-thumb"><img src="${escHtml(a.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'art-thumb-placeholder\\'></div>'"></div>`
+        : `<div class="art-thumb"><div class="art-thumb-placeholder"></div></div>`;
       return `
         <a class="art" href="${escHtml(a.url)}" target="_blank" rel="noopener">
           <div class="art-time"><strong>${escHtml(t.main)}</strong>${escHtml(t.sub)}</div>
@@ -750,7 +548,6 @@
     }).join("");
   }
 
-  // ── Load data ──
   async function init() {
     try {
       const resp = await fetch("/api/news");
@@ -759,11 +556,7 @@
       allArticles = data.articles || [];
       allTickers  = data.tickers  || [];
 
-      allArticles.sort((a, b) => {
-        const da = new Date(a.publishedDate || 0);
-        const db = new Date(b.publishedDate || 0);
-        return db - da;
-      });
+      allArticles.sort((a, b) => new Date(b.publishedDate || 0) - new Date(a.publishedDate || 0));
 
       const meta = document.getElementById("lastUpdated");
       if (data.fetched) {
@@ -772,40 +565,25 @@
         meta.textContent = "No data loaded";
       }
 
-      // Show FMP / Yahoo split in header
       const statsEl = document.getElementById("sourceStats");
       if (statsEl && data.stats) {
         const { fmp = 0, yahoo = 0, total = 0 } = data.stats;
-        statsEl.innerHTML =
-          `<span style="color:var(--ink-2)">${total} articles</span> · ` +
-          `<span style="color:#5b8dd9">FMP ${fmp}</span>` +
-          (yahoo ? ` · <span style="color:var(--ink-4)">Yahoo ${yahoo}</span>` : "");
+        statsEl.innerHTML = `<span>${total} articles</span> · <span style="color:var(--status-info)">FMP ${fmp}</span>${yahoo ? ` · <span style="color:var(--muted)">Yahoo ${yahoo}</span>` : ""}`;
       } else if (statsEl) {
-        // Compute from articles if stats field absent (legacy cache)
         const nFmp   = allArticles.filter(a => a.source_type === "fmp").length;
         const nYahoo = allArticles.filter(a => a.source_type === "yahoo").length;
-        const nOther = allArticles.length - nFmp - nYahoo;
-        statsEl.innerHTML =
-          `<span style="color:var(--ink-2)">${allArticles.length} articles</span> · ` +
-          (nFmp   ? `<span style="color:#5b8dd9">FMP ${nFmp}</span> · ` : "") +
-          (nYahoo ? `<span style="color:var(--ink-4)">Yahoo ${nYahoo}</span>` : "") +
-          (nOther && !nFmp && !nYahoo ? `<span style="color:var(--ink-4)">Mixed sources</span>` : "");
+        statsEl.innerHTML = `<span>${allArticles.length} articles</span>` +
+          (nFmp ? ` · <span style="color:var(--status-info)">FMP ${nFmp}</span>` : "") +
+          (nYahoo ? ` · <span style="color:var(--muted)">Yahoo ${nYahoo}</span>` : "");
       }
 
-      if (data.stale) {
-        document.getElementById("staleBanner").style.display = "block";
-      }
-
+      if (data.stale) document.getElementById("staleBanner").style.display = "block";
       buildChips(allTickers);
       renderArticles();
 
     } catch(e) {
       document.getElementById("lastUpdated").textContent = "Failed to load news data";
-      document.getElementById("articlesList").innerHTML = `
-        <div class="empty-state">
-          <h3>No news cached yet</h3>
-          <p>Run <code>python daily_news.py</code> to populate the news feed.</p>
-        </div>`;
+      document.getElementById("articlesList").innerHTML = `<div class="empty-state"><h3>No news cached yet</h3><p>Run <code>python daily_news.py</code> to populate the news feed.</p></div>`;
     }
   }
 
@@ -815,9 +593,7 @@
       const items = await resp.json();
       if (items.length) {
         const wrap = document.getElementById("chipsWrap");
-        const existing = new Set(
-          Array.from(wrap.querySelectorAll(".chip")).map(c => c.dataset.ticker)
-        );
+        const existing = new Set(Array.from(wrap.querySelectorAll(".chip")).map(c => c.dataset.ticker));
         items.forEach(({ticker}) => {
           if (!existing.has(ticker)) {
             const btn = document.createElement("button");
@@ -829,11 +605,12 @@
           }
         });
       }
-    } catch(e) { /* ignore */ }
+    } catch(e) {}
   }
 
   init().then(loadDiscoveryTickers);
 })();
 </script>
+<script src="/js/app.js"></script>
 </body>
 </html>

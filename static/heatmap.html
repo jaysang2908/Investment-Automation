@@ -1,76 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heatmap — Investment Utopia</title>
+  <title>Heatmap — Equity.Research</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('eq.theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}}());
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <style>
-    :root {
-      --bg:         #0d0f13;
-      --surface:    #13161d;
-      --border:     rgba(255,255,255,0.06);
-      --border2:    rgba(255,255,255,0.10);
-      --text:       #e8eaf0;
-      --text-muted: #8a8f9e;
-      --text-dim:   #545966;
-      --gold:       #c9a84c;
-      --green:      #10b981;
-      --red:        #ef4444;
-      --blue:       #3b82f6;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; }
-
-    /* ── NAV ── */
-    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
-    .nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 10.5pt; font-weight: 500; letter-spacing: 3.5px; color: var(--text); text-transform: uppercase; text-decoration: none; }
-    .nav-logo span { color: var(--gold); }
-    .nav-links { list-style: none; display: flex; gap: 28px; }
-    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 9pt; letter-spacing: 0.5px; transition: color 0.2s; }
-    .nav-links a:hover, .nav-links a.active { color: var(--text); }
-
     /* ── TOOLBAR ── */
-    .toolbar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-    .toolbar-label { font-family: 'IBM Plex Mono', monospace; font-size: 7.5pt; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-right: 4px; }
+    .toolbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      flex-wrap: wrap; background: var(--surface);
+    }
+    .toolbar-label {
+      font-family: var(--font-mono); font-size: 7.5pt;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--ink-3); margin-right: 4px;
+    }
     .metric-group, .size-group { display: flex; gap: 4px; align-items: center; }
-    .sep { width: 1px; height: 24px; background: var(--border2); margin: 0 8px; }
+    .sep { width: 1px; height: 24px; background: var(--border); margin: 0 8px; }
 
     .btn-metric {
-      font-family: 'IBM Plex Mono', monospace; font-size: 8pt; letter-spacing: 0.5px;
-      padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border2);
-      background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+      font-family: var(--font-mono); font-size: 8pt; letter-spacing: 0.5px;
+      padding: 5px 12px; border-radius: var(--r-sm);
+      border: 1px solid var(--border); background: transparent;
+      color: var(--ink-3); cursor: pointer; transition: all 0.15s;
       white-space: nowrap;
     }
-    .btn-metric:hover { color: var(--text); border-color: var(--gold); }
-    .btn-metric.active { background: rgba(201,168,76,0.12); color: var(--gold); border-color: var(--gold); }
+    .btn-metric:hover { color: var(--ink); border-color: var(--accent); }
+    .btn-metric.active {
+      background: var(--h-n-bg); color: var(--accent);
+      border-color: var(--accent);
+    }
 
     /* ── CHART ── */
     #chartWrap { padding: 0; }
-    #heatmap { width: 100%; height: calc(100vh - 130px); min-height: 520px; }
+    #heatmap { width: 100%; height: calc(100vh - 140px); min-height: 520px; }
 
     /* ── LEGEND BAR ── */
-    .legend-bar { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 10px 24px; border-top: 1px solid var(--border); font-size: 8pt; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
-    .legend-grad { width: 140px; height: 10px; border-radius: 4px; background: linear-gradient(to right, #ef4444, #eab308, #10b981); }
+    .legend-bar {
+      display: flex; justify-content: center; align-items: center;
+      gap: 8px; padding: 10px 24px; border-top: 1px solid var(--border);
+      font-size: 8pt; color: var(--ink-3); font-family: var(--font-mono);
+      background: var(--surface);
+    }
+    .legend-grad {
+      width: 140px; height: 10px; border-radius: 4px;
+      background: linear-gradient(to right, #ef4444, #eab308, #10b981);
+    }
 
     /* ── LOADING ── */
-    #loadingMsg { display: flex; align-items: center; justify-content: center; height: 400px; font-family: 'IBM Plex Mono', monospace; font-size: 9pt; color: var(--text-dim); letter-spacing: 2px; }
+    #loadingMsg {
+      display: flex; align-items: center; justify-content: center;
+      height: 400px; font-family: var(--font-mono); font-size: 9pt;
+      color: var(--ink-3); letter-spacing: 2px;
+    }
   </style>
 </head>
 <body>
 
-<nav>
-  <a href="/" class="nav-logo">Investment Utopia</a>
+<nav class="nav">
+  <a href="/" class="brand">
+    <span class="brand-mk">ER</span>
+    <span>Equity.Research</span>
+  </a>
   <ul class="nav-links">
-    <li><a href="/">Home</a></li>
-    <li><a href="/dashboard.html">Dashboard</a></li>
+    <li><a href="/">Generate</a></li>
+    <li><a href="/dashboard">Dashboard</a></li>
     <li><a href="/heatmap" class="active">Heatmap</a></li>
     <li><a href="/dcf">DCF</a></li>
     <li><a href="/news">News</a></li>
   </ul>
+  <div class="nav-aside">
+    <span class="live-badge">● Live</span>
+    <span id="navTime" class="live-badge">--:-- UTC</span>
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">◐</button>
+  </div>
 </nav>
 
 <div class="toolbar">
@@ -95,7 +108,7 @@
 </div>
 
 <div id="chartWrap">
-  <div id="loadingMsg">LOADING...</div>
+  <div id="loadingMsg">LOADING…</div>
   <div id="heatmap" style="display:none"></div>
 </div>
 
@@ -103,8 +116,8 @@
   <span id="legendLow">Low</span>
   <div class="legend-grad"></div>
   <span id="legendHigh">High</span>
-  <span style="margin-left:16px;color:var(--text-dim)">·  Size = </span>
-  <span id="legendSize" style="color:var(--text-muted);margin-left:4px">Market Cap</span>
+  <span style="margin-left:16px;color:var(--ink-3)">·  Size = </span>
+  <span id="legendSize" style="color:var(--ink-2);margin-left:4px">Market Cap</span>
 </div>
 
 <script>
@@ -124,6 +137,16 @@ const METRICS = {
 let DATA      = [];
 let curMetric = 'score';
 let curSize   = 'mktcap_b';
+
+function getBg() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? '#0d0f13' : '#ece7df';
+}
+function getTextColor() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? '#e8eaf0' : '#1a1814';
+}
+function getLineColor() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? '#0d0f13' : '#ece7df';
+}
 
 // ── Fetch data ────────────────────────────────────────────────────────────────
 async function init() {
@@ -178,6 +201,10 @@ function render() {
   const cmin = Math.min(...metricVals);
   const cmax = Math.max(...metricVals);
 
+  const bg   = getBg();
+  const txtC = getTextColor();
+  const lineC = getLineColor();
+
   const trace = {
     type: 'treemap',
     labels,
@@ -190,22 +217,22 @@ function render() {
       cmin,
       cmax,
       showscale: false,
-      line: { width: 1.5, color: '#0d0f13' },
+      line: { width: 1.5, color: lineC },
     },
     texttemplate: '<b>%{label}</b>',
     hovertemplate: buildHover(cfg),
     customdata: custom,
-    textfont: { family: 'IBM Plex Mono, monospace', size: 13, color: '#ffffff' },
+    textfont: { family: 'JetBrains Mono, monospace', size: 13, color: txtC },
     pathbar: { visible: false },
     tiling: { packing: 'squarify', pad: 2 },
     root: { color: 'transparent' },
   };
 
   const layout = {
-    paper_bgcolor: '#0d0f13',
-    plot_bgcolor:  '#0d0f13',
+    paper_bgcolor: bg,
+    plot_bgcolor:  bg,
     margin: { l: 0, r: 0, t: 0, b: 0 },
-    font: { family: 'IBM Plex Mono, monospace', color: '#e8eaf0' },
+    font: { family: 'JetBrains Mono, monospace', color: txtC },
   };
 
   const config = {
@@ -238,12 +265,6 @@ function buildHover(cfg) {
   ].join('<br>');
 }
 
-// ── Tooltip override with full data ──────────────────────────────────────────
-function fmt(v, digits, suffix) {
-  if (v === null || v === undefined) return '—';
-  return v.toFixed(digits) + (suffix || '');
-}
-
 // ── Button wiring ─────────────────────────────────────────────────────────────
 document.querySelectorAll('[data-metric]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -263,8 +284,13 @@ document.querySelectorAll('[data-size]').forEach(btn => {
   });
 });
 
+// Re-render on theme change so Plotly colors update
+const _themeObs = new MutationObserver(() => { if (DATA.length) render(); });
+_themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 init();
 </script>
+<script src="/js/app.js"></script>
 </body>
 </html>
