@@ -218,6 +218,38 @@
     .explainer-note strong { color: var(--amber); }
     @media(max-width:900px){ .explainer-grid{grid-template-columns:1fr 1fr;} }
     @media(max-width:600px){ .explainer-grid{grid-template-columns:1fr;} }
+
+    /* ── REVERSE DCF PRO ── */
+    .rdcf-section { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
+    .rdcf-header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--border2); }
+    .rdcf-title { font-family: 'IBM Plex Mono',monospace; font-size: 7.5pt; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+    .rdcf-sub { font-size: 9pt; color: var(--text-dim); }
+    .rdcf-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .rdcf-controls { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+    .rdcf-control-group { display: flex; flex-direction: column; gap: 6px; }
+    .rdcf-lbl { font-family: 'IBM Plex Mono',monospace; font-size: 7pt; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); }
+    .rdcf-tabs { display: flex; gap: 4px; }
+    .rdcf-tab { font-family: 'IBM Plex Mono',monospace; font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--border2); background: rgba(255,255,255,0.03); color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+    .rdcf-tab:hover { border-color: var(--gold); color: var(--gold); }
+    .rdcf-tab.active { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+    .rdcf-select { background: rgba(255,255,255,0.05); border: 1px solid var(--border2); border-radius: 4px; padding: 7px 12px; font-family: 'IBM Plex Mono',monospace; font-size: 9pt; color: var(--text); outline: none; cursor: pointer; min-width: 270px; }
+    .rdcf-select:focus { border-color: var(--gold); }
+    .rdcf-input { width: 96px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); border-radius: 3px; padding: 7px 10px; font-family: 'IBM Plex Mono',monospace; font-size: 9pt; color: #e0edff; outline: none; }
+    .rdcf-input:focus { border-color: var(--blue); }
+    .rdcf-locked { display: flex; align-items: center; padding: 10px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; flex-wrap: wrap; gap: 0; }
+    .rdcf-locked-title { font-family: 'IBM Plex Mono',monospace; font-size: 7pt; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-right: 20px; white-space: nowrap; }
+    .rdcf-locked-item { display: flex; flex-direction: column; gap: 2px; padding: 4px 20px; border-right: 1px solid var(--border2); }
+    .rdcf-locked-item:last-child { border-right: none; }
+    .rdcf-locked-lbl { font-family: 'IBM Plex Mono',monospace; font-size: 7pt; color: var(--text-dim); white-space: nowrap; }
+    .rdcf-locked-val { font-family: 'IBM Plex Mono',monospace; font-size: 10pt; color: var(--text); font-weight: 500; }
+    .rdcf-result { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 20px 24px; }
+    .rdcf-solved-label { font-family: 'IBM Plex Mono',monospace; font-size: 7.5pt; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+    .rdcf-solved-value { font-family: 'IBM Plex Mono',monospace; font-size: 34pt; font-weight: 500; color: #fff; line-height: 1.05; }
+    .rdcf-grade-badge { font-family: 'IBM Plex Mono',monospace; font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+    .rdcf-grade-note { font-size: 9.5pt; color: var(--text-muted); }
+    .rdcf-context { font-family: 'IBM Plex Mono',monospace; font-size: 8.5pt; color: var(--text-dim); padding: 6px 0; border-top: 1px solid var(--border); }
+    .rdcf-interpretation { font-size: 10pt; color: var(--text-muted); line-height: 1.65; padding: 10px 0 4px; }
+    .rdcf-audit { font-family: 'IBM Plex Mono',monospace; font-size: 8pt; color: var(--green); padding-top: 10px; border-top: 1px solid var(--border); }
   </style>
 </head>
 <body>
@@ -592,6 +624,54 @@
     </div>
   </div>
 
+  <!-- ── REVERSE DCF PRO ── -->
+  <div class="rdcf-section" id="reverseDcfSection" style="display:none">
+    <div class="rdcf-header">
+      <span class="rdcf-title">Reverse DCF Pro</span>
+      <span class="rdcf-sub">Back-solve for the assumption the market price implies — then grade its plausibility</span>
+    </div>
+    <div class="rdcf-body">
+
+      <!-- Controls row -->
+      <div class="rdcf-controls">
+        <div class="rdcf-control-group">
+          <span class="rdcf-lbl">Methodology</span>
+          <div class="rdcf-tabs" id="rdcfMethodTabs">
+            <button class="rdcf-tab active" data-method="ggm" onclick="rdcfSetMethod('ggm')">Gordon Growth</button>
+            <button class="rdcf-tab" data-method="em" onclick="rdcfSetMethod('em')">Exit Multiple</button>
+          </div>
+        </div>
+        <div class="rdcf-control-group">
+          <span class="rdcf-lbl">Solve For</span>
+          <select class="rdcf-select" id="rdcfSolveFor" onchange="rdcfRenderLockedInputs()">
+            <option value="cagr">Required Revenue CAGR (Years 1–5)</option>
+            <option value="wacc">Implied WACC</option>
+            <option value="tgr">Required Terminal Growth Rate</option>
+          </select>
+        </div>
+        <div class="rdcf-control-group">
+          <span class="rdcf-lbl">Target Price</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9pt;color:var(--text-dim)">$</span>
+            <input class="rdcf-input" id="rdcfTargetPrice" type="number" step="0.01" min="0.01" placeholder="e.g. 175.00">
+            <button class="btn btn-ghost btn-sm" onclick="rdcfUseMarketPrice()">Current</button>
+          </div>
+        </div>
+        <div class="rdcf-control-group">
+          <span class="rdcf-lbl">&nbsp;</span>
+          <button class="btn btn-gold" onclick="runReverseDcf()">Solve &#9654;</button>
+        </div>
+      </div>
+
+      <!-- Locked inputs summary -->
+      <div id="rdcfLockedInputs" class="rdcf-locked" style="display:none"></div>
+
+      <!-- Result panel (hidden until solved) -->
+      <div id="rdcfResult" class="rdcf-result" style="display:none"></div>
+
+    </div>
+  </div>
+
   <!-- ── SCENARIO COMPARE ── -->
   <div class="compare-section" id="compareSection" style="display:none">
     <div class="panel-header">Scenario Comparison — <span id="compareTicker" style="color:var(--text-muted)"></span></div>
@@ -925,8 +1005,11 @@ async function loadTicker() {
     document.getElementById('outputSection').style.display = '';
     document.getElementById('resultCards').style.display  = '';
     document.getElementById('sensitivitySection').style.display = '';
+    document.getElementById('reverseDcfSection').style.display = '';
     document.getElementById('scenarioBar').style.display = '';
     document.getElementById('emptyState').style.display  = 'none';
+    document.getElementById('rdcfTargetPrice').value = data.price ? data.price.toFixed(2) : '';
+    rdcfRenderLockedInputs();
     computeMetricGuardrails();
     updateLabelAverages();
 
@@ -1349,6 +1432,312 @@ function getCell(px, price) {
   if (px < price) return 'cell-below';
   if (px < price * 1.10) return 'cell-near';
   return 'cell-above';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REVERSE DCF PRO
+// ═══════════════════════════════════════════════════════════════
+let RDCF = { method: 'ggm' };
+
+function rdcfSetMethod(method) {
+  RDCF.method = method;
+  document.querySelectorAll('.rdcf-tab').forEach(b => b.classList.toggle('active', b.dataset.method === method));
+  const sel = document.getElementById('rdcfSolveFor');
+  sel.innerHTML = method === 'ggm'
+    ? `<option value="cagr">Required Revenue CAGR (Years 1–5)</option>
+       <option value="wacc">Implied WACC</option>
+       <option value="tgr">Required Terminal Growth Rate</option>`
+    : `<option value="cagr">Required Revenue CAGR (Years 1–5)</option>
+       <option value="mult">Required Exit Multiple</option>`;
+  document.getElementById('rdcfResult').style.display = 'none';
+  rdcfRenderLockedInputs();
+}
+
+function rdcfUseMarketPrice() {
+  if (!STATE.data || !STATE.data.price) return;
+  document.getElementById('rdcfTargetPrice').value = STATE.data.price.toFixed(2);
+}
+
+function rdcfRenderLockedInputs() {
+  const el = document.getElementById('rdcfLockedInputs');
+  if (!STATE.data) { el.style.display = 'none'; return; }
+  const solveFor = document.getElementById('rdcfSolveFor').value;
+  const method   = RDCF.method;
+
+  const wacc  = _getCurrentWacc();
+  const tgr   = getVal('tgr') / 100;
+  const exitM = getVal('exitMultCard');
+  const em3   = ((getVal('em0') + getVal('em1') + getVal('em2')) / 3).toFixed(1);
+  const rg3   = ((getVal('rg0') + getVal('rg1') + getVal('rg2')) / 3).toFixed(1);
+
+  const parts = [];
+  if (solveFor !== 'wacc')
+    parts.push(`<span class="rdcf-locked-item"><span class="rdcf-locked-lbl">WACC (fixed)</span><span class="rdcf-locked-val">${(wacc*100).toFixed(2)}%</span></span>`);
+  if (solveFor !== 'tgr' && method === 'ggm')
+    parts.push(`<span class="rdcf-locked-item"><span class="rdcf-locked-lbl">TGR (fixed)</span><span class="rdcf-locked-val">${(tgr*100).toFixed(1)}%</span></span>`);
+  if (solveFor !== 'mult' && method === 'em')
+    parts.push(`<span class="rdcf-locked-item"><span class="rdcf-locked-lbl">${METRIC_LABELS[STATE.selectedMetric]||'EBITDA'} Multiple (fixed)</span><span class="rdcf-locked-val">${exitM.toFixed(1)}×</span></span>`);
+  if (solveFor !== 'cagr')
+    parts.push(`<span class="rdcf-locked-item"><span class="rdcf-locked-lbl">Rev Growth Avg Y1–3</span><span class="rdcf-locked-val">${rg3}%</span></span>`);
+  parts.push(`<span class="rdcf-locked-item"><span class="rdcf-locked-lbl">EBITDA Margin Avg Y1–3</span><span class="rdcf-locked-val">${em3}%</span></span>`);
+
+  el.innerHTML = `<span class="rdcf-locked-title">Fixed Inputs</span>` + parts.join('');
+  el.style.display = '';
+}
+
+function _getCurrentWacc() {
+  const rf  = getVal('wRf')  / 100;
+  const erp = getVal('wErp') / 100;
+  const kd  = getVal('wKd')  / 100;
+  const tax = getVal('wTax') / 100;
+  const ew  = getVal('wEw')  / 100;
+  const ke  = rf + getVal('wBeta') * erp;
+  return ew * ke + (1 - ew) * kd * (1 - tax);
+}
+
+// Core DCF engine used by all solvers — mirrors calculate() exactly.
+// uniformCagr: if non-null, overrides all 5 rev_growth inputs with this value.
+// waccP / tgrP / exitMP: override respective model inputs when non-null.
+function _calcRdcfPrice(uniformCagr, waccP, tgrP, exitMP, method) {
+  const data    = STATE.data;
+  const lastRev = data.history[data.history.length - 1].revenue_m;
+  const shares  = data.shares_m;
+  const netDebt = data.net_debt_m;
+  const mid     = document.getElementById('midYear').checked;
+
+  const wacc  = waccP  !== null ? waccP  : _getCurrentWacc();
+  const tgr   = tgrP   !== null ? tgrP   : getVal('tgr') / 100;
+  const exitM = exitMP !== null ? exitMP : getVal('exitMultCard');
+
+  let rev = lastRev, sumPV = 0;
+  const years = [];
+  for (let i = 0; i < 5; i++) {
+    const rg  = uniformCagr !== null ? uniformCagr : getVal(`rg${i}`) / 100;
+    const em  = getVal(`em${i}`) / 100;
+    const da  = getVal(`da${i}`) / 100;
+    const cx  = getVal(`cx${i}`) / 100;
+    const nw  = getVal(`nw${i}`) / 100;
+    const tx  = Math.max(0, Math.min(0.5, getVal(`tx${i}`) / 100));
+    rev = rev * (1 + rg);
+    const ebitda = rev * em;
+    const daAmt  = rev * da;
+    const nopat  = (ebitda - daAmt) * (1 - tx);
+    const ufcf   = nopat + daAmt - rev * cx - rev * nw;
+    const t      = mid ? i + 0.5 : i + 1;
+    sumPV += ufcf / Math.pow(1 + wacc, t);
+    years.push({ rev, ebitda, ufcf, nopat, daAmt, dnwc: rev * nw });
+  }
+
+  const tDisc = mid ? 4.5 : 5;
+  const pvDiv = Math.pow(1 + wacc, tDisc);
+
+  if (method === 'ggm') {
+    if ((wacc - tgr) <= 0.001) return null;
+    const termUFCF = years[4].ufcf * (1 + tgr);
+    const ev = sumPV + (termUFCF / (wacc - tgr)) / pvDiv;
+    return shares > 0 ? (ev - netDebt) / shares : null;
+  } else {
+    const y5 = years[4];
+    const base = STATE.selectedMetric === 'ufcf' || STATE.selectedMetric === 'fcf' ? y5.ufcf
+               : STATE.selectedMetric === 'ocf'  ? y5.nopat + y5.daAmt - y5.dnwc
+               : y5.ebitda;
+    const ev = sumPV + (base * exitM) / pvDiv;
+    return shares > 0 ? (ev - netDebt) / shares : null;
+  }
+}
+
+function _binarySearch(fn, lo, hi, target) {
+  for (let i = 0; i < 64; i++) {
+    const mid = (lo + hi) / 2;
+    const v = fn(mid);
+    if (v === null) { lo = mid; continue; }
+    if (v > target) hi = mid; else lo = mid;
+    if (Math.abs(hi - lo) < 1e-9) break;
+  }
+  return (lo + hi) / 2;
+}
+
+function _getTrailingEVMult() {
+  if (!STATE.data) return null;
+  const { history, price, shares_m, net_debt_m } = STATE.data;
+  const last = history[history.length - 1];
+  if (!last || !price || !shares_m) return null;
+  const ev   = price * shares_m + (net_debt_m || 0);
+  const base = STATE.selectedMetric === 'ufcf' || STATE.selectedMetric === 'fcf' ? last.fcf_m
+             : STATE.selectedMetric === 'ocf'  ? last.ocf_m
+             : last.revenue_m * (last.ebitda_margin || 0);
+  return base && base > 0 ? ev / base : null;
+}
+
+function _hist3yrCagr() {
+  if (!STATE.data) return null;
+  const hist = STATE.data.history;
+  const n = hist.length;
+  const growths = [];
+  for (let i = Math.max(1, n - 3); i < n; i++) {
+    if (hist[i].revenue_m && hist[i-1].revenue_m && hist[i-1].revenue_m > 0)
+      growths.push(hist[i].revenue_m / hist[i-1].revenue_m - 1);
+  }
+  return growths.length ? growths.reduce((a, b) => a + b, 0) / growths.length : null;
+}
+
+function _rdcfGrade(solveFor, value) {
+  if (solveFor === 'cagr') {
+    if (value < -0.05) return { grade: 'Implausible', color: 'red',   note: 'Implies sustained revenue contraction' };
+    if (value >  0.60) return { grade: 'Implausible', color: 'red',   note: `${(value*100).toFixed(0)}% CAGR is unachievable at scale over 5 years` };
+    const h = _hist3yrCagr();
+    if (h !== null && h > 0.01) {
+      const r = value / h;
+      if (r < 0.50)  return { grade: 'Reasonable', color: 'green', note: `${((1-r)*100).toFixed(0)}% below historical ${(h*100).toFixed(1)}% pace — conservative` };
+      if (r < 1.35)  return { grade: 'Reasonable', color: 'green', note: `Within range of historical ${(h*100).toFixed(1)}% trajectory` };
+      if (r < 2.00)  return { grade: 'Stretched',  color: 'amber', note: `Requires re-acceleration to ${r.toFixed(1)}× historical pace` };
+      return { grade: 'Implausible', color: 'red', note: `${r.toFixed(1)}× historical pace — unrealistic over a 5-year horizon` };
+    }
+    if (value < 0.05)  return { grade: 'Reasonable', color: 'green', note: 'Low growth implied' };
+    if (value < 0.15)  return { grade: 'Reasonable', color: 'green', note: 'Moderate growth implied' };
+    if (value < 0.30)  return { grade: 'Stretched',  color: 'amber', note: 'High growth required' };
+    return { grade: 'Implausible', color: 'red', note: 'Exceptional growth required' };
+
+  } else if (solveFor === 'wacc') {
+    const w = value;
+    if (w < 0.050) return { grade: 'Implausible', color: 'red',   note: '<5% WACC unrealistic given current Rf ~4.3%' };
+    if (w < 0.075) return { grade: 'Stretched',   color: 'amber', note: 'Near lower bound — very low risk premium implied' };
+    if (w < 0.130) return { grade: 'Reasonable',  color: 'green', note: 'Within normal institutional range (7.5–13%)' };
+    if (w < 0.180) return { grade: 'Stretched',   color: 'amber', note: 'Elevated — typical of higher-risk or distressed names' };
+    return { grade: 'Implausible', color: 'red', note: 'Extreme — implies severe equity/credit risk premium' };
+
+  } else if (solveFor === 'tgr') {
+    const t = value;
+    if (t < -0.01)  return { grade: 'Implausible', color: 'red',   note: 'Negative perpetuity growth implies secular decline' };
+    if (t <  0.015) return { grade: 'Reasonable',  color: 'green', note: 'Conservative — below long-run nominal GDP' };
+    if (t <  0.035) return { grade: 'Reasonable',  color: 'green', note: 'In line with nominal GDP growth norms (~2.5–3.5%)' };
+    if (t <  0.050) return { grade: 'Stretched',   color: 'amber', note: 'Above long-run GDP — requires durable competitive moat' };
+    return { grade: 'Implausible', color: 'red', note: 'No company can grow faster than the economy in perpetuity' };
+
+  } else if (solveFor === 'mult') {
+    const m = value;
+    if (m <= 0) return { grade: 'Implausible', color: 'red', note: 'Negative or zero multiple implies negative terminal value' };
+    const trailing = _getTrailingEVMult();
+    if (trailing && trailing > 0) {
+      const prem = m / trailing - 1;
+      if (m < trailing * 0.50)  return { grade: 'Reasonable', color: 'green', note: `${(Math.abs(prem)*100).toFixed(0)}% discount to trailing ${trailing.toFixed(1)}× — conservative` };
+      if (m < trailing * 1.30)  return { grade: 'Reasonable', color: 'green', note: `Near trailing ${trailing.toFixed(1)}× (within ±30%)` };
+      if (m < trailing * 1.70)  return { grade: 'Stretched',  color: 'amber', note: `${(prem*100).toFixed(0)}% premium to trailing ${trailing.toFixed(1)}× — requires quality improvement` };
+      return { grade: 'Implausible', color: 'red', note: `${(prem*100).toFixed(0)}% premium to trailing ${trailing.toFixed(1)}× — unrealistic at exit` };
+    }
+    if (m <  8) return { grade: 'Reasonable', color: 'green', note: 'Low multiple — mature/declining business implied' };
+    if (m < 20) return { grade: 'Reasonable', color: 'green', note: 'Within typical sector range' };
+    if (m < 30) return { grade: 'Stretched',  color: 'amber', note: 'Above typical range — requires sustained quality' };
+    return { grade: 'Implausible', color: 'red', note: 'Exceptionally high — rarely sustained at exit' };
+  }
+  return { grade: 'Unknown', color: 'amber', note: '' };
+}
+
+function runReverseDcf() {
+  if (!STATE.data) return;
+  const solveFor  = document.getElementById('rdcfSolveFor').value;
+  const method    = RDCF.method;
+  const targetPx  = parseFloat(document.getElementById('rdcfTargetPrice').value);
+  if (!targetPx || targetPx <= 0) {
+    alert('Enter a valid target price first.');
+    return;
+  }
+
+  const wacc  = _getCurrentWacc();
+  const tgr   = getVal('tgr') / 100;
+  const exitM = getVal('exitMultCard');
+
+  let solved = null;
+  let solvedLabel = '', solvedUnit = '';
+
+  if (solveFor === 'cagr') {
+    solved = _binarySearch(c => _calcRdcfPrice(c, wacc, tgr, exitM, method), -0.30, 2.00, targetPx);
+    solvedLabel = 'Required Revenue CAGR (Uniform, Years 1–5)';
+    solvedUnit  = '%';
+  } else if (solveFor === 'wacc') {
+    solved = _binarySearch(w => _calcRdcfPrice(null, w, tgr, exitM, method), 0.03, 0.40, targetPx);
+    solvedLabel = 'Implied WACC';
+    solvedUnit  = '%';
+  } else if (solveFor === 'tgr') {
+    solved = _binarySearch(t => _calcRdcfPrice(null, wacc, t, exitM, method), -0.05, wacc - 0.005, targetPx);
+    solvedLabel = 'Required Terminal Growth Rate';
+    solvedUnit  = '%';
+  } else if (solveFor === 'mult') {
+    solved = _binarySearch(m => _calcRdcfPrice(null, wacc, tgr, m, 'em'), 0.01, 150, targetPx);
+    solvedLabel = `Required ${METRIC_LABELS[STATE.selectedMetric]||'EBITDA'} Exit Multiple`;
+    solvedUnit  = '×';
+  }
+
+  if (solved === null || isNaN(solved)) {
+    document.getElementById('rdcfResult').innerHTML =
+      `<div class="error-msg">Could not solve — verify inputs. GGM requires WACC > TGR.</div>`;
+    document.getElementById('rdcfResult').style.display = '';
+    return;
+  }
+
+  const grade = _rdcfGrade(solveFor, solved);
+  const displayVal = solvedUnit === '%' ? `${(solved * 100).toFixed(2)}%` : `${solved.toFixed(2)}×`;
+
+  // Audit: plug solved value back into forward DCF → should return targetPx
+  let auditPx = null;
+  if (solveFor === 'cagr')      auditPx = _calcRdcfPrice(solved, wacc, tgr, exitM, method);
+  else if (solveFor === 'wacc') auditPx = _calcRdcfPrice(null, solved, tgr, exitM, method);
+  else if (solveFor === 'tgr')  auditPx = _calcRdcfPrice(null, wacc, solved, exitM, method);
+  else if (solveFor === 'mult') auditPx = _calcRdcfPrice(null, wacc, tgr, solved, 'em');
+
+  const auditDiff = auditPx && targetPx ? ((auditPx - targetPx) / targetPx * 100) : null;
+
+  // Grade colour vars
+  const gc = grade.color === 'green' ? 'var(--green)' : grade.color === 'amber' ? 'var(--amber)' : 'var(--red)';
+  const gb = grade.color === 'green' ? 'var(--green-dim)' : grade.color === 'amber' ? 'var(--amber-dim)' : 'var(--red-dim)';
+  const gbr= grade.color === 'green' ? 'rgba(16,185,129,0.3)' : grade.color === 'amber' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)';
+
+  // Context benchmark line
+  let contextLine = '';
+  const h3 = _hist3yrCagr();
+  if (solveFor === 'cagr' && h3 !== null)
+    contextLine = `<div class="rdcf-context">Historical 3yr avg revenue CAGR: <strong>${(h3*100).toFixed(1)}%</strong></div>`;
+  else if (solveFor === 'wacc')
+    contextLine = `<div class="rdcf-context">Typical institutional WACC range: <strong>7.5–13.0%</strong> · Current model WACC: <strong>${(wacc*100).toFixed(2)}%</strong></div>`;
+  else if (solveFor === 'tgr')
+    contextLine = `<div class="rdcf-context">Long-run nominal GDP: ~<strong>2.5–3.5%</strong> · Current model TGR: <strong>${(tgr*100).toFixed(1)}%</strong></div>`;
+  else if (solveFor === 'mult') {
+    const trail = _getTrailingEVMult();
+    if (trail) contextLine = `<div class="rdcf-context">Trailing ${METRIC_LABELS[STATE.selectedMetric]||'EBITDA'} multiple: <strong>${trail.toFixed(1)}×</strong></div>`;
+  }
+
+  // Interpretation sentence
+  const methodLabel = method === 'ggm' ? 'Gordon Growth' : 'Exit Multiple';
+  const metricLbl = METRIC_LABELS[STATE.selectedMetric] || 'EBITDA';
+  let interp = '';
+  if (solveFor === 'cagr') {
+    const vsHist = h3 ? ` vs. ${(h3*100).toFixed(1)}% historically` : '';
+    interp = `At $${targetPx.toFixed(2)}, the ${methodLabel} model requires <strong>${(solved*100).toFixed(2)}% annualised revenue growth</strong> over the 5-year projection period${vsHist}. All other inputs (WACC, margins, TGR/Multiple) are held at current model settings.`;
+  } else if (solveFor === 'wacc') {
+    interp = `The market price of $${targetPx.toFixed(2)} is consistent with a discount rate of <strong>${(solved*100).toFixed(2)}%</strong> under the ${methodLabel} framework — the WACC at which the present value of projected cash flows equals current market price.`;
+  } else if (solveFor === 'tgr') {
+    interp = `At $${targetPx.toFixed(2)}, the Gordon Growth model requires a <strong>terminal growth rate of ${(solved*100).toFixed(2)}%</strong> in perpetuity after Year 5, given current WACC and cash flow projections.`;
+  } else if (solveFor === 'mult') {
+    interp = `At $${targetPx.toFixed(2)}, the Exit Multiple model requires a <strong>Year-5 ${metricLbl} multiple of ${solved.toFixed(2)}×</strong> to justify valuation — this is the terminal exit multiple applied to projected Year-5 ${metricLbl}.`;
+  }
+
+  const auditLine = auditDiff !== null
+    ? `<div class="rdcf-audit">✓ Audit: plugging ${displayVal} into forward DCF → $${auditPx.toFixed(2)} (${Math.abs(auditDiff) < 0.05 ? 'matches' : `${auditDiff > 0 ? '+' : ''}${auditDiff.toFixed(2)}% vs target`})</div>`
+    : '';
+
+  document.getElementById('rdcfResult').innerHTML = `
+    <div class="rdcf-result-inner">
+      <div class="rdcf-solved-label">${solvedLabel}</div>
+      <div class="rdcf-solved-value">${displayVal}</div>
+      <div style="display:flex;align-items:center;gap:10px;margin:10px 0 6px">
+        <span class="rdcf-grade-badge" style="background:${gb};color:${gc};border:1px solid ${gbr}">${grade.grade}</span>
+        <span class="rdcf-grade-note">${grade.note}</span>
+      </div>
+      ${contextLine}
+      <div class="rdcf-interpretation">${interp}</div>
+      ${auditLine}
+    </div>`;
+  document.getElementById('rdcfResult').style.display = '';
 }
 
 // ═══════════════════════════════════════════════════════════════
