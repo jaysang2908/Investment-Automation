@@ -767,6 +767,38 @@
     </div>
   </div>
 
+  <!-- ── RETURN DECOMPOSITION ── -->
+  <div class="output-section" id="decompSection" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+      <span class="section-title" style="padding:0">Return Decomposition — Sources of IRR (Base Case)</span>
+      <span class="info-tag">EBITDA growth + Multiple re-rating + FCF yield</span>
+    </div>
+    <div style="padding:20px;display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start">
+      <!-- Left: stacked bar visualization -->
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">Annualized IRR Composition</div>
+        <div id="decompBarRow" style="display:flex;align-items:flex-end;gap:0;height:160px;border-bottom:1px solid var(--border2);position:relative">
+          <!-- Bars injected by JS -->
+        </div>
+        <div id="decompLegend" style="display:flex;gap:18px;margin-top:14px;flex-wrap:wrap"></div>
+      </div>
+      <!-- Right: numeric breakdown table -->
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">5-Year Decomposition</div>
+        <table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:9pt">
+          <tbody id="decompTable">
+            <!-- Rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div style="padding:12px 20px;font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border)">
+      <strong style="color:var(--text-muted)">Framework:</strong>
+      Total IRR ≈ Earnings growth (CAGR of trailing → Y5 anchor metric) + Multiple change (implied target ÷ current EV multiple, annualized) + Initial FCF yield.
+      A high re-rating contribution means most of the return depends on the market revaluing the business — riskier than a return driven primarily by earnings compounding.
+    </div>
+  </div>
+
   <!-- ── SENSITIVITY ── -->
   <div class="sensitivity-section" id="sensitivitySection" style="display:none">
     <div class="sens-panel">
@@ -1462,9 +1494,10 @@ function calculate() {
   setUpside('rc_em_up',  pEM, price);
 
   // ── Cache fair values for Investment Outcome Calculator ──
-  STATE.lastFairValues = { pGGM, pEM, price };
+  STATE.lastFairValues = { pGGM, pEM, price, netDebt, shares };
   document.getElementById('outcomeSection').style.display = '';
   updateInvestmentOutcome();
+  updateReturnDecomposition();
 
   // ── Validation badge: compare client price vs engine price ──
   (function updateValBadge() {
@@ -2269,6 +2302,142 @@ function updateInvestmentOutcome() {
     document.getElementById(`outcome_${prefix}_bar`).style.width = `${pct}%`;
   }
   setBar('bear', bear); setBar('base', base); setBar('bull', bull);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RETURN DECOMPOSITION — Sources of IRR
+// ═══════════════════════════════════════════════════════════════
+function updateReturnDecomposition() {
+  const fv = STATE.lastFairValues;
+  if (!fv || !fv.price || !STATE.data || !STATE.lastYears) return;
+
+  const { pGGM, pEM, price, netDebt, shares } = fv;
+  const validGGM = pGGM && pGGM > 0;
+  const validEM  = pEM  && pEM  > 0;
+  // Base case = composite (avg of both methods when both valid)
+  const baseFV = validGGM && validEM ? (pGGM + pEM) / 2 : (validGGM ? pGGM : pEM);
+  if (!baseFV || baseFV <= 0) { document.getElementById('decompSection').style.display = 'none'; return; }
+
+  const HORIZON = 5;  // Decomposition is always over the model's 5-year horizon
+  const metric  = STATE.selectedMetric || 'ebitda';
+  const metricLabel = METRIC_LABELS[metric] || 'EBITDA';
+
+  // Trailing anchor metric (in $M) — last historical year
+  const hist = STATE.data.history;
+  const lastH = hist[hist.length - 1] || {};
+  let trailingMetric = 0;
+  if (metric === 'ebitda') trailingMetric = lastH.revenue_m * (lastH.ebitda_margin || 0);
+  else if (metric === 'ufcf' || metric === 'fcf') trailingMetric = lastH.fcf_m || 0;
+  else if (metric === 'ocf') trailingMetric = lastH.ocf_m || 0;
+
+  // Y5 projected anchor metric (in $M)
+  const y5 = STATE.lastYears[4];
+  let y5Metric = 0;
+  if (metric === 'ebitda') y5Metric = y5.ebitda;
+  else if (metric === 'ufcf' || metric === 'fcf') y5Metric = y5.ufcf;
+  else if (metric === 'ocf') y5Metric = (y5.nopat || 0) + (y5.daAmt || 0) - (y5.dnwc || 0);
+
+  if (trailingMetric <= 0 || y5Metric <= 0) {
+    document.getElementById('decompSection').style.display = 'none'; return;
+  }
+  document.getElementById('decompSection').style.display = '';
+
+  // Earnings growth contribution
+  const earningsCAGR = Math.pow(y5Metric / trailingMetric, 1 / HORIZON) - 1;
+
+  // Multiple re-rating contribution
+  const currentEV  = price  * shares + netDebt;
+  const targetEV   = baseFV * shares + netDebt;
+  const currentMult = currentEV / trailingMetric;
+  const targetMult  = targetEV  / y5Metric;
+  const multCAGR    = currentMult > 0 ? Math.pow(targetMult / currentMult, 1 / HORIZON) - 1 : 0;
+
+  // Initial FCF yield (trailing FCF / market cap) — a steady-state cash return component
+  const marketCap   = price * shares;
+  const trailingFcf = lastH.fcf_m || 0;
+  const fcfYield    = marketCap > 0 ? trailingFcf / marketCap : 0;
+
+  // Total IRR (compound, not strictly additive)
+  const totalReturnMultiple = (baseFV / price);
+  const totalIRR = Math.pow(totalReturnMultiple, 1 / HORIZON) - 1;
+
+  function fmtPctSigned(p) {
+    const sign = p >= 0 ? '+' : '';
+    return `${sign}${(p * 100).toFixed(2)}%`;
+  }
+  function fmtX(v) { return v > 0 ? `${v.toFixed(1)}×` : '—'; }
+
+  // ── Build bar chart visualization ──
+  const components = [
+    { label: `${metricLabel} Growth`, value: earningsCAGR, color: 'var(--gold)',  desc: `Trailing ${fmtM(trailingMetric)} → Y5 ${fmtM(y5Metric)}` },
+    { label: 'Multiple Re-rating',    value: multCAGR,     color: 'var(--blue)',  desc: `${fmtX(currentMult)} → ${fmtX(targetMult)}` },
+    { label: 'FCF Yield (start)',     value: fcfYield,     color: 'var(--green)', desc: `Trailing FCF ÷ market cap` },
+  ];
+
+  // Find max absolute value for scaling, ensure room for IRR bar too
+  const allValues = components.map(c => Math.abs(c.value)).concat([Math.abs(totalIRR)]);
+  const maxAbs = Math.max(...allValues, 0.01);
+
+  const barRow = document.getElementById('decompBarRow');
+  barRow.innerHTML = '';
+  // Render each component as a column
+  components.forEach((c, i) => {
+    const heightPct = Math.min(95, (Math.abs(c.value) / maxAbs) * 95);
+    const negative  = c.value < 0;
+    const col = document.createElement('div');
+    col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;padding:0 6px;position:relative';
+    col.innerHTML = `
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9pt;color:var(--text);font-weight:500;margin-bottom:6px">${fmtPctSigned(c.value)}</span>
+      <div style="width:100%;max-width:80px;height:${heightPct}%;background:${c.color};opacity:${negative ? 0.5 : 0.85};border-radius:3px 3px 0 0;border:1px solid ${c.color}"></div>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:var(--text-muted);margin-top:8px;text-align:center;line-height:1.3">${c.label}</span>
+    `;
+    barRow.appendChild(col);
+  });
+  // Separator + Total IRR bar
+  const sep = document.createElement('div');
+  sep.style.cssText = 'width:1px;height:90%;background:var(--border2);margin:0 8px;align-self:flex-end';
+  barRow.appendChild(sep);
+  const totalHeightPct = Math.min(95, (Math.abs(totalIRR) / maxAbs) * 95);
+  const totalCol = document.createElement('div');
+  totalCol.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;padding:0 6px';
+  totalCol.innerHTML = `
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:11pt;color:var(--text);font-weight:600;margin-bottom:6px">${fmtPctSigned(totalIRR)}</span>
+    <div style="width:100%;max-width:80px;height:${totalHeightPct}%;background:repeating-linear-gradient(45deg,var(--accent,#c98b3c),var(--accent,#c98b3c) 6px,rgba(201,139,60,0.7) 6px,rgba(201,139,60,0.7) 12px);border-radius:3px 3px 0 0;border:1px solid var(--gold)"></div>
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:var(--gold);margin-top:8px;text-align:center;font-weight:600;letter-spacing:1px;text-transform:uppercase">Total IRR</span>
+  `;
+  barRow.appendChild(totalCol);
+
+  // Legend
+  const legend = document.getElementById('decompLegend');
+  legend.innerHTML = components.map(c => `
+    <div style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:7.5pt;color:var(--text-muted)">
+      <span style="width:10px;height:10px;background:${c.color};border-radius:2px"></span>
+      <span>${c.label}</span>
+    </div>
+  `).join('');
+
+  // ── Numeric breakdown table ──
+  const rows = [
+    ['Trailing ' + metricLabel,          fmtM(trailingMetric)],
+    ['Year 5 ' + metricLabel + ' (proj)', fmtM(y5Metric)],
+    [metricLabel + ' CAGR',              `<span style="color:var(--gold)">${fmtPctSigned(earningsCAGR)}</span>`],
+    ['_sep', ''],
+    ['Current EV / ' + metricLabel + ' (trailing)', fmtX(currentMult)],
+    ['Implied Y5 EV / ' + metricLabel,              fmtX(targetMult)],
+    ['Multiple change (annualized)',                 `<span style="color:var(--blue)">${fmtPctSigned(multCAGR)}</span>`],
+    ['_sep', ''],
+    ['Trailing FCF',         fmtM(trailingFcf)],
+    ['Initial FCF Yield',    `<span style="color:var(--green)">${fmtPctSigned(fcfYield)}</span>`],
+    ['_sep', ''],
+    ['<strong>Total Annualized IRR (compound)</strong>', `<strong style="color:var(--gold)">${fmtPctSigned(totalIRR)}</strong>`],
+  ];
+  document.getElementById('decompTable').innerHTML = rows.map(([k, v]) => {
+    if (k === '_sep') return `<tr><td colspan="2" style="padding:4px 0"><div style="height:1px;background:var(--border)"></div></td></tr>`;
+    return `<tr>
+      <td style="padding:5px 0;color:var(--text-muted)">${k}</td>
+      <td style="padding:5px 0;text-align:right;color:var(--text)">${v}</td>
+    </tr>`;
+  }).join('');
 }
 
 function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
