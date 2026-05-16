@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Investment Utopia — Before / After</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: #1a1a1a; color: #e8e8e8; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { padding: 14px 20px; border-bottom: 1px solid #2a2a2a; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
+  header .sub { font-size: 11px; color: #888; }
+  .tabs { display: flex; gap: 4px; margin-left: auto; }
+  .tab { background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; padding: 6px 14px; font-size: 11px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 150ms; font-family: inherit; }
+  .tab:hover { background: #333; color: #fff; }
+  .tab.active { background: #d4b15a; color: #1a1408; border-color: #d4b15a; }
+  .labels { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #2a2a2a; }
+  .lbl { padding: 8px 16px; background: #1a1a1a; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #888; display: flex; align-items: center; gap: 8px; }
+  .lbl .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .lbl.before .dot { background: #f87171; }
+  .lbl.after .dot { background: #34d399; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #2a2a2a; min-height: 0; }
+  iframe { width: 100%; height: 100%; border: 0; background: #06080d; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Investment Utopia · Before ↔ After</h1>
+  <span class="sub">Side-by-side comparison · scroll synced manually</span>
+  <div class="tabs">
+    <button class="tab active" data-page="home">Home</button>
+    <button class="tab" data-page="dashboard">Dashboard</button>
+    <button class="tab" data-page="dcf">DCF Calculator</button>
+    <button class="tab" data-page="news">News</button>
+  </div>
+</header>
+
+<div class="labels">
+  <div class="lbl before"><span class="dot"></span>Current Site (rendered)</div>
+  <div class="lbl after"><span class="dot"></span>Proposed Redesign</div>
+</div>
+
+<main>
+  <iframe id="before" src="../uploads/index.html"></iframe>
+  <iframe id="after" src="../screens/home.html"></iframe>
+</main>
+
+<script>
+  const pageMap = {
+    home:      { before: '../uploads/index.html',     after: '../screens/home.html' },
+    dashboard: { before: '../uploads/dashboard.html', after: '../screens/dashboard.html' },
+    dcf:       { before: '../uploads/dcf.html',       after: '../screens/dcf.html' },
+    news:      { before: '../uploads/news.html',      after: '../screens/news.html' },
+  };
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const p = pageMap[btn.dataset.page];
+      document.getElementById('before').src = p.before;
+      document.getElementById('after').src = p.after;
+    });
+  });
+</script>
+</body>
+</html>

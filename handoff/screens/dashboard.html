@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard — Refined</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--ink-2); font-size: var(--t-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+  nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; background: rgba(6,8,13,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-1); }
+  .nav-logo { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
+  .nav-logo span { color: var(--gold); }
+  .nav-links { display: flex; gap: 28px; list-style: none; }
+  .nav-links a { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-3); text-decoration: none; padding: 6px 0; position: relative; }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink-1); }
+  .nav-links a.active::after { content:''; position: absolute; left: 0; right: 0; bottom: -19px; height: 2px; background: var(--gold); }
+  .pulse { width:6px;height:6px;border-radius:50%;background:var(--pos);box-shadow:0 0 8px var(--pos); }
+
+  /* PAGE HEAD */
+  .page-head { padding: 56px 32px 32px; max-width: 1400px; margin: 0 auto; }
+  .ph-eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  .ph-row { display: flex; align-items: end; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+  .ph-title { font-family: var(--font-display); font-size: 42px; font-weight: 600; color: var(--ink-1); line-height: 1.1; letter-spacing: -0.5px; }
+  .ph-title em { font-style: italic; color: var(--gold); font-weight: 400; }
+  .ph-sub { font-size: 14px; color: var(--ink-3); margin-top: 12px; max-width: 540px; font-weight: 300; }
+  .ph-meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-4); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .ph-meta strong { color: var(--ink-1); font-weight: 600; }
+
+  /* PORTFOLIO STRIP */
+  .strip { max-width: 1400px; margin: 0 auto; padding: 0 32px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border: 1px solid var(--border-1); border-radius: var(--r-lg); background: var(--surface-1); margin-bottom: 32px; }
+  .strip { padding: 0; }
+  .strip-cell { padding: 24px 28px; border-right: 1px solid var(--border-1); position: relative; }
+  .strip-cell:last-child { border-right: none; }
+  .strip-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-4); margin-bottom: 10px; }
+  .strip-val { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--ink-1); line-height: 1; }
+  .strip-val.up { color: var(--pos); }
+  .strip-delta { display: inline-flex; align-items: baseline; gap: 4px; font-family: var(--font-mono); font-size: 11px; margin-top: 8px; color: var(--pos); }
+  .strip-delta.dn { color: var(--neg); }
+  .spark { position: absolute; right: 24px; top: 22px; opacity: 0.5; }
+
+  /* TOOLBAR */
+  .toolbar { max-width: 1400px; margin: 0 auto 16px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding: 7px 14px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: transparent; color: var(--ink-3); cursor: pointer; transition: all var(--dur-base); }
+  .chip:hover { color: var(--ink-1); border-color: var(--border-3); }
+  .chip.on { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+  .chip .ct { color: var(--ink-4); margin-left: 6px; font-weight: 400; }
+  .chip.on .ct { color: var(--gold-soft); }
+
+  .tools-right { display: flex; gap: 12px; align-items: center; }
+  .search { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-1); border: 1px solid var(--border-2); border-radius: var(--r-md); width: 240px; }
+  .search input { background: transparent; border: none; outline: none; font-family: var(--font-mono); font-size: 12px; color: var(--ink-1); width: 100%; }
+  .search input::placeholder { color: var(--ink-5); }
+  .search-icon { color: var(--ink-4); }
+  .sort-btn { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 14px; border-radius: var(--r-md); border: 1px solid var(--border-2); background: var(--surface-1); color: var(--ink-2); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+
+  /* TABLE */
+  .table-wrap { max-width: 1400px; margin: 0 auto; padding: 0 32px 80px; }
+  .tbl { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; }
+  .tbl th { font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-4); padding: 16px 18px; text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--border-2); font-weight: 500; white-space: nowrap; }
+  .tbl th.num { text-align: right; }
+  .tbl th.sortable { cursor: pointer; user-select: none; }
+  .tbl th.sortable:hover { color: var(--ink-2); }
+  .tbl th .arr { color: var(--gold); margin-left: 4px; }
+  .tbl td { padding: 18px; border-bottom: 1px solid var(--border-1); vertical-align: middle; font-size: 13px; color: var(--ink-2); }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr.row { transition: background var(--dur-fast); cursor: pointer; }
+  .tbl tr.row:hover { background: rgba(255,255,255,0.02); }
+
+  .tk-cell { display: flex; align-items: center; gap: 14px; }
+  .tk-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--gold); letter-spacing: 1px; min-width: 56px; }
+  .tk-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink-1); line-height: 1.25; }
+  .tk-meta { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; color: var(--ink-4); text-transform: uppercase; margin-top: 2px; }
+
+  td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+  td.num.up { color: var(--pos); }
+  td.num.dn { color: var(--neg); }
+  td.score { text-align: right; font-family: var(--font-mono); font-weight: 600; font-size: 14px; color: var(--ink-1); }
+  .score-bar { display: inline-block; width: 70px; height: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; vertical-align: middle; margin-right: 10px; }
+  .score-bar > i { display: block; height: 100%; }
+  .verdict { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: var(--r-sm); }
+  .verdict .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+  .verdict.good { background: var(--pos-bg); color: var(--pos); }
+  .verdict.hold { background: var(--warn-bg); color: var(--warn); }
+  .verdict.avoid { background: var(--neg-bg); color: var(--neg); }
+  .verdict.pending { background: var(--surface-3); color: var(--ink-4); }
+
+  .rating-cell { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
+  .rating-cell .r { font-weight: 600; color: var(--ink-1); }
+  .rating-cell .ag { color: var(--ink-4); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .row-cta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--ink-4); text-align: right; transition: color var(--dur-base); }
+  .tbl tr.row:hover .row-cta { color: var(--gold); }
+
+  .row-pending { opacity: 0.55; }
+  .row-pending .tk-name, .row-pending .tk-mono { color: var(--ink-3); }
+
+  /* SECTION HEADER ROW (groups in table) */
+  .group-head td { background: var(--surface-2); padding: 14px 18px; }
+  .group-head { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-4); }
+  .group-head td span.gh-count { background: var(--surface-3); color: var(--ink-2); padding: 2px 8px; border-radius: 10px; font-size: 9px; margin-left: 10px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="home.html" class="nav-logo">Investment<span>.</span>Utopia</a>
+  <ul class="nav-links">
+    <li><a href="home.html">Generate</a></li>
+    <li><a href="#" class="active">Dashboard</a></li>
+    <li><a href="dcf.html">DCF Calculator</a></li>
+    <li><a href="news.html">News</a></li>
+    <li><a href="#">Methodology</a></li>
+  </ul>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
+    <span class="pulse"></span>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="ph-eyebrow">Coverage Dashboard</div>
+  <div class="ph-row">
+    <div>
+      <h1 class="ph-title">Watchlist <em>at a glance</em></h1>
+      <p class="ph-sub">All active reports, sortable by score, valuation, or credit. Hover any row for the full report; refresh pulls the latest financials from FMP.</p>
+    </div>
+    <div class="ph-meta">
+      <span>Last refresh · <strong>2 min ago</strong></span>
+      <span>Coverage · <strong>14 names</strong></span>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="strip-cell">
+    <div class="strip-label">Avg. Score</div>
+    <div class="strip-val">68<span style="color:var(--ink-5);font-size:18px"> / 100</span></div>
+    <svg class="spark" width="64" height="20" viewBox="0 0 64 20" fill="none"><polyline points="0,14 8,12 16,13 24,10 32,8 40,9 48,6 56,4 64,5" stroke="var(--gold)" stroke-width="1.2" fill="none"/></svg>
+    <div class="strip-delta">↑ 1.2 vs. last week</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">High Conviction</div>
+    <div class="strip-val">3</div>
+    <div class="strip-delta">Score ≥ 75</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">Avg. Upside</div>
+    <div class="strip-val up">+18.4%</div>
+    <svg class="spark" width="64" height="20" viewBox="0 0 64 20" fill="none"><polyline points="0,16 8,15 16,12 24,13 32,9 40,7 48,8 56,5 64,3" stroke="var(--pos)" stroke-width="1.2" fill="none"/></svg>
+    <div class="strip-delta">vs. current price</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">Investment Grade</div>
+    <div class="strip-val">11<span style="color:var(--ink-5);font-size:18px"> / 14</span></div>
+    <div class="strip-delta">79% of coverage</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">Reports Pending</div>
+    <div class="strip-val">3</div>
+    <div class="strip-delta dn">In queue</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="filters">
+    <button class="chip on">All <span class="ct">14</span></button>
+    <button class="chip">High Conviction <span class="ct">3</span></button>
+    <button class="chip">Buy <span class="ct">5</span></button>
+    <button class="chip">Hold <span class="ct">3</span></button>
+    <button class="chip">Avoid <span class="ct">0</span></button>
+    <button class="chip">Pending <span class="ct">3</span></button>
+  </div>
+  <div class="tools-right">
+    <div class="search">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <input placeholder="Search ticker or company…"/>
+    </div>
+    <button class="sort-btn">Sort: Score ↓</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:24%">Company</th>
+        <th class="sortable">Sector</th>
+        <th class="num sortable">Price</th>
+        <th class="num sortable">Target</th>
+        <th class="num sortable">Upside</th>
+        <th class="num sortable">Score <span class="arr">↓</span></th>
+        <th>Verdict</th>
+        <th>S&amp;P / Moody's</th>
+        <th class="num">Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr class="group-head"><td colspan="10">High Conviction <span class="gh-count">3</span></td></tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">MSFT</div>
+            <div>
+              <div class="tk-name">Microsoft Corporation</div>
+              <div class="tk-meta">NASDAQ · Software</div>
+            </div>
+          </div>
+        </td>
+        <td>Technology</td>
+        <td class="num">$371.45</td>
+        <td class="num">$525.00</td>
+        <td class="num up">+41.3%</td>
+        <td class="score"><span class="score-bar"><i style="width:75%;background:var(--pos)"></i></span>75</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">AAA</span> / <span class="r">Aaa</span></td>
+        <td class="num"><span style="color:var(--ink-4)">2h ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">AAPL</div>
+            <div>
+              <div class="tk-name">Apple Inc.</div>
+              <div class="tk-meta">NASDAQ · Consumer Tech</div>
+            </div>
+          </div>
+        </td>
+        <td>Technology</td>
+        <td class="num">$210.00</td>
+        <td class="num">$230.00</td>
+        <td class="num up">+9.5%</td>
+        <td class="score"><span class="score-bar"><i style="width:74%;background:var(--pos)"></i></span>74</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">AA+</span> / <span class="r">Aaa</span></td>
+        <td class="num"><span style="color:var(--ink-4)">2h ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">V</div>
+            <div>
+              <div class="tk-name">Visa Inc.</div>
+              <div class="tk-meta">NYSE · Payments</div>
+            </div>
+          </div>
+        </td>
+        <td>Financials</td>
+        <td class="num">$278.32</td>
+        <td class="num">$345.00</td>
+        <td class="num up">+24.0%</td>
+        <td class="score"><span class="score-bar"><i style="width:75%;background:var(--pos)"></i></span>75</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">AA-</span> / <span class="r">Aa3</span></td>
+        <td class="num"><span style="color:var(--ink-4)">3h ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="group-head"><td colspan="10">Buy <span class="gh-count">5</span></td></tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">GOOGL</div>
+            <div>
+              <div class="tk-name">Alphabet Inc.</div>
+              <div class="tk-meta">NASDAQ · Internet</div>
+            </div>
+          </div>
+        </td>
+        <td>Technology</td>
+        <td class="num">$165.20</td>
+        <td class="num">$200.00</td>
+        <td class="num up">+21.1%</td>
+        <td class="score"><span class="score-bar"><i style="width:71%;background:var(--pos)"></i></span>71</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">AA+</span> / <span class="r">Aa2</span></td>
+        <td class="num"><span style="color:var(--ink-4)">4h ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">AMD</div>
+            <div>
+              <div class="tk-name">Advanced Micro Devices</div>
+              <div class="tk-meta">NASDAQ · Semiconductors</div>
+            </div>
+          </div>
+        </td>
+        <td>Technology</td>
+        <td class="num">$157.40</td>
+        <td class="num">$180.00</td>
+        <td class="num up">+14.4%</td>
+        <td class="score"><span class="score-bar"><i style="width:68%;background:var(--pos)"></i></span>68</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">A-</span> / <span class="r">A3</span></td>
+        <td class="num"><span style="color:var(--ink-4)">just now</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">COST</div>
+            <div>
+              <div class="tk-name">Costco Wholesale</div>
+              <div class="tk-meta">NASDAQ · Retail</div>
+            </div>
+          </div>
+        </td>
+        <td>Consumer</td>
+        <td class="num">$895.10</td>
+        <td class="num">$1,020.00</td>
+        <td class="num up">+13.9%</td>
+        <td class="score"><span class="score-bar"><i style="width:70%;background:var(--pos)"></i></span>70</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">AA-</span> / <span class="r">Aa3</span></td>
+        <td class="num"><span style="color:var(--ink-4)">5h ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">UNH</div>
+            <div>
+              <div class="tk-name">UnitedHealth Group</div>
+              <div class="tk-meta">NYSE · Healthcare</div>
+            </div>
+          </div>
+        </td>
+        <td>Healthcare</td>
+        <td class="num">$521.80</td>
+        <td class="num">$595.00</td>
+        <td class="num up">+14.0%</td>
+        <td class="score"><span class="score-bar"><i style="width:67%;background:var(--pos)"></i></span>67</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">A+</span> / <span class="r">A2</span></td>
+        <td class="num"><span style="color:var(--ink-4)">1d ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">BRK.B</div>
+            <div>
+              <div class="tk-name">Berkshire Hathaway</div>
+              <div class="tk-meta">NYSE · Conglomerate</div>
+            </div>
+          </div>
+        </td>
+        <td>Financials</td>
+        <td class="num">$430.50</td>
+        <td class="num">$485.00</td>
+        <td class="num up">+12.7%</td>
+        <td class="score"><span class="score-bar"><i style="width:66%;background:var(--pos)"></i></span>66</td>
+        <td><span class="verdict good"><span class="dot"></span>Good Business · Fair Price</span></td>
+        <td class="rating-cell"><span class="r">AA</span> / <span class="r">Aa2</span></td>
+        <td class="num"><span style="color:var(--ink-4)">1d ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="group-head"><td colspan="10">Hold <span class="gh-count">3</span></td></tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">NVDA</div>
+            <div>
+              <div class="tk-name">NVIDIA Corporation</div>
+              <div class="tk-meta">NASDAQ · Semiconductors</div>
+            </div>
+          </div>
+        </td>
+        <td>Technology</td>
+        <td class="num">$118.40</td>
+        <td class="num">$112.00</td>
+        <td class="num dn">−5.4%</td>
+        <td class="score"><span class="score-bar"><i style="width:62%;background:var(--warn)"></i></span>62</td>
+        <td><span class="verdict hold"><span class="dot"></span>Wait for Pullback</span></td>
+        <td class="rating-cell"><span class="r">A+</span> / <span class="r">A1</span></td>
+        <td class="num"><span style="color:var(--ink-4)">2d ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">TSLA</div>
+            <div>
+              <div class="tk-name">Tesla Inc.</div>
+              <div class="tk-meta">NASDAQ · Automotive</div>
+            </div>
+          </div>
+        </td>
+        <td>Consumer</td>
+        <td class="num">$245.30</td>
+        <td class="num">$220.00</td>
+        <td class="num dn">−10.3%</td>
+        <td class="score"><span class="score-bar"><i style="width:55%;background:var(--warn)"></i></span>55</td>
+        <td><span class="verdict hold"><span class="dot"></span>Hold</span></td>
+        <td class="rating-cell"><span class="r">BBB</span> / <span class="r">Baa3</span></td>
+        <td class="num"><span style="color:var(--ink-4)">3d ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="row">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">DIS</div>
+            <div>
+              <div class="tk-name">Walt Disney Co.</div>
+              <div class="tk-meta">NYSE · Media</div>
+            </div>
+          </div>
+        </td>
+        <td>Communications</td>
+        <td class="num">$94.20</td>
+        <td class="num">$105.00</td>
+        <td class="num up">+11.5%</td>
+        <td class="score"><span class="score-bar"><i style="width:58%;background:var(--warn)"></i></span>58</td>
+        <td><span class="verdict hold"><span class="dot"></span>Hold</span></td>
+        <td class="rating-cell"><span class="r">A-</span> / <span class="r">A2</span></td>
+        <td class="num"><span style="color:var(--ink-4)">3d ago</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+
+      <tr class="group-head"><td colspan="10">In Progress <span class="gh-count">3</span></td></tr>
+
+      <tr class="row row-pending">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">META</div>
+            <div>
+              <div class="tk-name">Meta Platforms Inc.</div>
+              <div class="tk-meta">NASDAQ · Social</div>
+            </div>
+          </div>
+        </td>
+        <td>Communications</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="score">—</td>
+        <td><span class="verdict pending"><span class="dot"></span>Generating · 38%</span></td>
+        <td class="rating-cell"><span style="color:var(--ink-4)">—</span></td>
+        <td class="num"><span style="color:var(--ink-4)">running…</span></td>
+        <td class="row-cta">Cancel</td>
+      </tr>
+
+      <tr class="row row-pending">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">JPM</div>
+            <div>
+              <div class="tk-name">JPMorgan Chase &amp; Co.</div>
+              <div class="tk-meta">NYSE · Banking</div>
+            </div>
+          </div>
+        </td>
+        <td>Financials</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="score">—</td>
+        <td><span class="verdict pending"><span class="dot"></span>Queued</span></td>
+        <td class="rating-cell"><span style="color:var(--ink-4)">—</span></td>
+        <td class="num"><span style="color:var(--ink-4)">in queue</span></td>
+        <td class="row-cta">Cancel</td>
+      </tr>
+
+      <tr class="row row-pending">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">XOM</div>
+            <div>
+              <div class="tk-name">Exxon Mobil</div>
+              <div class="tk-meta">NYSE · Energy</div>
+            </div>
+          </div>
+        </td>
+        <td>Energy</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="score">—</td>
+        <td><span class="verdict pending"><span class="dot"></span>Queued</span></td>
+        <td class="rating-cell"><span style="color:var(--ink-4)">—</span></td>
+        <td class="num"><span style="color:var(--ink-4)">in queue</span></td>
+        <td class="row-cta">Cancel</td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>

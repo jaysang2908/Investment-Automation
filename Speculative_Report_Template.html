@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TICKER}} — Maybe Unsafe Financial Freedom · Speculative Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & base ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    body {
+      background: #0a0a0f;
+      color: #e2e8f0;
+      font-family: 'IBM Plex Sans', sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ─── Design tokens ──────────────────────────────────────────────────── */
+    :root {
+      --orange:    #FF6B35;
+      --amber:     #FFA62B;
+      --gold:      #E6C168;
+      --green:     #34D399;
+      --red:       #EF4444;
+      --blue:      #60A5FA;
+      --surface-1: #0f0f1a;
+      --surface-2: #13131f;
+      --surface-3: #1a1a2e;
+      --surface-4: #16213e;
+      --border:    rgba(255,107,53,0.15);
+      --border-2:  rgba(255,107,53,0.08);
+      --ink-1:     #f1f5f9;
+      --ink-2:     #cbd5e1;
+      --ink-3:     #94a3b8;
+      --ink-4:     #64748b;
+      --mono:      'IBM Plex Mono', monospace;
+    }
+
+    /* ─── Layout ─────────────────────────────────────────────────────────── */
+    .container { max-width: 1000px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ─── Top bar ────────────────────────────────────────────────────────── */
+    .topbar {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-brand {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--orange);
+      text-transform: uppercase;
+    }
+    .topbar-ticker {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-1);
+      letter-spacing: 4px;
+    }
+    .topbar-date {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-4);
+      letter-spacing: 1px;
+    }
+
+    /* ─── Mock banner ────────────────────────────────────────────────────── */
+    .mock-banner {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.35);
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin: 20px 0;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #FCA5A5;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Hero card ──────────────────────────────────────────────────────── */
+    .hero {
+      margin-top: 40px;
+      background: linear-gradient(135deg, var(--surface-3) 0%, #1a0d05 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(255,107,53,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--orange);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .hero-name {
+      font-size: 2.4rem;
+      font-weight: 600;
+      color: var(--ink-1);
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+    .hero-sub {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-4);
+      letter-spacing: 1px;
+      margin-bottom: 32px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .hero-stat { }
+    .hero-stat-val {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--ink-1);
+    }
+    .hero-stat-label {
+      font-size: 10px;
+      color: var(--ink-4);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .divider { width: 100%; height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ─── Verdict block ──────────────────────────────────────────────────── */
+    .verdict-block {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .verdict-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 8px 18px;
+      border-radius: 6px;
+      border: 1px solid;
+    }
+    .verdict-moonshot { color: var(--orange); border-color: rgba(255,107,53,0.5); background: rgba(255,107,53,0.12); }
+    .verdict-strong   { color: var(--amber);  border-color: rgba(255,166,43,0.5); background: rgba(255,166,43,0.12); }
+    .verdict-spec     { color: var(--gold);   border-color: rgba(230,193,104,0.5); background: rgba(230,193,104,0.1); }
+    .verdict-risk     { color: #F87171;       border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); }
+    .verdict-pass     { color: var(--ink-4);  border-color: rgba(100,116,139,0.4); background: rgba(100,116,139,0.08); }
+
+    .score-display {
+      font-family: var(--mono);
+      font-size: 2.8rem;
+      font-weight: 600;
+      color: var(--orange);
+      line-height: 1;
+    }
+    .score-max {
+      font-size: 1rem;
+      color: var(--ink-4);
+      font-weight: 400;
+    }
+    .score-label {
+      font-size: 10px;
+      color: var(--ink-4);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .score-bar-wrap {
+      flex: 1;
+      min-width: 200px;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 1s ease;
+    }
+
+    /* ─── Section headers ────────────────────────────────────────────────── */
+    .section { margin-top: 48px; }
+    .section-eyebrow {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--orange);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--ink-1);
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    /* ─── Catalyst / narrative block ─────────────────────────────────────── */
+    .catalyst-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .info-card {
+      background: var(--surface-3);
+      border: 1px solid var(--border-2);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .info-card-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--orange);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .info-card-val {
+      font-size: 13px;
+      color: var(--ink-1);
+      font-weight: 500;
+    }
+    .info-card-sub {
+      font-size: 11px;
+      color: var(--ink-4);
+      margin-top: 4px;
+    }
+
+    /* ─── Scorecard table ────────────────────────────────────────────────── */
+    .sc-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .sc-table thead tr {
+      background: var(--surface-4);
+    }
+    .sc-table thead th {
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .sc-table thead th.th-center { text-align: center; }
+    .sc-row td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+    }
+    .sc-row:hover td { background: rgba(255,107,53,0.04); }
+    .sc-signal { min-width: 180px; }
+    .sc-label { font-weight: 500; color: var(--ink-1); }
+    .sc-sub { font-size: 10px; color: var(--ink-4); margin-top: 2px; }
+    .sc-tier { text-align: center; min-width: 80px; }
+    .sc-pts {
+      text-align: center;
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--ink-2);
+      min-width: 60px;
+    }
+    .sc-note { color: var(--ink-3); font-size: 11px; max-width: 360px; line-height: 1.5; }
+
+    .tier-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .tier-high { background: rgba(52,211,153,0.15); color: #34D399; border: 1px solid rgba(52,211,153,0.3); }
+    .tier-mod  { background: rgba(255,166,43,0.12); color: #FFA62B; border: 1px solid rgba(255,166,43,0.3); }
+    .tier-low  { background: rgba(239,68,68,0.12);  color: #EF4444; border: 1px solid rgba(239,68,68,0.3); }
+
+    .manual-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 8px;
+      background: rgba(96,165,250,0.12);
+      color: var(--blue);
+      border: 1px solid rgba(96,165,250,0.2);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .sc-total-row td {
+      background: var(--surface-4);
+      padding: 14px;
+      font-weight: 600;
+      border-top: 1px solid var(--border);
+    }
+    .sc-total-label { color: var(--gold); font-family: var(--mono); letter-spacing: 1px; font-size: 11px; }
+    .sc-total-score { font-family: var(--mono); font-size: 1.2rem; color: var(--orange); text-align: center; }
+    .sc-total-verdict { color: var(--amber); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+
+    /* ─── Scenario model ─────────────────────────────────────────────────── */
+    .scenario-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .scenario-table thead tr { background: var(--surface-4); }
+    .scenario-table thead th {
+      padding: 10px 16px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-4);
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .scenario-table thead th.th-r { text-align: right; }
+    .scenario-val { text-align: right; font-family: var(--mono); font-weight: 600; color: var(--ink-1); padding: 14px 16px; }
+    .scenario-label { padding: 14px 16px; font-weight: 600; }
+    .row-bear .scenario-label { color: #F87171; }
+    .row-base .scenario-label { color: var(--amber); }
+    .row-bull .scenario-label { color: var(--green); }
+    .row-bear td { background: rgba(239,68,68,0.04); border-bottom: 1px solid rgba(239,68,68,0.08); }
+    .row-base td { background: rgba(255,166,43,0.04); border-bottom: 1px solid rgba(255,166,43,0.08); }
+    .row-bull td { background: rgba(52,211,153,0.04); border-bottom: 1px solid rgba(52,211,153,0.08); }
+
+    .pos { color: var(--green) !important; }
+    .neg { color: #F87171 !important; }
+    .neutral { color: var(--ink-3) !important; }
+
+    .target-note {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .target-hit  { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.25); color: var(--green); }
+    .target-miss { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); color: #FCA5A5; }
+
+    /* ─── Scenario input card ────────────────────────────────────────────── */
+    .inputs-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .input-chip {
+      background: var(--surface-3);
+      border: 1px solid var(--border-2);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .input-chip-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink-4);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .input-chip-val {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-1);
+    }
+
+    /* ─── Disclaimer ─────────────────────────────────────────────────────── */
+    .disclaimer {
+      margin-top: 60px;
+      padding: 20px 24px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: 10px;
+      font-size: 10px;
+      color: var(--ink-4);
+      line-height: 1.7;
+    }
+    .disclaimer strong { color: var(--ink-3); }
+
+    /* ─── Print ──────────────────────────────────────────────────────────── */
+    @media print {
+      .topbar { position: static; }
+      body { background: white; color: black; }
+    }
+
+    /* ─── Responsive ─────────────────────────────────────────────────────── */
+    @media (max-width: 720px) {
+      .hero-grid      { grid-template-columns: repeat(2, 1fr); }
+      .catalyst-grid  { grid-template-columns: 1fr; }
+      .inputs-strip   { grid-template-columns: repeat(2, 1fr); }
+      .sc-note        { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">Maybe Unsafe Financial Freedom</div>
+  <div class="topbar-ticker">{{TICKER}}</div>
+  <div class="topbar-date">{{REPORT_DATE}}</div>
+</div>
+
+<div class="container">
+
+  {{MOCK_BANNER}}
+
+  <!-- ── HERO CARD ─────────────────────────────────────────────────────────── -->
+  <div class="hero">
+    <div class="hero-eyebrow">Speculative Analysis · {{SECTOR}}</div>
+    <h1 class="hero-name">{{COMPANY_NAME}}</h1>
+    <div class="hero-sub">{{TICKER}} · Asymmetric Return Scan · {{HOLD_MONTHS}}-Month Horizon</div>
+
+    <div class="hero-grid">
+      <div class="hero-stat">
+        <div class="hero-stat-val">{{CURRENT_PRICE}}</div>
+        <div class="hero-stat-label">Current Price</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val">{{MARKET_CAP}}</div>
+        <div class="hero-stat-label">Market Cap</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val">{{CURRENT_EV_REV}}</div>
+        <div class="hero-stat-label">EV / Fwd Revenue</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" style="color:var(--green)">{{BULL_RET}}</div>
+        <div class="hero-stat-label">Bull Scenario Return</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="verdict-block">
+      <div>
+        <div class="score-display">{{TOTAL_SCORE}}<span class="score-max">/120</span></div>
+        <div class="score-label">Speculative Score</div>
+      </div>
+      {{SCORE_BAR}}
+      <div class="verdict-badge {{VERDICT_CLASS}}">{{VERDICT}}</div>
+    </div>
+  </div>
+
+  <!-- ── NARRATIVE & CATALYST ───────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-eyebrow">Thesis Anchors</div>
+    <div class="section-title">Narrative & Catalyst</div>
+
+    <div class="catalyst-grid">
+      <div class="info-card">
+        <div class="info-card-label">Narrative Theme</div>
+        <div class="info-card-val">{{NARRATIVE_THEME}}</div>
+        <div class="info-card-sub">Strength: {{NARRATIVE_STRENGTH}}</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Catalyst</div>
+        <div class="info-card-val">{{CATALYST_DESC}}</div>
+        <div class="info-card-sub">Timing: {{CATALYST_TIMING}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SPECULATIVE SCORECARD ──────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-eyebrow">Signal Scorecard</div>
+    <div class="section-title">10-Dimension Asymmetric Signal Analysis</div>
+
+    <table class="sc-table">
+      <thead>
+        <tr>
+          <th>Signal</th>
+          <th class="th-center">Tier</th>
+          <th class="th-center">Pts</th>
+          <th>Rationale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{SCORECARD_ROWS}}
+        <tr class="sc-total-row">
+          <td class="sc-total-label">TOTAL</td>
+          <td class="sc-total-verdict" style="text-align:center">{{VERDICT}}</td>
+          <td class="sc-total-score">{{TOTAL_SCORE}}</td>
+          <td style="color:var(--ink-4);font-size:11px;font-family:var(--mono)">
+            ≥90 Moonshot Conviction · ≥72 Strong Speculative · ≥54 Speculative Play · ≥36 High Risk · &lt;36 Pass
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── SCENARIO / RE-RATING MODEL ────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-eyebrow">Valuation</div>
+    <div class="section-title">EV/Revenue Re-Rating Scenario Model · {{HOLD_MONTHS}}-Month Horizon</div>
+
+    <div class="inputs-strip">
+      <div class="input-chip">
+        <div class="input-chip-label">Current Price</div>
+        <div class="input-chip-val">{{CURRENT_PRICE}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Current EV</div>
+        <div class="input-chip-val">{{CURRENT_EV_B}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Fwd Revenue Est.</div>
+        <div class="input-chip-val">{{FWD_REV_B}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Current EV/Rev</div>
+        <div class="input-chip-val">{{CURRENT_EV_REV}}</div>
+      </div>
+    </div>
+
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th class="th-r">EV/Rev Multiple</th>
+          <th class="th-r">Target Price</th>
+          <th class="th-r">Return</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{SCENARIO_ROWS}}
+      </tbody>
+    </table>
+
+    {{TARGET_1_5X_HTML}}
+
+    <p style="margin-top:16px;font-size:10px;color:var(--ink-4);line-height:1.7;font-family:var(--mono)">
+      METHODOLOGY — Bear assumes narrative fails and multiple de-rates 35% from current.
+      Base assumes flat multiple with revenue growth only.
+      Bull multiple expansion calibrated to speculative score tier.
+      All prices derived from: Target EV = Multiple × Fwd Revenue → Target Equity = Target EV − Net Debt → Price = Target Equity ÷ Shares.
+      This is a re-rating model, not a DCF. Adjust the Excel workbook for custom assumptions.
+    </p>
+  </div>
+
+  <!-- ── KEY MARKET SIGNALS ─────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-eyebrow">Market Data</div>
+    <div class="section-title">Key Signals At-A-Glance</div>
+
+    <div class="inputs-strip" style="grid-template-columns:repeat(4,1fr)">
+      <div class="input-chip">
+        <div class="input-chip-label">RSI (14)</div>
+        <div class="input-chip-val">{{RSI}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Short Float</div>
+        <div class="input-chip-val">{{SHORT_FLOAT}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Put/Call Ratio</div>
+        <div class="input-chip-val">{{PUT_CALL}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Upgrades / Downgrades</div>
+        <div class="input-chip-val">{{UPGRADES_90D}} / {{DOWNGRADES_90D}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Trailing Revenue</div>
+        <div class="input-chip-val">{{TRAIL_REV_B}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Net Debt / (Cash)</div>
+        <div class="input-chip-val">{{NET_DEBT_M}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Insider Buys (90d)</div>
+        <div class="input-chip-val">{{INSIDER_BUYS}}</div>
+      </div>
+      <div class="input-chip">
+        <div class="input-chip-label">Float Shares</div>
+        <div class="input-chip-val">{{FLOAT_SHARES_M}}M</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DISCLAIMER ─────────────────────────────────────────────────────────── -->
+  <div class="disclaimer">
+    <strong>NOT INVESTMENT ADVICE.</strong>
+    This report is generated automatically from public market data (FMP API + yfinance) and
+    user-supplied qualitative inputs. It is designed to surface asymmetric setups for further
+    research — not to make buy/sell recommendations. Speculative positions carry material risk of
+    total loss. Scores, scenario prices, and target returns are illustrative estimates based on
+    pattern scoring; they do not account for all risk factors. Always conduct independent due
+    diligence, review primary sources (SEC filings, earnings transcripts, FDA databases), and
+    size positions appropriately for your risk tolerance.
+    <br><br>
+    Generated by Investment Utopia · Maybe Unsafe Financial Freedom engine · {{REPORT_DATE}}
+  </div>
+
+</div>
+</body>
+</html>

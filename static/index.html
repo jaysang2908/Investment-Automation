@@ -94,13 +94,13 @@
   <a href="#" class="nav-logo">Investment Utopia</a>
   <div style="display:flex;align-items:center;gap:32px">
     <ul class="nav-links">
-      <li><a href="#generate" class="active">Generate</a></li>
+      <li><a href="#generate" class="active">Safe</a></li>
+      <li><a href="#speculative" style="color:#FF6B35">Unsafe</a></li>
       <li><a href="/dashboard.html">Dashboard</a></li>
       <li><a href="/daily.html">Daily Discoveries</a></li>
       <li><a href="/dcf">DCF Calculator</a></li>
       <li><a href="#" onclick="event.preventDefault();document.getElementById('heatmap-coming-soon').style.display='flex'" style="opacity:0.55;cursor:default">Heatmap</a></li>
       <li><a href="/news">News</a></li>
-      <li><a href="#methodology">Methodology</a></li>
     </ul>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="pulse"></div>
@@ -112,8 +112,11 @@
 <!-- HERO + GENERATE FORM -->
 <section class="hero" id="generate">
 
-  <h1 class="hero-title" style="font-size:clamp(2.2rem,6vw,4rem);margin-bottom:18px;color:#e6c168">
-    Investment Utopia
+  <p class="hero-eyebrow" style="font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:10px">
+    Long-Term Value Investing
+  </p>
+  <h1 class="hero-title" style="font-size:clamp(2.2rem,6vw,4rem);margin-bottom:6px;color:#e6c168">
+    Safe Financial Freedom
   </h1>
   <p class="hero-sub">
     Enter any ticker. The engine fetches financials from FMP, runs WACC and a DCF, scores 11 criteria (with manual option for 2 qualitative factors below) and generates a full Excel Model + HTML report.
@@ -258,6 +261,138 @@
   </div>
 </section>
 
+<!-- MAYBE UNSAFE FINANCIAL FREEDOM -->
+<section class="hero" id="speculative" style="margin-top:80px;background:linear-gradient(135deg,#0f0a1a 0%,#1a0d05 100%);border:1px solid rgba(255,107,53,0.2)">
+
+  <p class="hero-eyebrow" style="font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:#FF6B35;text-transform:uppercase;margin-bottom:10px">
+    Asymmetric · Speculative · 3–12 Month Horizon
+  </p>
+  <h1 class="hero-title" style="font-size:clamp(2rem,5vw,3.4rem);margin-bottom:6px;color:#FF6B35">
+    Maybe Unsafe Financial Freedom
+  </h1>
+  <p class="hero-sub" style="color:var(--ink-3)">
+    Scan for asymmetric setups with 1.5×+ potential over 3–12 months. Enter a ticker, describe your thesis, and the engine scores 10 momentum/sentiment signals + builds a narrative re-rating scenario model.
+  </p>
+  <p style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-4);letter-spacing:0.4px;line-height:1.6;max-width:560px;margin:0 auto 8px">
+    Speculative plays carry material risk of loss. This tool surfaces pattern signals — not investment advice. Size positions accordingly.
+  </p>
+
+  <div class="gen-panel" style="border-color:rgba(255,107,53,0.2)">
+
+    <!-- Row 1: Ticker + Hold horizon -->
+    <div class="gen-grid">
+      <div class="field">
+        <label>Ticker Symbol</label>
+        <input type="text" id="specTickerInput" placeholder="PLTR, RKLB, IONQ…" maxlength="6" autocomplete="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:4px;font-size:15px;font-weight:600">
+      </div>
+      <div class="field">
+        <label>Hold Horizon <span class="opt">(months)</span></label>
+        <select id="specHoldInput">
+          <option value="3">3 months</option>
+          <option value="6" selected>6 months</option>
+          <option value="9">9 months</option>
+          <option value="12">12 months</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 2: Narrative theme + strength -->
+    <div class="gen-grid-2">
+      <div class="field">
+        <label>Narrative Theme <span class="opt">(optional)</span></label>
+        <select id="specNarrativeTheme">
+          <option value="">— Select theme</option>
+          <option value="AI / Machine Learning">AI / Machine Learning</option>
+          <option value="Defence &amp; Aerospace">Defence &amp; Aerospace</option>
+          <option value="Biotech Catalyst">Biotech Catalyst</option>
+          <option value="GLP-1 / Weight Loss">GLP-1 / Weight Loss</option>
+          <option value="Energy Transition">Energy Transition</option>
+          <option value="Nuclear / SMR">Nuclear / SMR</option>
+          <option value="Crypto-Adjacent">Crypto-Adjacent</option>
+          <option value="Turnaround / Restructuring">Turnaround / Restructuring</option>
+          <option value="Supply Chain Re-shoring">Supply Chain Re-shoring</option>
+          <option value="Space / Deep Tech">Space / Deep Tech</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Narrative Strength <span class="opt">(optional)</span></label>
+        <select id="specNarrativeStrength">
+          <option value="MOD">MOD — Reasonable connection</option>
+          <option value="HIGH">HIGH — Company is central to theme</option>
+          <option value="LOW">LOW — Tangential exposure only</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 3: Catalyst -->
+    <div class="field" style="margin-bottom:12px">
+      <label>Catalyst Description <span class="opt">(optional — describe the specific trigger)</span></label>
+      <input type="text" id="specCatalystDesc" placeholder="e.g. FDA PDUFA date set for Q3, earnings beat cycle, contract announcement expected…" autocomplete="off">
+    </div>
+    <div class="gen-grid-2" style="margin-bottom:4px">
+      <div class="field">
+        <label>Catalyst Timing</label>
+        <select id="specCatalystTiming">
+          <option value="vague">Vague / no clear date</option>
+          <option value="near">Near-term (&lt; 3 months, specific event)</option>
+          <option value="medium">Medium-term (3–9 months, expected)</option>
+        </select>
+      </div>
+      <div class="field" id="specPasswordWrap" style="display:none">
+        <label>Password</label>
+        <input type="password" id="specPasswordInput" placeholder="Enter access password">
+      </div>
+    </div>
+
+    <!-- Row 4: Custom Google Trends Terms -->
+    <div class="field" style="margin-bottom:12px">
+      <label>Custom Google Trends Terms <span class="opt">(optional — comma-separated sector/product keywords tracked alongside the ticker)</span></label>
+      <input type="text" id="specCustomTerms" placeholder="e.g. HBM memory, DRAM cycle, AI inference chips" autocomplete="off">
+    </div>
+
+    <p style="font-family:var(--font-mono);font-size:10px;color:var(--ink-4);letter-spacing:0.5px;margin:-4px 0 14px;line-height:1.6">
+      10 signals auto-scored from live market data (incl. technical setup + Google Trends / StockTwits) · custom Trends terms track sector narratives alongside the ticker · 2 signals from your inputs above · Max score 120
+    </p>
+
+    <button class="gen-btn" id="specGenerateBtn" onclick="runSpeculative()" style="background:#FF6B35;color:#fff;border-color:#FF6B35">
+      <span id="specBtnText">Scan for Asymmetry →</span>
+      <div class="spinner" id="specBtnSpinner" style="display:none;border-color:rgba(255,255,255,0.3);border-top-color:#fff"></div>
+    </button>
+
+    <div class="gen-msg info" id="specGenMsg">Scores 10 momentum + sentiment signals · builds scenario model · ~15–30 seconds</div>
+
+    <div class="results-panel" id="specResultsPanel" style="border-color:rgba(255,107,53,0.25)">
+      <div class="results-header">
+        <div>
+          <div class="results-ticker" id="specResTicker" style="color:#FF6B35">—</div>
+          <div class="results-score">Spec score: <span id="specResScore" style="color:#FF6B35">—</span><span style="color:var(--ink-4);font-size:12px">/120</span>
+            &nbsp;·&nbsp; <span id="specResVerdict" style="color:var(--ink-3);font-size:12px">—</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-4);font-family:var(--font-mono);letter-spacing:1px">Scan ready</div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-bottom:14px">
+        Bull scenario: <span id="specResBullRet" style="color:#34D399;font-weight:600">—</span>
+        &nbsp;→&nbsp; <span id="specResBullPrice" style="color:var(--ink-1)">—</span>
+      </div>
+      <div class="results-btns">
+        <a class="res-btn res-btn-excel" id="specExcelBtn" href="#" target="_blank" rel="noopener">
+          ⬇ Download Scenario Model (Excel)
+        </a>
+        <a class="res-btn res-btn-view" id="specViewBtn" href="#" target="_blank" rel="noopener" style="background:rgba(255,107,53,0.1);color:#FF6B35;border-color:rgba(255,107,53,0.25)">
+          ↗ View Full Report
+        </a>
+      </div>
+      <div class="results-note">
+        <strong>Quantitative signals</strong> (momentum, volume, short interest, options, insiders) auto-fetched from FMP + yfinance.
+        Scenario model uses EV/Revenue re-rating — adjust the Excel workbook to test your own multiple assumptions.
+      </div>
+    </div>
+
+  </div>
+</section>
+
 <footer>
   <div class="footer-logo">Investment Utopia</div>
   <div class="footer-disc">For informational purposes only. Not investment advice. Financials sourced from FMP API. Reports expire after 2 hours — download to keep permanently.</div>
@@ -358,6 +493,86 @@
     document.getElementById(id)?.addEventListener('keydown', e => {
       if (e.key === 'Enter') runGenerate();
     });
+  });
+
+  /* ── Speculative password probe ── */
+  (function() {
+    fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
+      .then(r => { if (r.status === 401) document.getElementById('specPasswordWrap').style.display = 'flex'; })
+      .catch(() => {});
+  })();
+
+  /* ── Maybe Unsafe Financial Freedom ── */
+  async function runSpeculative() {
+    const ticker             = document.getElementById('specTickerInput').value.trim().toUpperCase();
+    const hold_months        = document.getElementById('specHoldInput').value;
+    const narrative_theme    = document.getElementById('specNarrativeTheme').value;
+    const narrative_strength = document.getElementById('specNarrativeStrength').value;
+    const catalyst_desc      = document.getElementById('specCatalystDesc').value.trim();
+    const catalyst_timing    = document.getElementById('specCatalystTiming').value;
+    const custom_terms       = document.getElementById('specCustomTerms')?.value.trim() || '';
+    const password           = document.getElementById('specPasswordInput')?.value.trim() || '';
+
+    if (!ticker) { showSpecMsg('Enter a ticker symbol.', 'error'); return; }
+
+    setSpecLoading(true);
+    showSpecMsg('Fetching market signals and building scenario model…', 'info');
+    document.getElementById('specResultsPanel').style.display = 'none';
+
+    try {
+      const res = await fetch('/generate-speculative', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ ticker, hold_months: parseInt(hold_months), narrative_theme,
+                               narrative_strength, catalyst_desc, catalyst_timing,
+                               custom_terms, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showSpecMsg(data.error || 'Scan failed.', 'error');
+        setSpecLoading(false);
+        return;
+      }
+
+      document.getElementById('specResTicker').textContent  = data.ticker;
+      document.getElementById('specResScore').textContent   = data.total_score ?? 'N/A';
+      document.getElementById('specResVerdict').textContent = data.verdict ?? '';
+
+      const bullRet   = data.bull_ret;
+      const bullPrice = data.bull_price;
+      document.getElementById('specResBullRet').textContent   = bullRet   != null ? (bullRet >= 0 ? '+' : '') + (bullRet * 100).toFixed(1) + '%' : 'N/A';
+      document.getElementById('specResBullPrice').textContent = bullPrice != null ? '$' + bullPrice.toFixed(2) : 'N/A';
+
+      document.getElementById('specExcelBtn').href = data.excel_url  || `/download/speculative-model/${data.ticker}`;
+      document.getElementById('specViewBtn').href  = data.report_url || `/reports/${data.ticker}_speculative_report.html`;
+
+      document.getElementById('specResultsPanel').style.display = 'block';
+      showSpecMsg('Done! Scenario model and report ready.', 'ok');
+
+    } catch (e) {
+      showSpecMsg(`Network error: ${e.message} — try again in 30s.`, 'error');
+    }
+
+    setSpecLoading(false);
+  }
+
+  function setSpecLoading(on) {
+    const btn = document.getElementById('specGenerateBtn');
+    btn.disabled = on;
+    document.getElementById('specBtnText').textContent    = on ? 'Scanning…' : 'Scan for Asymmetry →';
+    document.getElementById('specBtnSpinner').style.display = on ? 'block' : 'none';
+  }
+
+  function showSpecMsg(text, type) {
+    const el = document.getElementById('specGenMsg');
+    el.className = `gen-msg ${type}`;
+    el.textContent = text;
+  }
+
+  document.getElementById('specTickerInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') runSpeculative();
   });
 
   /* ── Score ring animation ── */

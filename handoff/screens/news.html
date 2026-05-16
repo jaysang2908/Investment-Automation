@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>News — Refined</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--ink-2); font-size: var(--t-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+  nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; background: rgba(6,8,13,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-1); }
+  .nav-logo { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 3px; color: var(--ink-1); text-transform: uppercase; text-decoration: none; }
+  .nav-logo span { color: var(--gold); }
+  .nav-links { display: flex; gap: 28px; list-style: none; }
+  .nav-links a { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-3); text-decoration: none; padding: 6px 0; position: relative; }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink-1); }
+  .nav-links a.active::after { content:''; position: absolute; left: 0; right: 0; bottom: -19px; height: 2px; background: var(--gold); }
+  .pulse { width:6px;height:6px;border-radius:50%;background:var(--pos);box-shadow:0 0 8px var(--pos); }
+
+  .page-head { padding: 56px 32px 32px; max-width: 1280px; margin: 0 auto; }
+  .ph-eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  .ph-row { display:flex; align-items:end; justify-content:space-between; gap:32px; }
+  .ph-title { font-family: var(--font-display); font-size: 42px; font-weight: 600; color: var(--ink-1); line-height: 1.1; letter-spacing: -0.5px; }
+  .ph-title em { font-style: italic; color: var(--gold); font-weight: 400; }
+  .ph-sub { font-size: 14px; color: var(--ink-3); margin-top: 12px; max-width: 560px; font-weight: 300; }
+  .ph-meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-4); }
+  .ph-meta strong { color: var(--ink-1); font-weight: 600; }
+
+  /* TICKER FILTER */
+  .filter-bar { max-width: 1280px; margin: 0 auto 24px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .tk-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding: 7px 12px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: transparent; color: var(--ink-3); cursor: pointer; transition: all var(--dur-base); }
+  .chip:hover { color: var(--ink-1); border-color: var(--border-3); }
+  .chip.on { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+  .chip .ct { color: var(--ink-4); margin-left: 6px; }
+  .chip.on .ct { color: var(--gold-soft); }
+  .src-toggle { display: flex; gap: 0; border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; }
+  .src-toggle button { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 14px; background: transparent; border: none; color: var(--ink-3); cursor: pointer; }
+  .src-toggle button.on { background: var(--surface-2); color: var(--ink-1); }
+
+  /* GRID */
+  .layout { max-width: 1280px; margin: 0 auto; padding: 0 32px 80px; display: grid; grid-template-columns: 1fr 320px; gap: 40px; }
+  @media(max-width:1000px){.layout{grid-template-columns:1fr}}
+
+  /* FEATURED */
+  .featured { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 32px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 0; }
+  @media(max-width:880px){.featured{grid-template-columns:1fr}}
+  .featured-img { aspect-ratio: 4/3; background: linear-gradient(135deg, #1a2438 0%, #0c1320 100%); position: relative; overflow: hidden; display:flex;align-items:flex-end;padding:24px; }
+  .featured-img::before { content:''; position:absolute; inset:0; background-image: radial-gradient(circle at 30% 30%, var(--gold-glow) 0%, transparent 60%); opacity: 0.6; }
+  .featured-img-tag { position: relative; font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-4); border: 1px solid var(--border-3); padding: 4px 10px; border-radius: var(--r-sm); }
+  .featured-body { padding: 36px; display: flex; flex-direction: column; justify-content: center; }
+  .featured-eye { font-family: var(--font-mono); font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; display: inline-flex; gap: 12px; align-items: center; }
+  .featured-eye .dot { width: 4px; height: 4px; background: var(--gold); border-radius: 50%; }
+  .featured-title { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--ink-1); line-height: 1.2; letter-spacing: -0.3px; margin-bottom: 16px; }
+  .featured-snippet { font-size: 14px; color: var(--ink-3); line-height: 1.7; font-weight: 300; margin-bottom: 20px; }
+  .featured-meta { display: flex; gap: 16px; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--ink-4); text-transform: uppercase; }
+  .featured-meta .src { color: var(--ink-2); font-weight: 600; }
+  .featured-tickers { display: flex; gap: 6px; margin-top: 20px; }
+  .tk-pill { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--gold); background: var(--gold-dim); padding: 3px 10px; border-radius: var(--r-sm); }
+
+  /* SECTION */
+  .sec-head { display: flex; align-items: end; justify-content: space-between; margin: 32px 0 20px; }
+  .sec-h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink-1); letter-spacing: -0.2px; }
+  .sec-meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-4); }
+
+  /* ARTICLE LIST */
+  .articles { display: flex; flex-direction: column; }
+  .art { display: grid; grid-template-columns: 100px 1fr auto; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--border-1); cursor: pointer; transition: background var(--dur-fast); align-items: start; }
+  .art:hover { background: rgba(255,255,255,0.015); }
+  .art:hover .art-title { color: var(--gold); }
+  .art-time { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-4); padding-top: 4px; }
+  .art-time strong { color: var(--ink-1); display: block; font-size: 11px; margin-bottom: 2px; font-weight: 600; }
+  .art-body { padding-right: 12px; }
+  .art-tickers { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+  .art-source { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-3); }
+  .art-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--ink-1); line-height: 1.3; margin-bottom: 8px; transition: color var(--dur-base); letter-spacing: -0.1px; }
+  .art-snippet { font-size: 13px; color: var(--ink-3); line-height: 1.65; font-weight: 300; }
+  .art-thumb { width: 120px; height: 90px; border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; flex-shrink: 0; position: relative; }
+  .art-thumb.t1 { background: linear-gradient(135deg, #2a1f3d 0%, #0c1320 100%); }
+  .art-thumb.t2 { background: linear-gradient(135deg, #1a3a2e 0%, #0c1320 100%); }
+  .art-thumb.t3 { background: linear-gradient(135deg, #3a2818 0%, #0c1320 100%); }
+  .art-thumb.t4 { background: linear-gradient(135deg, #1a2e3a 0%, #0c1320 100%); }
+  .art-thumb.t5 { background: linear-gradient(135deg, #3a1a2a 0%, #0c1320 100%); }
+  .art-thumb svg { position: absolute; right: 8px; bottom: 8px; opacity: 0.4; }
+
+  /* SIDEBAR */
+  aside { display: flex; flex-direction: column; gap: 24px; }
+  .panel { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 24px; }
+  .panel-eye { font-family: var(--font-mono); font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-4); margin-bottom: 14px; }
+  .panel-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--ink-1); margin-bottom: 16px; letter-spacing: -0.1px; }
+
+  .mover { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-1); align-items: center; }
+  .mover:last-child { border-bottom: none; }
+  .mover-tk { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--gold); letter-spacing: 1px; }
+  .mover-name { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+  .mover-px { font-family: var(--font-mono); font-size: 12px; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .mover-pct { font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; padding: 3px 8px; border-radius: var(--r-sm); min-width: 60px; text-align: right; }
+  .mover-pct.up { color: var(--pos); background: var(--pos-bg); }
+  .mover-pct.dn { color: var(--neg); background: var(--neg-bg); }
+
+  .calendar-row { display: grid; grid-template-columns: 56px 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-1); }
+  .calendar-row:last-child { border-bottom: none; }
+  .cal-date { font-family: var(--font-mono); }
+  .cal-day { font-size: 18px; font-weight: 600; color: var(--ink-1); line-height: 1; }
+  .cal-mo { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-4); margin-top: 2px; }
+  .cal-event { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .cal-event strong { color: var(--gold); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px; margin-right: 6px; }
+  .cal-tag { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-4); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="home.html" class="nav-logo">Investment<span>.</span>Utopia</a>
+  <ul class="nav-links">
+    <li><a href="home.html">Generate</a></li>
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="dcf.html">DCF Calculator</a></li>
+    <li><a href="#" class="active">News</a></li>
+    <li><a href="#">Methodology</a></li>
+  </ul>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
+    <span class="pulse"></span>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="ph-eyebrow">Market News</div>
+  <div class="ph-row">
+    <div>
+      <h1 class="ph-title">Filed against your <em>watchlist</em></h1>
+      <p class="ph-sub">Press releases and market headlines from FMP, filtered to your covered tickers. Click any story to flag it on the company report.</p>
+    </div>
+    <div class="ph-meta">
+      <div>Sourced from FMP API</div>
+      <div style="margin-top:6px">Updated · <strong>4 min ago</strong></div>
+    </div>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <div class="tk-filters">
+    <button class="chip on">All Watchlist <span class="ct">14</span></button>
+    <button class="chip">AAPL</button>
+    <button class="chip">MSFT</button>
+    <button class="chip">NVDA</button>
+    <button class="chip">AMD</button>
+    <button class="chip">GOOGL</button>
+    <button class="chip">META</button>
+    <button class="chip">+ 8 more</button>
+  </div>
+  <div class="src-toggle">
+    <button class="on">Headlines</button>
+    <button>Press Releases</button>
+    <button>Filings</button>
+  </div>
+</div>
+
+<div class="layout">
+  <main>
+
+    <article class="featured">
+      <div class="featured-img">
+        <span class="featured-img-tag">Featured</span>
+      </div>
+      <div class="featured-body">
+        <div class="featured-eye">Breaking <span class="dot"></span> 12 minutes ago</div>
+        <h2 class="featured-title">Microsoft posts record Azure growth, pushes FY26 capex guide to $115B</h2>
+        <p class="featured-snippet">Cloud revenue grew 32% in Q1 driven by AI workloads on Azure OpenAI; management raised FY26 capex outlook by $15B citing infrastructure shortfalls.</p>
+        <div class="featured-meta">
+          <span class="src">Reuters</span>
+          <span>·</span>
+          <span>Sentiment · Positive</span>
+        </div>
+        <div class="featured-tickers">
+          <span class="tk-pill">MSFT</span>
+          <span class="tk-pill">NVDA</span>
+        </div>
+      </div>
+    </article>
+
+    <div class="sec-head">
+      <h2 class="sec-h2">Latest Headlines</h2>
+      <span class="sec-meta">Showing 1–8 of 142</span>
+    </div>
+
+    <div class="articles">
+
+      <a class="art">
+        <div class="art-time"><strong>14:32</strong>Today</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">AAPL</span><span class="art-source">Bloomberg</span></div>
+          <h3 class="art-title">Apple iPhone 16 Pro pre-orders track 8% above prior cycle, India share at all-time high</h3>
+          <p class="art-snippet">Channel checks suggest stronger-than-expected demand for the Pro Max, with India accounting for 11% of global pre-orders versus 7% a year ago.</p>
+        </div>
+        <div class="art-thumb t1">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 14l4-4 3 3 5-7 4 6" stroke="var(--gold)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>13:45</strong>Today</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">NVDA</span><span class="tk-pill">AMD</span><span class="art-source">CNBC</span></div>
+          <h3 class="art-title">Nvidia warns of supply tightness for Blackwell chips through Q1; AMD MI400 timeline accelerates</h3>
+          <p class="art-snippet">CFO told investors at a Goldman conference that demand visibility extends through calendar 2026, while AMD said its next-gen accelerator will ship samples by year-end.</p>
+        </div>
+        <div class="art-thumb t2">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="var(--pos)" stroke-width="1.5" fill="none"/><path d="M7 7h6v6H7z" fill="var(--pos)" opacity="0.3"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>11:08</strong>Today</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">GOOGL</span><span class="art-source">FT</span></div>
+          <h3 class="art-title">DOJ remedies hearing pushed to March; Alphabet shares pare losses on lighter divestiture risk</h3>
+          <p class="art-snippet">Court filings indicate the government may stop short of forcing a Chrome divestiture, focusing instead on data-sharing remedies in the search anti-trust case.</p>
+        </div>
+        <div class="art-thumb t3">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" stroke="var(--warn)" stroke-width="1.5" fill="none"/><path d="M10 4v12M4 10h12" stroke="var(--warn)" stroke-width="1.5"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>10:22</strong>Today</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">V</span><span class="art-source">Reuters</span></div>
+          <h3 class="art-title">Visa expands stablecoin settlement pilot to four new corridors; volumes hit $4.2B annualised</h3>
+          <p class="art-snippet">Cross-border B2B settlements via USDC are now live in Hong Kong, Singapore, Dubai and London, doubling the network's stablecoin throughput in six months.</p>
+        </div>
+        <div class="art-thumb t4">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 10h14M10 3v14" stroke="var(--pos)" stroke-width="1.5"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>09:14</strong>Today</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">TSLA</span><span class="art-source">WSJ</span></div>
+          <h3 class="art-title">Tesla cuts Model Y price in China by 4% as BYD launches mid-range sedan</h3>
+          <p class="art-snippet">The price cut, the third this quarter, comes amid intensifying competition; gross margins are expected to compress 60–80bps in Q4.</p>
+        </div>
+        <div class="art-thumb t5">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 6l4 4-4 4M14 6l4 4-4 4" stroke="var(--neg)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>Yesterday</strong>17:30</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">UNH</span><span class="art-source">Bloomberg</span></div>
+          <h3 class="art-title">UnitedHealth raises 2026 EPS guidance, offsets Medicare Advantage rate pressure with Optum</h3>
+          <p class="art-snippet">Management lifted full-year adjusted EPS to $30.50–31.00 (from $29.75–30.25), citing Optum Health membership growth and pharmacy benefit synergies.</p>
+        </div>
+        <div class="art-thumb t1">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 14l4-4 3 3 5-7 4 6" stroke="var(--gold)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>Yesterday</strong>15:02</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">COST</span><span class="art-source">Barron's</span></div>
+          <h3 class="art-title">Costco November comps top estimates at +6.4%; e-commerce up 13% as Kirkland exclusives expand</h3>
+          <p class="art-snippet">Same-store sales ex-fuel beat consensus on traffic, not ticket; renewal rates hold at 92.9% in the U.S. and Canada.</p>
+        </div>
+        <div class="art-thumb t2">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="var(--pos)" stroke-width="1.5" fill="none"/></svg>
+        </div>
+      </a>
+
+      <a class="art">
+        <div class="art-time"><strong>Yesterday</strong>09:45</div>
+        <div class="art-body">
+          <div class="art-tickers"><span class="tk-pill">DIS</span><span class="art-source">Variety</span></div>
+          <h3 class="art-title">Disney+ ARPU climbs to $7.85 as ad-tier mix reaches 38%; Hulu integration accelerates</h3>
+          <p class="art-snippet">Streaming segment posted second consecutive quarter of operating profit; combined Disney+/Hulu reached 174M global subscribers.</p>
+        </div>
+        <div class="art-thumb t3">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" stroke="var(--warn)" stroke-width="1.5" fill="none"/></svg>
+        </div>
+      </a>
+
+    </div>
+
+  </main>
+
+  <aside>
+
+    <div class="panel">
+      <div class="panel-eye">Watchlist Movers · Today</div>
+
+      <div class="mover">
+        <div>
+          <div class="mover-tk">NVDA</div>
+          <div class="mover-name">NVIDIA Corp.</div>
+        </div>
+        <div class="mover-px">$118.40</div>
+        <div class="mover-pct dn">−4.2%</div>
+      </div>
+
+      <div class="mover">
+        <div>
+          <div class="mover-tk">AMD</div>
+          <div class="mover-name">Advanced Micro</div>
+        </div>
+        <div class="mover-px">$157.40</div>
+        <div class="mover-pct up">+3.8%</div>
+      </div>
+
+      <div class="mover">
+        <div>
+          <div class="mover-tk">MSFT</div>
+          <div class="mover-name">Microsoft</div>
+        </div>
+        <div class="mover-px">$371.45</div>
+        <div class="mover-pct up">+2.1%</div>
+      </div>
+
+      <div class="mover">
+        <div>
+          <div class="mover-tk">TSLA</div>
+          <div class="mover-name">Tesla</div>
+        </div>
+        <div class="mover-px">$245.30</div>
+        <div class="mover-pct dn">−2.6%</div>
+      </div>
+
+      <div class="mover">
+        <div>
+          <div class="mover-tk">GOOGL</div>
+          <div class="mover-name">Alphabet</div>
+        </div>
+        <div class="mover-px">$165.20</div>
+        <div class="mover-pct up">+1.4%</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-eye">Earnings · Next 7 Days</div>
+
+      <div class="calendar-row">
+        <div class="cal-date"><div class="cal-day">04</div><div class="cal-mo">Dec</div></div>
+        <div>
+          <div class="cal-event"><strong>UNH</strong>Q3 results · pre-market</div>
+          <div class="cal-tag">EPS est. $7.18 · Rev est. $99.4B</div>
+        </div>
+      </div>
+
+      <div class="calendar-row">
+        <div class="cal-date"><div class="cal-day">05</div><div class="cal-mo">Dec</div></div>
+        <div>
+          <div class="cal-event"><strong>COST</strong>Q1 results · post-market</div>
+          <div class="cal-tag">EPS est. $3.79 · Rev est. $63.0B</div>
+        </div>
+      </div>
+
+      <div class="calendar-row">
+        <div class="cal-date"><div class="cal-day">07</div><div class="cal-mo">Dec</div></div>
+        <div>
+          <div class="cal-event"><strong>DIS</strong>FY24 Q4 · post-market</div>
+          <div class="cal-tag">EPS est. $1.10 · Rev est. $22.4B</div>
+        </div>
+      </div>
+
+      <div class="calendar-row">
+        <div class="cal-date"><div class="cal-day">10</div><div class="cal-mo">Dec</div></div>
+        <div>
+          <div class="cal-event"><strong>FOMC</strong>Rate decision · 2:00pm ET</div>
+          <div class="cal-tag">Consensus: 25 bps cut</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-eye">Sector Sentiment · 24h</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:1px;color:var(--ink-2);text-transform:uppercase">Technology</span>
+          <span style="display:inline-block;height:4px;width:120px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative"><i style="position:absolute;left:50%;width:32%;height:100%;background:var(--pos);border-radius:2px"></i></span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--pos)">+0.64</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:1px;color:var(--ink-2);text-transform:uppercase">Financials</span>
+          <span style="display:inline-block;height:4px;width:120px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative"><i style="position:absolute;left:50%;width:18%;height:100%;background:var(--pos);border-radius:2px"></i></span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--pos)">+0.36</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:1px;color:var(--ink-2);text-transform:uppercase">Healthcare</span>
+          <span style="display:inline-block;height:4px;width:120px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative"><i style="position:absolute;left:50%;width:8%;height:100%;background:var(--pos);border-radius:2px"></i></span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--pos)">+0.16</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:1px;color:var(--ink-2);text-transform:uppercase">Energy</span>
+          <span style="display:inline-block;height:4px;width:120px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative"><i style="position:absolute;right:50%;width:14%;height:100%;background:var(--neg);border-radius:2px"></i></span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--neg)">−0.28</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:1px;color:var(--ink-2);text-transform:uppercase">Consumer</span>
+          <span style="display:inline-block;height:4px;width:120px;background:var(--surface-3);border-radius:2px;overflow:hidden;position:relative"><i style="position:absolute;right:50%;width:6%;height:100%;background:var(--neg);border-radius:2px"></i></span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--neg)">−0.12</span>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+</body>
+</html>
