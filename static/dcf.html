@@ -813,6 +813,30 @@
     </div>
   </div>
 
+  <!-- ── PRICE TARGET HISTORY ── -->
+  <div class="output-section" id="historySection" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+      <span class="section-title" style="padding:0">Fair Value History — Anchoring Check</span>
+      <span class="info-tag">Snapshots logged on each report run</span>
+    </div>
+    <div style="padding:18px 20px">
+      <svg id="historyChart" viewBox="0 0 900 280" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto"></svg>
+      <div id="historyEmpty" style="display:none;text-align:center;padding:24px 0;font-family:'IBM Plex Mono',monospace;font-size:9pt;color:var(--text-dim)"></div>
+      <div id="historyLegend" style="display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-muted)">
+        <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:18px;height:2px;background:var(--text)"></i> Market Price</span>
+        <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:18px;height:2px;background:var(--gold)"></i> Composite Fair Value</span>
+        <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:18px;height:2px;background:var(--blue);border-top:1px dashed var(--blue);background:none"></i> GG Fair Value</span>
+        <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:18px;height:2px;background:var(--green);border-top:1px dashed var(--green);background:none"></i> EM Fair Value</span>
+      </div>
+    </div>
+    <div style="padding:12px 20px;font-family:'IBM Plex Mono',monospace;font-size:8pt;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border)">
+      <strong style="color:var(--text-muted)">Why this matters:</strong>
+      If your fair value moves in lockstep with the market price, you may be anchoring on quote rather than fundamentals.
+      Genuine model updates should be driven by earnings, guidance, or rate-regime changes — not by intraday tape action.
+      Re-run the report to add a new snapshot.
+    </div>
+  </div>
+
   <!-- ── SENSITIVITY ── -->
   <div class="sensitivity-section" id="sensitivitySection" style="display:none">
     <div class="sens-panel">
@@ -1222,6 +1246,7 @@ async function loadTicker() {
     await renderScenarioChips();
     await renderCompare();
     await renderPortfolio();
+    loadPriceHistory(ticker);
 
   } catch(e) {
     showError(`Failed to load ${ticker}: ${e.message}`);
@@ -2664,6 +2689,138 @@ function updateTornado() {
   });
 
   document.getElementById('tornadoSection').style.display = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRICE TARGET HISTORY — anchoring check
+// ═══════════════════════════════════════════════════════════════
+async function loadPriceHistory(ticker) {
+  const section = document.getElementById('historySection');
+  const empty   = document.getElementById('historyEmpty');
+  const svg     = document.getElementById('historyChart');
+  if (!section || !svg) return;
+
+  try {
+    const r = await fetch(`/api/price-history/${ticker}`);
+    const j = await r.json();
+    const hist = (j.history || []).filter(p => p.price != null);
+
+    section.style.display = '';
+
+    if (hist.length === 0) {
+      svg.innerHTML = '';
+      empty.style.display = '';
+      empty.textContent = 'No snapshots yet — generate a report to log the first data point.';
+      return;
+    }
+    if (hist.length === 1) {
+      svg.innerHTML = '';
+      empty.style.display = '';
+      empty.innerHTML = `Only one snapshot so far (${hist[0].date}). History will populate as you re-run the report over time.`;
+      return;
+    }
+    empty.style.display = 'none';
+    renderHistoryChart(hist);
+  } catch (e) {
+    section.style.display = 'none';
+  }
+}
+
+function renderHistoryChart(hist) {
+  const svg = document.getElementById('historyChart');
+  const W = 900, H = 280;
+  const PAD_L = 56, PAD_R = 24, PAD_T = 20, PAD_B = 38;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+
+  // Compute domain
+  const allVals = [];
+  hist.forEach(p => {
+    [p.price, p.gg_price, p.em_price, p.composite_fv].forEach(v => { if (v != null && v > 0) allVals.push(v); });
+  });
+  const yMin = Math.min(...allVals) * 0.92;
+  const yMax = Math.max(...allVals) * 1.08;
+
+  // X domain: index-based but show dates
+  const n = hist.length;
+  function xScale(i) { return PAD_L + (i / Math.max(1, n - 1)) * plotW; }
+  function yScale(v) { return PAD_T + (1 - (v - yMin) / (yMax - yMin)) * plotH; }
+
+  const parts = [];
+
+  // Y gridlines / labels
+  const ySteps = 4;
+  for (let i = 0; i <= ySteps; i++) {
+    const v = yMin + (yMax - yMin) * (i / ySteps);
+    const y = yScale(v);
+    parts.push(`<line x1="${PAD_L}" x2="${W - PAD_R}" y1="${y}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>`);
+    parts.push(`<text x="${PAD_L - 8}" y="${y + 3}" font-family="IBM Plex Mono,monospace" font-size="7.5" fill="var(--text-dim)" text-anchor="end">$${v.toFixed(0)}</text>`);
+  }
+
+  // X tick labels (sparse — at most 6 dates)
+  const tickEvery = Math.max(1, Math.ceil(n / 6));
+  hist.forEach((p, i) => {
+    if (i % tickEvery !== 0 && i !== n - 1) return;
+    const x = xScale(i);
+    parts.push(`<line x1="${x}" x2="${x}" y1="${H - PAD_B}" y2="${H - PAD_B + 4}" stroke="var(--border2)" stroke-width="0.8"/>`);
+    parts.push(`<text x="${x}" y="${H - PAD_B + 16}" font-family="IBM Plex Mono,monospace" font-size="7.5" fill="var(--text-dim)" text-anchor="middle">${p.date}</text>`);
+  });
+
+  // Frame
+  parts.push(`<rect x="${PAD_L}" y="${PAD_T}" width="${plotW}" height="${plotH}" fill="none" stroke="var(--border2)" stroke-width="0.8"/>`);
+
+  // Line builder
+  function linePath(key) {
+    let d = '';
+    let moved = false;
+    hist.forEach((p, i) => {
+      const v = p[key];
+      if (v == null || v <= 0) { moved = false; return; }
+      const x = xScale(i), y = yScale(v);
+      d += (moved ? ' L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      moved = true;
+    });
+    return d;
+  }
+
+  // Filled area between price and composite fair value (gap shading)
+  // Build only when both lines are present at adjacent indices
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = hist[i], p1 = hist[i+1];
+    if (p0.price == null || p1.price == null || p0.composite_fv == null || p1.composite_fv == null) continue;
+    const x0 = xScale(i),     x1 = xScale(i+1);
+    const yp0 = yScale(p0.price), yp1 = yScale(p1.price);
+    const yfv0 = yScale(p0.composite_fv), yfv1 = yScale(p1.composite_fv);
+    const fill = (p0.composite_fv > p0.price) ? 'var(--green)' : 'var(--red)';
+    parts.push(`<path d="M${x0} ${yp0} L${x1} ${yp1} L${x1} ${yfv1} L${x0} ${yfv0} Z" fill="${fill}" opacity="0.08"/>`);
+  }
+
+  // Lines: GG (dashed blue), EM (dashed green), Composite (solid gold), Price (solid dark)
+  parts.push(`<path d="${linePath('gg_price')}" fill="none" stroke="var(--blue)" stroke-width="1.4" stroke-dasharray="5 3" opacity="0.85"/>`);
+  parts.push(`<path d="${linePath('em_price')}" fill="none" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 3" opacity="0.85"/>`);
+  parts.push(`<path d="${linePath('composite_fv')}" fill="none" stroke="var(--gold)" stroke-width="2.2"/>`);
+  parts.push(`<path d="${linePath('price')}" fill="none" stroke="var(--text)" stroke-width="2.2"/>`);
+
+  // Data point dots on the price and composite lines
+  hist.forEach((p, i) => {
+    const x = xScale(i);
+    if (p.price != null && p.price > 0) {
+      parts.push(`<circle cx="${x}" cy="${yScale(p.price)}" r="2.5" fill="var(--text)"/>`);
+    }
+    if (p.composite_fv != null && p.composite_fv > 0) {
+      parts.push(`<circle cx="${x}" cy="${yScale(p.composite_fv)}" r="2.5" fill="var(--gold)"/>`);
+    }
+  });
+
+  // End-of-series labels
+  const last = hist[n - 1];
+  if (last.price != null && last.price > 0) {
+    parts.push(`<text x="${xScale(n-1) + 6}" y="${yScale(last.price) + 3}" font-family="IBM Plex Mono,monospace" font-size="8" fill="var(--text)" font-weight="600">$${last.price.toFixed(0)} px</text>`);
+  }
+  if (last.composite_fv != null && last.composite_fv > 0) {
+    parts.push(`<text x="${xScale(n-1) + 6}" y="${yScale(last.composite_fv) + 3}" font-family="IBM Plex Mono,monospace" font-size="8" fill="var(--gold)" font-weight="600">$${last.composite_fv.toFixed(0)} FV</text>`);
+  }
+
+  svg.innerHTML = parts.join('');
 }
 
 function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }

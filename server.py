@@ -53,6 +53,11 @@ _HISTORY_PATH = os.path.join(os.path.dirname(__file__), "score_history.csv")
 _HISTORY_COLS = ["Ticker", "Date", "Auto_Score", "Total_Score", "Verdict"]
 _HISTORY_HDR  = ",".join(_HISTORY_COLS) + "\n"
 
+# ── price_history.csv — append-only fair-value vs price log ──────────────────
+_PRICE_HIST_PATH = os.path.join(os.path.dirname(__file__), "price_history.csv")
+_PRICE_HIST_COLS = ["Ticker", "Date", "Price", "GG_Price", "EM_Price", "Composite_FV"]
+_PRICE_HIST_HDR  = ",".join(_PRICE_HIST_COLS) + "\n"
+
 
 def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
                         current_price, market_cap, is_data, cf_data,
@@ -226,6 +231,68 @@ def _append_score_history(ticker, auto_score_raw, adj_score_raw):
     except Exception as e:
         import sys
         print(f"[score_history] GitHub push error: {e}", file=sys.stderr)
+
+
+def _append_price_history(ticker, price, gg_price, em_price):
+    """Append a fair-value snapshot to price_history.csv (append-only log).
+
+    Tracks how the DCF-implied fair value evolves vs current price over time —
+    surfaces anchoring drift (did we move our target chasing the price?).
+    """
+    import base64 as _b64
+    def _fmt(v):
+        return f"{v:.2f}" if v is not None and not (isinstance(v, float) and (v != v)) else ""
+    # Composite = average of GG and EM when both present
+    composite = None
+    if gg_price is not None and em_price is not None and gg_price > 0 and em_price > 0:
+        composite = (gg_price + em_price) / 2
+    elif gg_price is not None and gg_price > 0:
+        composite = gg_price
+    elif em_price is not None and em_price > 0:
+        composite = em_price
+    row = ",".join([
+        ticker,
+        datetime.date.today().isoformat(),
+        _fmt(price),
+        _fmt(gg_price),
+        _fmt(em_price),
+        _fmt(composite),
+    ]) + "\n"
+
+    try:
+        write_header = not os.path.exists(_PRICE_HIST_PATH)
+        with open(_PRICE_HIST_PATH, "a", encoding="utf-8") as f:
+            if write_header:
+                f.write(_PRICE_HIST_HDR)
+            f.write(row)
+    except Exception as e:
+        import sys
+        print(f"[price_history] local write error: {e}", file=sys.stderr)
+        return
+
+    if not GITHUB_TOKEN:
+        return
+    try:
+        with open(_PRICE_HIST_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/price_history.csv"
+        gh_hdr = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept":        "application/vnd.github.v3+json",
+        }
+        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        payload = {
+            "message": f"history: {ticker} price/FV snapshot",
+            "branch":  GITHUB_BRANCH,
+            "content": _b64.b64encode(content.encode()).decode(),
+        }
+        if sha:
+            payload["sha"] = sha
+        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=12)
+    except Exception as e:
+        import sys
+        print(f"[price_history] GitHub push error: {e}", file=sys.stderr)
 
 
 def _prune():
@@ -545,6 +612,18 @@ def generate():
         except Exception:
             pass
 
+        # ── Append to price history (fair-value vs market price log) ────────
+        try:
+            _dp = (dcf_refs or {}).get("dcf_prices") or {}
+            _append_price_history(
+                ticker    = ticker,
+                price     = current_price,
+                gg_price  = _dp.get("gg_price"),
+                em_price  = _dp.get("em_price"),
+            )
+        except Exception:
+            pass
+
         # Also keep in-memory for session (legacy dashboard live-reports panel)
         rid = uuid.uuid4().hex[:10]
         _reports[rid] = {
@@ -742,6 +821,77 @@ def dashboard_page():
 @app.route("/dcf")
 def dcf_page():
     return send_file(os.path.join(os.path.dirname(__file__), "static", "dcf.html"))
+
+
+@app.route("/api/price-history/<ticker>")
+def api_price_history(ticker):
+    """Return the time-series of price vs DCF fair value for a ticker.
+
+    Reads price_history.csv. Returns [{date, price, gg_price, em_price, composite_fv}, ...].
+    If the snapshot log is empty for this ticker, seed a single point from outputs.csv
+    so the UI has something to render while real history accumulates.
+    """
+    import csv as _csv
+    ticker = (ticker or "").upper().strip()
+    rows = []
+    try:
+        with open(_PRICE_HIST_PATH, "r", encoding="utf-8") as f:
+            reader = _csv.DictReader(f)
+            for r in reader:
+                if (r.get("Ticker") or "").upper() == ticker:
+                    def _f(k):
+                        v = r.get(k) or ""
+                        try: return float(v)
+                        except (TypeError, ValueError): return None
+                    rows.append({
+                        "date":         r.get("Date") or "",
+                        "price":        _f("Price"),
+                        "gg_price":     _f("GG_Price"),
+                        "em_price":     _f("EM_Price"),
+                        "composite_fv": _f("Composite_FV"),
+                    })
+    except FileNotFoundError:
+        rows = []
+    except Exception:
+        rows = []
+
+    # Always include the latest snapshot from outputs.csv (most up-to-date)
+    try:
+        with open(_CSV_PATH, "r", encoding="utf-8") as f:
+            reader = _csv.DictReader(f)
+            for r in reader:
+                if (r.get("Ticker") or "").upper() != ticker:
+                    continue
+                def _f(k):
+                    v = r.get(k) or ""
+                    try: return float(v)
+                    except (TypeError, ValueError): return None
+                price  = _f("Price")
+                gg     = _f("GG_Price")
+                em     = _f("EM_Price")
+                comp   = None
+                if gg is not None and em is not None and gg > 0 and em > 0:
+                    comp = (gg + em) / 2
+                elif gg is not None and gg > 0:
+                    comp = gg
+                elif em is not None and em > 0:
+                    comp = em
+                latest = {
+                    "date":         r.get("Date") or "",
+                    "price":        price,
+                    "gg_price":     gg,
+                    "em_price":     em,
+                    "composite_fv": comp,
+                }
+                # Don't duplicate if the snapshot for today already exists
+                if not any(x["date"] == latest["date"] for x in rows):
+                    rows.append(latest)
+                break
+    except Exception:
+        pass
+
+    rows.sort(key=lambda r: r.get("date") or "")
+    return jsonify({"ticker": ticker, "history": rows})
 
 
 @app.route("/api/dcf-data/<ticker>")
