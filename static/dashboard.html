@@ -12,6 +12,80 @@
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/dashboard.css">
   <style>
+    /* Portfolio map — scatter plot of coverage */
+    .portmap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: var(--sp-5) var(--sp-5) var(--sp-4);
+      margin: var(--sp-4) 0;
+    }
+    .portmap-head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: var(--sp-5); margin-bottom: var(--sp-4); flex-wrap: wrap;
+    }
+    .portmap-eyebrow {
+      font-family: var(--font-mono); font-size: 8pt; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 4px;
+    }
+    .portmap-title {
+      font-family: var(--font-display, var(--font-sans));
+      font-size: 18pt; font-weight: 600; color: var(--ink);
+      line-height: 1.2; margin: 0 0 6px;
+    }
+    .portmap-sub {
+      font-size: 10pt; color: var(--ink-3); line-height: 1.55; max-width: 560px; margin: 0;
+    }
+    .portmap-legend {
+      display: flex; flex-wrap: wrap; gap: 14px;
+      font-family: var(--font-mono); font-size: 8pt;
+      color: var(--ink-3); letter-spacing: 0.5px;
+    }
+    .portmap-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .portmap-legend i {
+      width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+      border: 1px solid rgba(26,24,20,0.2);
+    }
+    .portmap-frame {
+      width: 100%; background: var(--surface2, var(--surface));
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 8px; overflow: hidden;
+    }
+    .portmap-frame svg { width: 100%; height: auto; display: block; }
+    .portmap-axislabels {
+      display: flex; justify-content: space-between; margin-top: 8px;
+      font-family: var(--font-mono); font-size: 7.5pt; color: var(--ink-3);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+
+    /* Hover ring for portmap bubbles */
+    .pm-bubble {
+      cursor: pointer;
+      transition: stroke-width 0.15s ease, opacity 0.15s ease;
+    }
+    .pm-bubble:hover { stroke-width: 2.5; opacity: 1 !important; }
+    .pm-label {
+      font-family: var(--font-mono); font-size: 8pt; font-weight: 600;
+      pointer-events: none; text-anchor: middle;
+    }
+    .pm-axis-text {
+      font-family: var(--font-mono); font-size: 7pt;
+      fill: var(--ink-4, var(--ink-3));
+    }
+    .pm-grid { stroke: var(--border); stroke-width: 0.5; }
+    .pm-grid-zero { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.5; }
+    .pm-tooltip {
+      position: absolute; background: var(--surface); border: 1px solid var(--accent);
+      border-radius: var(--r-sm); padding: 10px 14px; pointer-events: none;
+      font-family: var(--font-mono); font-size: 8.5pt; color: var(--ink);
+      box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1));
+      transition: opacity 0.1s ease; opacity: 0; z-index: 50;
+      min-width: 180px; line-height: 1.5;
+    }
+    .pm-tooltip-tk { font-size: 10pt; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+    .pm-tooltip-row { display: flex; justify-content: space-between; gap: 12px; }
+    .pm-tooltip-row .k { color: var(--ink-3); }
+
     /* Qual selects — styled for new design */
     .qsel {
       font-family: var(--font-mono);
@@ -159,6 +233,35 @@
           <div class="sub">This session · 2-hour TTL</div>
         </div>
       </div>
+
+      <!-- PORTFOLIO MAP — upside vs score, sized by mcap -->
+      <section class="portmap" id="portmap-section">
+        <div class="portmap-head">
+          <div>
+            <div class="portmap-eyebrow">Portfolio Map</div>
+            <h2 class="portmap-title">Conviction vs Upside, by Market Cap</h2>
+            <p class="portmap-sub">
+              Each bubble is a covered ticker. Top-right (high score, high upside) is the conviction quadrant.
+              Bubble size = market cap. Click any bubble to open the report.
+            </p>
+          </div>
+          <div class="portmap-legend">
+            <span><i style="background:var(--score-gg)"></i> Conviction Buy</span>
+            <span><i style="background:var(--score-g)"></i> Buy</span>
+            <span><i style="background:var(--score-n)"></i> Hold</span>
+            <span><i style="background:var(--score-r)"></i> Avoid</span>
+          </div>
+        </div>
+        <div class="portmap-frame">
+          <svg id="portmap-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Portfolio scatter plot">
+            <!-- Rendered by renderPortmap() -->
+          </svg>
+        </div>
+        <div class="portmap-axislabels">
+          <span class="portmap-x">← Overvalued &nbsp;·&nbsp; Composite Upside vs Current Price (%) &nbsp;·&nbsp; Undervalued →</span>
+          <span class="portmap-y">Quant Score (0–10) ↑</span>
+        </div>
+      </section>
 
       <!-- CONTROLS BAR -->
       <div class="controls" role="tablist">
@@ -497,6 +600,131 @@ function render() {
   if (notes.length) document.getElementById('tnotes').innerHTML = '<strong>Notes —</strong> ' + notes.join(' &nbsp;·&nbsp; ');
 
   _updateStats();
+  renderPortmap();
+}
+
+// ─────────────────────────────────────────────────────────
+// PORTFOLIO MAP — upside vs score, sized by market cap
+// ─────────────────────────────────────────────────────────
+function renderPortmap() {
+  const svg = document.getElementById('portmap-svg');
+  if (!svg) return;
+  // Composite upside = average of gg and em if both present, else whichever exists
+  const points = D.filter(c => !c.pending && c.score != null && c.mcap != null)
+    .map(c => {
+      const ggOK = c.gg != null;
+      const emOK = c.em != null;
+      let upside;
+      if (ggOK && emOK)        upside = (c.gg + c.em) / 2;
+      else if (ggOK)           upside = c.gg;
+      else if (emOK)           upside = c.em;
+      else                     return null;
+      return { ...c, upside };
+    })
+    .filter(Boolean);
+  if (!points.length) { svg.innerHTML = ''; return; }
+
+  // Plot bounds
+  const W = 900, H = 420;
+  const PAD_L = 56, PAD_R = 32, PAD_T = 24, PAD_B = 56;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+
+  // X domain: dynamic but clamped, with symmetric padding around 0
+  const rawXs = points.map(p => p.upside * 100);
+  const xMin = Math.min(-50, Math.floor(Math.min(...rawXs) / 25) * 25);
+  const xMax = Math.max( 100, Math.ceil (Math.max(...rawXs) / 25) * 25);
+  // Y domain: 0–10
+  const yMin = 0, yMax = 10;
+
+  // Bubble size: sqrt scale on mcap, map to 6–28px radius
+  const mcaps = points.map(p => p.mcap);
+  const mcapMax = Math.max(...mcaps);
+  const mcapMin = Math.min(...mcaps);
+  function rScale(mc) {
+    const t = Math.sqrt(mc - mcapMin + 0.5) / Math.sqrt(mcapMax - mcapMin + 0.5);
+    return 7 + t * 22;
+  }
+  function xScale(v) { return PAD_L + ((v - xMin) / (xMax - xMin)) * plotW; }
+  function yScale(v) { return PAD_T + (1 - (v - yMin) / (yMax - yMin)) * plotH; }
+
+  function colorFor(score) {
+    if (score >= 7.5) return 'var(--score-gg)';
+    if (score >= 6.5) return 'var(--score-g)';
+    if (score >= 5.0) return 'var(--score-n)';
+    return 'var(--score-r)';
+  }
+
+  // Build SVG content
+  const parts = [];
+  // ── Grid + axes ──
+  // Horizontal gridlines at y = 0, 2.5, 5, 7.5, 10
+  [0, 2.5, 5, 7.5, 10].forEach(yv => {
+    const y = yScale(yv);
+    parts.push(`<line class="pm-grid" x1="${PAD_L}" x2="${W - PAD_R}" y1="${y}" y2="${y}"/>`);
+    parts.push(`<text class="pm-axis-text" x="${PAD_L - 8}" y="${y + 3}" text-anchor="end">${yv}</text>`);
+  });
+  // Vertical gridlines at xMin, xMin+step, ..., xMax (step = (max-min)/6)
+  const xStep = Math.max(25, Math.round((xMax - xMin) / 6 / 25) * 25);
+  for (let xv = xMin; xv <= xMax; xv += xStep) {
+    const x = xScale(xv);
+    const isZero = Math.abs(xv) < 0.5;
+    parts.push(`<line class="${isZero ? 'pm-grid-zero' : 'pm-grid'}" x1="${x}" x2="${x}" y1="${PAD_T}" y2="${H - PAD_B}"/>`);
+    parts.push(`<text class="pm-axis-text" x="${x}" y="${H - PAD_B + 14}" text-anchor="middle">${xv > 0 ? '+' : ''}${xv}%</text>`);
+  }
+  // Quadrant shading — high-conviction quadrant (score>=7.5, upside>=0)
+  const qX = xScale(0), qY = yScale(10), qW = (W - PAD_R) - qX, qH = yScale(7.5) - qY;
+  parts.push(`<rect x="${qX}" y="${qY}" width="${qW}" height="${qH}" fill="var(--score-gg)" opacity="0.06"/>`);
+
+  // ── Bubbles ──
+  // Sort so smaller bubbles render on top, less overlap
+  const sorted = [...points].sort((a, b) => b.mcap - a.mcap);
+  sorted.forEach(p => {
+    const x = xScale(p.upside * 100), y = yScale(p.score), r = rScale(p.mcap);
+    const fill = colorFor(p.score);
+    parts.push(`
+      <g data-t="${p.t}" data-tk="${p.t}" data-name="${p.n.replace(/"/g, '&quot;')}" data-score="${p.score}" data-upside="${(p.upside*100).toFixed(1)}" data-mcap="${p.mcap}" data-url="${p.url}">
+        <circle class="pm-bubble" cx="${x}" cy="${y}" r="${r}" fill="${fill}" opacity="0.82" stroke="${fill}" stroke-width="1.2"/>
+        <text class="pm-label" x="${x}" y="${y + 3}" fill="${p.score >= 5 ? '#fff' : 'var(--ink)'}">${p.t}</text>
+      </g>
+    `);
+  });
+
+  // ── Frame ──
+  parts.push(`<rect x="${PAD_L}" y="${PAD_T}" width="${plotW}" height="${plotH}" fill="none" stroke="var(--border)" stroke-width="1"/>`);
+
+  svg.innerHTML = parts.join('');
+
+  // ── Interactivity: tooltip + click ──
+  let tip = document.getElementById('pm-tooltip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'pm-tooltip';
+    tip.className = 'pm-tooltip';
+    document.body.appendChild(tip);
+  }
+  const frame = svg.closest('.portmap-frame');
+  svg.querySelectorAll('g[data-tk]').forEach(g => {
+    const ds = g.dataset;
+    g.addEventListener('mouseenter', () => {
+      tip.innerHTML = `
+        <div class="pm-tooltip-tk">${ds.tk}</div>
+        <div style="color:var(--ink-3);font-size:7.5pt;margin-bottom:6px">${ds.name}</div>
+        <div class="pm-tooltip-row"><span class="k">Score</span><span>${parseFloat(ds.score).toFixed(1)} / 10</span></div>
+        <div class="pm-tooltip-row"><span class="k">Composite Upside</span><span>${ds.upside}%</span></div>
+        <div class="pm-tooltip-row"><span class="k">Market Cap</span><span>$${parseFloat(ds.mcap).toFixed(1)}B</span></div>
+      `;
+      tip.style.opacity = '1';
+    });
+    g.addEventListener('mousemove', (e) => {
+      const fr = frame.getBoundingClientRect();
+      const x = e.clientX - fr.left;
+      const y = e.clientY - fr.top;
+      tip.style.left = (fr.left + Math.min(x + 14, fr.width - 200)) + 'px';
+      tip.style.top  = (fr.top  + Math.max(0, y - 12) + window.scrollY) + 'px';
+    });
+    g.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+    g.addEventListener('click', () => { if (ds.url) window.location.href = ds.url; });
+  });
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
