@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% set active_page = 'dashboard' %}
+
+{% block title %}Coverage Dashboard — Investment Utopia{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="ph-eyebrow">Coverage Dashboard</div>
+  <div class="ph-row">
+    <div>
+      <h1 class="ph-title">Watchlist <em>at a glance</em></h1>
+      <p class="ph-sub">All active reports, sortable by score, valuation, or credit. Click any row to open the full report.</p>
+    </div>
+    <div class="ph-meta">
+      <span>Coverage · <strong>{{ coverage | length }} names</strong></span>
+    </div>
+  </div>
+</header>
+
+{% set ns = namespace(total=0, count=0, hc=0, pending=0, upside_sum=0, upside_count=0) %}
+{% for row in coverage %}
+  {% if row.score %}
+    {% set ns.total = ns.total + row.score %}
+    {% set ns.count = ns.count + 1 %}
+    {% if row.score >= 75 %}{% set ns.hc = ns.hc + 1 %}{% endif %}
+    {% if row.upside_pct %}
+      {% set ns.upside_sum = ns.upside_sum + row.upside_pct %}
+      {% set ns.upside_count = ns.upside_count + 1 %}
+    {% endif %}
+  {% else %}
+    {% set ns.pending = ns.pending + 1 %}
+  {% endif %}
+{% endfor %}
+{% set avg_score = (ns.total / ns.count) | round(1) if ns.count else 0 %}
+{% set avg_upside = (ns.upside_sum / ns.upside_count * 100) | round(1) if ns.upside_count else 0 %}
+
+<div class="strip" style="padding:0 32px;margin-left:auto;margin-right:auto">
+  <div class="strip-cell">
+    <div class="strip-label">Avg. Score</div>
+    <div class="strip-val">{{ avg_score }}<span style="color:var(--ink-5);font-size:20px"> / 100</span></div>
+    <div class="strip-delta">across {{ ns.count }} scored</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">High Conviction</div>
+    <div class="strip-val">{{ ns.hc }}</div>
+    <div class="strip-delta">Score ≥ 75</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">Avg. Upside</div>
+    <div class="strip-val {% if avg_upside > 0 %}up{% endif %}">{% if avg_upside > 0 %}+{% endif %}{{ avg_upside }}%</div>
+    <div class="strip-delta">vs. current price</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">Total Coverage</div>
+    <div class="strip-val">{{ coverage | length }}<span style="color:var(--ink-5);font-size:20px"> names</span></div>
+    <div class="strip-delta">all reports</div>
+  </div>
+  <div class="strip-cell">
+    <div class="strip-label">Reports Pending</div>
+    <div class="strip-val">{{ ns.pending }}</div>
+    <div class="strip-delta {% if ns.pending > 0 %}dn{% endif %}">In queue</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="filters" id="filterChips">
+    <button class="chip on" onclick="filterTable('all', this)">All <span class="ct">{{ coverage | length }}</span></button>
+    <button class="chip" onclick="filterTable('hc', this)">High Conviction <span class="ct">{{ ns.hc }}</span></button>
+    <button class="chip" onclick="filterTable('good', this)">Buy</button>
+    <button class="chip" onclick="filterTable('hold', this)">Hold</button>
+    <button class="chip" onclick="filterTable('avoid', this)">Avoid</button>
+    <button class="chip" onclick="filterTable('pending', this)">Pending <span class="ct">{{ ns.pending }}</span></button>
+  </div>
+  <div class="tools-right">
+    <div class="search">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      <input id="searchInput" placeholder="Search ticker or company…" oninput="searchTable(this.value)" />
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="tbl" id="coverageTable">
+    <thead>
+      <tr>
+        <th style="width:28%">Company</th>
+        <th class="num sortable" onclick="sortTable('price')">Price</th>
+        <th class="num sortable" onclick="sortTable('target')">Target</th>
+        <th class="num sortable" onclick="sortTable('upside')">Upside <span class="arr">↕</span></th>
+        <th class="num sortable" onclick="sortTable('score')">Score <span class="arr">↓</span></th>
+        <th>Verdict</th>
+        <th class="num">Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+
+      {# Group: High Conviction #}
+      {% set hc_rows = coverage | selectattr('score') | selectattr('score', 'ge', 75) | list %}
+      {% if hc_rows %}
+      <tr class="group-head" data-group="hc"><td colspan="8">High Conviction <span class="gh-count">{{ hc_rows | length }}</span></td></tr>
+      {% for row in hc_rows | sort(attribute='score', reverse=True) %}
+      <tr class="row" data-verdict="{{ row.verdict_class }}" data-ticker="{{ row.ticker }}" data-name="{{ row.name }}" data-score="{{ row.score or 0 }}" data-upside="{{ row.upside_pct or 0 }}" onclick="openReport('{{ row.ticker }}')">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">{{ row.ticker }}</div>
+            <div>
+              <div class="tk-name">{{ row.name }}</div>
+              <div class="tk-meta">{{ row.exchange or '' }}{% if row.sector %} · {{ row.sector }}{% endif %}</div>
+            </div>
+          </div>
+        </td>
+        <td class="num">{% if row.price %}${{ '%.2f' | format(row.price) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if row.target %}${{ '%.2f' | format(row.target) }}{% else %}—{% endif %}</td>
+        <td class="num {% if row.upside_pct and row.upside_pct > 0 %}up{% elif row.upside_pct and row.upside_pct < 0 %}dn{% endif %}">
+          {% if row.upside_pct %}{{ '%+.1f' | format(row.upside_pct * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="score">
+          <span class="score-bar"><i style="width:{{ row.score }}%;background:var(--pos)"></i></span>{{ row.score | int }}
+        </td>
+        <td><span class="verdict {{ row.verdict_class }}"><span class="dot"></span>{{ row.verdict_label }}</span></td>
+        <td class="num"><span style="color:var(--ink-4)">{{ row.date }}</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+
+      {# Group: Buy (65–74) #}
+      {% set buy_rows = coverage | selectattr('score') | selectattr('score', 'ge', 65) | selectattr('score', 'lt', 75) | list %}
+      {% if buy_rows %}
+      <tr class="group-head" data-group="good"><td colspan="8">Buy <span class="gh-count">{{ buy_rows | length }}</span></td></tr>
+      {% for row in buy_rows | sort(attribute='score', reverse=True) %}
+      <tr class="row" data-verdict="{{ row.verdict_class }}" data-ticker="{{ row.ticker }}" data-name="{{ row.name }}" data-score="{{ row.score or 0 }}" data-upside="{{ row.upside_pct or 0 }}" onclick="openReport('{{ row.ticker }}')">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">{{ row.ticker }}</div>
+            <div>
+              <div class="tk-name">{{ row.name }}</div>
+              <div class="tk-meta">{{ row.exchange or '' }}{% if row.sector %} · {{ row.sector }}{% endif %}</div>
+            </div>
+          </div>
+        </td>
+        <td class="num">{% if row.price %}${{ '%.2f' | format(row.price) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if row.target %}${{ '%.2f' | format(row.target) }}{% else %}—{% endif %}</td>
+        <td class="num {% if row.upside_pct and row.upside_pct > 0 %}up{% elif row.upside_pct and row.upside_pct < 0 %}dn{% endif %}">
+          {% if row.upside_pct %}{{ '%+.1f' | format(row.upside_pct * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="score">
+          <span class="score-bar"><i style="width:{{ row.score }}%;background:var(--pos)"></i></span>{{ row.score | int }}
+        </td>
+        <td><span class="verdict {{ row.verdict_class }}"><span class="dot"></span>{{ row.verdict_label }}</span></td>
+        <td class="num"><span style="color:var(--ink-4)">{{ row.date }}</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+
+      {# Group: Hold (50–64) #}
+      {% set hold_rows = coverage | selectattr('score') | selectattr('score', 'ge', 50) | selectattr('score', 'lt', 65) | list %}
+      {% if hold_rows %}
+      <tr class="group-head" data-group="hold"><td colspan="8">Hold <span class="gh-count">{{ hold_rows | length }}</span></td></tr>
+      {% for row in hold_rows | sort(attribute='score', reverse=True) %}
+      <tr class="row" data-verdict="{{ row.verdict_class }}" data-ticker="{{ row.ticker }}" data-name="{{ row.name }}" data-score="{{ row.score or 0 }}" data-upside="{{ row.upside_pct or 0 }}" onclick="openReport('{{ row.ticker }}')">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">{{ row.ticker }}</div>
+            <div>
+              <div class="tk-name">{{ row.name }}</div>
+              <div class="tk-meta">{{ row.exchange or '' }}{% if row.sector %} · {{ row.sector }}{% endif %}</div>
+            </div>
+          </div>
+        </td>
+        <td class="num">{% if row.price %}${{ '%.2f' | format(row.price) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if row.target %}${{ '%.2f' | format(row.target) }}{% else %}—{% endif %}</td>
+        <td class="num {% if row.upside_pct and row.upside_pct > 0 %}up{% elif row.upside_pct and row.upside_pct < 0 %}dn{% endif %}">
+          {% if row.upside_pct %}{{ '%+.1f' | format(row.upside_pct * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="score">
+          <span class="score-bar"><i style="width:{{ row.score }}%;background:var(--warn)"></i></span>{{ row.score | int }}
+        </td>
+        <td><span class="verdict {{ row.verdict_class }}"><span class="dot"></span>{{ row.verdict_label }}</span></td>
+        <td class="num"><span style="color:var(--ink-4)">{{ row.date }}</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+
+      {# Group: Avoid (<50) #}
+      {% set avoid_rows = coverage | selectattr('score') | selectattr('score', 'lt', 50) | list %}
+      {% if avoid_rows %}
+      <tr class="group-head" data-group="avoid"><td colspan="8">Avoid <span class="gh-count">{{ avoid_rows | length }}</span></td></tr>
+      {% for row in avoid_rows | sort(attribute='score', reverse=True) %}
+      <tr class="row" data-verdict="{{ row.verdict_class }}" data-ticker="{{ row.ticker }}" data-name="{{ row.name }}" data-score="{{ row.score or 0 }}" data-upside="{{ row.upside_pct or 0 }}" onclick="openReport('{{ row.ticker }}')">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">{{ row.ticker }}</div>
+            <div>
+              <div class="tk-name">{{ row.name }}</div>
+              <div class="tk-meta">{{ row.exchange or '' }}{% if row.sector %} · {{ row.sector }}{% endif %}</div>
+            </div>
+          </div>
+        </td>
+        <td class="num">{% if row.price %}${{ '%.2f' | format(row.price) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if row.target %}${{ '%.2f' | format(row.target) }}{% else %}—{% endif %}</td>
+        <td class="num {% if row.upside_pct and row.upside_pct > 0 %}up{% elif row.upside_pct and row.upside_pct < 0 %}dn{% endif %}">
+          {% if row.upside_pct %}{{ '%+.1f' | format(row.upside_pct * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="score">
+          <span class="score-bar"><i style="width:{{ row.score }}%;background:var(--neg)"></i></span>{{ row.score | int }}
+        </td>
+        <td><span class="verdict {{ row.verdict_class }}"><span class="dot"></span>{{ row.verdict_label }}</span></td>
+        <td class="num"><span style="color:var(--ink-4)">{{ row.date }}</span></td>
+        <td class="row-cta">View →</td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+
+      {# Group: Pending (no score) #}
+      {% set pending_rows = coverage | rejectattr('score') | list %}
+      {% if pending_rows %}
+      <tr class="group-head" data-group="pending"><td colspan="8">In Progress <span class="gh-count">{{ pending_rows | length }}</span></td></tr>
+      {% for row in pending_rows %}
+      <tr class="row row-pending" data-verdict="pending" data-ticker="{{ row.ticker }}" data-name="{{ row.name }}" data-score="0" data-upside="0">
+        <td>
+          <div class="tk-cell">
+            <div class="tk-mono">{{ row.ticker }}</div>
+            <div>
+              <div class="tk-name">{{ row.name }}</div>
+              <div class="tk-meta">{{ row.exchange or '' }}</div>
+            </div>
+          </div>
+        </td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="score">—</td>
+        <td><span class="verdict pending"><span class="dot"></span>Pending</span></td>
+        <td class="num"><span style="color:var(--ink-4)">{{ row.date }}</span></td>
+        <td class="row-cta">—</td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+
+      {% if not coverage %}
+      <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--ink-4);font-family:var(--font-mono);font-size:12px;letter-spacing:1px">
+        No reports yet. Generate your first report on the <a href="/" style="color:var(--gold)">home page</a>.
+      </td></tr>
+      {% endif %}
+
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openReport(ticker) {
+  window.open('/reports/' + ticker + '_report.html', '_blank');
+}
+
+function filterTable(filter, btn) {
+  document.querySelectorAll('#filterChips .chip').forEach(c => c.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+
+  const rows  = document.querySelectorAll('#tableBody tr.row');
+  const heads = document.querySelectorAll('#tableBody tr.group-head');
+
+  rows.forEach(r => {
+    const v = r.dataset.verdict;
+    const score = parseFloat(r.dataset.score || 0);
+    let show = false;
+    if (filter === 'all')     show = true;
+    else if (filter === 'hc') show = score >= 75;
+    else if (filter === 'good')    show = v === 'good';
+    else if (filter === 'hold')    show = v === 'hold';
+    else if (filter === 'avoid')   show = v === 'avoid';
+    else if (filter === 'pending') show = v === 'pending';
+    r.style.display = show ? '' : 'none';
+  });
+
+  heads.forEach(h => {
+    const g = h.dataset.group;
+    let show = false;
+    if (filter === 'all')     show = true;
+    else if (filter === 'hc')      show = g === 'hc';
+    else if (filter === 'good')    show = g === 'good';
+    else if (filter === 'hold')    show = g === 'hold';
+    else if (filter === 'avoid')   show = g === 'avoid';
+    else if (filter === 'pending') show = g === 'pending';
+    h.style.display = show ? '' : 'none';
+  });
+}
+
+function searchTable(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#tableBody tr.row').forEach(r => {
+    const match = r.dataset.ticker.toLowerCase().includes(q) ||
+                  r.dataset.name.toLowerCase().includes(q);
+    r.style.display = match ? '' : 'none';
+  });
+}
+
+let _sortDir = { score: -1, upside: 0, price: 0, target: 0 };
+function sortTable(col) {
+  _sortDir[col] = -_sortDir[col] || -1;
+  const tbody = document.getElementById('tableBody');
+  const rows  = Array.from(tbody.querySelectorAll('tr.row'));
+  rows.sort((a, b) => {
+    const av = parseFloat(a.dataset[col] || 0);
+    const bv = parseFloat(b.dataset[col] || 0);
+    return _sortDir[col] * (bv - av);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+</script>
+{% endblock %}

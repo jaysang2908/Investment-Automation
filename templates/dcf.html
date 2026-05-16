@@ -1,0 +1,1342 @@
+{% extends "base.html" %}
+{% set active_page = 'dcf' %}
+
+{% block title %}DCF Calculator — Investment Utopia{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* Map DCF internal variable names to design-system tokens */
+  :root {
+    --surface:   var(--surface-2);
+    --surface2:  var(--surface-3);
+    --border:    var(--border-1);
+    --border2:   var(--border-2);
+    --text:      var(--ink-1);
+    --text-muted:var(--ink-3);
+    --text-dim:  var(--ink-4);
+    --green:     var(--pos);
+    --green-dim: var(--pos-bg);
+    --amber:     var(--warn);
+    --amber-dim: rgba(245,158,11,0.10);
+    --red:       var(--neg);
+    --red-dim:   var(--neg-bg);
+    --blue:      var(--edit);
+    --blue-dim:  rgba(100,149,237,0.12);
+    --gold-light:rgba(230,193,104,0.85);
+    --gold-dim:  rgba(230,193,104,0.12);
+  }
+
+  /* PAGE WRAPPER */
+  .page { position:relative; z-index:1; padding:82px 32px 60px; max-width:1600px; margin:0 auto; }
+
+  /* TICKER BAR */
+  .ticker-bar { display:flex; align-items:center; gap:12px; padding:18px 24px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; margin-bottom:24px; flex-wrap:wrap; }
+  .ticker-input-wrap { display:flex; gap:8px; }
+  .ticker-input { background:rgba(255,255,255,0.05); border:1px solid var(--border2); border-radius:4px; padding:9px 16px; font-family:var(--font-mono); font-size:13pt; font-weight:500; color:#fff; width:120px; outline:none; text-transform:uppercase; }
+  .ticker-input:focus { border-color:var(--gold); }
+  .btn-gold  { background:var(--gold-dim); border:1px solid rgba(201,168,76,0.4); color:var(--gold); }
+  .btn-gold:hover { background:rgba(201,168,76,0.22); }
+  .btn-green { background:var(--green-dim); border:1px solid rgba(16,185,129,0.3); color:var(--green); }
+  .btn-green:hover { background:rgba(16,185,129,0.2); }
+  .btn-red   { background:var(--red-dim); border:1px solid rgba(239,68,68,0.3); color:var(--red); }
+  .company-info { display:flex; flex-direction:column; gap:2px; margin-left:8px; }
+  .company-name { font-weight:600; font-size:11pt; color:var(--text); }
+  .company-meta { font-family:var(--font-mono); font-size:9pt; color:var(--text-muted); }
+  .price-display { font-family:var(--font-mono); font-size:18pt; font-weight:500; color:#fff; margin-left:auto; }
+  .quick-picks { display:flex; flex-wrap:wrap; gap:6px; }
+  .qpick { font-family:var(--font-mono); font-size:7.5pt; padding:4px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:3px; color:var(--text-muted); cursor:pointer; transition:all 0.15s; }
+  .qpick:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-dim); }
+  .divider-v { width:1px; height:40px; background:var(--border2); margin:0 4px; }
+
+  /* SCENARIO BAR */
+  .scenario-bar { display:flex; align-items:center; gap:10px; padding:12px 20px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; margin-bottom:20px; flex-wrap:wrap; }
+  .scenario-label { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-right:4px; }
+  .scenario-select { background:rgba(255,255,255,0.05); border:1px solid var(--border2); border-radius:4px; padding:7px 12px; font-family:var(--font-mono); font-size:9pt; color:var(--text); outline:none; cursor:pointer; min-width:180px; }
+  .scenario-name-input { background:rgba(255,255,255,0.05); border:1px solid var(--border2); border-radius:4px; padding:7px 12px; font-family:var(--font-mono); font-size:9pt; color:var(--text); outline:none; width:180px; }
+  .scenario-name-input:focus { border-color:var(--green); }
+  .scenario-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .s-chip { font-family:var(--font-mono); font-size:7pt; padding:4px 10px; border-radius:3px; border:1px solid var(--border2); color:var(--text-muted); cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.15s; }
+  .s-chip:hover { border-color:var(--gold); color:var(--gold); }
+  .s-chip.active { border-color:var(--gold); color:var(--gold); background:var(--gold-dim); }
+  .s-chip .del { color:var(--red); font-size:9pt; line-height:1; }
+  .s-chip .del:hover { color:#fff; }
+
+  /* MAIN LAYOUT */
+  .dcf-layout { display:grid; grid-template-columns:1fr 300px; gap:20px; margin-bottom:24px; }
+
+  /* PANELS */
+  .dcf-panel { background:var(--surface); border:1px solid var(--border2); border-radius:8px; overflow:hidden; }
+  .panel-header { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:3px; text-transform:uppercase; color:var(--gold); padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .panel-body { padding:0; }
+
+  /* PROJECTION TABLE */
+  .proj-table { width:100%; border-collapse:collapse; font-size:9.5pt; }
+  .proj-table th { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:1px; font-weight:500; padding:10px 12px; text-align:center; border-bottom:1px solid var(--border2); white-space:nowrap; }
+  .proj-table th.label-col { text-align:left; color:var(--text-muted); width:160px; }
+  .proj-table th.hist-col { color:var(--text-dim); }
+  .proj-table th.proj-col { color:var(--gold); }
+  .proj-table td { padding:6px 8px; border-bottom:1px solid var(--border); text-align:center; }
+  .proj-table td.proj-cf-val { font-family:var(--font-mono); font-size:9pt; color:rgba(201,168,76,0.75); }
+  .proj-table td.label-col { text-align:left; font-family:var(--font-mono); font-size:8.5pt; color:var(--text-muted); padding-left:16px; white-space:nowrap; }
+  .proj-table td.hist-val { font-family:var(--font-mono); font-size:9pt; color:#8899bb; }
+  .proj-table tr:hover td { background:rgba(255,255,255,0.015); }
+  .proj-table tr.section-hdr td { background:rgba(255,255,255,0.02); font-size:7.5pt; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:2px; color:var(--text-dim); padding:8px 12px; border-bottom:1px solid var(--border2); text-align:left; }
+  .proj-input { width:70px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:3px; padding:5px 8px; font-family:var(--font-mono); font-size:9pt; color:#e0edff; text-align:right; outline:none; transition:border-color 0.15s; }
+  .proj-input:focus { border-color:var(--blue); background:rgba(59,130,246,0.14); }
+  .input-unit { font-family:var(--font-mono); font-size:8pt; color:var(--text-dim); margin-left:2px; }
+
+  /* WACC PANEL */
+  .wacc-panel { display:flex; flex-direction:column; gap:0; }
+  .wacc-section { padding:16px 20px; border-bottom:1px solid var(--border); }
+  .wacc-section:last-child { border-bottom:none; }
+  .wacc-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border); }
+  .wacc-row:last-child { border-bottom:none; }
+  .wacc-lbl { font-family:var(--font-mono); font-size:8pt; color:var(--text-muted); }
+  .wacc-val { font-family:var(--font-mono); font-size:9pt; color:var(--text); }
+  .wacc-input { width:72px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:3px; padding:4px 8px; font-family:var(--font-mono); font-size:9pt; color:#e0edff; text-align:right; outline:none; }
+  .wacc-input:focus { border-color:var(--blue); }
+  .wacc-computed { font-family:var(--font-mono); font-size:10pt; font-weight:500; color:var(--gold); }
+  .wacc-result-row { padding:12px 0; margin-top:4px; }
+  .result-price { font-family:var(--font-mono); font-size:22pt; font-weight:500; color:#fff; }
+  .result-upside { font-family:var(--font-mono); font-size:11pt; font-weight:500; padding:2px 8px; border-radius:3px; margin-left:8px; }
+  .result-upside.up { color:var(--green); background:var(--green-dim); }
+  .result-upside.dn { color:var(--red);   background:var(--red-dim); }
+  .result-label { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px; }
+  .toggle-row { display:flex; align-items:center; gap:8px; padding:8px 0; }
+  .toggle-lbl { font-family:var(--font-mono); font-size:8pt; color:var(--text-muted); }
+  input[type=checkbox] { accent-color:var(--gold); width:14px; height:14px; cursor:pointer; }
+  .wacc-right { display:inline-flex; align-items:center; gap:4px; min-width:92px; justify-content:flex-end; }
+
+  /* OUTPUT TABLE */
+  .output-section { background:var(--surface); border:1px solid var(--border2); border-radius:8px; margin-bottom:24px; overflow:auto; }
+  .output-table { width:100%; border-collapse:collapse; font-size:9pt; min-width:700px; }
+  .output-table th { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:1px; font-weight:500; padding:10px 14px; text-align:right; border-bottom:1px solid var(--border2); white-space:nowrap; }
+  .output-table th.label-col { text-align:left; width:200px; color:var(--text-muted); }
+  .output-table th.proj-col { color:var(--gold); }
+  .output-table td { padding:7px 14px; border-bottom:1px solid var(--border); text-align:right; font-family:var(--font-mono); font-size:9pt; color:var(--text-muted); white-space:nowrap; }
+  .output-table td.label-col { text-align:left; color:var(--text-muted); font-family:var(--font-sans); padding-left:20px; }
+  .output-table tr.bold-row td { color:var(--text); font-weight:600; background:rgba(255,255,255,0.02); }
+  .output-table tr.ufcf-row td { color:var(--gold); font-weight:600; background:rgba(201,168,76,0.05); border-top:1px solid rgba(201,168,76,0.2); }
+  .output-table tr.tv-row td { color:var(--blue); border-top:1px solid rgba(59,130,246,0.2); background:rgba(59,130,246,0.03); }
+  .output-table tr.sum-row td { font-weight:600; color:var(--text); background:rgba(255,255,255,0.03); border-top:1px solid var(--border2); }
+  .output-table tr:hover td { background:rgba(255,255,255,0.015); }
+  .output-table tr.section-sep td { height:6px; background:transparent; border:none; padding:0; }
+
+  /* RESULT CARDS */
+  .result-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-bottom:24px; }
+  .result-card { background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:24px; }
+  .rc-title { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:3px; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .rc-main { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
+  .rc-price { font-family:var(--font-mono); font-size:28pt; font-weight:500; color:#fff; }
+  .rc-rows { display:flex; flex-direction:column; gap:0; }
+  .rc-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:9pt; }
+  .rc-row:last-child { border-bottom:none; }
+  .rc-key { color:var(--text-muted); font-family:var(--font-mono); font-size:8.5pt; }
+  .rc-val { font-family:var(--font-mono); font-size:8.5pt; color:var(--text); }
+  .val-badge { display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono); font-size:7.5pt; letter-spacing:0.5px; padding:3px 9px; border-radius:20px; margin-top:4px; }
+  .val-badge.match   { background:rgba(16,185,129,0.12);  color:#10b981; border:1px solid rgba(16,185,129,0.25); }
+  .val-badge.close   { background:rgba(234,179,8,0.12);   color:#ca8a04; border:1px solid rgba(234,179,8,0.25); }
+  .val-badge.diverge { background:rgba(239,68,68,0.10);   color:#ef4444; border:1px solid rgba(239,68,68,0.20); }
+  .val-badge.na      { background:rgba(107,114,128,0.12); color:var(--text-dim); border:1px solid var(--border); }
+
+  /* SENSITIVITY */
+  .sensitivity-section { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px; }
+  .sens-panel { background:var(--surface); border:1px solid var(--border2); border-radius:8px; overflow:auto; }
+  .sens-table { width:100%; border-collapse:collapse; font-size:8.5pt; min-width:320px; }
+  .sens-table th { font-family:var(--font-mono); font-size:7.5pt; padding:8px 10px; text-align:center; border-bottom:1px solid var(--border2); color:var(--text-dim); }
+  .sens-table th.axis-lbl { color:var(--text-muted); }
+  .sens-table td { font-family:var(--font-mono); font-size:8.5pt; padding:7px 10px; text-align:center; border-bottom:1px solid var(--border); }
+  .sens-table td.row-hdr { color:var(--text-dim); border-right:1px solid var(--border2); }
+  .cell-below   { background:var(--red-dim);   color:var(--red); }
+  .cell-near    { background:var(--amber-dim);  color:var(--amber); }
+  .cell-above   { background:var(--green-dim);  color:var(--green); }
+  .cell-current { outline:2px solid var(--gold); outline-offset:-2px; }
+
+  /* SCENARIO COMPARE */
+  .compare-section { background:var(--surface); border:1px solid var(--border2); border-radius:8px; margin-bottom:24px; overflow:auto; }
+  .compare-table { width:100%; border-collapse:collapse; font-size:9pt; }
+  .compare-table th { font-family:var(--font-mono); font-size:7.5pt; padding:10px 16px; border-bottom:1px solid var(--border2); text-align:right; }
+  .compare-table th.label-col { text-align:left; color:var(--text-muted); }
+  .compare-table td { padding:7px 16px; border-bottom:1px solid var(--border); text-align:right; font-family:var(--font-mono); font-size:9pt; }
+  .compare-table td.label-col { text-align:left; color:var(--text-muted); }
+  .compare-table td.highlight { color:var(--gold); font-weight:600; }
+
+  /* METRIC CARD */
+  .metric-card { background:var(--surface); border:1px solid var(--border2); border-radius:8px; margin-bottom:20px; overflow:hidden; }
+  .metric-tab { font-family:var(--font-mono); font-size:8.5pt; letter-spacing:1.5px; text-transform:uppercase; padding:9px 22px; border-radius:4px; border:1px solid var(--border2); background:rgba(255,255,255,0.04); color:var(--text-muted); cursor:pointer; transition:all 0.18s; }
+  .metric-tab:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-dim); }
+  .metric-tab.active { border-color:var(--gold); color:var(--gold); background:var(--gold-dim); font-weight:500; }
+  .metric-guardrail-item { display:flex; flex-direction:column; gap:2px; padding:8px 14px; border-right:1px solid var(--border); }
+  .metric-guardrail-item:last-child { border-right:none; }
+
+  /* MISC */
+  .section-title { font-family:var(--font-mono); font-size:7.5pt; letter-spacing:3px; text-transform:uppercase; color:var(--gold); padding:14px 20px 0; }
+  .loading { text-align:center; padding:40px; color:var(--text-muted); font-family:var(--font-mono); font-size:9pt; letter-spacing:2px; }
+  .error-msg { background:var(--red-dim); border:1px solid rgba(239,68,68,0.3); border-radius:4px; padding:10px 16px; font-family:var(--font-mono); font-size:9pt; color:var(--red); margin:8px 0; }
+  .info-tag { font-family:var(--font-mono); font-size:7pt; padding:2px 6px; border-radius:2px; background:var(--blue-dim); color:var(--blue); letter-spacing:0.5px; }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text-dim); }
+  .empty-state h3 { font-size:12pt; color:var(--text-muted); margin-bottom:8px; }
+  .empty-state p { font-size:9pt; font-family:var(--font-mono); }
+
+  /* CHART LEGEND */
+  .chart-legend { display:flex; gap:20px; justify-content:center; padding:0 20px 14px; font-family:var(--font-mono); font-size:8pt; }
+  .chart-legend-item { display:flex; align-items:center; gap:6px; }
+  .chart-legend-swatch { width:12px; height:12px; border-radius:2px; flex-shrink:0; }
+
+  @media(max-width:1100px){ .dcf-layout{grid-template-columns:1fr;} }
+  @media(max-width:760px){ .sensitivity-section{grid-template-columns:1fr;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- TICKER BAR -->
+  <div class="ticker-bar">
+    <div class="ticker-input-wrap">
+      <input id="tickerInput" class="ticker-input" type="text" placeholder="AAPL" maxlength="8"
+             onkeydown="if(event.key==='Enter')loadTicker()">
+      <button class="btn btn-sm btn-gold" onclick="loadTicker()">Load</button>
+    </div>
+    <div class="divider-v"></div>
+    <div class="company-info">
+      <span class="company-name" id="companyName">Enter a ticker to begin</span>
+      <span class="company-meta" id="companyMeta">—</span>
+    </div>
+    <div class="price-display" id="priceDisplay"></div>
+    <div class="divider-v" style="margin-left:auto"></div>
+    <div class="quick-picks" id="quickPicks"></div>
+  </div>
+
+  <!-- SCENARIO BAR -->
+  <div class="scenario-bar" id="scenarioBar" style="display:none">
+    <span class="scenario-label">Scenario</span>
+    <div class="scenario-chips" id="scenarioChips"></div>
+    <div class="divider-v"></div>
+    <input id="scenarioNameInput" class="scenario-name-input" type="text" placeholder="Name this scenario…">
+    <button class="btn btn-sm btn-green" onclick="saveScenario()">Save</button>
+    <button class="btn btn-sm btn-ghost" onclick="loadAnalystDefaults()" id="analystBtn" style="display:none">Use Analyst Est.</button>
+    <button class="btn btn-sm btn-ghost" onclick="resetToDefaults()">Reset</button>
+  </div>
+
+  <div id="errorMsg" class="error-msg" style="display:none"></div>
+  <div id="loadingMsg" class="loading" style="display:none">Loading data…</div>
+
+  <!-- METRIC SELECTOR CARD -->
+  <div class="metric-card" id="metricCard" style="display:none">
+    <div class="panel-header">
+      Cash Flow Metric — EM Anchor
+      <span style="font-weight:400;font-size:7pt;letter-spacing:1px;color:var(--text-dim)">Drives exit multiple terminal value &amp; chart</span>
+    </div>
+    <div style="padding:14px 20px;display:flex;align-items:flex-start;gap:28px;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="metric-tab active" data-m="ebitda" onclick="onMetricChange('ebitda')">EBITDA</button>
+          <button class="metric-tab" data-m="ufcf"   onclick="onMetricChange('ufcf')">UFCF</button>
+          <button class="metric-tab" data-m="ocf"    onclick="onMetricChange('ocf')">OCF</button>
+          <button class="metric-tab" data-m="fcf"    onclick="onMetricChange('fcf')">FCF</button>
+          <div style="width:1px;height:28px;background:var(--border2);margin:0 4px;flex-shrink:0"></div>
+          <span style="font-family:var(--font-mono);font-size:8pt;color:var(--text-muted);white-space:nowrap">TGR</span>
+          <input class="wacc-input" id="tgr" type="number" step="0.1" min="-2" max="8" value="3.0" oninput="calculate()" style="width:60px">
+          <span class="input-unit">%</span>
+          <span style="font-family:var(--font-mono);font-size:7pt;color:var(--text-dim)">(2–4%)</span>
+          <div style="width:1px;height:28px;background:var(--border2);margin:0 4px;flex-shrink:0"></div>
+          <span id="exitMultLabel" style="font-family:var(--font-mono);font-size:8pt;color:var(--text-muted);white-space:nowrap">Multiple</span>
+          <input class="wacc-input" id="exitMultCard" type="number" step="0.5" min="1" max="100" value="15.0" oninput="calculate()" style="width:60px">
+          <span class="input-unit">×</span>
+        </div>
+        <div id="metricDescText" style="font-family:var(--font-mono);font-size:8pt;color:var(--text-muted);line-height:1.55">
+          EM terminal = Year-5 UFCF × exit multiple. GGM also uses UFCF. Both driven by the full revenue → UFCF build-up below.
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:240px;border-left:1px solid var(--border);padding-left:24px">
+        <div style="font-family:var(--font-mono);font-size:7pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Trailing Multiples</div>
+        <div id="metricGuardrails" style="display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--border);border-radius:4px;overflow:hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div class="dcf-layout" id="mainLayout" style="display:none">
+
+    <!-- LEFT: Projection Assumptions -->
+    <div class="dcf-panel">
+      <div class="panel-header">
+        Projection Assumptions
+        <span class="info-tag">Edit blue cells</span>
+      </div>
+      <div class="panel-body">
+        <table class="proj-table" id="projTable">
+          <thead>
+            <tr>
+              <th class="label-col"></th>
+              <th class="hist-col" id="h1">FY—</th>
+              <th class="hist-col" id="h2">FY—</th>
+              <th class="hist-col" id="h3">FY—</th>
+              <th class="hist-col" id="h4">FY—</th>
+              <th class="hist-col" id="h5">FY—</th>
+              <th class="proj-col" id="p1">FY+1E</th>
+              <th class="proj-col" id="p2">FY+2E</th>
+              <th class="proj-col" id="p3">FY+3E</th>
+              <th class="proj-col" id="p4">FY+4E</th>
+              <th class="proj-col" id="p5">FY+5E</th>
+            </tr>
+          </thead>
+          <tbody id="projBody">
+            <tr class="section-hdr"><td colspan="11">Growth &amp; Profitability</td></tr>
+            <tr>
+              <td class="label-col">Revenue ($M)</td>
+              <td class="hist-val" id="hr1_rev">—</td><td class="hist-val" id="hr2_rev">—</td><td class="hist-val" id="hr3_rev">—</td><td class="hist-val" id="hr4_rev">—</td><td class="hist-val" id="hr5_rev">—</td>
+              <td id="pr1_rev">—</td><td id="pr2_rev">—</td><td id="pr3_rev">—</td><td id="pr4_rev">—</td><td id="pr5_rev">—</td>
+            </tr>
+            <tr>
+              <td class="label-col" id="lbl_rg">Revenue Growth %</td>
+              <td class="hist-val" id="hr1_rg">—</td><td class="hist-val" id="hr2_rg">—</td><td class="hist-val" id="hr3_rg">—</td><td class="hist-val" id="hr4_rg">—</td><td class="hist-val" id="hr5_rg">—</td>
+              <td><input class="proj-input" id="rg0" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="rg1" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="rg2" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="rg3" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="rg4" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <tr>
+              <td class="label-col" id="lbl_em">EBITDA Margin %</td>
+              <td class="hist-val" id="hr1_em">—</td><td class="hist-val" id="hr2_em">—</td><td class="hist-val" id="hr3_em">—</td><td class="hist-val" id="hr4_em">—</td><td class="hist-val" id="hr5_em">—</td>
+              <td><input class="proj-input" id="em0" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="em1" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="em2" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="em3" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="em4" type="number" step="0.1" min="0" max="100" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <tr class="section-hdr" id="cfDriversHdr"><td colspan="11">Cash Flow Drivers</td></tr>
+            <tr>
+              <td class="label-col" id="lbl_da">D&amp;A % Revenue</td>
+              <td class="hist-val" id="hr1_da">—</td><td class="hist-val" id="hr2_da">—</td><td class="hist-val" id="hr3_da">—</td><td class="hist-val" id="hr4_da">—</td><td class="hist-val" id="hr5_da">—</td>
+              <td><input class="proj-input" id="da0" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="da1" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="da2" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="da3" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="da4" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <tr>
+              <td class="label-col" id="lbl_cx">CapEx % Revenue</td>
+              <td class="hist-val" id="hr1_cx">—</td><td class="hist-val" id="hr2_cx">—</td><td class="hist-val" id="hr3_cx">—</td><td class="hist-val" id="hr4_cx">—</td><td class="hist-val" id="hr5_cx">—</td>
+              <td><input class="proj-input" id="cx0" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="cx1" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="cx2" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="cx3" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="cx4" type="number" step="0.1" min="0" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <tr>
+              <td class="label-col" id="lbl_nw">NWC Δ % Revenue</td>
+              <td class="hist-val" id="hr1_nw">—</td><td class="hist-val" id="hr2_nw">—</td><td class="hist-val" id="hr3_nw">—</td><td class="hist-val" id="hr4_nw">—</td><td class="hist-val" id="hr5_nw">—</td>
+              <td><input class="proj-input" id="nw0" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="nw1" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="nw2" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="nw3" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="nw4" type="number" step="0.1" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <tr>
+              <td class="label-col" id="lbl_tx">Tax Rate %</td>
+              <td class="hist-val" id="hr1_tx">—</td><td class="hist-val" id="hr2_tx">—</td><td class="hist-val" id="hr3_tx">—</td><td class="hist-val" id="hr4_tx">—</td><td class="hist-val" id="hr5_tx">—</td>
+              <td><input class="proj-input" id="tx0" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="tx1" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="tx2" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="tx3" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
+              <td><input class="proj-input" id="tx4" type="number" step="0.5" min="0" max="50" oninput="calculate()"><span class="input-unit">%</span></td>
+            </tr>
+            <tr class="section-hdr"><td colspan="11">Cash Flow Metrics ($M) — Historical &amp; Forecast</td></tr>
+            <tr>
+              <td class="label-col">EBITDA</td>
+              <td class="hist-val" id="hr1_ebitda_m">—</td><td class="hist-val" id="hr2_ebitda_m">—</td><td class="hist-val" id="hr3_ebitda_m">—</td><td class="hist-val" id="hr4_ebitda_m">—</td><td class="hist-val" id="hr5_ebitda_m">—</td>
+              <td class="proj-cf-val" id="cf_pr1_ebitda">—</td><td class="proj-cf-val" id="cf_pr2_ebitda">—</td><td class="proj-cf-val" id="cf_pr3_ebitda">—</td><td class="proj-cf-val" id="cf_pr4_ebitda">—</td><td class="proj-cf-val" id="cf_pr5_ebitda">—</td>
+            </tr>
+            <tr>
+              <td class="label-col">UFCF</td>
+              <td class="hist-val" id="hr1_ufcf_m">—</td><td class="hist-val" id="hr2_ufcf_m">—</td><td class="hist-val" id="hr3_ufcf_m">—</td><td class="hist-val" id="hr4_ufcf_m">—</td><td class="hist-val" id="hr5_ufcf_m">—</td>
+              <td class="proj-cf-val" id="cf_pr1_ufcf">—</td><td class="proj-cf-val" id="cf_pr2_ufcf">—</td><td class="proj-cf-val" id="cf_pr3_ufcf">—</td><td class="proj-cf-val" id="cf_pr4_ufcf">—</td><td class="proj-cf-val" id="cf_pr5_ufcf">—</td>
+            </tr>
+            <tr>
+              <td class="label-col">OCF</td>
+              <td class="hist-val" id="hr1_ocf">—</td><td class="hist-val" id="hr2_ocf">—</td><td class="hist-val" id="hr3_ocf">—</td><td class="hist-val" id="hr4_ocf">—</td><td class="hist-val" id="hr5_ocf">—</td>
+              <td class="proj-cf-val" id="cf_pr1_ocf">—</td><td class="proj-cf-val" id="cf_pr2_ocf">—</td><td class="proj-cf-val" id="cf_pr3_ocf">—</td><td class="proj-cf-val" id="cf_pr4_ocf">—</td><td class="proj-cf-val" id="cf_pr5_ocf">—</td>
+            </tr>
+            <tr>
+              <td class="label-col">FCF</td>
+              <td class="hist-val" id="hr1_fcf">—</td><td class="hist-val" id="hr2_fcf">—</td><td class="hist-val" id="hr3_fcf">—</td><td class="hist-val" id="hr4_fcf">—</td><td class="hist-val" id="hr5_fcf">—</td>
+              <td class="proj-cf-val" id="cf_pr1_fcf">—</td><td class="proj-cf-val" id="cf_pr2_fcf">—</td><td class="proj-cf-val" id="cf_pr3_fcf">—</td><td class="proj-cf-val" id="cf_pr4_fcf">—</td><td class="proj-cf-val" id="cf_pr5_fcf">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT: WACC + Results -->
+    <div class="dcf-panel wacc-panel">
+      <div class="panel-header">WACC</div>
+      <div class="wacc-section">
+        <div class="wacc-row"><span class="wacc-lbl">Risk-free Rate</span><span><input class="wacc-input" id="wRf" type="number" step="0.05" min="0" max="10" value="4.30" oninput="recalcWacc()"> <span class="input-unit">%</span></span></div>
+        <div class="wacc-row"><span class="wacc-lbl">Beta</span><span class="wacc-right"><input class="wacc-input" id="wBeta" type="number" step="0.05" min="0" max="5" value="1.00" oninput="recalcWacc()"><span class="input-unit" style="visibility:hidden">%</span></span></div>
+        <div class="wacc-row"><span class="wacc-lbl">Equity Risk Premium</span><span class="wacc-right"><input class="wacc-input" id="wErp" type="number" step="0.05" min="0" max="15" value="4.50" oninput="recalcWacc()"><span class="input-unit">%</span></span></div>
+        <div class="wacc-row"><span class="wacc-lbl">Cost of Equity (Ke)</span><span class="wacc-right" style="justify-content:flex-end"><span class="wacc-val" id="wKe">—</span></span></div>
+        <div class="wacc-row"><span class="wacc-lbl">Pre-tax Cost of Debt</span><span><input class="wacc-input" id="wKd" type="number" step="0.1" min="0" max="20" value="4.00" oninput="recalcWacc()"> <span class="input-unit">%</span></span></div>
+        <div class="wacc-row"><span class="wacc-lbl">WACC Tax Rate</span><span><input class="wacc-input" id="wTax" type="number" step="0.5" min="0" max="50" value="21.0" oninput="recalcWacc()"> <span class="input-unit">%</span></span></div>
+        <div class="wacc-row"><span class="wacc-lbl">Equity Weight</span><span><input class="wacc-input" id="wEw" type="number" step="1" min="0" max="100" value="100" oninput="recalcWacc()"> <span class="input-unit">%</span></span></div>
+        <div class="wacc-row" style="border-top:1px solid rgba(201,168,76,0.2);padding-top:8px;margin-top:4px"><span class="wacc-lbl" style="color:var(--gold)">WACC</span><span class="wacc-computed" id="wWacc">—</span></div>
+        <div class="toggle-row" style="padding-top:6px"><input type="checkbox" id="midYear" onchange="calculate()"><label for="midYear" class="toggle-lbl">Mid-year discounting</label></div>
+      </div>
+      <div class="panel-header" style="border-top:1px solid var(--border2)">Results</div>
+      <div class="wacc-section">
+        <div class="result-label">Current Price</div>
+        <div class="rc-main"><span class="result-price" id="currentPx">—</span></div>
+        <div class="result-label" style="margin-top:12px">Gordon Growth Model</div>
+        <div class="rc-main"><span class="result-price" id="ggmPrice">—</span><span class="result-upside" id="ggmUpside"></span></div>
+        <div class="result-label" style="margin-top:12px">Exit Multiple</div>
+        <div class="rc-main"><span class="result-price" id="emPrice">—</span><span class="result-upside" id="emUpside"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASH FLOW CHART -->
+  <div class="output-section" id="chartSection" style="display:none;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px 0;flex-wrap:wrap;gap:8px">
+      <span class="section-title" style="padding:0" id="chartTitle">EBITDA — Historical &amp; Projected ($M)</span>
+      <span class="info-tag">Historical = FMP actuals &nbsp;·&nbsp; Projected = your assumptions</span>
+    </div>
+    <div style="padding:16px 20px 8px;height:260px;position:relative">
+      <canvas id="cfChart"></canvas>
+    </div>
+    <div class="chart-legend" id="chartLegend">
+      <span class="chart-legend-item"><span class="chart-legend-swatch" style="background:rgba(99,115,145,0.72)"></span><span style="color:#8899bb">Historical (FMP actuals)</span></span>
+      <span class="chart-legend-item"><span class="chart-legend-swatch" style="background:rgba(201,168,76,0.72)"></span><span style="color:rgba(201,168,76,0.9)">Projected (your inputs)</span></span>
+    </div>
+  </div>
+
+  <!-- OUTPUT TABLE -->
+  <div class="output-section" id="outputSection" style="display:none">
+    <div class="section-title" style="padding:14px 20px">DCF Output — Unlevered Free Cash Flow</div>
+    <table class="output-table">
+      <thead>
+        <tr>
+          <th class="label-col">($M)</th>
+          <th class="proj-col" id="oy1">FY+1E</th>
+          <th class="proj-col" id="oy2">FY+2E</th>
+          <th class="proj-col" id="oy3">FY+3E</th>
+          <th class="proj-col" id="oy4">FY+4E</th>
+          <th class="proj-col" id="oy5">FY+5E</th>
+          <th style="color:var(--blue)">Terminal</th>
+        </tr>
+      </thead>
+      <tbody id="outputBody"></tbody>
+    </table>
+  </div>
+
+  <!-- RESULT CARDS -->
+  <div class="result-cards" id="resultCards" style="display:none">
+    <div class="result-card">
+      <div class="rc-title">Gordon Growth Model</div>
+      <div class="rc-main"><span class="rc-price" id="rc_ggm_price">—</span><span class="result-upside" id="rc_ggm_up"></span></div>
+      <div id="valBadge"></div>
+      <div class="rc-rows" id="rc_ggm_rows"></div>
+    </div>
+    <div class="result-card">
+      <div class="rc-title" id="rcEmTitle">Exit Multiple</div>
+      <div class="rc-main"><span class="rc-price" id="rc_em_price">—</span><span class="result-upside" id="rc_em_up"></span></div>
+      <div class="rc-rows" id="rc_em_rows"></div>
+    </div>
+    <div class="result-card">
+      <div class="rc-title">WACC Bridge</div>
+      <div class="rc-rows" id="rc_wacc_rows"></div>
+    </div>
+  </div>
+
+  <!-- SENSITIVITY -->
+  <div class="sensitivity-section" id="sensitivitySection" style="display:none">
+    <div class="sens-panel">
+      <div class="panel-header">Sensitivity — GGM (WACC × TGR)</div>
+      <table class="sens-table" id="sensGGM"></table>
+    </div>
+    <div class="sens-panel">
+      <div class="panel-header" id="sensEMTitle">Sensitivity — Exit Multiple (WACC × EBITDA Multiple)</div>
+      <table class="sens-table" id="sensEM"></table>
+    </div>
+  </div>
+
+  <!-- SCENARIO COMPARE -->
+  <div class="compare-section" id="compareSection" style="display:none">
+    <div class="panel-header">Scenario Comparison — <span id="compareTicker" style="color:var(--text-muted)"></span></div>
+    <table class="compare-table" id="compareTable"></table>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div class="empty-state" id="emptyState">
+    <h3>DCF Calculator</h3>
+    <p>Enter a ticker above to load FMP financial data and begin modelling.</p>
+    <br>
+    <p style="color:var(--text-dim)">Supports: DCF (Gordon Growth + Exit Multiple) · WACC derivation · Scenario saving · Sensitivity analysis</p>
+  </div>
+
+  <!-- PORTFOLIO VIEW -->
+  <div class="compare-section" id="portfolioSection" style="display:none">
+    <div class="panel-header">Portfolio View — All Saved Scenarios</div>
+    <table class="compare-table" id="portfolioTable"></table>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let STATE = {
+  ticker: null, data: null, currentDefaults: null, selectedMetric: 'ebitda'
+};
+
+let _chart = null;
+
+const METRIC_LABELS = { ebitda: 'EBITDA', ufcf: 'UFCF', ocf: 'OCF', fcf: 'FCF' };
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+(async function init() {
+  const qp = document.getElementById('quickPicks');
+  try {
+    const res = await fetch('/api/covered-tickers');
+    const tickers = await res.json();
+    if (Array.isArray(tickers) && tickers.length) {
+      tickers.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'qpick';
+        b.textContent = t.ticker;
+        if (t.name) b.title = t.name;
+        b.onclick = () => { document.getElementById('tickerInput').value = t.ticker; loadTicker(); };
+        qp.appendChild(b);
+      });
+    } else {
+      qp.innerHTML = '<span style="font-family:var(--font-mono);font-size:8pt;color:var(--text-dim)">No reports yet — run Generate first</span>';
+    }
+  } catch(e) {
+    console.warn('Could not load covered tickers', e);
+  }
+  const u = new URLSearchParams(location.search);
+  if (u.get('t')) {
+    document.getElementById('tickerInput').value = u.get('t').toUpperCase();
+    loadTicker();
+  }
+  renderPortfolio();
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// METRIC SELECTOR
+// ═══════════════════════════════════════════════════════════════
+const metricDescriptions = {
+  ebitda: 'EM terminal = Year-5 projected EBITDA × exit multiple. GGM uses UFCF perpetuity at TGR — unaffected by anchor. Input TGR for Gordon\'s Growth and terminal multiple applied to Year-5 EBITDA for DCF / Multiples Valuation.',
+  ufcf:   'EM terminal = Year-5 projected UFCF × exit multiple. GGM also uses UFCF perpetuity at TGR. Input TGR for Gordon\'s Growth and terminal multiple applied to Year-5 UFCF for DCF / Multiples Valuation.',
+  ocf:    'EM terminal = Year-5 projected OCF × exit multiple. GGM uses UFCF perpetuity at TGR — unaffected by anchor. Input TGR for Gordon\'s Growth and terminal multiple applied to Year-5 OCF for DCF / Multiples Valuation.',
+  fcf:    'EM terminal = Year-5 projected FCF × exit multiple. GGM uses UFCF perpetuity at TGR — unaffected by anchor. Input TGR for Gordon\'s Growth and terminal multiple applied to Year-5 FCF for DCF / Multiples Valuation.',
+};
+
+function onMetricChange(metric) {
+  STATE.selectedMetric = metric;
+  document.querySelectorAll('.metric-tab').forEach(b => b.classList.toggle('active', b.dataset.m === metric));
+  const lbl = METRIC_LABELS[metric] || 'EBITDA';
+  setTxt('exitMultLabel', `${lbl} Mult`);
+  setTxt('sensEMTitle',   `Sensitivity — Exit Multiple (WACC × ${lbl} Multiple)`);
+  setTxt('chartTitle',    `${lbl} — Historical & Projected ($M)`);
+  setTxt('metricDescText', metricDescriptions[metric] || '');
+  document.querySelectorAll('.metric-guardrail-item').forEach(el => {
+    el.style.background = el.dataset.metric === metric ? 'rgba(201,168,76,0.06)' : '';
+  });
+  calculate();
+}
+
+function computeMetricGuardrails() {
+  const el = document.getElementById('metricGuardrails');
+  if (!el || !STATE.data) { if (el) el.innerHTML = ''; return; }
+  const { history, price, shares_m, net_debt_m } = STATE.data;
+  const last = history[history.length - 1];
+  if (!last || !price || !shares_m) { el.innerHTML = ''; return; }
+  const mktCap = price * shares_m;
+  const ev     = mktCap + (net_debt_m || 0);
+  const trailEbitda = last.revenue_m * (last.ebitda_margin || 0);
+  const trailOcf    = last.ocf_m;
+  const trailFcf    = last.fcf_m;
+  const fmtX = (num, denom) => (denom && denom > 0 && num > 0) ? `${(num/denom).toFixed(1)}×` : 'N/A';
+  const items = [
+    { label: 'EV/EBITDA',  val: fmtX(ev, trailEbitda),  metric: 'ebitda' },
+    { label: 'EV/UFCF',    val: fmtX(ev, trailFcf),      metric: 'ufcf'   },
+    { label: 'P/OCF',      val: trailOcf ? fmtX(mktCap, trailOcf) : 'N/A', metric: 'ocf' },
+    { label: 'P/FCF',      val: trailFcf ? fmtX(mktCap, trailFcf) : 'N/A', metric: 'fcf' },
+  ];
+  el.innerHTML = items.map(item => `
+    <div class="metric-guardrail-item" data-metric="${item.metric}"
+         style="${STATE.selectedMetric===item.metric?'background:rgba(201,168,76,0.06)':''}">
+      <span style="font-family:var(--font-mono);font-size:7pt;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">${item.label}</span>
+      <span style="font-family:var(--font-mono);font-size:11pt;font-weight:500;color:var(--text)">${item.val}</span>
+      <span style="font-family:var(--font-mono);font-size:7pt;color:var(--text-dim)">trailing</span>
+    </div>
+  `).join('');
+}
+
+function updateLabelAverages() {
+  if (!STATE.data) return;
+  const hist  = STATE.data.history;
+  const last3 = hist.slice(-3);
+  function avg3(key, multiply100) {
+    const vals = last3.map(h => h[key]).filter(v => v != null && !isNaN(v));
+    if (!vals.length) return 'N/A';
+    const mean = vals.reduce((a,b) => a+b, 0) / vals.length;
+    return multiply100 ? `${(mean*100).toFixed(1)}%` : `${mean.toFixed(1)}%`;
+  }
+  const defs = [
+    ['lbl_rg', 'Revenue Growth %',  'rev_growth',    true ],
+    ['lbl_em', 'EBITDA Margin %',   'ebitda_margin', true ],
+    ['lbl_da', 'D&A % Revenue',     'da_pct',        true ],
+    ['lbl_cx', 'CapEx % Revenue',   'capex_pct',     true ],
+    ['lbl_nw', 'NWC Δ % Revenue',   'nwc_pct',       true ],
+    ['lbl_tx', 'Tax Rate %',        'tax_rate',      true ],
+  ];
+  defs.forEach(([id, name, key, mul]) => {
+    const cell = document.getElementById(id);
+    if (cell) cell.innerHTML =
+      `${name}<br><span style="font-size:7pt;color:var(--text-dim);font-family:var(--font-mono);letter-spacing:0">(3yr avg: ${avg3(key, mul)})</span>`;
+  });
+}
+
+function getLastHistMetricValue(metric) {
+  if (!STATE.data) return 0;
+  const hist = STATE.data.history;
+  const last = hist[hist.length - 1] || {};
+  if (metric === 'ebitda') return last.revenue_m * (last.ebitda_margin || 0);
+  if (metric === 'ufcf')   return last.fcf_m || 0;
+  if (metric === 'ocf')    return last.ocf_m || 0;
+  if (metric === 'fcf')    return last.fcf_m || 0;
+  return 0;
+}
+
+function getTerminalMetricBase5() {
+  const years  = STATE.lastYears;
+  const metric = STATE.selectedMetric || 'ebitda';
+  if (!years || years.length < 5) return getLastHistMetricValue(metric);
+  const y5 = years[4];
+  if (metric === 'ebitda') return y5.ebitda;
+  if (metric === 'ufcf')   return y5.ufcf;
+  if (metric === 'ocf')    return y5.nopat + y5.daAmt - y5.dnwc;
+  if (metric === 'fcf')    return y5.ufcf;
+  return y5.ebitda;
+}
+
+function getDirectMetricValues() {
+  const years  = STATE.lastYears;
+  const metric = STATE.selectedMetric || 'ebitda';
+  if (!years || !years.length) return [];
+  return years.map(y => {
+    if (metric === 'ebitda') return +(y.ebitda).toFixed(1);
+    if (metric === 'ufcf')   return +(y.ufcf).toFixed(1);
+    if (metric === 'ocf')    return +(y.nopat + y.daAmt - y.dnwc).toFixed(1);
+    if (metric === 'fcf')    return +(y.ufcf).toFixed(1);
+    return +(y.ebitda).toFixed(1);
+  });
+}
+
+function getHistMetricValues() {
+  if (!STATE.data) return [];
+  const metric = STATE.selectedMetric || 'ebitda';
+  const hist   = STATE.data.history.slice(-5);
+  if (metric === 'ebitda') return hist.map(h => +(h.revenue_m * (h.ebitda_margin || 0)).toFixed(1));
+  if (metric === 'ufcf')   return hist.map(h => h.fcf_m != null ? +h.fcf_m.toFixed(1) : null);
+  if (metric === 'ocf')    return hist.map(h => h.ocf_m != null ? +h.ocf_m.toFixed(1) : null);
+  if (metric === 'fcf')    return hist.map(h => h.fcf_m != null ? +h.fcf_m.toFixed(1) : null);
+  return hist.map(() => null);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOAD TICKER
+// ═══════════════════════════════════════════════════════════════
+async function loadTicker() {
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!ticker) return;
+
+  showLoading(true);
+  hideError();
+
+  try {
+    const res = await fetch(`/api/dcf-data/${ticker}`);
+    const data = await res.json();
+    if (data.error) { showError(data.error); showLoading(false); return; }
+
+    STATE.ticker = ticker;
+    STATE.data = data;
+    STATE.currentDefaults = JSON.parse(JSON.stringify(data.defaults));
+
+    document.getElementById('companyName').textContent = data.name;
+    const freshTag = data.fetched_date ? `  ·  Data: ${data.fetched_date}` : '';
+    document.getElementById('companyMeta').textContent =
+      `${ticker}  ·  ${(data.shares_m||0).toFixed(0)}M shares  ·  Net debt $${fmt1(data.net_debt_m)}M${freshTag}`;
+    document.getElementById('priceDisplay').textContent = data.price ? `$${data.price.toFixed(2)}` : '';
+    document.getElementById('currentPx').textContent = data.price ? `$${data.price.toFixed(2)}` : '—';
+
+    const lastYr = data.last_year;
+    const hist = data.history;
+    const n = hist.length;
+    ['h1','h2','h3','h4','h5'].forEach((id,i) => {
+      const h = hist[n - 5 + i];
+      document.getElementById(id).textContent = h ? `FY${h.year}` : '—';
+    });
+    for (let i=1;i<=5;i++) {
+      document.getElementById(`p${i}`).textContent = `FY${lastYr+i}E`;
+      document.getElementById(`oy${i}`).textContent = `FY${lastYr+i}E`;
+    }
+
+    const ROWS = ['rev','rg','em','da','cx','tx','nw'];
+    const keys = ['revenue_m','rev_growth','ebitda_margin','da_pct','capex_pct','tax_rate','nwc_pct'];
+    const pcts  = [false, true, true, true, true, true, true];
+    for (let col=1;col<=5;col++) {
+      const h = hist[n - 5 + (col-1)];
+      ROWS.forEach((r,i) => {
+        const el = document.getElementById(`hr${col}_${r}`);
+        if (!el || !h) return;
+        const v = h[keys[i]];
+        if (v === null || v === undefined) { el.textContent = '—'; return; }
+        el.textContent = pcts[i] ? `${(v*100).toFixed(1)}%` : `${fmtM(v*1)}`;
+      });
+    }
+
+    if (_chart) { _chart.destroy(); _chart = null; }
+
+    STATE.selectedMetric = 'ebitda';
+    document.querySelectorAll('.metric-tab').forEach(b => b.classList.toggle('active', b.dataset.m === 'ebitda'));
+    setTxt('exitMultLabel', 'EBITDA Mult');
+    setTxt('sensEMTitle',   'Sensitivity — Exit Multiple (WACC × EBITDA Multiple)');
+    setTxt('chartTitle',    'EBITDA — Historical & Projected ($M)');
+    setTxt('metricDescText', metricDescriptions.ebitda);
+
+    (function populateHistCfCells() {
+      const hist = data.history;
+      const hn   = hist.length;
+      for (let col = 1; col <= 5; col++) {
+        const h = hist[hn - 5 + (col - 1)];
+        if (!h) continue;
+        const ebitdaEl = document.getElementById(`hr${col}_ebitda_m`);
+        if (ebitdaEl) ebitdaEl.textContent = fmtM(h.revenue_m * (h.ebitda_margin || 0));
+        const ufcfEl = document.getElementById(`hr${col}_ufcf_m`);
+        if (ufcfEl) ufcfEl.textContent = h.fcf_m != null ? fmtM(h.fcf_m) : '—';
+        const ocfEl = document.getElementById(`hr${col}_ocf`);
+        if (ocfEl) ocfEl.textContent = h.ocf_m != null ? fmtM(h.ocf_m) : '—';
+        const fcfEl = document.getElementById(`hr${col}_fcf`);
+        if (fcfEl) fcfEl.textContent = h.fcf_m != null ? fmtM(h.fcf_m) : '—';
+      }
+    })();
+
+    populateInputs(data.defaults);
+
+    const d = data.defaults;
+    setVal('wRf',   (d.rf*100).toFixed(2));
+    setVal('wBeta', d.beta.toFixed(3));
+    setVal('wErp',  (d.erp*100).toFixed(2));
+    setVal('wKd',   (d.kd_pretax*100).toFixed(2));
+    setVal('wTax',  (d.eff_tax*100).toFixed(1));
+    setVal('wEw',   (d.equity_weight*100).toFixed(0));
+
+    document.getElementById('analystBtn').style.display =
+      (data.analyst_ests && data.analyst_ests.length) ? '' : 'none';
+
+    showLoading(false);
+    document.getElementById('metricCard').style.display   = '';
+    document.getElementById('mainLayout').style.display   = '';
+    document.getElementById('chartSection').style.display = '';
+    document.getElementById('outputSection').style.display = '';
+    document.getElementById('resultCards').style.display   = '';
+    document.getElementById('sensitivitySection').style.display = '';
+    document.getElementById('scenarioBar').style.display  = '';
+    document.getElementById('emptyState').style.display   = 'none';
+    computeMetricGuardrails();
+    updateLabelAverages();
+
+    history.replaceState(null,'',`/dcf?t=${ticker}`);
+
+    recalcWacc();
+    await migrateLocalStorage(ticker);
+    await renderScenarioChips();
+    await renderCompare();
+    await renderPortfolio();
+
+  } catch(e) {
+    showError(`Failed to load ${ticker}: ${e.message}`);
+    showLoading(false);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// POPULATE INPUTS
+// ═══════════════════════════════════════════════════════════════
+function populateInputs(d) {
+  for(let i=0;i<5;i++){
+    setVal(`rg${i}`, (d.rev_growth[i]*100).toFixed(1));
+    setVal(`em${i}`, (d.ebitda_margin[i]*100).toFixed(1));
+    setVal(`da${i}`, (d.da_pct[i]*100).toFixed(1));
+    setVal(`cx${i}`, (d.capex_pct[i]*100).toFixed(1));
+    setVal(`nw${i}`, (d.nwc_pct[i]*100).toFixed(1));
+    setVal(`tx${i}`, (d.tax_rate[i]*100).toFixed(1));
+  }
+  setVal('tgr', (d.tgr*100).toFixed(1));
+  setVal('exitMultCard', d.exit_multiple.toFixed(1));
+  calculate();
+}
+
+function loadAnalystDefaults() {
+  if (!STATE.data || !STATE.data.analyst_ests || !STATE.data.analyst_ests.length) return;
+  const ae = STATE.data.analyst_ests;
+  const lastRev = STATE.data.history[STATE.data.history.length-1].revenue_m;
+  for (let i=0;i<5;i++) {
+    if (i < ae.length && ae[i].rev_avg_m && (i===0 ? lastRev : ae[i-1].rev_avg_m)) {
+      const prev = i === 0 ? lastRev : ae[i-1].rev_avg_m;
+      const g = (ae[i].rev_avg_m / prev - 1) * 100;
+      setVal(`rg${i}`, g.toFixed(1));
+    }
+    if (i < ae.length && ae[i].ebitda_m && ae[i].rev_avg_m && ae[i].rev_avg_m > 0) {
+      setVal(`em${i}`, (ae[i].ebitda_m / ae[i].rev_avg_m * 100).toFixed(1));
+    }
+  }
+  calculate();
+}
+
+function resetToDefaults() {
+  if (!STATE.currentDefaults) return;
+  populateInputs(STATE.currentDefaults);
+  const d = STATE.currentDefaults;
+  setVal('wRf',   (d.rf*100).toFixed(2));
+  setVal('wBeta', d.beta.toFixed(3));
+  setVal('wErp',  (d.erp*100).toFixed(2));
+  setVal('wKd',   (d.kd_pretax*100).toFixed(2));
+  setVal('wTax',  (d.eff_tax*100).toFixed(1));
+  setVal('wEw',   (d.equity_weight*100).toFixed(0));
+  recalcWacc();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WACC RECALC
+// ═══════════════════════════════════════════════════════════════
+function recalcWacc() {
+  const rf   = getVal('wRf') / 100;
+  const beta = getVal('wBeta');
+  const erp  = getVal('wErp') / 100;
+  const kd   = getVal('wKd') / 100;
+  const tax  = getVal('wTax') / 100;
+  const ew   = getVal('wEw') / 100;
+  const dw   = 1 - ew;
+  const ke   = rf + beta * erp;
+  const wacc = ew * ke + dw * kd * (1 - tax);
+  document.getElementById('wKe').textContent   = `${(ke*100).toFixed(2)}%`;
+  document.getElementById('wWacc').textContent = `${(wacc*100).toFixed(2)}%`;
+  calculate();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN DCF CALCULATION
+// ═══════════════════════════════════════════════════════════════
+function calculate() {
+  if (!STATE.data) return;
+
+  const data    = STATE.data;
+  const lastRev = data.history[data.history.length-1].revenue_m;
+  const shares  = data.shares_m;
+  const netDebt = data.net_debt_m;
+  const price   = data.price || 0;
+
+  const rf   = getVal('wRf') / 100;
+  const beta = getVal('wBeta');
+  const erp  = getVal('wErp') / 100;
+  const kd   = getVal('wKd') / 100;
+  const tax  = getVal('wTax') / 100;
+  const ew   = getVal('wEw') / 100;
+  const dw   = 1 - ew;
+  const ke   = rf + beta * erp;
+  const wacc = ew * ke + dw * kd * (1 - tax);
+  const tgr  = getVal('tgr') / 100;
+  const exitM = getVal('exitMultCard');
+  const mid   = document.getElementById('midYear').checked;
+
+  let rev = lastRev;
+  const years = [];
+  let sumPV = 0;
+
+  for (let i=0;i<5;i++){
+    const rg  = getVal(`rg${i}`) / 100;
+    const em  = getVal(`em${i}`) / 100;
+    const da  = getVal(`da${i}`) / 100;
+    const cx  = getVal(`cx${i}`) / 100;
+    const nw  = getVal(`nw${i}`) / 100;
+    const tx  = getVal(`tx${i}`) / 100;
+    const prevRev = rev;
+    rev = rev * (1 + rg);
+    const ebitda  = rev * em;
+    const daAmt   = rev * da;
+    const ebit    = ebitda - daAmt;
+    const nopat   = ebit * (1 - tx);
+    const capex   = rev * cx;
+    const dnwc    = rev * nw;
+    const ufcf    = nopat + daAmt - capex - dnwc;
+    const t       = mid ? i + 0.5 : i + 1;
+    const df      = 1 / Math.pow(1 + wacc, t);
+    const pvUfcf  = ufcf * df;
+    sumPV += pvUfcf;
+    years.push({ rev, ebitda, daAmt, ebit, nopat, capex, dnwc, ufcf, df, pvUfcf });
+  }
+
+  STATE.lastYears = years;
+
+  const termUFCF      = years[4].ufcf * (1 + tgr);
+  const tvGGM         = (wacc - tgr) > 0.001 ? termUFCF / (wacc - tgr) : 0;
+  const terminalBase5 = getTerminalMetricBase5();
+  const tvEM          = terminalBase5 * exitM;
+  const tDisc    = mid ? 4.5 : 5;
+  const tDF      = 1 / Math.pow(1 + wacc, tDisc);
+  const pvTvGGM  = tvGGM * tDF;
+  const pvTvEM   = tvEM  * tDF;
+
+  const evGGM = sumPV + pvTvGGM;
+  const evEM  = sumPV + pvTvEM;
+  const eqGGM = evGGM - netDebt;
+  const eqEM  = evEM  - netDebt;
+  const pGGM  = shares > 0 ? eqGGM / shares : 0;
+  const pEM   = shares > 0 ? eqEM  / shares : 0;
+  const tvPctGGM = evGGM > 0 ? pvTvGGM / evGGM * 100 : 0;
+  const tvPctEM  = evEM  > 0 ? pvTvEM  / evEM  * 100 : 0;
+
+  const ob = document.getElementById('outputBody');
+  const rows = [
+    { label:'Revenue', key:'rev', fmt:fmtM, bold:true },
+    { label:'EBITDA',  key:'ebitda', fmt:fmtM, bold:false },
+    { label:'− D&A',   key:'daAmt', fmt:v=>`(${fmtM(v)})`, bold:false },
+    { label:'EBIT',    key:'ebit', fmt:fmtM, bold:false },
+    { label:'− Tax',   key:null, fmt:null },
+    { label:'NOPAT',   key:'nopat', fmt:fmtM, bold:true },
+    { label:'+ D&A',   key:'daAmt', fmt:fmtM },
+    { label:'− CapEx', key:'capex', fmt:v=>`(${fmtM(v)})` },
+    { label:'− ΔNWC',  key:'dnwc', fmt:v=>v>=0?`(${fmtM(v)})`:fmtM(Math.abs(v)) },
+    { label:'UFCF',    key:'ufcf', fmt:fmtM, ufcf:true },
+    { label:'Discount Factor', key:'df', fmt:v=>v.toFixed(3) },
+    { label:'PV of UFCF', key:'pvUfcf', fmt:fmtM, bold:true },
+  ];
+  let html = '';
+  rows.forEach((r) => {
+    if (r.label === '− Tax') {
+      html += `<tr><td class="label-col">− Tax</td>`;
+      years.forEach(y => {
+        const tx_y = y.ebit > 0 ? (y.nopat - y.ebit) : 0;
+        html += `<td>${fmtM(tx_y)}</td>`;
+      });
+      html += `<td>—</td></tr>`;
+      return;
+    }
+    const cls = r.ufcf ? 'ufcf-row' : r.bold ? 'bold-row' : '';
+    html += `<tr class="${cls}"><td class="label-col">${r.label}</td>`;
+    years.forEach(y => { html += `<td>${r.fmt(y[r.key])}</td>`; });
+    if (r.ufcf) html += `<td style="color:var(--blue)">${fmtM(termUFCF)}</td>`;
+    else        html += `<td>—</td>`;
+    html += '</tr>';
+  });
+  html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col">Terminal Value (GGM)</td>`
+    + years.map(()=>'<td>—</td>').join('') + `<td>${fmtM(tvGGM)}</td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col">PV of TV (GGM)</td>`
+    + years.map(()=>'<td>—</td>').join('')
+    + `<td>${fmtM(pvTvGGM)} <span style="font-size:7.5pt;color:var(--text-dim)">(${tvPctGGM.toFixed(0)}%)</span></td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col">Terminal Value (Exit ×)</td>`
+    + years.map(()=>'<td>—</td>').join('') + `<td>${fmtM(tvEM)}</td></tr>`;
+  html += `<tr class="tv-row"><td class="label-col">PV of TV (Exit ×)</td>`
+    + years.map(()=>'<td>—</td>').join('')
+    + `<td>${fmtM(pvTvEM)} <span style="font-size:7.5pt;color:var(--text-dim)">(${tvPctEM.toFixed(0)}%)</span></td></tr>`;
+  html += `<tr class="section-sep"><td colspan="7"></td></tr>`;
+  html += `<tr class="sum-row"><td class="label-col">Σ PV of FCFs (ex TV)</td>`
+    + years.map(()=>'<td>—</td>').join('') + `<td>${fmtM(sumPV)}</td></tr>`;
+  ob.innerHTML = html;
+
+  years.forEach((y,i) => {
+    setTxt(`pr${i+1}_rev`, fmtM(y.rev));
+    const idx = i + 1;
+    setTxt(`cf_pr${idx}_ebitda`, fmtM(y.ebitda));
+    setTxt(`cf_pr${idx}_ufcf`,   fmtM(y.ufcf));
+    setTxt(`cf_pr${idx}_ocf`,    fmtM(y.nopat + y.daAmt - y.dnwc));
+    setTxt(`cf_pr${idx}_fcf`,    fmtM(y.ufcf));
+  });
+
+  setTxt('ggmPrice', price > 0 ? `$${pGGM.toFixed(2)}` : '—');
+  setTxt('emPrice',  price > 0 ? `$${pEM.toFixed(2)}` : '—');
+  setUpside('ggmUpside', pGGM, price);
+  setUpside('emUpside',  pEM, price);
+
+  setTxt('rc_ggm_price', `$${pGGM.toFixed(2)}`);
+  setTxt('rc_em_price',  `$${pEM.toFixed(2)}`);
+  setUpside('rc_ggm_up', pGGM, price);
+  setUpside('rc_em_up',  pEM, price);
+
+  (function updateValBadge() {
+    const badge = document.getElementById('valBadge');
+    if (!badge) return;
+    const ggServer = STATE.data && STATE.data.dcf_base_price;
+    const emServer = STATE.data && STATE.data.dcf_em_price;
+    function _badge(clientPx, serverPx, label) {
+      if (!serverPx || !clientPx) { badge.innerHTML = '<span class="val-badge na">No engine price to compare</span>'; return; }
+      const diff = (clientPx - serverPx) / serverPx;
+      const pct  = (diff * 100).toFixed(1);
+      const sign = diff >= 0 ? '+' : '';
+      const abs  = Math.abs(diff);
+      if (abs < 0.03)       badge.innerHTML = `<span class="val-badge match">${label} matches engine (${sign}${pct}%)</span>`;
+      else if (abs < 0.10)  badge.innerHTML = `<span class="val-badge close">${label} close to engine (${sign}${pct}%)</span>`;
+      else                  badge.innerHTML = `<span class="val-badge diverge">${label} diverges from engine: ${sign}${pct}%</span>`;
+    }
+    if (ggServer) _badge(pGGM, ggServer, 'GGM');
+    else if (emServer) _badge(pEM, emServer, 'EM');
+    else badge.innerHTML = '<span class="val-badge na">No engine price to compare</span>';
+  })();
+
+  document.getElementById('rc_ggm_rows').innerHTML =
+    rcRow('EV (DCF)',      fmtM(evGGM)) +
+    rcRow('− Net Debt',    fmtM(netDebt)) +
+    rcRow('Equity Value',  fmtM(eqGGM)) +
+    rcRow('÷ Shares',      `${shares.toFixed(0)}M`) +
+    rcRow('TV % of EV',    `${tvPctGGM.toFixed(1)}%`) +
+    rcRow('Terminal UFCF', fmtM(termUFCF)) +
+    rcRow('TGR used',      `${(tgr*100).toFixed(1)}%`) +
+    rcRow('WACC used',     `${(wacc*100).toFixed(2)}%`);
+
+  const emMetricLbl = METRIC_LABELS[STATE.selectedMetric] || 'EBITDA';
+  setTxt('rcEmTitle', `Exit ${emMetricLbl} Multiple`);
+  document.getElementById('rc_em_rows').innerHTML =
+    rcRow('EV (Exit ×)',              fmtM(evEM)) +
+    rcRow('− Net Debt',               fmtM(netDebt)) +
+    rcRow('Equity Value',             fmtM(eqEM)) +
+    rcRow('÷ Shares',                 `${shares.toFixed(0)}M`) +
+    rcRow('TV % of EV',               `${tvPctEM.toFixed(1)}%`) +
+    rcRow(`Terminal ${emMetricLbl}`,  fmtM(terminalBase5)) +
+    rcRow('Exit Multiple',            `${exitM.toFixed(1)}×`) +
+    rcRow('WACC used',                `${(wacc*100).toFixed(2)}%`);
+  document.getElementById('rc_wacc_rows').innerHTML =
+    rcRow('Risk-free Rate',   `${(rf*100).toFixed(2)}%`) +
+    rcRow('Beta',              beta.toFixed(3)) +
+    rcRow('Equity Risk Prem', `${(erp*100).toFixed(2)}%`) +
+    rcRow('Cost of Equity',   `${(ke*100).toFixed(2)}%`) +
+    rcRow('Pre-tax Kd',        `${(kd*100).toFixed(2)}%`) +
+    rcRow('After-tax Kd',      `${(kd*(1-tax)*100).toFixed(2)}%`) +
+    rcRow('Equity Weight',     `${(ew*100).toFixed(0)}%`) +
+    rcRow('Debt Weight',       `${(dw*100).toFixed(0)}%`) +
+    `<div class="rc-row"><span class="rc-key" style="color:var(--gold)">WACC</span><span class="rc-val" style="color:var(--gold);font-weight:600">${(wacc*100).toFixed(2)}%</span></div>`;
+
+  buildChart(years);
+  buildSens(wacc, tgr, exitM, sumPV, years, netDebt, shares, price, mid, terminalBase5);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SENSITIVITY TABLES
+// ═══════════════════════════════════════════════════════════════
+function buildSens(baseWacc, baseTgr, baseExitM, sumPV, years, netDebt, shares, price, mid, terminalBase5) {
+  const waccSteps = [-0.02,-0.01,0,+0.01,+0.02].map(d => baseWacc + d);
+  const tgrSteps  = [0.01,0.02,0.03,0.04,0.05];
+  const mBase = Math.round(baseExitM * 2) / 2;
+  const mStep = mBase >= 20 ? 3 : mBase >= 12 ? 2 : 1.5;
+  const multSteps = [-2,-1,0,1,2].map(d => Math.max(1, +(mBase + d * mStep).toFixed(1)));
+  const tDisc = mid ? 4.5 : 5;
+
+  let ggmHtml = '<thead><tr><th class="axis-lbl">WACC \\ TGR</th>';
+  tgrSteps.forEach(t => ggmHtml += `<th>${(t*100).toFixed(1)}%</th>`);
+  ggmHtml += '</tr></thead><tbody>';
+  waccSteps.forEach(w => {
+    ggmHtml += `<tr><td class="row-hdr">${(w*100).toFixed(1)}%</td>`;
+    tgrSteps.forEach(t => {
+      const tv = (w - t) > 0.001 ? (years[4].ufcf*(1+t)) / (w - t) : 0;
+      let sp = 0;
+      years.forEach((y,i) => { sp += y.ufcf / Math.pow(1+w, mid ? i+0.5 : i+1); });
+      const pvTv = tv / Math.pow(1+w, tDisc);
+      const eq   = (sp + pvTv) - netDebt;
+      const px   = shares > 0 ? eq / shares : 0;
+      const cls  = getCell(px, price) + (Math.abs(w-baseWacc)<0.001 && Math.abs(t-baseTgr)<0.001 ? ' cell-current':'');
+      ggmHtml += `<td class="${cls}">$${px.toFixed(0)}</td>`;
+    });
+    ggmHtml += '</tr>';
+  });
+  ggmHtml += '</tbody>';
+  document.getElementById('sensGGM').innerHTML = ggmHtml;
+
+  let emHtml = '<thead><tr><th class="axis-lbl">WACC \\ Multiple</th>';
+  multSteps.forEach(m => emHtml += `<th>${m}×</th>`);
+  emHtml += '</tr></thead><tbody>';
+  waccSteps.forEach(w => {
+    emHtml += `<tr><td class="row-hdr">${(w*100).toFixed(1)}%</td>`;
+    multSteps.forEach(m => {
+      const tv = terminalBase5 * m;
+      let sp = 0;
+      years.forEach((y,i) => { sp += y.ufcf / Math.pow(1+w, mid ? i+0.5 : i+1); });
+      const pvTv = tv / Math.pow(1+w, tDisc);
+      const eq   = (sp + pvTv) - netDebt;
+      const px   = shares > 0 ? eq / shares : 0;
+      const cls  = getCell(px, price) + (Math.abs(w-baseWacc)<0.001 && Math.abs(m-baseExitM)<0.001 ? ' cell-current':'');
+      emHtml += `<td class="${cls}">$${px.toFixed(0)}</td>`;
+    });
+    emHtml += '</tr>';
+  });
+  emHtml += '</tbody>';
+  document.getElementById('sensEM').innerHTML = emHtml;
+}
+
+function getCell(px, price) {
+  if (!price || price === 0) return '';
+  if (px < price) return 'cell-below';
+  if (px < price * 1.10) return 'cell-near';
+  return 'cell-above';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASH FLOW CHART
+// ═══════════════════════════════════════════════════════════════
+function buildChart(years) {
+  if (!STATE.data || !document.getElementById('cfChart')) return;
+  const hist     = STATE.data.history;
+  const lastYear = STATE.data.last_year;
+  const histSlice = hist.slice(-5);
+  const histLabels = histSlice.map(h => `FY${h.year}`);
+  const projLabels = Array.from({length:5}, (_,i) => `FY${lastYear+i+1}E`);
+  const labels     = [...histLabels, ...projLabels];
+  const hVals    = getHistMetricValues();
+  const rawPVals = getDirectMetricValues();
+  const pVals    = rawPVals.map(v => v != null ? +v.toFixed(1) : null);
+  const allData  = [...hVals.map(v => v ?? 0), ...pVals.map(v => v ?? 0)];
+  const HIST_COLOR  = 'rgba(99,115,145,0.72)';
+  const PROJ_COLOR  = 'rgba(201,168,76,0.72)';
+  const HIST_BORDER = 'rgba(120,138,168,0.9)';
+  const PROJ_BORDER = 'rgba(201,168,76,0.95)';
+  const bgColors = [...Array(histSlice.length).fill(HIST_COLOR), ...Array(5).fill(PROJ_COLOR)];
+  const bdColors = [...Array(histSlice.length).fill(HIST_BORDER), ...Array(5).fill(PROJ_BORDER)];
+  const datasets = [{ data:allData, backgroundColor:bgColors, borderColor:bdColors, borderWidth:1, borderRadius:3 }];
+  const opts = {
+    responsive:true, maintainAspectRatio:false, animation:false,
+    plugins: {
+      legend: { display:false },
+      tooltip: {
+        callbacks: { label: ctx => ` ${fmtM(ctx.parsed.y)}` },
+        backgroundColor:'rgba(14,21,32,0.96)', titleColor:'#d9e0ea', bodyColor:'#7a8499',
+        borderColor:'rgba(255,255,255,0.1)', borderWidth:1, padding:10,
+      },
+    },
+    scales: {
+      x: { ticks:{color:'#7a8499',font:{family:"'IBM Plex Mono',monospace",size:9}}, grid:{color:'rgba(255,255,255,0.04)'}, border:{color:'rgba(255,255,255,0.08)'} },
+      y: { ticks:{color:'#7a8499',font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>fmtM(v)}, grid:{color:'rgba(255,255,255,0.04)'}, border:{color:'rgba(255,255,255,0.08)'} },
+    },
+  };
+  if (_chart) { _chart.data.labels=labels; _chart.data.datasets=datasets; _chart.update('none'); }
+  else { _chart = new Chart(document.getElementById('cfChart'), { type:'bar', data:{labels,datasets}, options:opts }); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCENARIO MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+async function fetchScenarios(ticker) {
+  try {
+    const res = await fetch(`/api/scenarios?ticker=${encodeURIComponent(ticker)}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
+async function saveScenario() {
+  if (!STATE.ticker) return;
+  const raw  = document.getElementById('scenarioNameInput').value.trim();
+  const name = raw || `Scenario ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}`;
+  const inputs    = readAllInputs();
+  const price_ggm = parseFloat(document.getElementById('rc_ggm_price').textContent.replace('$','')) || null;
+  const price_em  = parseFloat(document.getElementById('rc_em_price').textContent.replace('$',''))  || null;
+  const wacc_v    = parseFloat(document.getElementById('wWacc').textContent) || null;
+  try {
+    await fetch('/api/scenarios', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ticker:STATE.ticker, name, inputs, outputs:{price_ggm,price_em,wacc:wacc_v} })
+    });
+  } catch(e) { console.error('Save scenario failed', e); }
+  document.getElementById('scenarioNameInput').value = '';
+  await renderScenarioChips();
+  await renderCompare();
+  await renderPortfolio();
+}
+
+async function loadScenario(name) {
+  const scenarios = await fetchScenarios(STATE.ticker);
+  const s = scenarios.find(x => x.name === name);
+  if (!s) return;
+  const inp = s.inputs;
+  for (let i=0;i<5;i++){
+    setVal(`rg${i}`, inp.rev_growth[i]);
+    setVal(`em${i}`, inp.ebitda_margin[i]);
+    setVal(`da${i}`, inp.da_pct[i]);
+    setVal(`cx${i}`, inp.capex_pct[i]);
+    setVal(`nw${i}`, inp.nwc_pct[i]);
+    setVal(`tx${i}`, inp.tax_rate[i]);
+  }
+  setVal('tgr', inp.tgr);
+  setVal('exitMultCard', inp.exit_multiple);
+  setVal('wRf', inp.rf);
+  setVal('wBeta', inp.beta);
+  setVal('wErp', inp.erp);
+  setVal('wKd', inp.kd_pretax);
+  setVal('wTax', inp.wacc_tax);
+  setVal('wEw', inp.equity_weight);
+  document.getElementById('scenarioNameInput').value = name;
+  recalcWacc();
+  await renderScenarioChips(name);
+}
+
+async function deleteScenario(name) {
+  try {
+    await fetch('/api/scenarios', {
+      method:'DELETE', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ticker:STATE.ticker, name })
+    });
+  } catch(e) { console.error('Delete scenario failed', e); }
+  await renderScenarioChips();
+  await renderCompare();
+  await renderPortfolio();
+}
+
+async function renderScenarioChips(activeName) {
+  const chips = document.getElementById('scenarioChips');
+  if (!STATE.ticker) { chips.innerHTML = ''; return; }
+  const scenarios = await fetchScenarios(STATE.ticker);
+  if (!scenarios.length) {
+    chips.innerHTML = '<span style="font-family:var(--font-mono);font-size:8pt;color:var(--text-dim)">No saved scenarios</span>';
+    return;
+  }
+  chips.innerHTML = scenarios.map(s => {
+    const o = s.outputs || {};
+    return `<span class="s-chip ${s.name===activeName?'active':''}" onclick="loadScenario(${JSON.stringify(s.name)})">
+      ${s.name} <span style="color:var(--text-dim);font-size:7pt">${o.price_ggm?'$'+o.price_ggm.toFixed(0):''}</span>
+      <span class="del" onclick="event.stopPropagation();deleteScenario(${JSON.stringify(s.name)})" title="Delete">×</span>
+    </span>`;
+  }).join('');
+}
+
+async function renderCompare() {
+  if (!STATE.ticker) return;
+  const scenarios = await fetchScenarios(STATE.ticker);
+  const sec = document.getElementById('compareSection');
+  document.getElementById('compareTicker').textContent = STATE.ticker || '';
+  if (scenarios.length < 2) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  const cols = ['Scenario','WACC','TGR','Exit ×','Rev Gr Y1','Rev Gr Y3','EBITDA Margin','GGM Price','EM Price'];
+  let html = '<thead><tr>' + cols.map(c => `<th class="${c==='Scenario'?'label-col':''}">${c}</th>`).join('') + '</tr></thead><tbody>';
+  scenarios.forEach(s => {
+    const i = s.inputs;
+    const o = s.outputs || {};
+    const created = (s.created_at || '').split('T')[0];
+    html += `<tr>
+      <td class="label-col">${s.name}<br><span style="font-size:7.5pt;color:var(--text-dim)">${created}</span></td>
+      <td>${i.rf||'—'}%<br><span style="font-size:7.5pt;color:var(--text-dim)">β${i.beta||'—'}</span></td>
+      <td>${i.tgr}%</td><td>${i.exit_multiple}×</td>
+      <td>${i.rev_growth[0]}%</td><td>${i.rev_growth[2]}%</td>
+      <td>${i.ebitda_margin[0]}%</td>
+      <td class="highlight">${o.price_ggm?'$'+o.price_ggm.toFixed(2):'—'}</td>
+      <td class="highlight">${o.price_em?'$'+o.price_em.toFixed(2):'—'}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('compareTable').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PORTFOLIO VIEW
+// ═══════════════════════════════════════════════════════════════
+async function renderPortfolio() {
+  const sec = document.getElementById('portfolioSection');
+  try {
+    const scenarios = await fetchScenarios('ALL');
+    if (!scenarios.length) { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const cols = ['Ticker','Scenario Name','GGM Price','EM Price','WACC','Saved Date',''];
+    let html = '<thead><tr>' + cols.map(c => `<th class="${c===''?'':'label-col'}">${c}</th>`).join('') + '</tr></thead><tbody>';
+    scenarios.forEach(s => {
+      const o = s.outputs || {};
+      const date = (s.updated_at || '').split('T')[0];
+      html += `<tr>
+        <td class="label-col" style="font-weight:600;color:var(--gold)">${s.ticker}</td>
+        <td class="label-col">${s.name}</td>
+        <td class="highlight">${o.price_ggm?'$'+o.price_ggm.toFixed(2):'—'}</td>
+        <td class="highlight">${o.price_em?'$'+o.price_em.toFixed(2):'—'}</td>
+        <td>${o.wacc?o.wacc.toFixed(2)+'%':'—'}</td>
+        <td>${date}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="document.getElementById('tickerInput').value='${s.ticker}';loadTicker().then(()=>loadScenario(${JSON.stringify(s.name)}))">Load</button></td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    document.getElementById('portfolioTable').innerHTML = html;
+  } catch { sec.style.display = 'none'; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOCALSTORAGE MIGRATION
+// ═══════════════════════════════════════════════════════════════
+async function migrateLocalStorage(ticker) {
+  const lsKey = `dcf_scenarios_${ticker}`;
+  let stored;
+  try { stored = JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return; }
+  if (!stored.length) return;
+  for (const s of stored) {
+    try {
+      await fetch('/api/scenarios', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ticker, name:s.name, inputs:s.inputs, outputs:s.results||{} })
+      });
+    } catch { /* best-effort */ }
+  }
+  localStorage.removeItem(lsKey);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function readAllInputs() {
+  const out = { rev_growth:[], ebitda_margin:[], da_pct:[], capex_pct:[], nwc_pct:[], tax_rate:[] };
+  for(let i=0;i<5;i++){
+    out.rev_growth.push(getVal(`rg${i}`));
+    out.ebitda_margin.push(getVal(`em${i}`));
+    out.da_pct.push(getVal(`da${i}`));
+    out.capex_pct.push(getVal(`cx${i}`));
+    out.nwc_pct.push(getVal(`nw${i}`));
+    out.tax_rate.push(getVal(`tx${i}`));
+  }
+  out.tgr = getVal('tgr');
+  out.exit_multiple = getVal('exitMultCard');
+  out.rf = getVal('wRf');
+  out.beta = getVal('wBeta');
+  out.erp = getVal('wErp');
+  out.kd_pretax = getVal('wKd');
+  out.wacc_tax = getVal('wTax');
+  out.equity_weight = getVal('wEw');
+  return out;
+}
+
+function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function setVal(id, v) { const el = document.getElementById(id); if(el) el.value = v; }
+function setTxt(id, v) { const el = document.getElementById(id); if(el) el.textContent = v; }
+function rcRow(k, v) { return `<div class="rc-row"><span class="rc-key">${k}</span><span class="rc-val">${v}</span></div>`; }
+function fmtM(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 1000) return `$${(v/1000).toFixed(1)}B`;
+  return `$${v.toFixed(0)}M`;
+}
+function fmt1(v) { return v !== null && !isNaN(v) ? parseFloat(v).toFixed(1) : '—'; }
+function setUpside(id, implied, current) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!current || current === 0 || !implied) { el.textContent = ''; return; }
+  const pct = (implied - current) / current * 100;
+  el.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+  el.className = 'result-upside ' + (pct >= 0 ? 'up' : 'dn');
+}
+function showLoading(v) { document.getElementById('loadingMsg').style.display = v ? '' : 'none'; }
+function showError(msg) { const e=document.getElementById('errorMsg'); e.style.display=''; e.textContent=msg; }
+function hideError() { document.getElementById('errorMsg').style.display='none'; }
+</script>
+{% endblock %}

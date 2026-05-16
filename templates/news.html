@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% set active_page = 'news' %}
+
+{% block title %}News — Investment Utopia{% endblock %}
+
+{% block head %}
+<style>
+  .page-head { padding:56px 32px 32px; max-width:1280px; margin:0 auto; }
+  .ph-eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .ph-row { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; }
+  .ph-title { font-family:var(--font-display); font-size:42px; font-weight:600; color:var(--ink-1); line-height:1.1; letter-spacing:-0.5px; }
+  .ph-title em { font-style:italic; color:var(--gold); font-weight:400; }
+  .ph-sub { font-size:14px; color:var(--ink-3); margin-top:12px; max-width:560px; font-weight:300; }
+  .ph-meta { font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-4); }
+  .ph-meta strong { color:var(--ink-1); font-weight:600; }
+
+  /* FILTER BAR */
+  .filter-bar { max-width:1280px; margin:0 auto 24px; padding:0 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .tk-filters { display:flex; gap:6px; flex-wrap:wrap; }
+  .news-chip { font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:7px 12px; border-radius:var(--r-sm); border:1px solid var(--border-2); background:transparent; color:var(--ink-3); cursor:pointer; transition:all var(--dur-base); }
+  .news-chip:hover { color:var(--ink-1); border-color:var(--border-3); }
+  .news-chip.on { background:var(--gold-dim); border-color:var(--gold); color:var(--gold); }
+  .news-chip .ct { color:var(--ink-4); margin-left:6px; }
+  .news-chip.on .ct { color:rgba(230,193,104,0.6); }
+  .src-toggle { display:flex; gap:0; border:1px solid var(--border-2); border-radius:var(--r-md); overflow:hidden; }
+  .src-toggle button { font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:8px 14px; background:transparent; border:none; color:var(--ink-3); cursor:pointer; transition:all var(--dur-base); }
+  .src-toggle button.on { background:var(--surface-2); color:var(--ink-1); }
+
+  /* GRID */
+  .news-layout { max-width:1280px; margin:0 auto; padding:0 32px 80px; display:grid; grid-template-columns:1fr 320px; gap:40px; }
+  @media(max-width:1000px){.news-layout{grid-template-columns:1fr}}
+
+  /* FEATURED */
+  .featured { background:var(--surface-1); border:1px solid var(--border-1); border-radius:var(--r-lg); overflow:hidden; margin-bottom:32px; display:grid; grid-template-columns:1.2fr 1fr; gap:0; }
+  @media(max-width:880px){.featured{grid-template-columns:1fr}}
+  .featured-img { aspect-ratio:4/3; background:linear-gradient(135deg,#1a2438 0%,#0c1320 100%); position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:24px; }
+  .featured-img::before { content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 30% 30%,rgba(230,193,104,0.08) 0%,transparent 60%); }
+  .featured-img-tag { position:relative; font-family:var(--font-mono); font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ink-4); border:1px solid var(--border-3); padding:4px 10px; border-radius:var(--r-sm); }
+  .featured-body { padding:36px; display:flex; flex-direction:column; justify-content:center; }
+  .featured-eye { font-family:var(--font-mono); font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--gold); margin-bottom:16px; display:inline-flex; gap:12px; align-items:center; }
+  .featured-eye .dot { width:4px; height:4px; background:var(--gold); border-radius:50%; }
+  .featured-title { font-family:var(--font-display); font-size:30px; font-weight:600; color:var(--ink-1); line-height:1.2; letter-spacing:-0.3px; margin-bottom:16px; }
+  .featured-snippet { font-size:14px; color:var(--ink-3); line-height:1.7; font-weight:300; margin-bottom:20px; }
+  .featured-meta { display:flex; gap:16px; align-items:center; font-family:var(--font-mono); font-size:10px; letter-spacing:1px; color:var(--ink-4); text-transform:uppercase; }
+  .featured-meta .src { color:var(--ink-2); font-weight:600; }
+  .featured-tickers { display:flex; gap:6px; margin-top:20px; }
+  .tk-pill-news { font-family:var(--font-mono); font-size:10px; letter-spacing:1px; color:var(--gold); background:var(--gold-dim); padding:3px 10px; border-radius:var(--r-sm); }
+
+  /* SECTION */
+  .sec-head { display:flex; align-items:flex-end; justify-content:space-between; margin:32px 0 20px; }
+  .sec-h2 { font-family:var(--font-display); font-size:22px; font-weight:600; color:var(--ink-1); letter-spacing:-0.2px; }
+  .sec-meta-txt { font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-4); }
+
+  /* ARTICLE LIST */
+  .articles { display:flex; flex-direction:column; }
+  .art { display:grid; grid-template-columns:100px 1fr auto; gap:20px; padding:20px 0; border-bottom:1px solid var(--border-1); cursor:pointer; transition:background var(--dur-fast); align-items:start; text-decoration:none; }
+  .art:hover { background:rgba(255,255,255,0.015); }
+  .art:hover .art-title { color:var(--gold); }
+  .art-time { font-family:var(--font-mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-4); padding-top:4px; }
+  .art-time strong { color:var(--ink-1); display:block; font-size:11px; margin-bottom:2px; font-weight:600; }
+  .art-body { padding-right:12px; }
+  .art-tickers { display:flex; gap:6px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+  .art-source { font-family:var(--font-mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-3); }
+  .art-title { font-family:var(--font-display); font-size:18px; font-weight:600; color:var(--ink-1); line-height:1.3; margin-bottom:8px; transition:color var(--dur-base); letter-spacing:-0.1px; }
+  .art-snippet { font-size:13px; color:var(--ink-3); line-height:1.65; font-weight:300; }
+  .art-thumb { width:120px; height:90px; border-radius:var(--r-md); background:var(--surface-2); overflow:hidden; flex-shrink:0; position:relative; }
+  .art-thumb.t1 { background:linear-gradient(135deg,#2a1f3d 0%,#0c1320 100%); }
+  .art-thumb.t2 { background:linear-gradient(135deg,#1a3a2e 0%,#0c1320 100%); }
+  .art-thumb.t3 { background:linear-gradient(135deg,#3a2818 0%,#0c1320 100%); }
+  .art-thumb.t4 { background:linear-gradient(135deg,#1a2e3a 0%,#0c1320 100%); }
+  .art-thumb.t5 { background:linear-gradient(135deg,#3a1a2a 0%,#0c1320 100%); }
+  .art-thumb svg { position:absolute; right:8px; bottom:8px; opacity:0.4; }
+
+  /* SIDEBAR */
+  .news-sidebar { display:flex; flex-direction:column; gap:24px; }
+  .news-panel { background:var(--surface-1); border:1px solid var(--border-1); border-radius:var(--r-lg); padding:24px; }
+  .panel-eye { font-family:var(--font-mono); font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink-4); margin-bottom:14px; }
+
+  .mover { display:grid; grid-template-columns:1fr auto auto; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-1); align-items:center; }
+  .mover:last-child { border-bottom:none; }
+  .mover-tk { font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--gold); letter-spacing:1px; }
+  .mover-name { font-size:11px; color:var(--ink-4); margin-top:2px; }
+  .mover-px { font-family:var(--font-mono); font-size:12px; color:var(--ink-1); font-variant-numeric:tabular-nums; }
+  .mover-pct { font-family:var(--font-mono); font-size:11px; font-variant-numeric:tabular-nums; padding:3px 8px; border-radius:var(--r-sm); min-width:60px; text-align:right; }
+  .mover-pct.up { color:var(--pos); background:var(--pos-bg); }
+  .mover-pct.dn { color:var(--neg); background:var(--neg-bg); }
+
+  /* EMPTY / LOADING */
+  .news-loading { padding:48px 0; text-align:center; font-family:var(--font-mono); font-size:11px; letter-spacing:2px; color:var(--ink-4); }
+  .news-stale { font-family:var(--font-mono); font-size:10px; color:var(--warn); letter-spacing:1px; margin-bottom:12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="ph-eyebrow">Market News</div>
+  <div class="ph-row">
+    <div>
+      <h1 class="ph-title">Filed against your <em>watchlist</em></h1>
+      <p class="ph-sub">Press releases and market headlines from FMP, filtered to your covered tickers.</p>
+    </div>
+    <div class="ph-meta" id="newsMeta">
+      <div>Sourced from FMP API</div>
+      <div style="margin-top:6px" id="fetchedLabel">Loading…</div>
+    </div>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <div class="tk-filters" id="tickerFilters">
+    <button class="news-chip on" data-ticker="ALL" onclick="filterTicker('ALL',this)">
+      All Watchlist <span class="ct" id="totalCount">—</span>
+    </button>
+  </div>
+  <div class="src-toggle">
+    <button class="on" onclick="setSource('all',this)">All</button>
+    <button onclick="setSource('press',this)">Press</button>
+    <button onclick="setSource('general',this)">General</button>
+  </div>
+</div>
+
+<div class="news-layout">
+  <main>
+    <div id="featuredWrap"></div>
+
+    <div class="sec-head">
+      <h2 class="sec-h2">Latest Headlines</h2>
+      <span class="sec-meta-txt" id="countLabel"></span>
+    </div>
+
+    <div id="staleWarning" class="news-stale" style="display:none">
+      News data is older than 26h — run daily_news.py to refresh.
+    </div>
+
+    <div class="articles" id="articleList">
+      <div class="news-loading">Loading news…</div>
+    </div>
+  </main>
+
+  <aside class="news-sidebar">
+    <div class="news-panel">
+      <div class="panel-eye">Watchlist Movers · Today</div>
+      <div id="moversList"><div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-4)">Loading…</div></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _allArticles = [];
+let _activeTicker = 'ALL';
+let _activeSource = 'all';
+const THUMB_CLASSES = ['t1','t2','t3','t4','t5'];
+
+const THUMB_ICONS = [
+  `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 14l4-4 3 3 5-7 4 6" stroke="var(--gold)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="var(--pos)" stroke-width="1.5" fill="none"/></svg>`,
+  `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" stroke="var(--warn)" stroke-width="1.5" fill="none"/></svg>`,
+  `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 10h14M10 3v14" stroke="var(--pos)" stroke-width="1.5"/></svg>`,
+  `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 6l4 4-4 4M14 6l4 4-4 4" stroke="var(--neg)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+];
+
+function fmtTime(dateStr) {
+  if (!dateStr) return { day: '—', time: '' };
+  const d = new Date(dateStr);
+  if (isNaN(d)) return { day: dateStr, time: '' };
+  const now = new Date();
+  const diffH = (now - d) / 3600000;
+  const timeStr = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hour12:false });
+  if (diffH < 24) return { day: 'Today', time: timeStr };
+  if (diffH < 48) return { day: 'Yesterday', time: timeStr };
+  return { day: d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }), time: timeStr };
+}
+
+function buildTickerPills(symbols) {
+  if (!symbols) return '';
+  const list = Array.isArray(symbols) ? symbols : [symbols];
+  return list.map(s => `<span class="tk-pill-news">${s}</span>`).join('');
+}
+
+function renderFeatured(article) {
+  if (!article) { document.getElementById('featuredWrap').innerHTML = ''; return; }
+  const t = fmtTime(article.publishedDate);
+  const ago = t.time ? `${t.day} · ${t.time}` : t.day;
+  document.getElementById('featuredWrap').innerHTML = `
+    <a class="featured" href="${article.url || '#'}" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="featured-img">
+        <span class="featured-img-tag">Featured</span>
+      </div>
+      <div class="featured-body">
+        <div class="featured-eye">${article.site||'News'} <span class="dot"></span> ${ago}</div>
+        <h2 class="featured-title">${escHtml(article.title||'')}</h2>
+        <p class="featured-snippet">${escHtml((article.text||'').slice(0,200))}${(article.text||'').length>200?'…':''}</p>
+        <div class="featured-meta">
+          <span class="src">${escHtml(article.site||'')}</span>
+        </div>
+        <div class="featured-tickers">${buildTickerPills(article.symbol)}</div>
+      </div>
+    </a>`;
+}
+
+function renderArticles(articles) {
+  const list = document.getElementById('articleList');
+  if (!articles.length) {
+    list.innerHTML = '<div class="news-loading">No articles found for this filter.</div>';
+    document.getElementById('countLabel').textContent = '';
+    return;
+  }
+  document.getElementById('countLabel').textContent = `Showing ${articles.length} article${articles.length!==1?'s':''}`;
+  const slice = articles.slice(1); // featured is index 0
+  list.innerHTML = slice.map((art, i) => {
+    const t = fmtTime(art.publishedDate);
+    const tc = THUMB_CLASSES[i % THUMB_CLASSES.length];
+    const icon = THUMB_ICONS[i % THUMB_ICONS.length];
+    return `<a class="art" href="${art.url||'#'}" target="_blank" rel="noopener">
+      <div class="art-time"><strong>${escHtml(t.day)}</strong>${escHtml(t.time)}</div>
+      <div class="art-body">
+        <div class="art-tickers">${buildTickerPills(art.symbol)}<span class="art-source">${escHtml(art.site||'')}</span></div>
+        <h3 class="art-title">${escHtml(art.title||'')}</h3>
+        <p class="art-snippet">${escHtml((art.text||'').slice(0,180))}${(art.text||'').length>180?'…':''}</p>
+      </div>
+      <div class="art-thumb ${tc}">${icon}</div>
+    </a>`;
+  }).join('');
+}
+
+function applyFilters() {
+  let filtered = _allArticles;
+  if (_activeTicker !== 'ALL') {
+    filtered = filtered.filter(a => {
+      const sym = (a.symbol||'').toUpperCase();
+      return sym === _activeTicker || sym.split(',').map(s=>s.trim()).includes(_activeTicker);
+    });
+  }
+  if (_activeSource === 'press') {
+    filtered = filtered.filter(a => (a.type||'').toLowerCase().includes('press'));
+  } else if (_activeSource === 'general') {
+    filtered = filtered.filter(a => !(a.type||'').toLowerCase().includes('press'));
+  }
+  renderFeatured(filtered[0] || null);
+  renderArticles(filtered);
+}
+
+function filterTicker(ticker, el) {
+  _activeTicker = ticker;
+  document.querySelectorAll('.tk-filters .news-chip').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  applyFilters();
+}
+
+function setSource(src, el) {
+  _activeSource = src;
+  document.querySelectorAll('.src-toggle button').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  applyFilters();
+}
+
+function renderMovers(tickers) {
+  const el = document.getElementById('moversList');
+  if (!tickers || !tickers.length) {
+    el.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-4)">No data available.</div>';
+    return;
+  }
+  // Sort by abs price change desc (use gg_upside as proxy if no intraday data)
+  const sorted = tickers
+    .filter(t => t.price && t.gg_price)
+    .map(t => ({ ...t, upside: t.gg_price / t.price - 1 }))
+    .sort((a,b) => Math.abs(b.upside) - Math.abs(a.upside))
+    .slice(0, 6);
+  if (!sorted.length) {
+    el.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-4)">Price data loading…</div>';
+    return;
+  }
+  el.innerHTML = sorted.map(t => {
+    const pct = t.upside * 100;
+    const cls = pct >= 0 ? 'up' : 'dn';
+    const sign = pct >= 0 ? '+' : '';
+    return `<div class="mover">
+      <div>
+        <div class="mover-tk">${escHtml(t.ticker)}</div>
+        <div class="mover-name">${escHtml(t.name||t.ticker)}</div>
+      </div>
+      <div class="mover-px">$${(t.price||0).toFixed(2)}</div>
+      <div class="mover-pct ${cls}">${sign}${pct.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function buildFilterChips(tickers, totalCount) {
+  const bar = document.getElementById('tickerFilters');
+  document.getElementById('totalCount').textContent = totalCount;
+  // Add chips for each unique ticker
+  const seen = new Set();
+  tickers.forEach(t => {
+    if (!t.ticker || seen.has(t.ticker)) return;
+    seen.add(t.ticker);
+    const btn = document.createElement('button');
+    btn.className = 'news-chip';
+    btn.dataset.ticker = t.ticker;
+    btn.textContent = t.ticker;
+    btn.onclick = () => filterTicker(t.ticker, btn);
+    bar.appendChild(btn);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadNews() {
+  try {
+    // Load covered tickers for movers sidebar + filter chips
+    const [newsRes, tickersRes] = await Promise.all([
+      fetch('/api/news'),
+      fetch('/api/covered-tickers'),
+    ]);
+    const newsData    = await newsRes.json();
+    const tickersData = await tickersRes.json();
+
+    // Fetched label
+    const fl = document.getElementById('fetchedLabel');
+    if (newsData.fetched) {
+      const d = new Date(newsData.fetched);
+      const ago = Math.round((Date.now() - d) / 60000);
+      fl.innerHTML = `Updated · <strong>${ago < 60 ? ago + ' min ago' : Math.round(ago/60) + 'h ago'}</strong>`;
+    } else {
+      fl.innerHTML = 'No cache — run daily_news.py';
+    }
+
+    if (newsData.stale) {
+      document.getElementById('staleWarning').style.display = '';
+    }
+
+    _allArticles = newsData.articles || [];
+
+    buildFilterChips(Array.isArray(tickersData) ? tickersData : [], _allArticles.length);
+    renderMovers(Array.isArray(tickersData) ? tickersData : []);
+    applyFilters();
+
+  } catch(e) {
+    document.getElementById('articleList').innerHTML =
+      `<div class="news-loading">Error loading news: ${e.message}</div>`;
+  }
+}
+
+loadNews();
+</script>
+{% endblock %}

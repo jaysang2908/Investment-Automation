@@ -1,0 +1,13 @@
+<nav>
+  <a href="/" class="nav-logo">Investment<span>.</span>Utopia</a>
+  <ul class="nav-links">
+    <li><a href="/" {% if active_page == 'generate' %}class="active"{% endif %}>Generate</a></li>
+    <li><a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
+    <li><a href="/dcf" {% if active_page == 'dcf' %}class="active"{% endif %}>DCF Calculator</a></li>
+    <li><a href="/news" {% if active_page == 'news' %}class="active"{% endif %}>News</a></li>
+  </ul>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
+    <span class="pulse"></span>
+  </div>
+</nav>

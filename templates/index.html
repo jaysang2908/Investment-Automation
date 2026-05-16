@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% set active_page = 'generate' %}
+
+{% block title %}Investment Utopia — Independent Analysis{% endblock %}
+
+{% block head %}
+<style>
+  /* Generate message states */
+  .gen-msg { margin-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px; min-height: 18px; text-align: center; }
+  .gen-msg.info  { color: var(--ink-3); }
+  .gen-msg.error { color: var(--neg); }
+  .gen-msg.ok    { color: var(--pos); }
+
+  .progress-log {
+    margin-top: 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-1);
+    border-radius: var(--r-md); padding: 12px 16px; display: none;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+    line-height: 1.8; max-height: 120px; overflow-y: auto;
+  }
+
+  .results-panel {
+    margin-top: 20px; background: var(--surface-2); border: 1px solid rgba(230,193,104,0.2);
+    border-radius: var(--r-lg); padding: 24px; display: none;
+  }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .results-ticker { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink-1); }
+  .results-score  { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+  .results-score span { color: var(--gold); font-size: 16px; font-weight: 600; }
+  .results-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .res-btn {
+    flex: 1; min-width: 140px; padding: 12px 16px; border-radius: var(--r-md);
+    border: 1px solid var(--border-2); font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; text-align: center;
+    text-decoration: none; display: flex; align-items: center; justify-content: center;
+    gap: 8px; transition: all var(--dur-base); white-space: nowrap;
+  }
+  .res-btn-excel { background: var(--pos-bg);  color: var(--pos);  border-color: rgba(52,211,153,0.25); }
+  .res-btn-excel:hover { background: var(--pos-dim); }
+  .res-btn-html  { background: var(--gold-dim); color: var(--gold); border-color: rgba(230,193,104,0.25); }
+  .res-btn-html:hover  { background: rgba(230,193,104,0.2); }
+  .res-btn-view  { background: var(--surface-3); color: var(--ink-2); border-color: var(--border-2); }
+  .res-btn-view:hover  { background: var(--surface-4); border-color: var(--border-3); }
+  .results-note { font-size: 12px; color: var(--ink-4); line-height: 1.65; }
+  .results-note strong { color: var(--ink-2); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 15px; height: 15px; border: 2px solid rgba(26,20,8,0.3); border-top-color: #1a1408; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  .hero-eyebrow { opacity: 0; animation: fadeUp 0.7s ease 0.1s forwards; }
+  .hero-title   { opacity: 0; animation: fadeUp 0.7s ease 0.25s forwards; }
+  .hero-sub     { opacity: 0; animation: fadeUp 0.7s ease 0.4s forwards; }
+  .gen-panel    { opacity: 0; animation: fadeUp 0.7s ease 0.55s forwards; }
+
+  @media (max-width: 860px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    section.section { padding: 64px 20px; }
+    .gen-grid, .gen-grid-2 { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    .pillars { grid-template-columns: 1fr 1fr; }
+    footer { flex-direction: column; padding: 28px 20px; }
+    .footer-disc { text-align: center; }
+    .stats { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-eyebrow">Investment Utopia</div>
+  <h1 class="hero-title">Institutional-grade analysis.<br><em>Built to hold.</em></h1>
+  <p class="hero-sub">Enter any ticker. Our engine fetches financials from FMP, runs WACC and DCF, scores 13 criteria, and generates a full Excel model and HTML report.</p>
+
+  <div class="gen-panel" id="genPanel">
+    <div class="gen-grid">
+      <div class="field">
+        <label>Ticker Symbol</label>
+        <input id="tickerInput" type="text" placeholder="AAPL · MSFT · NVDA" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>S&amp;P / Moody's Rating <span class="opt">· optional</span></label>
+        <input id="ratingInput" type="text" placeholder="AA+  or  Aa1" />
+      </div>
+    </div>
+    <div class="gen-grid-2">
+      <div class="field">
+        <label>Business Clarity <span class="opt">· optional</span></label>
+        <select id="bcSelect">
+          <option value="">— Not rated</option>
+          <option value="HIGH">HIGH — Clear, simple model</option>
+          <option value="MOD-HIGH">MOD-HIGH — Mostly clear</option>
+          <option value="MOD-LOW">MOD-LOW — Some complexity</option>
+          <option value="LOW">LOW — Hard to understand</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Long-Term Potential <span class="opt">· optional</span></label>
+        <select id="ltpSelect">
+          <option value="">— Not rated</option>
+          <option value="HIGH">HIGH — Large / growing TAM</option>
+          <option value="MOD-HIGH">MOD-HIGH — Solid runway</option>
+          <option value="MOD-LOW">MOD-LOW — Limited upside</option>
+          <option value="LOW">LOW — Structural headwinds</option>
+        </select>
+      </div>
+    </div>
+    <button class="gen-btn" id="genBtn" onclick="runGenerate()">Generate Report →</button>
+    <div class="gen-meta">Generates Excel model + HTML report · ~30–60 seconds</div>
+    <div class="gen-msg info" id="genMsg"></div>
+    <div class="progress-log" id="progressLog"></div>
+
+    <div class="results-panel" id="resultsPanel">
+      <div class="results-header">
+        <div>
+          <div class="results-ticker" id="resTicker"></div>
+          <div class="results-score">Score: <span id="resScore"></span></div>
+        </div>
+      </div>
+      <div class="results-btns">
+        <a class="res-btn res-btn-excel" id="resExcel" href="#" target="_blank">↓ Excel Model</a>
+        <a class="res-btn res-btn-view"  id="resView"  href="#" target="_blank">View Report →</a>
+      </div>
+      <div class="results-note" id="resNote"></div>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val">FMP<span>+</span></div><div class="stat-label">Data Source</div></div>
+  <div class="stat"><div class="stat-val">5</div><div class="stat-label">Year Financials</div></div>
+  <div class="stat"><div class="stat-val">13</div><div class="stat-label">Scorecard Criteria</div></div>
+  <div class="stat"><div class="stat-val">2</div><div class="stat-label">Output Formats</div></div>
+</div>
+
+{% if coverage %}
+<section class="section">
+  <div class="sec-eyebrow">Active Coverage</div>
+  <div class="sec-head">
+    <h2 class="sec-title">Pre-Built Reports</h2>
+    <a href="/dashboard" class="sec-link">View Full Dashboard →</a>
+  </div>
+
+  <div class="cards">
+    {% for row in coverage[:4] %}
+    {% set score_pct = (row.score / 100 * 163.36) | round(2) %}
+    {% set dash_offset = (163.36 - score_pct) | round(2) %}
+    {% if row.verdict_class in ('good', 'hc') %}
+      {% set ring_color = 'var(--pos)' %}
+    {% elif row.verdict_class == 'hold' %}
+      {% set ring_color = 'var(--warn)' %}
+    {% elif row.verdict_class == 'avoid' %}
+      {% set ring_color = 'var(--neg)' %}
+    {% else %}
+      {% set ring_color = 'var(--ink-4)' %}
+    {% endif %}
+
+    {% if row.score %}
+    <a class="card" href="/reports/{{ row.ticker }}_report.html" target="_blank">
+      <div class="card-head">
+        <div>
+          <div class="card-co">{{ row.name }}</div>
+          <div class="card-tk">{{ row.exchange }} · {{ row.ticker }}</div>
+        </div>
+        <div class="ring">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle class="ring-track" cx="32" cy="32" r="26"/>
+            <circle class="ring-fill" cx="32" cy="32" r="26"
+              stroke="{{ ring_color }}"
+              stroke-dasharray="163.36"
+              stroke-dashoffset="{{ dash_offset }}"/>
+          </svg>
+          <div class="ring-inner">
+            <div class="ring-num">{{ row.score | int }}</div>
+            <div class="ring-denom">/100</div>
+          </div>
+        </div>
+      </div>
+      <div class="verdict {{ row.verdict_class }}">
+        <span class="dot"></span>{{ row.verdict_label }}
+      </div>
+      <div class="price-row">
+        <div class="price-cell">
+          <div class="price-label">Current</div>
+          <div class="price-val">{% if row.price %}${{ '%.2f' | format(row.price) }}{% else %}—{% endif %}</div>
+        </div>
+        <div class="price-cell">
+          <div class="price-label">Target</div>
+          <div class="price-val">{% if row.target %}${{ '%.2f' | format(row.target) }}{% else %}—{% endif %}</div>
+        </div>
+        <div class="price-cell">
+          <div class="price-label">Upside</div>
+          <div class="price-val {% if row.upside_pct and row.upside_pct > 0 %}up{% elif row.upside_pct and row.upside_pct < 0 %}dn{% endif %}">
+            {% if row.upside_pct %}{{ '%+.0f' | format(row.upside_pct * 100) }}%{% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="card-cta">View Report →</div>
+    </a>
+    {% else %}
+    <div class="card inactive">
+      <div class="card-head">
+        <div>
+          <div class="card-co">{{ row.name }}</div>
+          <div class="card-tk">{{ row.ticker }}</div>
+        </div>
+        <div class="pending-tag">In Progress</div>
+      </div>
+      <div class="verdict pending"><span class="dot"></span>Report Pending</div>
+      <div class="price-row">
+        <div class="price-cell"><div class="price-label">Current</div><div class="price-val">—</div></div>
+        <div class="price-cell"><div class="price-label">Target</div><div class="price-val">—</div></div>
+        <div class="price-cell"><div class="price-label">Upside</div><div class="price-val">—</div></div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section" style="border-top:1px solid var(--border-1);padding-top:80px">
+  <div class="sec-eyebrow">Framework</div>
+  <div class="sec-head">
+    <h2 class="sec-title">How We Analyse</h2>
+  </div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-num">01</div>
+      <div class="pillar-title">Business Quality</div>
+      <p class="pillar-body">Moat, management track record, long-term positioning — proxy-scored from financials, refined manually from 10-K.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-num">02</div>
+      <div class="pillar-title">Financial Rigour</div>
+      <p class="pillar-body">Five-year P&amp;L, balance sheet, and cash flow — auto-fetched from FMP. ROIC, FCF conversion, leverage fully computed.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-num">03</div>
+      <div class="pillar-title">Valuation</div>
+      <p class="pillar-body">WACC (Damodaran) plus DCF with Gordon Growth and Exit Multiple. Sensitivity grid. Bear / Base / Bull scenarios.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-num">04</div>
+      <div class="pillar-title">Risk &amp; Credit</div>
+      <p class="pillar-body">Credit ratings, interest coverage, leverage, execution risks — weighted into a 0–100 score. 11 of 13 criteria automated.</p>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-label">Score Scale</span>
+    <div style="flex:1">
+      <div class="legend-bar"></div>
+      <div class="legend-ticks">
+        <span>0 — Avoid</span>
+        <span>50 — Hold</span>
+        <span>65 — Buy</span>
+        <span>75+ — High Conviction</span>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runGenerate() {
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!ticker) { setMsg('Enter a ticker symbol.', 'error'); return; }
+
+  const btn = document.getElementById('genBtn');
+  const msg = document.getElementById('genMsg');
+  const log = document.getElementById('progressLog');
+  const panel = document.getElementById('resultsPanel');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Generating…';
+  panel.style.display = 'none';
+  log.style.display = 'none';
+  setMsg('Fetching financials and building model…', 'info');
+
+  fetch('/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      ticker:      ticker,
+      rating:      document.getElementById('ratingInput').value.trim(),
+      biz_clarity: document.getElementById('bcSelect').value,
+      ltp:         document.getElementById('ltpSelect').value,
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Report →';
+    if (data.error) { setMsg(data.error, 'error'); return; }
+
+    if (data.logs && data.logs.length) {
+      log.innerHTML = data.logs.map(l => `<div>${l}</div>`).join('');
+      log.style.display = 'block';
+    }
+
+    document.getElementById('resTicker').textContent = data.ticker;
+    document.getElementById('resScore').textContent =
+      data.adj_score != null ? data.adj_score + ' / 10' : data.auto_score + ' / 10 (auto)';
+    document.getElementById('resExcel').href = data.excel_url;
+    document.getElementById('resView').href  = data.report_url;
+    document.getElementById('resNote').innerHTML =
+      `Report saved at <strong>${data.report_url}</strong>. Download to keep permanently.`;
+    panel.style.display = 'block';
+    setMsg('', '');
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Report →';
+    setMsg('Network error: ' + err.message, 'error');
+  });
+}
+
+function setMsg(text, cls) {
+  const el = document.getElementById('genMsg');
+  el.textContent = text;
+  el.className = 'gen-msg ' + cls;
+}
+
+document.getElementById('tickerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runGenerate();
+});
+</script>
+{% endblock %}

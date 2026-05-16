@@ -18,7 +18,7 @@ import builtins
 import datetime
 import traceback
 
-from flask import Flask, request, jsonify, Response, send_file
+from flask import Flask, request, jsonify, Response, send_file, render_template
 import requests as _req
 
 import fmp_3statementv6 as mdl
@@ -27,6 +27,8 @@ from report_bridge import build_report_data, render_html_report
 from data_store import save_ticker_data, load_ticker_data
 from scenarios_db import init_db, save_scenario, list_scenarios, delete_scenario, get_scenario
 import csv_schema as _schema
+import speculative_engine as _spec
+import speculative_report_bridge as _spec_rb
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -232,11 +234,93 @@ def _prune():
         del _reports[rid]
 
 
+# ── Coverage builder (shared by / and /dashboard) ────────────────────────────
+
+def _classify_score(score):
+    """Map 0-100 score to (verdict_class, verdict_label)."""
+    if score is None:
+        return "pending", "Report Pending"
+    if score >= 75:
+        return "hc", "High Conviction Buy"
+    if score >= 65:
+        return "good", "Good Business at Fair Price"
+    if score >= 50:
+        return "hold", "Hold — Monitor"
+    return "avoid", "Avoid"
+
+
+def build_coverage():
+    """Read outputs.csv and return a list of coverage dicts for templates."""
+    import csv as _csv
+    if not os.path.exists(_CSV_PATH):
+        return []
+
+    def _f(v):
+        try:
+            return float(v) if v not in ("", None) else None
+        except (TypeError, ValueError):
+            return None
+
+    rows = []
+    try:
+        with open(_CSV_PATH, "r", encoding="utf-8") as f:
+            for row in _csv.DictReader(f):
+                t = (row.get("Ticker") or "").strip().upper()
+                if not t:
+                    continue
+
+                # Auto_Score in CSV is 0-10 normalised; display as 0-100
+                raw_score = _f(row.get("Auto_Score"))
+                score = round(raw_score * 10) if raw_score is not None else None
+
+                price    = _f(row.get("Price"))
+                gg_price = _f(row.get("GG_Price"))
+                em_price = _f(row.get("EM_Price"))
+                gg_up    = _f(row.get("GG_Upside"))
+                em_up    = _f(row.get("EM_Upside"))
+
+                # Primary target: prefer GG for stable companies, EM for growth
+                target   = gg_price or em_price
+                upside   = gg_up    if gg_price else em_up
+
+                verdict_class, verdict_label = _classify_score(score)
+
+                # Company name from data store
+                name = t
+                exchange = ""
+                stored = load_ticker_data(t)
+                if stored:
+                    prof = stored.get("profile") or {}
+                    name = prof.get("companyName") or t
+                    exchange = prof.get("exchangeShortName") or prof.get("exchange") or ""
+
+                rows.append({
+                    "ticker":        t,
+                    "name":          name,
+                    "exchange":      exchange,
+                    "score":         score,
+                    "price":         price,
+                    "target":        target,
+                    "upside_pct":    upside,
+                    "verdict_class": verdict_class,
+                    "verdict_label": verdict_label,
+                    "date":          row.get("Date", ""),
+                })
+    except Exception as e:
+        import sys
+        print(f"[build_coverage] error: {e}", file=sys.stderr)
+
+    # Sort: scored rows first (desc), then pending
+    rows.sort(key=lambda r: (r["score"] is None, -(r["score"] or 0)))
+    return rows
+
+
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
-    return app.send_static_file("index.html")
+    coverage = build_coverage()
+    return render_template("index.html", coverage=coverage, active_page="generate")
 
 
 @app.route("/generate", methods=["POST"])
@@ -492,6 +576,131 @@ def generate():
         builtins.print = _orig_print
 
 
+@app.route("/generate-speculative", methods=["POST"])
+def generate_speculative():
+    """Maybe Unsafe Financial Freedom — speculative signal scorecard + scenario model."""
+    _prune()
+
+    body     = request.get_json(force=True) or {}
+    ticker   = body.get("ticker", "").strip().upper()
+    password = body.get("password", "").strip()
+
+    if APP_PASSWORD and password != APP_PASSWORD:
+        return jsonify({"error": "Incorrect password."}), 401
+    if not ticker:
+        return jsonify({"error": "Ticker required."}), 400
+
+    # Manual qualitative inputs
+    narrative_theme    = body.get("narrative_theme", "").strip()
+    narrative_strength = body.get("narrative_strength", "MOD").strip().upper()
+    catalyst_desc      = body.get("catalyst_desc", "").strip()
+    catalyst_timing    = body.get("catalyst_timing", "vague").strip().lower()
+    hold_months        = int(body.get("hold_months", 6) or 6)
+    use_mock           = body.get("mock", False)
+    # Custom Google Trends terms (comma-separated string → list)
+    custom_terms_raw   = body.get("custom_terms", "")
+    custom_terms       = [t.strip() for t in custom_terms_raw.split(",") if t.strip()] if custom_terms_raw else []
+
+    try:
+        # ── Fetch signals ─────────────────────────────────────────────────────
+        data = _spec.fetch_speculative_data(
+            ticker          = ticker,
+            api_key         = mdl.API_KEY,
+            mock            = use_mock,
+            narrative_theme = narrative_theme,
+            custom_terms    = custom_terms or None,
+        )
+
+        # ── Score ─────────────────────────────────────────────────────────────
+        scorecard = _spec.build_speculative_scorecard(
+            data               = data,
+            narrative_theme    = narrative_theme,
+            narrative_strength = narrative_strength,
+            catalyst_desc      = catalyst_desc,
+            catalyst_timing    = catalyst_timing,
+        )
+
+        # ── Scenario model ────────────────────────────────────────────────────
+        scenario = _spec.build_scenario_model(
+            data      = data,
+            scorecard = scorecard,
+            hold_months = hold_months,
+        )
+
+        # ── Excel ─────────────────────────────────────────────────────────────
+        excel_bytes = _spec.build_speculative_excel(
+            ticker    = ticker,
+            data      = data,
+            scorecard = scorecard,
+            scenario  = scenario,
+        )
+
+        # ── HTML report ───────────────────────────────────────────────────────
+        report_data  = _spec_rb.build_speculative_report_data(
+            ticker    = ticker,
+            data      = data,
+            scorecard = scorecard,
+            scenario  = scenario,
+        )
+        html_content = _spec_rb.render_speculative_report(report_data)
+
+        # ── Persist to disk ───────────────────────────────────────────────────
+        reports_dir = os.path.join(os.path.dirname(__file__), "static", "reports")
+        excel_dir   = os.path.join(os.path.dirname(__file__), "static", "excel")
+        os.makedirs(reports_dir, exist_ok=True)
+        os.makedirs(excel_dir,   exist_ok=True)
+
+        html_path  = os.path.join(reports_dir, f"{ticker}_speculative_report.html")
+        excel_path = os.path.join(excel_dir,   f"{ticker}_speculative_model.xlsx")
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        if excel_bytes:
+            with open(excel_path, "wb") as f:
+                f.write(excel_bytes)
+
+        # ── In-memory store for session download ─────────────────────────────
+        rid = uuid.uuid4().hex[:10]
+        _reports[rid] = {
+            "ticker": ticker,
+            "html":   html_content,
+            "excel":  excel_bytes,
+            "year":   str(datetime.date.today().year),
+            "ts":     datetime.datetime.now(),
+            "score":  scorecard.get("total_score"),
+            "mode":   "speculative",
+        }
+
+        return jsonify({
+            "report_id":   rid,
+            "ticker":      ticker,
+            "total_score": scorecard.get("total_score"),
+            "verdict":     scorecard.get("verdict"),
+            "bull_ret":    scenario.get("bull_ret"),
+            "bull_price":  scenario.get("bull_price"),
+            "report_url":  f"/reports/{ticker}_speculative_report.html",
+            "excel_url":   f"/download/speculative-model/{ticker}",
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route("/download/speculative-model/<ticker>")
+def download_speculative_excel(ticker):
+    ticker = ticker.upper().strip()
+    excel_path = os.path.join(os.path.dirname(__file__), "static", "excel",
+                              f"{ticker}_speculative_model.xlsx")
+    if not os.path.exists(excel_path):
+        return "Not found", 404
+    return send_file(
+        excel_path,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"{ticker}_SpeculativeModel.xlsx",
+    )
+
+
 @app.route("/report/<rid>")
 def view_report(rid):
     r = _reports.get(rid)
@@ -526,9 +735,15 @@ def download_html(rid):
     )
 
 
+@app.route("/dashboard")
+def dashboard_page():
+    coverage = build_coverage()
+    return render_template("dashboard.html", coverage=coverage, active_page="dashboard")
+
+
 @app.route("/dcf")
 def dcf_page():
-    return app.send_static_file("dcf.html")
+    return render_template("dcf.html", active_page="dcf")
 
 
 @app.route("/api/dcf-data/<ticker>")
@@ -907,7 +1122,7 @@ def discovered_reports():
 
 @app.route("/news")
 def news_page():
-    return app.send_static_file("news.html")
+    return render_template("news.html", active_page="news")
 
 
 @app.route("/api/news")
