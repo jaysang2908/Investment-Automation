@@ -1,269 +1,252 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coverage Dashboard — Investment Utopia</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Coverage Dashboard — Equity.Research</title>
+  <script>(function(){var s=localStorage.getItem('eq.theme');if(s==='dark'||s==='light')document.documentElement.setAttribute('data-theme',s);})()</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/iu-redesign.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
   <style>
-    /* ── PAGE HEAD ── */
-    .page-head { padding: 48px 48px 24px; }
-    .ph-eyebrow { font-family: var(--font-mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
-    .ph-title { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: #fff; margin-bottom: 8px; }
-    .ph-title em { font-style: italic; color: var(--gold); font-weight: 400; }
-    .ph-sub { font-size: 10pt; color: var(--ink-3); font-weight: 300; max-width: 600px; line-height: 1.7; }
-
-    /* ── KPI STRIP ── */
-    .kpi-strip { display: flex; background: var(--surface-1); border-top: 1px solid var(--border-1); border-bottom: 1px solid var(--border-1); }
-    .kpi-cell { flex: 1; padding: 18px 32px; border-right: 1px solid var(--border-1); }
-    .kpi-cell:last-child { border-right: none; }
-    .kpi-label { font-family: var(--font-mono); font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
-    .kpi-val { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: #fff; line-height: 1; }
-    .kpi-sub { font-size: 8.5pt; color: var(--ink-4); margin-top: 4px; }
-
-    /* ── TOOLBAR ── */
-    .toolbar { padding: 16px 48px 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    .fltrs { display: flex; gap: 6px; flex-wrap: wrap; }
-    .search-wrap { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-1); border: 1px solid var(--border-2); border-radius: 4px; }
-    .search-wrap input { background: transparent; border: none; outline: none; font-family: var(--font-mono); font-size: 9pt; color: var(--ink-1); width: 180px; }
-    .search-wrap input::placeholder { color: var(--ink-5); }
-
-    /* ── FILTER BUTTONS (separate from metric chips) ── */
-    .fchip { font-family: var(--font-mono); font-size: 8.5pt; letter-spacing: 1px; text-transform: uppercase; padding: 6px 13px; border-radius: 4px; border: 1px solid var(--border-2); background: transparent; color: var(--ink-3); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-    .fchip:hover { color: var(--ink-1); border-color: var(--border-3); }
-    .fchip.on { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
-    .fchip .ct { color: var(--ink-4); margin-left: 5px; }
-    .fchip.on .ct { color: rgba(230,193,104,0.6); }
-
-    /* ── TABLE ── */
-    .ts { padding: 0 48px 16px; }
-    .tslbl { font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-4); margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
-    .tslbl::after { content: ''; flex: 1; height: 1px; background: var(--border-1); }
-
-    /* CRITICAL: simple overflow-x:auto — no overflow:hidden before it */
-    .tscroll { overflow-x: auto; border: 1px solid var(--border-1); border-radius: 8px; background: var(--surface-1); }
-
-    /* Table min-width calculated from all column min-widths (see thead) */
-    table { width: 100%; border-collapse: collapse; font-size: 10pt; min-width: 1610px; }
-    thead th { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; font-weight: 600; padding: 12px 14px; white-space: nowrap; background: var(--surface-2); border-bottom: 2px solid var(--border-2); text-align: left; }
-    thead th.c { text-align: center; }
-    tbody td { padding: 14px 14px; border-bottom: 1px solid var(--border-1); vertical-align: middle; white-space: nowrap; }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr.data-row:hover td { background: rgba(255,255,255,0.015); }
-    tbody tr.pr td { opacity: 0.35; }
-
-    /* ── GROUP HEADERS ── */
-    .group-head td { background: rgba(255,255,255,0.025); padding: 10px 14px; border-bottom: 1px solid var(--border-2); }
-    .gh-label { font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; display: flex; align-items: center; gap: 10px; }
-    .gh-count { background: var(--surface-3); color: var(--ink-2); padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 500; }
-
-    /* ── COMPANY CELL ── */
-    .tcc { display: flex; align-items: center; gap: 12px; }
-    .tlog { width: 36px; height: 36px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--border-2); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 7px; font-weight: 600; color: var(--gold); flex-shrink: 0; letter-spacing: 0.5px; }
-    .tn { font-size: 10pt; font-weight: 500; color: #fff; }
-    .te { font-family: var(--font-mono); font-size: 7px; color: var(--ink-4); margin-top: 2px; }
-
-    /* ── SCORE CELL — original class names preserved ── */
-    .scc { display: flex; align-items: center; gap: 9px; }
-    .snum { font-family: var(--font-mono); font-size: 12pt; font-weight: 600; min-width: 42px; }
-    .sbar { display: inline-block; width: 50px; height: 3px; background: var(--surface-3); border-radius: 2px; vertical-align: middle; overflow: hidden; flex-shrink: 0; }
-    .sfill { display: block; height: 100%; border-radius: 2px; width: 0; transition: width 0.9s ease; }
-    .sn { font-family: var(--font-mono); font-size: 7.5px; color: var(--ink-4); }
-    .cg { color: var(--pos); } .ca { color: var(--warn); } .cr { color: var(--neg); } .cd { color: var(--ink-4); }
-    .fg { background: var(--pos); } .fa { background: var(--warn); } .fr { background: var(--neg); }
-
-    /* ── VERDICT CELL ── override iu-redesign.css defaults for table use ── */
-    .dash-verdict { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 9pt; font-weight: 600; padding: 5px 11px; border-radius: 4px; white-space: nowrap; vertical-align: middle; }
-    .dash-verdict .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .dash-verdict.good { background: rgba(52,211,153,0.12); color: var(--pos); border: 1px solid rgba(52,211,153,0.2); }
-    .dash-verdict.good .dot { background: var(--pos); }
-    .dash-verdict.hold { background: rgba(251,191,36,0.12); color: var(--warn); border: 1px solid rgba(251,191,36,0.2); }
-    .dash-verdict.hold .dot { background: var(--warn); }
-    .dash-verdict.avoid { background: rgba(248,113,113,0.12); color: var(--neg); border: 1px solid rgba(248,113,113,0.2); }
-    .dash-verdict.avoid .dot { background: var(--neg); }
-    .dash-verdict.pending { background: rgba(255,255,255,0.04); color: var(--ink-4); border: 1px solid var(--border-1); }
-    .dash-verdict.pending .dot { background: var(--ink-4); }
-
-    /* ── METRIC CHIPS (override iu-redesign .chip for this page) ── */
-    /* We use .mchip so there's zero conflict with iu-redesign's .chip filter style */
-    .mchip { display: inline-block; font-family: var(--font-mono); font-size: 9pt; font-weight: 500; padding: 3px 9px; border-radius: 3px; white-space: nowrap; }
-    .mchip.chg { background: rgba(52,211,153,0.1); color: var(--pos); border: 1px solid rgba(52,211,153,0.2); }
-    .mchip.cha { background: rgba(251,191,36,0.1); color: var(--warn); border: 1px solid rgba(251,191,36,0.2); }
-    .mchip.chr { background: rgba(248,113,113,0.1); color: var(--neg); border: 1px solid rgba(248,113,113,0.2); }
-    .mchip.chd { background: rgba(255,255,255,0.04); color: var(--ink-4); border: 1px solid var(--border-1); }
-
-    /* ── VALUE CELL ── */
-    .vc { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
-    .vc-c { font-family: var(--font-mono); font-size: 9.5pt; color: #fff; }
-    .vc-s { font-family: var(--font-mono); font-size: 7.5pt; color: var(--ink-4); }
-
-    /* ── QUAL CONTROLS ── */
-    .qsel { font-family: var(--font-mono); font-size: 8.5pt; background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--border-2); border-radius: 3px; padding: 4px 6px; cursor: pointer; width: 56px; appearance: none; -webkit-appearance: none; outline: none; transition: border-color 0.15s, color 0.15s; }
-    .qsel:hover { border-color: rgba(230,193,104,0.4); }
-    .qsel:focus { border-color: var(--gold); }
-    .qsel.sH { color: var(--pos); border-color: rgba(52,211,153,0.4); }
-    .qsel.sM { color: var(--warn); border-color: rgba(251,191,36,0.4); }
-    .qsel.sL { color: var(--neg); border-color: rgba(248,113,113,0.4); }
-    .qbtn { font-family: var(--font-mono); font-size: 8pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 8px; border-radius: 3px; border: 1px solid rgba(230,193,104,0.35); background: transparent; color: var(--gold); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-    .qbtn:hover { background: var(--gold-dim); }
+    /* Qual selects — styled for new design */
+    .qsel {
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-md);
+      padding: 5px 8px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+      min-width: 52px;
+    }
+    .qsel:hover { border-color: var(--accent); }
+    .qsel:focus { border-color: var(--accent); outline: 2px solid color-mix(in oklab, var(--accent) 25%, transparent); }
+    .qsel.sH { color: var(--v-high-fg); border-color: var(--v-high-dot); }
+    .qsel.sM { color: var(--v-hold-fg); border-color: var(--v-hold-dot); }
+    .qsel.sL { color: var(--v-avoid-fg); border-color: var(--v-avoid-dot); }
+    .qbtn {
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      padding: 5px 12px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink);
+      cursor: pointer;
+      transition: background var(--dur) var(--ease);
+      white-space: nowrap;
+    }
+    .qbtn:hover { background: var(--surface-3); }
     .qbtn:active { opacity: 0.7; }
-
-    /* ── ACTIONS ── */
-    .acts { display: flex; gap: 5px; justify-content: flex-end; }
-    .al { font-family: var(--font-mono); font-size: 8pt; letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 9px; border-radius: 3px; text-decoration: none; transition: all 0.2s; white-space: nowrap; cursor: pointer; }
-    .alv { color: var(--gold); border: 1px solid rgba(230,193,104,0.3); }
-    .alv:hover { background: var(--gold-dim); }
-    .alx { color: var(--pos); border: 1px solid rgba(52,211,153,0.3); }
-    .alx:hover { background: rgba(52,211,153,0.08); }
-    .alg { color: var(--ink-3); border: 1px solid var(--border-2); }
-    .alg:hover { color: var(--ink-1); border-color: var(--border-3); }
-    .aln { color: var(--ink-5); border: 1px solid var(--border-1); pointer-events: none; }
-
-    /* ── NOTES / TOAST ── */
-    .tnotes { font-size: 8pt; color: var(--ink-4); padding: 8px 0 4px; line-height: 1.9; }
-    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface-2); border: 1px solid var(--border-2); color: var(--ink-1); font-family: var(--font-mono); font-size: 9pt; padding: 10px 18px; border-radius: 4px; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
+    /* Pending row */
+    article.row-card.pr { opacity: 0.45; }
+    /* Notes bar */
+    .tnotes {
+      font-size: var(--t-xs);
+      color: var(--muted);
+      padding: var(--s-3) 0 var(--s-2);
+      line-height: 1.9;
+    }
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--surface-2);
+      border: 1px solid var(--line-strong);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      padding: 10px 18px;
+      border-radius: var(--r-lg);
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+      pointer-events: none;
+    }
     .toast.show { opacity: 1; transform: translateY(0); }
-
-    /* ── LIVE REPORTS ── */
-    .ls { padding: 24px 48px 52px; }
-    .lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
-    .lcard { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 9px; text-decoration: none; transition: border-color 0.2s, transform 0.15s; }
-    .lcard:hover { border-color: var(--border-3); transform: translateY(-2px); }
-    .ltop { display: flex; align-items: center; justify-content: space-between; }
-    .ltick { font-family: var(--font-mono); font-size: 13pt; font-weight: 500; color: #fff; }
-    .lsc { font-family: var(--font-mono); font-size: 11pt; }
-    .lts { font-family: var(--font-mono); font-size: 8pt; color: var(--ink-4); }
-    .lbtns { display: flex; gap: 7px; }
-    .el { font-size: 10pt; color: var(--ink-4); padding: 16px 0; font-style: italic; }
-
-    @media(max-width: 900px) {
-      nav { padding: 0 24px; }
-      .nav-links { display: none; }
-      .page-head, .ts, .ls, .toolbar { padding-left: 24px; padding-right: 24px; }
-      .kpi-strip { flex-wrap: wrap; }
-      .kpi-cell { min-width: 50%; border-bottom: 1px solid var(--border-1); border-right: none; }
+    /* Discovery */
+    section.discovery .row-card {
+      grid-template-columns: 220px 80px 100px 1fr 110px;
+    }
+    section.discovery .row-card .metrics { grid-template-columns: repeat(6, 1fr); }
+    section.discovery .row-card .ticker .b { width: 36px; height: 36px; flex-basis: 36px; font-size: 8px; }
+    /* In-place score update */
+    .score-wrap { display: contents; }
+    @media (max-width: 900px) {
+      section.discovery .row-card { grid-template-columns: 1fr; }
+      section.discovery .row-card .metrics { grid-template-columns: repeat(3, 1fr); }
     }
   </style>
 </head>
 <body>
+  <main class="shell page">
+    <div class="shell-card">
 
-<!-- NAV -->
-<nav>
-  <a href="/" class="nav-logo">Investment Utopia</a>
-  <div style="display:flex;align-items:center;gap:32px">
-    <ul class="nav-links">
-      <li><a href="/">Generate</a></li>
-      <li><a href="/dashboard.html" class="active">Dashboard</a></li>
-      <li><a href="/dcf">DCF Calculator</a></li>
-      <li><a href="/heatmap">Heatmap</a></li>
-      <li><a href="/news">News</a></li>
-    </ul>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-family:var(--font-mono);font-size:8px;letter-spacing:1.5px;color:var(--ink-4);text-transform:uppercase">Live · FMP</span>
-      <span class="pulse"></span>
+      <!-- NAVIGATION -->
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="brand">
+          <span class="brand-mk" aria-hidden="true"></span>
+          <span>Equity<span style="color: var(--accent);">.</span>Research</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/">Generate</a></li>
+          <li><a href="/dashboard.html" aria-current="page">Dashboard</a></li>
+          <li><a href="/dcf">DCF Calculator</a></li>
+          <li><a href="/heatmap">Heatmap</a></li>
+          <li><a href="/news">News</a></li>
+        </ul>
+        <div class="nav-aside">
+          <span class="nav-time" id="navTime">—</span>
+          <span class="live-badge"><span class="dot"></span>Live · FMP</span>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+            <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- PAGE HEADER -->
+      <header class="page-head">
+        <div>
+          <div class="eyebrow">▲ Active Coverage</div>
+          <h1 class="page-title">Coverage Dashboard</h1>
+          <p class="page-lede">All analysed companies — DCF upside, valuation versus history, and quality metrics. Auto-scored by the FMP engine unless flagged as including qualitative inputs.</p>
+          <p class="page-lede" style="margin-top: var(--s-2); color: var(--status-warn);">Integration in progress (WIP). Results below are stale pending re-run on the updated scoring engine. Full functionality coming soon.</p>
+        </div>
+        <div class="page-head-actions">
+          <button class="btn">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1v9M4 7l4 3 4-3M2 14h12"/></svg>
+            Export CSV
+          </button>
+          <a href="/" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+            Generate Report
+          </a>
+        </div>
+      </header>
+
+      <!-- KPI HERO TILES -->
+      <div class="kpi-grid">
+        <div class="kpi a">
+          <div class="lbl">Coverage</div>
+          <div class="val" id="sCov">—</div>
+          <div class="sub">Companies with data</div>
+        </div>
+        <div class="kpi b">
+          <div class="lbl">Avg Score</div>
+          <div class="val" id="sAvg">—</div>
+          <div class="sub">Scored companies</div>
+        </div>
+        <div class="kpi c">
+          <div class="lbl">High Conviction</div>
+          <div class="val" id="sHC">—</div>
+          <div class="sub">Score ≥ 7.5 on 0–10 scale</div>
+        </div>
+        <div class="kpi d">
+          <div class="lbl">Live Reports</div>
+          <div class="val" id="sLive">—</div>
+          <div class="sub">This session · 2-hour TTL</div>
+        </div>
+      </div>
+
+      <!-- CONTROLS BAR -->
+      <div class="controls" role="tablist">
+        <div class="tabs" id="filterChips">
+          <button class="tab" role="tab" aria-selected="true"  data-filter="all"     onclick="setFilter('all',this)">All <span class="ct" id="fc-all">—</span></button>
+          <button class="tab" role="tab" aria-selected="false" data-filter="hc"      onclick="setFilter('hc',this)">High Conviction <span class="ct" id="fc-hc">—</span></button>
+          <button class="tab" role="tab" aria-selected="false" data-filter="buy"     onclick="setFilter('buy',this)">Buy <span class="ct" id="fc-buy">—</span></button>
+          <button class="tab" role="tab" aria-selected="false" data-filter="hold"    onclick="setFilter('hold',this)">Hold <span class="ct" id="fc-hold">—</span></button>
+          <button class="tab tone-danger" role="tab" aria-selected="false" data-filter="avoid" onclick="setFilter('avoid',this)">Avoid <span class="ct" id="fc-avoid">—</span></button>
+          <button class="tab" role="tab" aria-selected="false" data-filter="pending" onclick="setFilter('pending',this)">Pending <span class="ct" id="fc-pending">—</span></button>
+        </div>
+        <label class="field">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
+          <input id="searchInput" type="search" placeholder="Ticker or company…" oninput="filterSearch(this.value)">
+        </label>
+        <button class="sort">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4l3-3 3 3M3 8l3 3 3-3"/></svg>
+          Score · desc
+        </button>
+      </div>
+
+      <!-- COVERAGE SECTIONS (rendered by JS) -->
+      <div id="coverage-sections"></div>
+      <div class="tnotes" id="tnotes"></div>
+
+      <!-- DISCOVERY SECTION (shown when data available) -->
+      <section id="disc-section" style="display:none" class="discovery">
+        <div class="section-head">
+          <h3>Discovery Coverage</h3>
+          <span class="ct" style="background: var(--surface-3); color: var(--muted);">Auto-generated</span>
+          <span class="meta">daily_discovery.py · auto-run</span>
+        </div>
+        <div id="disc-cards"></div>
+      </section>
+
+      <!-- LIVE REPORTS -->
+      <section>
+        <div class="section-head">
+          <h3>Live Reports · This Session</h3>
+          <span class="ct" style="background: var(--kpi-d-bg); color: var(--kpi-d-fg);">2-hour TTL</span>
+        </div>
+        <div class="live-reports" id="lgrid">
+          <div class="report-card" id="lempty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-style:dashed;background:transparent;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" style="color:var(--muted);margin-bottom:var(--s-3)"><path d="M12 5v14M5 12h14"/></svg>
+            <div style="font-size:var(--t-sm);font-weight:var(--weight-semi);margin-bottom:var(--s-2)">No reports this session</div>
+            <div style="font-size:var(--t-xs);color:var(--muted);margin-bottom:var(--s-4)">Live for 2 hours · auto-saved on Save</div>
+            <a href="/" class="btn btn-primary btn-sm">Generate →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="footer">
+        <div>
+          <a class="brand" href="/"><span class="brand-mk"></span>Equity<span style="color: var(--accent);">.</span>Research</a>
+          <p style="margin: var(--s-3) 0 0; max-width: 380px; line-height: 1.6;">An equity research workbench — DCF, valuation history, and 10-K parsing fused into one workflow. Not investment advice.</p>
+        </div>
+        <div>
+          <h4>Workbench</h4>
+          <a href="/">Generate</a>
+          <a href="/dashboard.html">Dashboard</a>
+          <a href="/dcf">DCF Calculator</a>
+          <a href="/heatmap">Heatmap</a>
+        </div>
+        <div>
+          <h4>Data</h4>
+          <a href="#">FMP API · v3.2</a>
+          <a href="#">10-K parser</a>
+          <a href="#">Methodology</a>
+          <a href="#">Changelog</a>
+        </div>
+        <div>
+          <h4>Account</h4>
+          <a href="#">Settings</a>
+          <a href="#">Saved scenarios</a>
+          <a href="#">Export</a>
+          <a href="#">Sign out</a>
+        </div>
+        <div class="legal">
+          <span>© 2026 Equity.Research · WIP build · v0.4.2</span>
+          <span>All scores auto-generated unless flagged · qualitative inputs disclosed per-company</span>
+        </div>
+      </footer>
+
     </div>
-  </div>
-</nav>
+  </main>
 
-<!-- PAGE HEADER -->
-<div class="page-head">
-  <div class="ph-eyebrow">Active Coverage</div>
-  <h1 class="ph-title">Coverage Dashboard</h1>
-  <p class="ph-sub">All analysed companies — DCF upside, valuation vs history, and quality metrics. Scores are auto-scored (FMP engine) unless noted as including qualitative inputs.</p>
-  <p class="ph-sub" style="margin-top:8px;color:var(--amber)">Set up and live integration in progress (WIP). Results below are stale and may have inconsistencies to current scorecard code/framework. All tickers will be refreshed once base template is optimised. Full functionality COMING SOON.</p>
-</div>
-
-<!-- KPI STRIP -->
-<div class="kpi-strip">
-  <div class="kpi-cell"><div class="kpi-label">Coverage</div><div class="kpi-val" id="sCov">—</div><div class="kpi-sub">Companies with data</div></div>
-  <div class="kpi-cell"><div class="kpi-label">Avg Score</div><div class="kpi-val" id="sAvg">—</div><div class="kpi-sub">Scored companies</div></div>
-  <div class="kpi-cell"><div class="kpi-label">High Conviction</div><div class="kpi-val" id="sHC">—</div><div class="kpi-sub">Score ≥ 75</div></div>
-  <div class="kpi-cell"><div class="kpi-label">Live Reports</div><div class="kpi-val" id="sLive">—</div><div class="kpi-sub">This session</div></div>
-</div>
-
-<!-- TOOLBAR -->
-<div class="toolbar">
-  <div class="fltrs" id="filterChips">
-    <button class="fchip on" data-filter="all"     onclick="setFilter('all',this)">All <span class="ct" id="fc-all">—</span></button>
-    <button class="fchip"    data-filter="hc"      onclick="setFilter('hc',this)">High Conviction <span class="ct" id="fc-hc">—</span></button>
-    <button class="fchip"    data-filter="buy"     onclick="setFilter('buy',this)">Buy <span class="ct" id="fc-buy">—</span></button>
-    <button class="fchip"    data-filter="hold"    onclick="setFilter('hold',this)">Hold <span class="ct" id="fc-hold">—</span></button>
-    <button class="fchip"    data-filter="avoid"   onclick="setFilter('avoid',this)">Avoid <span class="ct" id="fc-avoid">—</span></button>
-    <button class="fchip"    data-filter="pending" onclick="setFilter('pending',this)">Pending <span class="ct" id="fc-pending">—</span></button>
-  </div>
-  <div class="search-wrap">
-    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style="color:var(--ink-4);flex-shrink:0"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-    <input id="searchInput" placeholder="Ticker or company…" oninput="filterSearch(this.value)">
-  </div>
-</div>
-
-<!-- COVERAGE TABLE -->
-<div class="ts">
-  <div class="tslbl">Coverage Heatmap · FMP Engine Outputs &amp; 10-K Data</div>
-  <div class="tscroll">
-    <table>
-      <thead>
-        <tr>
-          <th style="min-width:190px">Company</th>
-          <th style="min-width:130px">Score</th>
-          <th class="c" style="min-width:90px">Verdict</th>
-          <th class="c" style="min-width:90px">Mkt Cap</th>
-          <th class="c" style="min-width:120px">Price Target</th>
-          <th class="c" style="min-width:72px">DCF GG</th>
-          <th class="c" style="min-width:72px">DCF EM</th>
-          <th class="c" style="min-width:68px">ROIC</th>
-          <th class="c" style="min-width:75px">Rev CAGR</th>
-          <th class="c" style="min-width:68px">FCF/NI</th>
-          <th class="c" style="min-width:75px">D/EBITDA</th>
-          <th class="c" style="min-width:155px">P/E  ·  5yr avg  ·  Δ</th>
-          <th class="c" style="min-width:155px">P/FCF  ·  5yr avg  ·  Δ</th>
-          <th class="c" style="min-width:140px">Qual Inputs · BC / LTP</th>
-          <th style="min-width:120px"></th>
-        </tr>
-      </thead>
-      <tbody id="tb"></tbody>
-    </table>
-  </div>
-  <div class="tnotes" id="tnotes"></div>
-</div>
-
-<!-- DISCOVERY TABLE -->
-<div id="disc-section" style="display:none" class="ts">
-  <div class="tslbl">Discovery Coverage · Auto-generated via daily_discovery.py</div>
-  <div class="tscroll">
-    <table>
-      <thead>
-        <tr>
-          <th style="min-width:190px">Company</th>
-          <th style="min-width:130px">Score</th>
-          <th class="c" style="min-width:90px">Verdict</th>
-          <th class="c" style="min-width:72px">DCF GG</th>
-          <th class="c" style="min-width:72px">DCF EM</th>
-          <th class="c" style="min-width:68px">ROIC</th>
-          <th class="c" style="min-width:75px">Rev CAGR</th>
-          <th class="c" style="min-width:68px">FCF/NI</th>
-          <th class="c" style="min-width:75px">D/EBITDA</th>
-          <th class="c" style="min-width:100px">P/E</th>
-          <th class="c" style="min-width:100px">P/FCF</th>
-          <th class="c" style="min-width:140px">Qual Inputs · BC / LTP</th>
-          <th style="min-width:100px"></th>
-        </tr>
-      </thead>
-      <tbody id="disc-tb"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- LIVE REPORTS -->
-<div class="ls">
-  <div class="tslbl">Live-Generated Reports · This Session (2-hour TTL)</div>
-  <div class="lgrid" id="lgrid">
-    <div class="el" id="lempty">No reports generated this session. <a href="/" style="color:var(--gold);text-decoration:none">Generate one →</a></div>
-  </div>
-</div>
+  <div id="_toast" class="toast"></div>
 
 <script>
 // ── Coverage data (sorted by score desc) ──────────────────────────────────────
@@ -299,63 +282,94 @@ const D = [
   {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,price:null,pt:null,mcap:null,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available — report shows financial data only."},
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 const p = (v, d=1) => v == null ? '—' : ((v >= 0 ? '+' : '') + (v*100).toFixed(d) + '%');
 const x = (v, d=1) => v == null ? '—' : (v.toFixed(d) + 'x');
 
-// Metric chip — uses .mchip class (no conflict with iu-redesign.css .chip filter style)
-function chip(l, c) { return `<span class="mchip ${c}">${l}</span>`; }
+// Heat class mapping
+function heatCls(v, pctMode) {
+  if (v == null) return 'heat-n';
+  if (pctMode) {
+    if (v >= 0.20) return 'heat-gg';
+    if (v >= 0.05) return 'heat-g';
+    if (v >= -0.05) return 'heat-n';
+    if (v >= -0.20) return 'heat-r';
+    return 'heat-rr';
+  }
+  if (v >= 0.5) return 'heat-g';
+  if (v >= 0) return 'heat-n';
+  return 'heat-r';
+}
 
-function upChip(v) {
-  if (v == null) return chip('—', 'chd');
-  if (Math.abs(v) > 2) return chip('—', 'chd');
-  return chip(p(v), v > 0.20 ? 'chg' : v > 0 ? 'cha' : 'chr');
+function metricDiv(label, val, hclass) {
+  return `<div class="metric"><div class="ml">${label}</div><div class="mv ${hclass}">${val}</div></div>`;
 }
-function roicChip(v) { if (v == null) return chip('—','chd'); return chip(p(v,0), v >= 0.20 ? 'chg' : v >= 0.08 ? 'cha' : 'chr'); }
-function cagrChip(v) { if (v == null) return chip('—','chd'); return chip(p(v,1), v >= 0.12 ? 'chg' : v >= 0.05 ? 'cha' : 'chr'); }
-function fcfChip(v) {
-  if (v == null) return chip('—','chd');
-  const display = v > 1.5 ? '>100%' : p(v, 0);
-  return chip(display, v >= 0.80 ? 'chg' : v >= 0.60 ? 'cha' : 'chr');
+
+function upMetric(label, v) {
+  if (v == null || Math.abs(v) > 2) return metricDiv(label, '—', 'heat-n');
+  return metricDiv(label, p(v), heatCls(v, true));
 }
-function deChip(v) { if (v == null) return chip('—','chd'); return chip(v.toFixed(1) + 'x', v < 1.5 ? 'chg' : v < 4 ? 'cha' : 'chr'); }
-function valCell(cur, avg) {
-  if (cur == null || avg == null) return chip('—', 'chd');
+function roicMetric(v) {
+  if (v == null) return metricDiv('ROIC', '—', 'heat-n');
+  const h = v >= 0.20 ? 'heat-gg' : v >= 0.08 ? 'heat-g' : 'heat-r';
+  return metricDiv('ROIC', p(v, 0), h);
+}
+function cagrMetric(v) {
+  if (v == null) return metricDiv('Rev CAGR', '—', 'heat-n');
+  const h = v >= 0.12 ? 'heat-gg' : v >= 0.05 ? 'heat-g' : v >= 0 ? 'heat-n' : 'heat-r';
+  return metricDiv('Rev CAGR', p(v, 1), h);
+}
+function peMetric(cur, avg) {
+  if (cur == null || avg == null) return metricDiv('P/E · Δ', '—', 'heat-n');
   const d = (cur - avg) / avg;
+  const h = d <= -0.25 ? 'heat-gg' : d <= -0.10 ? 'heat-g' : d <= 0.10 ? 'heat-n' : d <= 0.25 ? 'heat-r' : 'heat-rr';
   const ds = (d >= 0 ? '+' : '') + (d*100).toFixed(0) + '%';
-  const dc = d <= 0 ? 'chg' : d <= 0.20 ? 'cha' : 'chr';
-  return `<span class="vc"><span class="vc-c">${x(cur)}</span><span class="vc-s">/ ${x(avg)}</span>${chip(ds, dc)}</span>`;
+  return metricDiv('P/E · Δ', ds, h);
 }
 
-// Verdict — uses .dash-verdict to avoid conflict with iu-redesign.css .verdict
-// Thresholds on 0-10 scale: >=7.5 High Conv., >=6.5 Buy, >=5.0 Hold, else Avoid
-function verdictCell(c) {
-  if (c.pending || c.score == null)
-    return `<span class="dash-verdict pending"><span class="dot"></span>Pending</span>`;
-  if (c.score >= 7.5)
-    return `<span class="dash-verdict good"><span class="dot"></span>High Conv.</span>`;
-  if (c.score >= 6.5)
-    return `<span class="dash-verdict good"><span class="dot"></span>Buy</span>`;
-  if (c.score >= 5.0)
-    return `<span class="dash-verdict hold"><span class="dot"></span>Hold</span>`;
-  return `<span class="dash-verdict avoid"><span class="dot"></span>Avoid</span>`;
+// Score tier
+function scoreTier(s) {
+  if (s == null) return 'tier-n';
+  if (s >= 8.5) return 'tier-gg';
+  if (s >= 7.0) return 'tier-g';
+  if (s >= 5.5) return 'tier-n';
+  if (s >= 3.5) return 'tier-r';
+  return 'tier-rr';
 }
 
-// Score cell — ORIGINAL class names (.scc .snum .sbar .sfill .sn)
-// Scores now on 0-10 scale; bar width = score * 10 (%)
-function scoreCell(c) {
-  if (c.score == null) return `<span style="font-family:var(--font-mono);font-size:9pt;color:var(--ink-4)">—</span>`;
-  const sc = c.score >= 7.5 ? 'cg' : c.score >= 6.0 ? 'ca' : 'cr';
-  const fc = c.score >= 7.5 ? 'fg' : c.score >= 6.0 ? 'fa' : 'fr';
+// Verdict
+function verdictClass(c) {
+  if (c.pending || c.score == null) return 'pend';
+  if (c.score >= 7.5) return 'high';
+  if (c.score >= 6.5) return 'buy';
+  if (c.score >= 5.0) return 'hold';
+  return 'avoid';
+}
+function verdictLabel(c) {
+  if (c.pending || c.score == null) return 'Pending';
+  if (c.score >= 7.5) return 'High Conv.';
+  if (c.score >= 6.5) return 'Buy';
+  if (c.score >= 5.0) return 'Hold';
+  return 'Avoid';
+}
+function verdictStripe(vc) {
+  const map = {high:'var(--v-high-dot)',buy:'var(--v-buy-dot)',hold:'var(--v-hold-dot)',avoid:'var(--v-avoid-dot)',pend:'var(--v-pend-dot)'};
+  return map[vc] || 'var(--v-pend-dot)';
+}
+
+// Score cell HTML (for inline update)
+function scoreHTML(c) {
+  if (c.score == null) return `<div class="score tier-n"><div class="n" style="font-size:var(--t-body);color:var(--muted)">—</div></div>`;
+  const tier = scoreTier(c.score);
   const barW = (c.score * 10).toFixed(1);
-  return `<div class="scc"><span class="snum ${sc}">${c.score.toFixed(1)}</span><span class="sbar"><span class="sfill ${fc}" data-w="${barW}"></span></span>${c.sn ? `<span class="sn">${c.sn}</span>` : ''}</div>`;
+  return `<div class="score ${tier}"><div class="n">${c.score.toFixed(1)}</div><div class="bar"><i style="width:${barW}%"></i></div><div class="lbl">${c.sn || 'auto-score'}</div></div>`;
 }
 
-// ── Qualitative helpers (ORIGINAL — unchanged) ────────────────────────────────
-function qualCell(c) {
-  if (c.pending) return '<span class="cd" style="font-size:9pt">—</span>';
+// Qual selects (original — preserved)
+function qualSelects(c) {
+  if (c.pending) return '<span style="font-size:var(--t-xs);color:var(--muted)">—</span>';
   const hint = c._auto || 0;
-  return `<div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap">
+  return `<div style="display:flex;gap:var(--s-2);align-items:center;flex-wrap:wrap">
     <select class="qsel" title="Business Clarity (adds up to 2.5 pts to score)">
       <option value="">BC</option>
       <option value="HIGH">HIGH</option>
@@ -368,15 +382,127 @@ function qualCell(c) {
       <option value="MOD">MOD</option>
       <option value="LOW">LOW</option>
     </select>
-    <button class="qbtn" onclick="updateQual('${c.t}',${hint})" title="Apply qualitative inputs and update score + report">Apply</button>
+    <button class="qbtn" onclick="updateQual('${c.t}',${hint})">Apply</button>
   </div>`;
+}
+
+// Actions
+const EXCEL_TICKERS = new Set(["AAPL","ABBV","ADBE","AMD","BAC","C","COST","CSCO","F","INTC","JNJ","JPM","KO","META","MSFT","NVDA","SOFI","TSLA","TSM","V","WMT"]);
+function actionsHTML(c) {
+  if (c.pending) return `<a class="btn btn-sm" style="pointer-events:none;opacity:0.4">Pending</a>`;
+  const report = c.url ? `<a class="btn btn-sm" href="${c.url}" target="_blank">Report</a>` : '';
+  const model  = EXCEL_TICKERS.has(c.t) ? `<a class="btn btn-sm" href="/download/model/${c.t}">Model</a>` : '';
+  return `${report}${model}<a class="btn btn-sm btn-primary" href="/?ticker=${c.t}">Re-run →</a>`;
+}
+
+// Build a row-card article element
+function buildCard(c) {
+  const vc   = verdictClass(c);
+  const art  = document.createElement('article');
+  art.className = 'row-card' + (c.pending ? ' pr' : '');
+  art.setAttribute('data-expanded', 'false');
+  art.setAttribute('data-ticker', c.t);
+
+  art.innerHTML = `
+    <span class="stripe" style="background:${verdictStripe(vc)}"></span>
+    <div class="ticker">
+      <div class="b">${c.t.slice(0,4)}</div>
+      <div><div class="n">${c.n}</div><div class="ex">${c.ex} : ${c.t}</div></div>
+    </div>
+    <div id="sc-${c.t}">${scoreHTML(c)}</div>
+    <div><span class="verdict ${vc}"><span class="dot"></span>${verdictLabel(c)}</span></div>
+    <div class="metrics">
+      ${upMetric('DCF GG', c.gg)}
+      ${upMetric('DCF EM', c.em)}
+      ${roicMetric(c.roic)}
+      ${cagrMetric(c.cagr)}
+      ${peMetric(c.pe, c.pe5)}
+      ${metricDiv('P/FCF · Δ', c.pf != null && c.pf5 != null ? ((c.pf-c.pf5)/c.pf5 >= 0 ? '+' : '') + (((c.pf-c.pf5)/c.pf5)*100).toFixed(0) + '%' : '—', c.pf != null && c.pf5 != null ? (((c.pf-c.pf5)/c.pf5) <= -0.25 ? 'heat-gg' : ((c.pf-c.pf5)/c.pf5) <= -0.10 ? 'heat-g' : ((c.pf-c.pf5)/c.pf5) <= 0.10 ? 'heat-n' : ((c.pf-c.pf5)/c.pf5) <= 0.25 ? 'heat-r' : 'heat-rr') : 'heat-n')}
+      ${c.de != null ? metricDiv('D/EBITDA', c.de.toFixed(1)+'x', c.de < 1.5 ? 'heat-gg' : c.de < 4 ? 'heat-g' : c.de < 8 ? 'heat-r' : 'heat-rr') : metricDiv('D/EBITDA','—','heat-n')}
+    </div>
+    <div class="acts">${actionsHTML(c)}</div>
+    <button class="expand-toggle" aria-label="Expand row">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5l3 3 3-3"/></svg>
+    </button>
+    <div class="expand">
+      <div class="detail-block">
+        <h5>Valuation history (5yr)</h5>
+        <dl class="kv">
+          <dt>P/E</dt><dd>${c.pe != null ? x(c.pe) : '—'}${c.pe5 != null ? ` <span style="color:var(--muted)">/ ${x(c.pe5)} avg</span>` : ''}</dd>
+          <dt>P/FCF</dt><dd>${c.pf != null ? x(c.pf) : '—'}${c.pf5 != null ? ` <span style="color:var(--muted)">/ ${x(c.pf5)} avg</span>` : ''}</dd>
+          <dt>D / EBITDA</dt><dd>${c.de != null ? x(c.de) : '—'}</dd>
+          <dt>FCF / NI</dt><dd>${c.fcfni != null ? (c.fcfni > 1.5 ? '>100%' : p(c.fcfni, 0)) : '—'}</dd>
+        </dl>
+      </div>
+      <div class="detail-block">
+        <h5>DCF upside</h5>
+        <dl class="kv">
+          <dt>Gordon Growth</dt><dd>${c.gg != null && Math.abs(c.gg) < 2 ? p(c.gg) : '—'}</dd>
+          <dt>Exit Multiple</dt><dd>${c.em != null && Math.abs(c.em) < 3 ? p(c.em) : '—'}</dd>
+          <dt>ROIC</dt><dd>${c.roic != null ? p(c.roic, 0) : '—'}</dd>
+          <dt>Rev CAGR (3yr)</dt><dd>${c.cagr != null ? p(c.cagr, 1) : '—'}</dd>
+        </dl>
+      </div>
+      <div class="detail-block">
+        <h5>Qualitative inputs</h5>
+        ${qualSelects(c)}
+      </div>
+    </div>`;
+
+  // Expand toggle
+  art.querySelector('.expand-toggle').addEventListener('click', function(e) {
+    e.stopPropagation();
+    const expanded = art.getAttribute('data-expanded') === 'true';
+    art.setAttribute('data-expanded', String(!expanded));
+    this.setAttribute('aria-label', expanded ? 'Expand row' : 'Collapse row');
+  });
+
+  return art;
+}
+
+// ── Section rendering ─────────────────────────────────────────────────────────
+function buildSection(label, vcls, items, meta) {
+  if (!items.length) return null;
+  const sec = document.createElement('section');
+  sec.innerHTML = `<div class="section-head">
+    <h3>${label}</h3>
+    <span class="ct verdict ${vcls}"><span class="dot"></span>${items.length} ${items.length === 1 ? 'company' : 'companies'}</span>
+    <span class="meta">${meta || 'FMP engine + 10-K data'}</span>
+  </div>`;
+  items.forEach(c => sec.appendChild(buildCard(c)));
+  return sec;
+}
+
+function render() {
+  D.forEach(c => { c._auto = c.score; });
+  const container = document.getElementById('coverage-sections');
+  container.innerHTML = '';
+  const notes = [];
+
+  const hcItems    = D.filter(c => !c.pending && (c.score||0) >= 7.5);
+  const buyItems   = D.filter(c => !c.pending && (c.score||0) >= 6.5 && (c.score||0) < 7.5);
+  const holdItems  = D.filter(c => !c.pending && (c.score||0) >= 5.0 && (c.score||0) < 6.5);
+  const avoidItems = D.filter(c => !c.pending && (c.score||0) < 5.0);
+  const pendItems  = D.filter(c => c.pending);
+
+  [
+    buildSection('High Conviction', 'high', hcItems),
+    buildSection('Buy', 'buy', buyItems),
+    buildSection('Hold', 'hold', holdItems),
+    buildSection('Avoid', 'avoid', avoidItems),
+    buildSection('Pending', 'pend', pendItems, 'Scoring queued'),
+  ].forEach(sec => { if (sec) container.appendChild(sec); });
+
+  D.forEach(c => { if (c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`); });
+  if (notes.length) document.getElementById('tnotes').innerHTML = '<strong>Notes —</strong> ' + notes.join(' &nbsp;·&nbsp; ');
+
+  _updateStats();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 let _toastTimer;
 function showToast(msg) {
-  let t = document.getElementById('_toast');
-  if (!t) { t = document.createElement('div'); t.id = '_toast'; t.className = 'toast'; document.body.appendChild(t); }
+  const t = document.getElementById('_toast');
   clearTimeout(_toastTimer);
   t.textContent = msg; t.classList.add('show');
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
@@ -387,18 +513,18 @@ function _applySelStyle(sel) {
   if (sel.value) sel.classList.add('s' + sel.value[0]);
 }
 
-// ── Qual API (ORIGINAL — unchanged) ──────────────────────────────────────────
+// ── Qual API (original — unchanged) ──────────────────────────────────────────
 async function updateQual(ticker, autoScoreHint) {
-  const row = document.querySelector(`tr[data-ticker="${ticker}"]`);
-  if (!row) return;
-  const sels = row.querySelectorAll('.qsel');
+  const card = document.querySelector(`article[data-ticker="${ticker}"]`);
+  if (!card) return;
+  const sels = card.querySelectorAll('.qsel');
   if (sels.length < 2) return;
   const bc = sels[0].value, ltp = sels[1].value;
 
-  const btn = row.querySelector('.qbtn');
+  const btn = card.querySelector('.qbtn');
   if (btn) { btn.textContent = '...'; btn.disabled = true; }
   const scoreEl = document.getElementById(`sc-${ticker}`);
-  if (scoreEl) scoreEl.innerHTML = `<span style="font-family:var(--font-mono);font-size:9pt;color:var(--ink-4)">updating…</span>`;
+  if (scoreEl) scoreEl.innerHTML = `<div class="score tier-n"><div class="n" style="font-size:var(--t-body);color:var(--muted)">updating…</div></div>`;
 
   try {
     const r = await fetch(`/api/qualitative/${ticker}`, {
@@ -409,13 +535,10 @@ async function updateQual(ticker, autoScoreHint) {
     if (btn) { btn.textContent = 'Apply'; btn.disabled = false; }
     if (!r.ok) { alert(d.error || 'Update failed'); _restoreScore(ticker); return; }
 
-    const entry = D.find(x => x.t === ticker);
+    const entry = D.find(e => e.t === ticker);
     if (entry) { entry.score = d.adj_score; entry.sn = (d.biz_clarity || d.ltp) ? 'qual adj.' : 'auto-score'; }
 
-    if (scoreEl) {
-      scoreEl.innerHTML = scoreCell({score: d.adj_score, sn: (d.biz_clarity || d.ltp) ? 'qual adj.' : 'auto-score'});
-      setTimeout(() => scoreEl.querySelectorAll('.sfill[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
-    }
+    if (scoreEl) scoreEl.innerHTML = scoreHTML({score: d.adj_score, sn: (d.biz_clarity || d.ltp) ? 'qual adj.' : 'auto-score'});
     [sels[0], sels[1]].forEach(s => _applySelStyle(s));
     _updateStats();
     const note = d.warning ? ' (report regen failed — score saved)' : ' — report updated';
@@ -424,56 +547,54 @@ async function updateQual(ticker, autoScoreHint) {
 }
 
 function _restoreScore(ticker) {
-  const c = D.find(x => x.t === ticker) || {score: null, sn: null};
+  const c = D.find(e => e.t === ticker) || {score: null, sn: null};
   const el = document.getElementById(`sc-${ticker}`);
-  if (el) { el.innerHTML = scoreCell(c); setTimeout(() => el.querySelectorAll('.sfill[data-w]').forEach(e => e.style.width = e.dataset.w + '%'), 100); }
+  if (el) el.innerHTML = scoreHTML(c);
 }
 
 async function loadQualOverrides() {
   try {
     const ov = await (await fetch('/api/qualitative-all')).json();
     Object.entries(ov).forEach(([ticker, o]) => {
-      const row = document.querySelector(`tr[data-ticker="${ticker}"]`);
-      if (!row) return;
-      const sels = row.querySelectorAll('.qsel');
+      const card = document.querySelector(`article[data-ticker="${ticker}"]`);
+      if (!card) return;
+      const sels = card.querySelectorAll('.qsel');
       if (sels.length >= 2) {
         if (o.biz_clarity) { sels[0].value = o.biz_clarity; _applySelStyle(sels[0]); }
         if (o.ltp)         { sels[1].value = o.ltp;         _applySelStyle(sels[1]); }
       }
       if (o.adj_score != null) {
-        const entry = D.find(x => x.t === ticker);
+        const entry = D.find(e => e.t === ticker);
         if (entry) { entry.score = o.adj_score; entry.sn = 'qual adj.'; }
         const el = document.getElementById(`sc-${ticker}`);
-        if (el) el.innerHTML = scoreCell({score: o.adj_score, sn: 'qual adj.'});
+        if (el) el.innerHTML = scoreHTML({score: o.adj_score, sn: 'qual adj.'});
       }
     });
-    setTimeout(() => document.querySelectorAll('.sfill[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
     _updateStats();
   } catch(e) {}
 }
 
-// ── Stats (original + filter chip counts) ────────────────────────────────────
+// ── Stats ─────────────────────────────────────────────────────────────────────
 function _updateStats() {
   const scored = D.filter(c => c.score != null);
   const sc = scored.map(c => c.score);
   document.getElementById('sCov').textContent = scored.length;
   document.getElementById('sAvg').textContent = sc.length ? (sc.reduce((a,b) => a+b, 0) / sc.length).toFixed(1) : '—';
-  document.getElementById('sHC').textContent  = sc.filter(s => s >= 75).length;
-  // filter chip counts
+  document.getElementById('sHC').textContent  = sc.filter(s => s >= 7.5).length;
   document.getElementById('fc-all').textContent     = D.length;
-  document.getElementById('fc-hc').textContent      = sc.filter(s => s >= 75).length;
-  document.getElementById('fc-buy').textContent     = sc.filter(s => s >= 65 && s < 75).length;
-  document.getElementById('fc-hold').textContent    = sc.filter(s => s >= 50 && s < 65).length;
-  document.getElementById('fc-avoid').textContent   = sc.filter(s => s < 50).length;
+  document.getElementById('fc-hc').textContent      = sc.filter(s => s >= 7.5).length;
+  document.getElementById('fc-buy').textContent     = sc.filter(s => s >= 6.5 && s < 7.5).length;
+  document.getElementById('fc-hold').textContent    = sc.filter(s => s >= 5.0 && s < 6.5).length;
+  document.getElementById('fc-avoid').textContent   = sc.filter(s => s < 5.0).length;
   document.getElementById('fc-pending').textContent = D.filter(c => c.pending).length;
 }
 
-// ── Filter logic ──────────────────────────────────────────────────────────────
+// ── Filter ────────────────────────────────────────────────────────────────────
 let _activeFilter = 'all';
 function setFilter(f, btn) {
   _activeFilter = f;
-  document.querySelectorAll('#filterChips .fchip').forEach(c => c.classList.remove('on'));
-  btn.classList.add('on');
+  document.querySelectorAll('#filterChips .tab').forEach(t => t.setAttribute('aria-selected','false'));
+  btn.setAttribute('aria-selected','true');
   _applyFilter();
 }
 function filterSearch(q) { _applyFilter(q.trim().toLowerCase()); }
@@ -486,93 +607,23 @@ function _verdictFor(c) {
 }
 function _applyFilter(search) {
   const q = search !== undefined ? search : (document.getElementById('searchInput').value.trim().toLowerCase());
-  document.querySelectorAll('#tb tr.data-row').forEach(row => {
-    const ticker = row.dataset.ticker || '';
+  document.querySelectorAll('#coverage-sections article.row-card').forEach(card => {
+    const ticker = card.dataset.ticker || '';
     const entry = D.find(c => c.t === ticker);
     if (!entry) return;
     const vf = _verdictFor(entry);
     const matchFilter = _activeFilter === 'all' || vf === _activeFilter;
     const matchSearch = !q || ticker.toLowerCase().includes(q) || (entry.n||'').toLowerCase().includes(q);
-    row.style.display = (matchFilter && matchSearch) ? '' : 'none';
+    card.style.display = (matchFilter && matchSearch) ? '' : 'none';
   });
-  document.querySelectorAll('#tb .group-head').forEach(gh => {
-    let next = gh.nextElementSibling;
-    let anyVisible = false;
-    while (next && !next.classList.contains('group-head')) {
-      if (next.style.display !== 'none') { anyVisible = true; break; }
-      next = next.nextElementSibling;
-    }
-    gh.style.display = anyVisible ? '' : 'none';
+  // Hide empty sections
+  document.querySelectorAll('#coverage-sections section').forEach(sec => {
+    const visible = Array.from(sec.querySelectorAll('article.row-card')).some(c => c.style.display !== 'none');
+    sec.style.display = visible ? '' : 'none';
   });
 }
 
-// ── Actions ───────────────────────────────────────────────────────────────────
-const EXCEL_TICKERS = new Set(["AAPL","ABBV","ADBE","AMD","BAC","C","COST","CSCO","F","INTC","JNJ","JPM","KO","META","MSFT","NVDA","SOFI","TSLA","TSM","V","WMT"]);
-function actions(c) {
-  if (c.pending) return `<div class="acts"><span class="al aln">Pending</span></div>`;
-  const v  = c.url ? `<a class="al alv" href="${c.url}" target="_blank">Report</a>` : '';
-  const xl = EXCEL_TICKERS.has(c.t) ? `<a class="al alx" href="/download/model/${c.t}" title="Download Excel model">Model</a>` : '';
-  return `<div class="acts">${v}${xl}<a class="al alg" href="/" title="Re-run ${c.t}">Re-run →</a></div>`;
-}
-
-// ── Render (with group headers + verdict column) ──────────────────────────────
-function render() {
-  D.forEach(c => { c._auto = c.score; });
-  const tb = document.getElementById('tb');
-  const notes = [];
-
-  const hcItems    = D.filter(c => !c.pending && (c.score||0) >= 7.5);
-  const buyItems   = D.filter(c => !c.pending && (c.score||0) >= 6.5 && (c.score||0) < 7.5);
-  const holdItems  = D.filter(c => !c.pending && (c.score||0) >= 5.0 && (c.score||0) < 6.5);
-  const avoidItems = D.filter(c => !c.pending && (c.score||0) < 5.0);
-  const pendItems  = D.filter(c => c.pending);
-
-  function addGroup(label, items) {
-    if (!items.length) return;
-    const gh = document.createElement('tr');
-    gh.className = 'group-head';
-    gh.innerHTML = `<td colspan="13"><div class="gh-label">${label}<span class="gh-count">${items.length}</span></div></td>`;
-    tb.appendChild(gh);
-    items.forEach(c => addRow(c, tb));
-  }
-
-  function addRow(c, tbody) {
-    const tr = document.createElement('tr');
-    tr.className = 'data-row' + (c.pending ? ' pr' : '');
-    tr.dataset.ticker = c.t;
-    tr.innerHTML = `
-      <td><div class="tcc">
-        <div class="tlog">${c.t.slice(0,4)}</div>
-        <div><div class="tn">${c.n}</div><div class="te">${c.ex}: ${c.t}</div></div>
-      </div></td>
-      <td id="sc-${c.t}">${scoreCell(c)}</td>
-      <td style="text-align:center;vertical-align:middle">${verdictCell(c)}</td>
-      <td style="text-align:center">${upChip(c.gg)}</td>
-      <td style="text-align:center">${upChip(c.em)}</td>
-      <td style="text-align:center">${roicChip(c.roic)}</td>
-      <td style="text-align:center">${cagrChip(c.cagr)}</td>
-      <td style="text-align:center">${fcfChip(c.fcfni)}</td>
-      <td style="text-align:center">${deChip(c.de)}</td>
-      <td style="text-align:center">${valCell(c.pe, c.pe5)}</td>
-      <td style="text-align:center">${valCell(c.pf, c.pf5)}</td>
-      <td style="text-align:center">${qualCell(c)}</td>
-      <td>${actions(c)}</td>`;
-    tbody.appendChild(tr);
-    if (c.note) notes.push(`<strong>${c.t}</strong>: ${c.note}`);
-  }
-
-  addGroup('High Conviction', hcItems);
-  addGroup('Buy', buyItems);
-  addGroup('Hold', holdItems);
-  addGroup('Avoid', avoidItems);
-  addGroup('Pending', pendItems);
-
-  setTimeout(() => document.querySelectorAll('.sfill[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
-  if (notes.length) document.getElementById('tnotes').innerHTML = '<strong>Notes —</strong> ' + notes.join(' &nbsp;·&nbsp; ');
-  _updateStats();
-}
-
-// ── Discovery tickers ─────────────────────────────────────────────────────────
+// ── Discovery (original — adapted for card layout) ────────────────────────────
 const CORE_SET = new Set(["NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V","KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI","JPM","C","BAC","UAL"]);
 
 async function loadDiscovery() {
@@ -581,41 +632,22 @@ async function loadDiscovery() {
     const disc = tickers.filter(t => !CORE_SET.has(t.ticker));
     if (!disc.length) return;
     document.getElementById('disc-section').style.display = '';
-    const tb = document.getElementById('disc-tb');
+    const container = document.getElementById('disc-cards');
     disc.forEach(t => {
-      const tr = document.createElement('tr');
-      tr.dataset.ticker = t.ticker;
-      tr.className = 'data-row';
       const gg   = t.gg_upside  != null ? t.gg_upside  / 100 : null;
       const em   = t.em_upside  != null ? t.em_upside  / 100 : null;
       const roic = t.roic       != null ? t.roic       / 100 : null;
       const cagr = t.rev_cagr   != null ? t.rev_cagr   / 100 : null;
-      const fakeC = {t: t.ticker, score: t.score, sn: t.score != null ? 'auto-score' : null, pending: !t.score};
-      tr.innerHTML = `
-        <td><div class="tcc">
-          <div class="tlog">${t.ticker.slice(0,4)}</div>
-          <div><div class="tn">${t.name || t.ticker}</div><div class="te">Discovery · ${t.ticker}</div></div>
-        </div></td>
-        <td id="sc-${t.ticker}">${scoreCell(fakeC)}</td>
-        <td style="text-align:center;vertical-align:middle">${verdictCell(fakeC)}</td>
-        <td style="text-align:center">${upChip(gg)}</td>
-        <td style="text-align:center">${upChip(em)}</td>
-        <td style="text-align:center">${roicChip(roic)}</td>
-        <td style="text-align:center">${cagrChip(cagr)}</td>
-        <td style="text-align:center">${fcfChip(t.fcf_ni)}</td>
-        <td style="text-align:center">${deChip(t.d_ebitda)}</td>
-        <td style="text-align:center">${t.pe != null ? x(t.pe) : chip('—','chd')}</td>
-        <td style="text-align:center">${t.pfcf != null ? x(t.pfcf) : chip('—','chd')}</td>
-        <td style="text-align:center">${qualCell(fakeC)}</td>
-        <td><div class="acts"><a class="al alv" href="/reports/${t.ticker}_report.html" target="_blank">Report</a></div></td>`;
-      tb.appendChild(tr);
+      const fakeC = {t: t.ticker, n: t.name || t.ticker, ex: 'Discovery', score: t.score, sn: t.score != null ? 'auto-score' : null, pending: !t.score,
+        gg, em, roic, cagr, fcfni: t.fcf_ni, de: t.d_ebitda, pe: t.pe, pe5: null, pf: t.pfcf, pf5: null,
+        url: `/reports/${t.ticker}_report.html`, _auto: t.score};
+      container.appendChild(buildCard(fakeC));
     });
-    setTimeout(() => tb.querySelectorAll('.sfill[data-w]').forEach(el => el.style.width = el.dataset.w + '%'), 100);
     loadQualOverrides();
   } catch(e) {}
 }
 
-// ── Live reports (ORIGINAL — unchanged) ──────────────────────────────────────
+// ── Live reports (original — adapted for .report-card layout) ─────────────────
 async function loadLive() {
   try {
     const rpts = await (await fetch('/api/reports')).json();
@@ -624,20 +656,26 @@ async function loadLive() {
     document.getElementById('lempty').style.display = 'none';
     const g = document.getElementById('lgrid');
     rpts.forEach(r => {
-      const sc = r.score >= 7.5 ? 'cg' : r.score >= 6.0 ? 'ca' : 'cr';
+      const vc = r.score >= 7.5 ? 'high' : r.score >= 6.5 ? 'buy' : r.score >= 5.0 ? 'hold' : 'avoid';
       const ts = new Date(r.ts);
       const card = document.createElement('div');
-      card.className = 'lcard';
+      card.className = 'report-card';
       card.innerHTML = `
-        <div class="ltop">
-          <div class="ltick">${r.ticker}</div>
-          <div class="lsc ${sc}">${r.score != null ? r.score.toFixed(1) : '—'}<span style="font-size:8pt;color:var(--ink-4)">/10</span></div>
+        <div class="head">
+          <div class="ticker"><div class="b">${r.ticker}</div></div>
+          <div class="ttl-row">
+            <div>
+              <div class="ttl">${r.ticker}</div>
+              <div class="ttl-sub">${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${ts.toLocaleDateString([],{month:'short',day:'numeric'})}</div>
+            </div>
+            <span class="verdict ${vc}"><span class="dot"></span>${r.score != null ? r.score.toFixed(1) : '—'}</span>
+          </div>
         </div>
-        <div class="lts">${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${ts.toLocaleDateString([],{month:'short',day:'numeric'})}</div>
-        <div class="lbtns">
-          <a class="al alv" href="/report/${r.rid}" target="_blank">View</a>
-          <a class="al alg" href="/download/excel/${r.rid}" target="_blank">Excel</a>
-          <a class="al alg" href="/download/html/${r.rid}" target="_blank">HTML</a>
+        <div class="ttl-bar"><i style="width:${Math.min(100,(r.score||0)*10)}%"></i></div>
+        <div style="display:flex;gap:var(--s-2);margin-top:var(--s-3)">
+          <a class="btn btn-sm" style="flex:1" href="/report/${r.rid}" target="_blank">Open report</a>
+          <a class="btn btn-sm" href="/download/excel/${r.rid}" target="_blank">Excel</a>
+          <a class="btn btn-sm btn-primary" href="/download/html/${r.rid}" target="_blank">HTML</a>
         </div>`;
       g.appendChild(card);
     });
@@ -649,5 +687,6 @@ loadQualOverrides();
 loadDiscovery();
 loadLive();
 </script>
+<script src="/js/app.js"></script>
 </body>
 </html>

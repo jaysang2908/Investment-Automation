@@ -1,611 +1,771 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Investment Utopia — Independent Analysis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/iu-redesign.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+
+  <!-- Theme init: read saved preference before paint to avoid flash -->
+  <script>
+    (function(){try{var t=localStorage.getItem('eq.theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());
+  </script>
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+
   <style>
-    /* Page-specific overrides not in the design system */
-    html { scroll-behavior: smooth; }
+    /* ── Page-specific overrides ── */
 
-    #tickerInput { text-transform: uppercase; letter-spacing: 4px; font-size: 15px; font-weight: 600; }
+    /* Generate form card */
+    .gen-card {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
+      padding: var(--s-6);
+      box-shadow: var(--shadow-md);
+    }
+    .gen-card .card-eyebrow {
+      font-size: var(--t-micro);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: var(--weight-semi);
+      margin-bottom: var(--s-4);
+    }
+    .gen-field { margin-bottom: var(--s-3); }
+    .gen-field label {
+      display: block;
+      font-size: var(--t-xs);
+      font-weight: var(--weight-semi);
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: var(--s-1);
+    }
+    .gen-field .opt { font-weight: var(--weight-regular); color: var(--muted-soft); text-transform: none; letter-spacing: 0; }
+    .gen-field input, .gen-field select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: var(--t-sm);
+      outline: none;
+      transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    .gen-field input:focus, .gen-field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .gen-field input#tickerInput, .gen-field input#specTickerInput {
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-size: 15px;
+      font-weight: var(--weight-semi);
+      font-family: var(--font-mono);
+    }
+    .gen-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
 
-    /* Generate message states */
-    .gen-msg { margin-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px; min-height: 18px; text-align: center; }
-    .gen-msg.info  { color: var(--ink-3); }
-    .gen-msg.error { color: var(--neg); }
-    .gen-msg.ok    { color: var(--pos); }
+    /* Generate button */
+    .gen-btn {
+      width: 100%;
+      padding: 13px 20px;
+      background: var(--ink);
+      color: var(--surface);
+      border: none;
+      border-radius: var(--r-lg);
+      font-size: var(--t-body);
+      font-weight: var(--weight-semi);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s-2);
+      margin-top: var(--s-4);
+      transition: background var(--dur) var(--ease);
+    }
+    .gen-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 88%, var(--accent)); }
+    .gen-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    [data-theme="dark"] .gen-btn { color: var(--bg); }
+    .gen-btn-unsafe {
+      background: #e05c20;
+      border-color: #e05c20;
+    }
+    .gen-btn-unsafe:hover:not(:disabled) { background: #c54e18; }
 
-    /* Progress log */
+    /* Messages */
+    .gen-meta { font-family: var(--font-mono); font-size: var(--t-tiny); color: var(--muted-soft); text-align: center; margin-top: var(--s-2); }
+    .gen-msg { margin-top: var(--s-2); font-family: var(--font-mono); font-size: var(--t-xs); min-height: 18px; text-align: center; }
+    .gen-msg.info  { color: var(--muted); }
+    .gen-msg.error { color: var(--v-avoid-fg); }
+    .gen-msg.ok    { color: var(--v-high-fg); }
     .progress-log {
-      margin-top: 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-1);
-      border-radius: var(--r-md); padding: 12px 16px; display: none;
-      font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
-      line-height: 1.8; max-height: 120px; overflow-y: auto;
+      margin-top: var(--s-3);
+      background: var(--surface-3);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: var(--s-3) var(--s-4);
+      display: none;
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      color: var(--muted);
+      line-height: 1.8;
+      max-height: 120px;
+      overflow-y: auto;
     }
 
     /* Results panel */
     .results-panel {
-      margin-top: 20px; background: var(--surface-2); border: 1px solid rgba(230,193,104,0.2);
-      border-radius: var(--r-lg); padding: 24px; display: none;
+      margin-top: var(--s-4);
+      background: var(--surface-3);
+      border: 1px solid var(--line);
+      border-radius: var(--r-xl);
+      padding: var(--s-5);
+      display: none;
     }
-    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-    .results-ticker { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink-1); }
-    .results-score  { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); margin-top: 4px; }
-    .results-score span { color: var(--gold); font-size: 16px; font-weight: 600; }
-    .results-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-4); }
+    .results-ticker { font-family: var(--font-mono); font-size: 20px; font-weight: var(--weight-bold); color: var(--ink); }
+    .results-score  { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted); margin-top: var(--s-1); }
+    .results-score span { color: var(--accent-ink); font-size: 15px; font-weight: var(--weight-bold); }
+    .results-btns { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-3); }
     .res-btn {
-      flex: 1; min-width: 140px; padding: 12px 16px; border-radius: var(--r-md);
-      border: 1px solid var(--border-2); font-family: var(--font-mono); font-size: 10px;
-      letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; text-align: center;
-      text-decoration: none; display: flex; align-items: center; justify-content: center;
-      gap: 8px; transition: all var(--dur-base); white-space: nowrap;
+      flex: 1;
+      min-width: 130px;
+      padding: 10px 14px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--line-strong);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s-2);
+      transition: background var(--dur) var(--ease);
+      white-space: nowrap;
     }
-    .res-btn-excel { background: var(--pos-bg);  color: var(--pos);  border-color: rgba(52,211,153,0.25); }
-    .res-btn-excel:hover { background: var(--pos-dim); }
-    .res-btn-html  { background: var(--gold-dim); color: var(--gold); border-color: rgba(230,193,104,0.25); }
-    .res-btn-html:hover  { background: rgba(230,193,104,0.2); }
-    .res-btn-view  { background: var(--surface-3); color: var(--ink-2); border-color: var(--border-2); }
-    .res-btn-view:hover  { background: var(--surface-4); border-color: var(--border-3); }
-    .results-note { font-size: 12px; color: var(--ink-4); line-height: 1.65; }
+    .res-btn-excel { background: var(--h-gg-bg); color: var(--h-gg-fg); border-color: color-mix(in srgb, var(--h-gg-fg) 20%, transparent); }
+    .res-btn-excel:hover { background: color-mix(in srgb, var(--h-gg-bg) 80%, var(--h-gg-fg) 10%); }
+    .res-btn-html  { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+    .res-btn-html:hover  { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+    .res-btn-view  { background: var(--surface-3); color: var(--ink-2); border-color: var(--line-strong); }
+    .res-btn-view:hover  { background: var(--surface-hi); }
+    .results-note { font-size: var(--t-xs); color: var(--muted); line-height: 1.65; }
     .results-note strong { color: var(--ink-2); }
 
     /* Spinner */
     @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner { width: 15px; height: 15px; border: 2px solid rgba(26,20,8,0.3); border-top-color: #1a1408; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    .gen-btn:not(.gen-btn-unsafe) .spinner { border-color: rgba(0,0,0,0.15); border-top-color: var(--ink); }
+    [data-theme="dark"] .gen-btn:not(.gen-btn-unsafe) .spinner { border-color: rgba(255,255,255,0.2); border-top-color: var(--bg); }
 
-    /* Scroll reveal */
-    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-    .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.65s ease, transform 0.65s ease; }
-    .reveal.visible { opacity: 1; transform: translateY(0); }
-    .reveal-stagger > * { opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
-    .reveal-stagger.visible > *:nth-child(1) { opacity:1; transform:none; transition-delay: 0s; }
-    .reveal-stagger.visible > *:nth-child(2) { opacity:1; transform:none; transition-delay: 0.1s; }
-    .reveal-stagger.visible > *:nth-child(3) { opacity:1; transform:none; transition-delay: 0.2s; }
-    .reveal-stagger.visible > *:nth-child(4) { opacity:1; transform:none; transition-delay: 0.3s; }
+    /* Hero layout */
+    .gen-hero {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: var(--s-12);
+      align-items: center;
+      padding: var(--s-12) 0 var(--s-8);
+    }
+    .gen-hero .display-title {
+      font-size: clamp(36px, 5vw, 60px);
+      line-height: 1.0;
+      letter-spacing: -0.03em;
+      margin-bottom: var(--s-4);
+      font-weight: var(--weight-medium);
+    }
+    .gen-hero .display-title em {
+      font-family: var(--font-serif);
+      font-style: italic;
+      color: var(--accent-ink);
+      font-weight: var(--weight-regular);
+    }
+    .gen-hero .lede {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--muted);
+      margin-bottom: var(--s-5);
+    }
+    .gen-hero .small-stats {
+      display: flex;
+      gap: var(--s-6);
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      color: var(--muted);
+    }
+    .gen-hero .small-stats b { color: var(--ink); font-weight: var(--weight-semi); font-size: var(--t-sm); display: block; margin-bottom: 2px; font-family: var(--font-sans); }
 
-    /* Hero animation */
-    .hero-eyebrow { opacity: 0; animation: fadeUp 0.7s ease 0.1s forwards; }
-    .hero-title   { opacity: 0; animation: fadeUp 0.7s ease 0.25s forwards; }
-    .hero-sub     { opacity: 0; animation: fadeUp 0.7s ease 0.4s forwards; }
-    .gen-panel    { opacity: 0; animation: fadeUp 0.7s ease 0.55s forwards; }
+    /* Pipeline steps */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
+      overflow: hidden;
+      background: var(--surface);
+      margin-top: var(--s-5);
+    }
+    .step { padding: var(--s-5); border-right: 1px solid var(--line); }
+    .step:last-child { border-right: none; }
+    .step .step-n { font-family: var(--font-mono); font-size: var(--t-tiny); color: var(--accent); letter-spacing: 0.18em; margin-bottom: var(--s-2); font-weight: var(--weight-semi); }
+    .step .step-title { font-size: var(--t-heading); font-weight: var(--weight-semi); letter-spacing: -0.01em; margin-bottom: var(--s-2); }
+    .step .step-body { font-size: var(--t-xs); color: var(--muted); line-height: 1.55; }
+
+    /* MUFF (unsafe) section */
+    .muff-section {
+      margin-top: var(--s-12);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
+      overflow: hidden;
+    }
+    .muff-header {
+      padding: var(--s-6);
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, #e05c20 6%, var(--surface));
+    }
+    .muff-eyebrow { font-family: var(--font-mono); font-size: var(--t-micro); letter-spacing: 0.14em; text-transform: uppercase; color: #c94a12; font-weight: var(--weight-semi); margin-bottom: var(--s-2); }
+    .muff-title { font-size: clamp(22px, 3vw, 32px); font-weight: var(--weight-medium); letter-spacing: -0.02em; color: var(--ink); margin-bottom: var(--s-2); }
+    .muff-lede { font-size: var(--t-sm); color: var(--muted); line-height: 1.6; max-width: 680px; }
+    .muff-body { padding: var(--s-6); }
+    .muff-disclaimer { font-family: var(--font-mono); font-size: var(--t-tiny); color: var(--muted-soft); line-height: 1.6; margin-bottom: var(--s-4); }
+
+    /* Result panel for MUFF */
+    .muff-results-panel {
+      margin-top: var(--s-4);
+      background: color-mix(in srgb, #e05c20 6%, var(--surface));
+      border: 1px solid color-mix(in srgb, #e05c20 25%, var(--line));
+      border-radius: var(--r-xl);
+      padding: var(--s-5);
+      display: none;
+    }
+    .muff-results-panel .results-ticker { color: #c94a12; }
+    .muff-results-panel .results-score span { color: #c94a12; }
+
+    /* Heatmap overlay */
+    .heatmap-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    .heatmap-modal {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
+      padding: var(--s-12) var(--s-12);
+      text-align: center;
+      max-width: 400px;
+      box-shadow: var(--shadow-lg);
+    }
+    .heatmap-modal h3 { font-size: var(--t-title); margin-bottom: var(--s-2); font-weight: var(--weight-medium); }
+    .heatmap-modal p { font-size: var(--t-sm); color: var(--muted); line-height: 1.6; margin-bottom: var(--s-6); }
 
     /* Responsive */
-    @media (max-width: 860px) {
-      nav { padding: 0 20px; }
-      .nav-links { display: none; }
-      .section { padding: 64px 20px; }
-      .gen-grid, .gen-grid-2 { grid-template-columns: 1fr; }
-      .cards { grid-template-columns: 1fr; }
-      .pillars { grid-template-columns: 1fr 1fr; }
-      footer { flex-direction: column; padding: 28px 20px; }
-      .footer-disc { text-align: center; }
-      .stats { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) {
+      .gen-hero { grid-template-columns: 1fr; gap: var(--s-6); padding: var(--s-8) 0; }
+      .gen-hero .display-title { font-size: 36px; }
+      .gen-grid-2 { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr 1fr; }
+      .step { border-right: none; border-bottom: 1px solid var(--line); }
+      .step:nth-child(odd) { border-right: 1px solid var(--line); }
+      .step:last-child, .step:nth-last-child(2) { border-bottom: none; }
+    }
+    @media (max-width: 600px) {
+      .pipeline { grid-template-columns: 1fr; }
+      .step:nth-child(odd) { border-right: none; }
+      .step:nth-last-child(2) { border-bottom: 1px solid var(--line); }
     }
   </style>
 </head>
 <body>
+  <main class="shell page">
+    <div class="shell-card">
 
-<nav>
-  <a href="#" class="nav-logo">Investment Utopia</a>
-  <div style="display:flex;align-items:center;gap:32px">
-    <ul class="nav-links">
-      <li><a href="#generate" class="active">Safe</a></li>
-      <li><a href="#speculative" style="color:#FF6B35">Unsafe</a></li>
-      <li><a href="/dashboard.html">Dashboard</a></li>
-      <li><a href="/daily.html">Daily Discoveries</a></li>
-      <li><a href="/dcf">DCF Calculator</a></li>
-      <li><a href="#" onclick="event.preventDefault();document.getElementById('heatmap-coming-soon').style.display='flex'" style="opacity:0.55;cursor:default">Heatmap</a></li>
-      <li><a href="/news">News</a></li>
-    </ul>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="pulse"></div>
-      <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3);letter-spacing:1px">Live · FMP</span>
-    </div>
-  </div>
-</nav>
-
-<!-- HERO + GENERATE FORM -->
-<section class="hero" id="generate">
-
-  <p class="hero-eyebrow" style="font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:10px">
-    Long-Term Value Investing
-  </p>
-  <h1 class="hero-title" style="font-size:clamp(2.2rem,6vw,4rem);margin-bottom:6px;color:#e6c168">
-    Safe Financial Freedom
-  </h1>
-  <p class="hero-sub">
-    Enter any ticker. The engine fetches financials from FMP, runs WACC and a DCF, scores 11 criteria (with manual option for 2 qualitative factors below) and generates a full Excel Model + HTML report.
-  </p>
-  <p style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-4);letter-spacing:0.4px;line-height:1.6;max-width:560px;margin:0 auto 8px">
-    Not investment advice. All outputs should be verified manually by the user as AI automation is not always reliable or accurate. Certain default rules exist and the user is encouraged to change inputs in the DCF model/calculator in particular to test potential valuation boundaries. Scorecard optimisation is still WIP as some sectors require specific calibration of metrics (i.e. banks are currently scoring low due to incorrect application of risk and credit metrics).
-  </p>
-
-  <div class="gen-panel">
-
-    <div class="gen-grid">
-      <div class="field">
-        <label>Ticker Symbol</label>
-        <input type="text" id="tickerInput" placeholder="AAPL, MSFT, NVDA…" maxlength="6" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="field">
-        <label>S&amp;P / Moody's Rating <span class="opt">(optional)</span></label>
-        <input type="text" id="ratingInput" placeholder="AA+  or  Aa1" maxlength="6" autocomplete="off">
-      </div>
-    </div>
-
-    <div class="gen-grid-2">
-      <div class="field">
-        <label>Business Clarity <span class="opt">(optional)</span></label>
-        <select id="bizClarityInput">
-          <option value="">— Not rated</option>
-          <option value="HIGH">HIGH — Clear, simple model</option>
-          <option value="MOD-HIGH">MOD-HIGH — Mostly clear</option>
-          <option value="MOD-LOW">MOD-LOW — Some complexity</option>
-          <option value="LOW">LOW — Hard to understand</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Long-Term Potential <span class="opt">(optional)</span></label>
-        <select id="ltpInput">
-          <option value="">— Not rated</option>
-          <option value="HIGH">HIGH — Large / growing TAM</option>
-          <option value="MOD-HIGH">MOD-HIGH — Solid runway</option>
-          <option value="MOD-LOW">MOD-LOW — Limited upside</option>
-          <option value="LOW">LOW — Structural headwinds</option>
-        </select>
-      </div>
-    </div>
-
-    <p style="font-family:var(--font-mono);font-size:10px;color:var(--ink-4);letter-spacing:0.5px;margin:-4px 0 14px;line-height:1.6">
-      Leaving both fields blank caps the score at <strong style="color:var(--ink-3)">87.5 / 100</strong> (financial metrics only) — verdict thresholds adjust accordingly.
-    </p>
-
-    <div class="field" id="passwordWrap" style="display:none;margin-bottom:16px">
-      <label>Password</label>
-      <input type="password" id="passwordInput" placeholder="Enter access password">
-    </div>
-
-    <button class="gen-btn" id="generateBtn" onclick="runGenerate()">
-      <span id="btnText">Generate Report →</span>
-      <div class="spinner" id="btnSpinner" style="display:none"></div>
-    </button>
-
-    <div class="gen-msg info" id="genMsg">Generates Excel model + HTML report · ~30–60 seconds</div>
-
-    <div class="progress-log" id="progressLog"></div>
-
-    <div class="results-panel" id="resultsPanel">
-      <div class="results-header">
-        <div>
-          <div class="results-ticker" id="resTicker">—</div>
-          <div class="results-score">Auto-score: <span id="resScore">—</span><span style="color:var(--ink-4);font-size:12px">/100</span></div>
+      <!-- NAVIGATION -->
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="brand">
+          <span class="brand-mk" aria-hidden="true"></span>
+          <span>Investment<span style="color:var(--accent)">.</span>Utopia</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="#generate" aria-current="page">Safe</a></li>
+          <li><a href="#speculative" style="color:#c94a12">Unsafe</a></li>
+          <li><a href="/dashboard.html">Dashboard</a></li>
+          <li><a href="/daily.html">Daily Discoveries</a></li>
+          <li><a href="/dcf">DCF Calculator</a></li>
+          <li><a href="#" onclick="event.preventDefault();document.getElementById('heatmap-overlay').style.display='flex'" style="opacity:0.5">Heatmap</a></li>
+          <li><a href="/news">News</a></li>
+        </ul>
+        <div class="nav-aside">
+          <span class="nav-time" id="navTime"></span>
+          <span class="live-badge"><span class="dot"></span>Live · FMP</span>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+            <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
+          </button>
         </div>
-        <div style="font-size:11px;color:var(--ink-4);font-family:var(--font-mono);letter-spacing:1px">Report ready</div>
-      </div>
-      <div class="results-btns">
-        <a class="res-btn res-btn-excel" id="excelBtn" href="#" target="_blank" rel="noopener">
-          ⬇ Download Excel Model
-        </a>
-        <a class="res-btn res-btn-html" id="htmlBtn" href="#" target="_blank" rel="noopener">
-          ⬇ Download HTML Report
-        </a>
-        <a class="res-btn res-btn-view" id="viewBtn" href="#" target="_blank" rel="noopener">
-          ↗ View Report in Browser
-        </a>
-      </div>
-      <div class="results-note">
-        <strong>Quantitative fields are auto-filled.</strong>
-        Qualitative fields (thesis, analyst consensus, segment descriptions) are smart stubs —
-        add your analysis after reviewing the Excel model and 10-K.
-        Reports expire after 2 hours; download to keep permanently.
-      </div>
-    </div>
+      </nav>
 
-  </div>
-</section>
+      <!-- HERO + SAFE GENERATE -->
+      <section id="generate">
+        <div class="gen-hero">
+          <div>
+            <div class="eyebrow">● Long-Term Value Investing</div>
+            <h1 class="display-title">Generate an<br/><em>equity research</em><br/>report in seconds.</h1>
+            <p class="lede">Enter any ticker. The engine fetches 5-year financials from FMP, runs WACC + DCF (Gordon Growth + Exit Multiple), scores 11 criteria automatically — with optional qualitative inputs for 2 more. Generates a full Excel model + HTML report.</p>
+            <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);line-height:1.6;max-width:500px;margin-bottom:var(--s-5)">
+              Not investment advice. Outputs should be manually verified. Banks score low due to non-standard leverage metrics — WIP.
+            </p>
+            <div class="small-stats">
+              <div><b>FMP+</b>Data Source</div>
+              <div><b>5yr</b>Financials</div>
+              <div><b>13</b>Criteria</div>
+              <div><b>2</b>Output formats</div>
+            </div>
+          </div>
 
-<!-- STATS BAR -->
-<div class="stats reveal">
-  <div class="stat"><div class="stat-val">FMP<span>+</span></div><div class="stat-label">Data Source</div></div>
-  <div class="stat"><div class="stat-val">5</div><div class="stat-label">Year Financials</div></div>
-  <div class="stat"><div class="stat-val">13</div><div class="stat-label">Scorecard Criteria</div></div>
-  <div class="stat"><div class="stat-val">2</div><div class="stat-label">Output Formats</div></div>
-</div>
+          <div class="gen-card">
+            <div class="card-eyebrow">▼ Safe Financial Freedom</div>
 
-<!-- METHODOLOGY -->
-<section class="section" id="methodology">
-  <div class="sec-eyebrow">Framework</div>
-  <div class="sec-head">
-    <h2 class="sec-title">How We Analyse</h2>
-  </div>
+            <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+              <div class="gen-field">
+                <label>Ticker Symbol</label>
+                <input type="text" id="tickerInput" placeholder="AAPL · MSFT · NVDA" maxlength="6" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="gen-field">
+                <label>S&amp;P / Moody's Rating <span class="opt">optional</span></label>
+                <input type="text" id="ratingInput" placeholder="AA+  or  Aa1" maxlength="6" autocomplete="off">
+              </div>
+            </div>
 
-  <div class="pillars reveal-stagger">
-    <div class="pillar">
-      <div class="pillar-num">01</div>
-      <div class="pillar-title">Business Quality</div>
-      <p class="pillar-body">Moat, management track record, long-term positioning — proxy-scored from financials, refined manually from 10-K.</p>
-    </div>
-    <div class="pillar">
-      <div class="pillar-num">02</div>
-      <div class="pillar-title">Financial Rigour</div>
-      <p class="pillar-body">Five-year P&amp;L, balance sheet, and cash flow — auto-fetched from FMP. ROIC, FCF conversion, D/EBITDA, EBIT/interest fully computed.</p>
-    </div>
-    <div class="pillar">
-      <div class="pillar-num">03</div>
-      <div class="pillar-title">Valuation</div>
-      <p class="pillar-body">WACC (Damodaran) + DCF (Gordon Growth + Exit Multiple) + sensitivity grid. Multiples vs. 5-year averages. Bear / Base / Bull scenarios.</p>
-    </div>
-    <div class="pillar">
-      <div class="pillar-num">04</div>
-      <div class="pillar-title">Risk &amp; Credit</div>
-      <p class="pillar-body">Credit ratings, interest coverage, leverage, execution risks — weighted into the 0–100 scorecard. 11 of 13 criteria auto-scored.</p>
-    </div>
-  </div>
+            <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+              <div class="gen-field">
+                <label>Business Clarity <span class="opt">optional</span></label>
+                <select id="bizClarityInput">
+                  <option value="">— Not rated</option>
+                  <option value="HIGH">HIGH — Clear, simple model</option>
+                  <option value="MOD-HIGH">MOD-HIGH — Mostly clear</option>
+                  <option value="MOD-LOW">MOD-LOW — Some complexity</option>
+                  <option value="LOW">LOW — Hard to understand</option>
+                </select>
+              </div>
+              <div class="gen-field">
+                <label>Long-Term Potential <span class="opt">optional</span></label>
+                <select id="ltpInput">
+                  <option value="">— Not rated</option>
+                  <option value="HIGH">HIGH — Large / growing TAM</option>
+                  <option value="MOD-HIGH">MOD-HIGH — Solid runway</option>
+                  <option value="MOD-LOW">MOD-LOW — Limited upside</option>
+                  <option value="LOW">LOW — Structural headwinds</option>
+                </select>
+              </div>
+            </div>
 
-  <div class="legend reveal">
-    <span class="legend-label">Score Scale</span>
-    <div style="flex:1">
-      <div class="legend-bar"></div>
-      <div class="legend-ticks">
-        <span>0 — Avoid</span>
-        <span>50 — Hold</span>
-        <span>65 — Buy</span>
-        <span>75+ — High Conviction</span>
-      </div>
-    </div>
-  </div>
-</section>
+            <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);margin-bottom:var(--s-3);line-height:1.6">
+              Leaving both blank caps the score at <strong style="color:var(--muted)">87.5/100</strong> (financial metrics only).
+            </p>
 
-<!-- MAYBE UNSAFE FINANCIAL FREEDOM -->
-<section class="hero" id="speculative" style="margin-top:80px;background:linear-gradient(135deg,#0f0a1a 0%,#1a0d05 100%);border:1px solid rgba(255,107,53,0.2)">
+            <div class="gen-field" id="passwordWrap" style="display:none">
+              <label>Password</label>
+              <input type="password" id="passwordInput" placeholder="Enter access password">
+            </div>
 
-  <p class="hero-eyebrow" style="font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:#FF6B35;text-transform:uppercase;margin-bottom:10px">
-    Asymmetric · Speculative · 3–12 Month Horizon
-  </p>
-  <h1 class="hero-title" style="font-size:clamp(2rem,5vw,3.4rem);margin-bottom:6px;color:#FF6B35">
-    Maybe Unsafe Financial Freedom
-  </h1>
-  <p class="hero-sub" style="color:var(--ink-3)">
-    Scan for asymmetric setups with 1.5×+ potential over 3–12 months. Enter a ticker, describe your thesis, and the engine scores 10 momentum/sentiment signals + builds a narrative re-rating scenario model.
-  </p>
-  <p style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-4);letter-spacing:0.4px;line-height:1.6;max-width:560px;margin:0 auto 8px">
-    Speculative plays carry material risk of loss. This tool surfaces pattern signals — not investment advice. Size positions accordingly.
-  </p>
+            <button class="gen-btn" id="generateBtn" onclick="runGenerate()">
+              <span id="btnText">Generate Report →</span>
+              <div class="spinner" id="btnSpinner" style="display:none"></div>
+            </button>
 
-  <div class="gen-panel" style="border-color:rgba(255,107,53,0.2)">
+            <div class="gen-meta">Generates Excel model + HTML report · ~30–60 seconds</div>
+            <div class="gen-msg info" id="genMsg"></div>
+            <div class="progress-log" id="progressLog"></div>
 
-    <!-- Row 1: Ticker + Hold horizon -->
-    <div class="gen-grid">
-      <div class="field">
-        <label>Ticker Symbol</label>
-        <input type="text" id="specTickerInput" placeholder="PLTR, RKLB, IONQ…" maxlength="6" autocomplete="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:4px;font-size:15px;font-weight:600">
-      </div>
-      <div class="field">
-        <label>Hold Horizon <span class="opt">(months)</span></label>
-        <select id="specHoldInput">
-          <option value="3">3 months</option>
-          <option value="6" selected>6 months</option>
-          <option value="9">9 months</option>
-          <option value="12">12 months</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Row 2: Narrative theme + strength -->
-    <div class="gen-grid-2">
-      <div class="field">
-        <label>Narrative Theme <span class="opt">(optional)</span></label>
-        <select id="specNarrativeTheme">
-          <option value="">— Select theme</option>
-          <option value="AI / Machine Learning">AI / Machine Learning</option>
-          <option value="Defence &amp; Aerospace">Defence &amp; Aerospace</option>
-          <option value="Biotech Catalyst">Biotech Catalyst</option>
-          <option value="GLP-1 / Weight Loss">GLP-1 / Weight Loss</option>
-          <option value="Energy Transition">Energy Transition</option>
-          <option value="Nuclear / SMR">Nuclear / SMR</option>
-          <option value="Crypto-Adjacent">Crypto-Adjacent</option>
-          <option value="Turnaround / Restructuring">Turnaround / Restructuring</option>
-          <option value="Supply Chain Re-shoring">Supply Chain Re-shoring</option>
-          <option value="Space / Deep Tech">Space / Deep Tech</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Narrative Strength <span class="opt">(optional)</span></label>
-        <select id="specNarrativeStrength">
-          <option value="MOD">MOD — Reasonable connection</option>
-          <option value="HIGH">HIGH — Company is central to theme</option>
-          <option value="LOW">LOW — Tangential exposure only</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Row 3: Catalyst -->
-    <div class="field" style="margin-bottom:12px">
-      <label>Catalyst Description <span class="opt">(optional — describe the specific trigger)</span></label>
-      <input type="text" id="specCatalystDesc" placeholder="e.g. FDA PDUFA date set for Q3, earnings beat cycle, contract announcement expected…" autocomplete="off">
-    </div>
-    <div class="gen-grid-2" style="margin-bottom:4px">
-      <div class="field">
-        <label>Catalyst Timing</label>
-        <select id="specCatalystTiming">
-          <option value="vague">Vague / no clear date</option>
-          <option value="near">Near-term (&lt; 3 months, specific event)</option>
-          <option value="medium">Medium-term (3–9 months, expected)</option>
-        </select>
-      </div>
-      <div class="field" id="specPasswordWrap" style="display:none">
-        <label>Password</label>
-        <input type="password" id="specPasswordInput" placeholder="Enter access password">
-      </div>
-    </div>
-
-    <!-- Row 4: Custom Google Trends Terms -->
-    <div class="field" style="margin-bottom:12px">
-      <label>Custom Google Trends Terms <span class="opt">(optional — comma-separated sector/product keywords tracked alongside the ticker)</span></label>
-      <input type="text" id="specCustomTerms" placeholder="e.g. HBM memory, DRAM cycle, AI inference chips" autocomplete="off">
-    </div>
-
-    <p style="font-family:var(--font-mono);font-size:10px;color:var(--ink-4);letter-spacing:0.5px;margin:-4px 0 14px;line-height:1.6">
-      10 signals auto-scored from live market data (incl. technical setup + Google Trends / StockTwits) · custom Trends terms track sector narratives alongside the ticker · 2 signals from your inputs above · Max score 120
-    </p>
-
-    <button class="gen-btn" id="specGenerateBtn" onclick="runSpeculative()" style="background:#FF6B35;color:#fff;border-color:#FF6B35">
-      <span id="specBtnText">Scan for Asymmetry →</span>
-      <div class="spinner" id="specBtnSpinner" style="display:none;border-color:rgba(255,255,255,0.3);border-top-color:#fff"></div>
-    </button>
-
-    <div class="gen-msg info" id="specGenMsg">Scores 10 momentum + sentiment signals · builds scenario model · ~15–30 seconds</div>
-
-    <div class="results-panel" id="specResultsPanel" style="border-color:rgba(255,107,53,0.25)">
-      <div class="results-header">
-        <div>
-          <div class="results-ticker" id="specResTicker" style="color:#FF6B35">—</div>
-          <div class="results-score">Spec score: <span id="specResScore" style="color:#FF6B35">—</span><span style="color:var(--ink-4);font-size:12px">/120</span>
-            &nbsp;·&nbsp; <span id="specResVerdict" style="color:var(--ink-3);font-size:12px">—</span>
+            <div class="results-panel" id="resultsPanel">
+              <div class="results-header">
+                <div>
+                  <div class="results-ticker" id="resTicker">—</div>
+                  <div class="results-score">Auto-score: <span id="resScore">—</span><span style="color:var(--muted-soft);font-size:var(--t-xs)">/100</span></div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted)">Report ready</div>
+              </div>
+              <div class="results-btns">
+                <a class="res-btn res-btn-excel" id="excelBtn" href="#" target="_blank" rel="noopener">↓ Excel Model</a>
+                <a class="res-btn res-btn-html"  id="htmlBtn"  href="#" target="_blank" rel="noopener">↓ HTML Report</a>
+                <a class="res-btn res-btn-view"  id="viewBtn"  href="#" target="_blank" rel="noopener">↗ View Report</a>
+              </div>
+              <div class="results-note">
+                <strong>Quantitative fields are auto-filled.</strong> Qualitative fields are smart stubs — add your analysis after reviewing the Excel model and 10-K.
+                Reports expire after 2 hours; download to keep permanently.
+              </div>
+            </div>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--ink-4);font-family:var(--font-mono);letter-spacing:1px">Scan ready</div>
+
+        <!-- HOW IT WORKS -->
+        <div class="section-head">
+          <h3>How it works</h3>
+          <span class="meta">FMP data · DCF · auto-scored</span>
+        </div>
+        <div class="pipeline">
+          <div class="step">
+            <div class="step-n">STEP 01</div>
+            <div class="step-title">Fetch</div>
+            <div class="step-body">Pull 5 years of financials + analyst estimates from FMP. Cached hits return in &lt;500ms.</div>
+          </div>
+          <div class="step">
+            <div class="step-n">STEP 02</div>
+            <div class="step-title">Model</div>
+            <div class="step-body">DCF with Gordon Growth + Exit Multiple. WACC from CAPM (Damodaran). Bear / Base / Bull scenarios.</div>
+          </div>
+          <div class="step">
+            <div class="step-n">STEP 03</div>
+            <div class="step-title">Score</div>
+            <div class="step-body">Quality metrics on 0–100 framework: ROIC, FCF/NI, D/EBITDA, valuation vs 5yr history. 11 of 13 auto-scored.</div>
+          </div>
+          <div class="step">
+            <div class="step-n">STEP 04</div>
+            <div class="step-title">Report</div>
+            <div class="step-body">Full read-out with verdict, sensitivity grid, and scorecard rationale. Excel model for your own assumptions.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAYBE UNSAFE FINANCIAL FREEDOM -->
+      <div id="speculative" class="muff-section">
+        <div class="muff-header">
+          <div class="muff-eyebrow">Asymmetric · Speculative · 3–12 Month Horizon</div>
+          <div class="muff-title">Maybe Unsafe Financial Freedom</div>
+          <div class="muff-lede">Scan for asymmetric setups with 1.5×+ potential over 3–12 months. The engine scores 10 momentum + sentiment signals and builds a narrative re-rating scenario model.</div>
+        </div>
+
+        <div class="muff-body">
+          <div class="muff-disclaimer">Speculative plays carry material risk of loss. This tool surfaces pattern signals — not investment advice. Size positions accordingly.</div>
+
+          <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+            <div class="gen-field">
+              <label>Ticker Symbol</label>
+              <input type="text" id="specTickerInput" placeholder="PLTR, RKLB, IONQ…" maxlength="6" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="gen-field">
+              <label>Hold Horizon <span class="opt">months</span></label>
+              <select id="specHoldInput">
+                <option value="3">3 months</option>
+                <option value="6" selected>6 months</option>
+                <option value="9">9 months</option>
+                <option value="12">12 months</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+            <div class="gen-field">
+              <label>Narrative Theme <span class="opt">optional</span></label>
+              <select id="specNarrativeTheme">
+                <option value="">— Select theme</option>
+                <option value="AI / Machine Learning">AI / Machine Learning</option>
+                <option value="Defence &amp; Aerospace">Defence &amp; Aerospace</option>
+                <option value="Biotech Catalyst">Biotech Catalyst</option>
+                <option value="GLP-1 / Weight Loss">GLP-1 / Weight Loss</option>
+                <option value="Energy Transition">Energy Transition</option>
+                <option value="Nuclear / SMR">Nuclear / SMR</option>
+                <option value="Crypto-Adjacent">Crypto-Adjacent</option>
+                <option value="Turnaround / Restructuring">Turnaround / Restructuring</option>
+                <option value="Supply Chain Re-shoring">Supply Chain Re-shoring</option>
+                <option value="Space / Deep Tech">Space / Deep Tech</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="gen-field">
+              <label>Narrative Strength <span class="opt">optional</span></label>
+              <select id="specNarrativeStrength">
+                <option value="MOD">MOD — Reasonable connection</option>
+                <option value="HIGH">HIGH — Company is central to theme</option>
+                <option value="LOW">LOW — Tangential exposure only</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="gen-field">
+            <label>Catalyst Description <span class="opt">optional</span></label>
+            <input type="text" id="specCatalystDesc" placeholder="e.g. FDA PDUFA date set for Q3, earnings beat cycle, contract announcement…" autocomplete="off">
+          </div>
+
+          <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+            <div class="gen-field">
+              <label>Catalyst Timing</label>
+              <select id="specCatalystTiming">
+                <option value="vague">Vague / no clear date</option>
+                <option value="near">Near-term (&lt; 3 months, specific event)</option>
+                <option value="medium">Medium-term (3–9 months, expected)</option>
+              </select>
+            </div>
+            <div class="gen-field" id="specPasswordWrap" style="display:none">
+              <label>Password</label>
+              <input type="password" id="specPasswordInput" placeholder="Enter access password">
+            </div>
+          </div>
+
+          <div class="gen-field">
+            <label>Custom Google Trends Terms <span class="opt">optional · comma-separated sector keywords</span></label>
+            <input type="text" id="specCustomTerms" placeholder="e.g. HBM memory, DRAM cycle, AI inference chips" autocomplete="off">
+          </div>
+
+          <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);margin-bottom:var(--s-4);line-height:1.6">
+            10 signals auto-scored (momentum, volume, short interest, options, insiders, technical setup, Google Trends) · 2 signals from your inputs above · Max score 120
+          </p>
+
+          <button class="gen-btn gen-btn-unsafe" id="specGenerateBtn" onclick="runSpeculative()">
+            <span id="specBtnText">Scan for Asymmetry →</span>
+            <div class="spinner" id="specBtnSpinner" style="display:none"></div>
+          </button>
+
+          <div class="gen-meta">Scores 10 momentum + sentiment signals · builds scenario model · ~15–30 seconds</div>
+          <div class="gen-msg info" id="specGenMsg"></div>
+
+          <div class="muff-results-panel" id="specResultsPanel">
+            <div class="results-header">
+              <div>
+                <div class="results-ticker" id="specResTicker">—</div>
+                <div class="results-score">
+                  Spec score: <span id="specResScore">—</span><span style="color:var(--muted-soft);font-size:var(--t-xs)">/120</span>
+                  &nbsp;·&nbsp; <span id="specResVerdict" style="color:var(--muted);font-size:var(--t-xs)">—</span>
+                </div>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted)">Scan ready</div>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:var(--t-xs);color:var(--muted);margin-bottom:var(--s-3)">
+              Bull scenario: <span id="specResBullRet" style="color:var(--v-high-fg);font-weight:var(--weight-bold)">—</span>
+              &nbsp;→&nbsp; <span id="specResBullPrice" style="color:var(--ink)">—</span>
+            </div>
+            <div class="results-btns">
+              <a class="res-btn res-btn-excel" id="specExcelBtn" href="#" target="_blank" rel="noopener">↓ Scenario Model (Excel)</a>
+              <a class="res-btn res-btn-view"  id="specViewBtn"  href="#" target="_blank" rel="noopener">↗ View Full Report</a>
+            </div>
+            <div class="results-note">
+              <strong>Quantitative signals</strong> (momentum, volume, short interest, options, insiders) auto-fetched from FMP + yfinance.
+              Scenario model uses EV/Revenue re-rating — adjust the Excel workbook to test your own multiple assumptions.
+            </div>
+          </div>
+        </div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-bottom:14px">
-        Bull scenario: <span id="specResBullRet" style="color:#34D399;font-weight:600">—</span>
-        &nbsp;→&nbsp; <span id="specResBullPrice" style="color:var(--ink-1)">—</span>
-      </div>
-      <div class="results-btns">
-        <a class="res-btn res-btn-excel" id="specExcelBtn" href="#" target="_blank" rel="noopener">
-          ⬇ Download Scenario Model (Excel)
-        </a>
-        <a class="res-btn res-btn-view" id="specViewBtn" href="#" target="_blank" rel="noopener" style="background:rgba(255,107,53,0.1);color:#FF6B35;border-color:rgba(255,107,53,0.25)">
-          ↗ View Full Report
-        </a>
-      </div>
-      <div class="results-note">
-        <strong>Quantitative signals</strong> (momentum, volume, short interest, options, insiders) auto-fetched from FMP + yfinance.
-        Scenario model uses EV/Revenue re-rating — adjust the Excel workbook to test your own multiple assumptions.
-      </div>
+
+      <!-- FOOTER -->
+      <footer class="footer">
+        <div>
+          <a class="brand" href="/"><span class="brand-mk"></span>Investment<span style="color:var(--accent)">.</span>Utopia</a>
+          <p style="margin:var(--s-3) 0 0;max-width:360px;line-height:1.6;color:var(--muted);font-size:var(--t-sm)">An equity research workbench — DCF, valuation history, and speculative setups in one workflow. Not investment advice.</p>
+        </div>
+        <div>
+          <h4>Tools</h4>
+          <a href="#generate">Safe (DCF)</a>
+          <a href="#speculative">Unsafe (MUFF)</a>
+          <a href="/dcf">DCF Calculator</a>
+        </div>
+        <div>
+          <h4>Coverage</h4>
+          <a href="/dashboard.html">Dashboard</a>
+          <a href="/daily.html">Daily Discoveries</a>
+          <a href="/news">News</a>
+        </div>
+        <div>
+          <h4>Data</h4>
+          <a href="#">FMP API</a>
+          <a href="#">yfinance</a>
+          <a href="#">Google Trends</a>
+        </div>
+        <div class="legal">
+          <span>© 2026 Investment Utopia · Not investment advice</span>
+          <span>Financials sourced from FMP API · Reports expire after 2 hours</span>
+        </div>
+      </footer>
+
+    </div><!-- /shell-card -->
+  </main>
+
+  <!-- Heatmap coming-soon overlay -->
+  <div id="heatmap-overlay" class="heatmap-overlay" onclick="this.style.display='none'">
+    <div class="heatmap-modal" onclick="event.stopPropagation()">
+      <h3>Heatmap</h3>
+      <div style="font-family:var(--font-mono);font-size:var(--t-micro);letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;margin-bottom:var(--s-3)">Coming Soon</div>
+      <p>Portfolio-wide visualisation of all scored tickers — valuation, quality, and momentum in one view. Available once 10–15 tickers have been generated.</p>
+      <button class="btn" onclick="document.getElementById('heatmap-overlay').style.display='none'">Close</button>
     </div>
-
   </div>
-</section>
 
-<footer>
-  <div class="footer-logo">Investment Utopia</div>
-  <div class="footer-disc">For informational purposes only. Not investment advice. Financials sourced from FMP API. Reports expire after 2 hours — download to keep permanently.</div>
-</footer>
+  <script src="/js/app.js"></script>
+  <script>
+    /* ── Password detection ── */
+    (function() {
+      fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
+        .then(r => { if (r.status === 401) document.getElementById('passwordWrap').style.display = 'block'; })
+        .catch(() => {});
+    })();
 
-<script>
-  /* ── Password detection ── */
-  (function() {
-    // Show password field only if server has a password set
-    // We probe by sending an empty request; if 401 comes back, show the field
-    fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
-      .then(r => { if (r.status === 401) document.getElementById('passwordWrap').style.display = 'flex'; })
-      .catch(() => {});
-  })();
+    /* ── Generate ── */
+    let currentRid = null;
 
-  /* ── Generate ── */
-  let currentRid = null;
+    async function runGenerate() {
+      const ticker      = document.getElementById('tickerInput').value.trim().toUpperCase();
+      const rating      = document.getElementById('ratingInput').value.trim();
+      const password    = document.getElementById('passwordInput').value.trim();
+      const biz_clarity = document.getElementById('bizClarityInput').value;
+      const ltp         = document.getElementById('ltpInput').value;
 
-  async function runGenerate() {
-    const ticker      = document.getElementById('tickerInput').value.trim().toUpperCase();
-    const rating      = document.getElementById('ratingInput').value.trim();
-    const password    = document.getElementById('passwordInput').value.trim();
-    const biz_clarity = document.getElementById('bizClarityInput').value;
-    const ltp         = document.getElementById('ltpInput').value;
+      if (!ticker) { showMsg('Enter a ticker symbol.', 'error'); return; }
 
-    if (!ticker) { showMsg('Enter a ticker symbol.', 'error'); return; }
+      setLoading(true);
+      showMsg('Fetching financials and building model…', 'info');
+      document.getElementById('progressLog').style.display = 'block';
+      document.getElementById('progressLog').textContent = '';
+      document.getElementById('resultsPanel').style.display = 'none';
 
-    setLoading(true);
-    showMsg('Fetching financials and building model…', 'info');
-    document.getElementById('progressLog').style.display = 'block';
-    document.getElementById('progressLog').textContent = '';
-    document.getElementById('resultsPanel').style.display = 'none';
+      try {
+        const res = await fetch('/generate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ticker, rating, password, biz_clarity, ltp }),
+        });
 
-    // Poll log every 3s while waiting
-    const logInterval = setInterval(() => {
-      if (currentRid) { clearInterval(logInterval); return; }
-    }, 3000);
+        const data = await res.json();
 
-    try {
-      const res = await fetch('/generate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ ticker, rating, password, biz_clarity, ltp }),
-      });
+        if (!res.ok) {
+          showMsg(data.error || 'Generation failed.', 'error');
+          setLoading(false);
+          return;
+        }
 
-      clearInterval(logInterval);
-      const data = await res.json();
+        currentRid = data.report_id;
 
-      if (!res.ok) {
-        showMsg(data.error || 'Generation failed.', 'error');
-        setLoading(false);
-        return;
+        if (data.logs && data.logs.length) {
+          document.getElementById('progressLog').textContent = data.logs.join('\n');
+        }
+
+        document.getElementById('resTicker').textContent = data.ticker;
+        const displayScore = data.adj_score != null ? data.adj_score : data.auto_score;
+        document.getElementById('resScore').textContent = displayScore != null ? displayScore.toFixed(1) : 'N/A';
+
+        document.getElementById('excelBtn').href = data.excel_url  || `/download/excel/${data.report_id}`;
+        document.getElementById('htmlBtn').href  = data.report_url || `/download/html/${data.report_id}`;
+        document.getElementById('viewBtn').href  = data.report_url || `/report/${data.report_id}`;
+
+        document.getElementById('resultsPanel').style.display = 'block';
+        showMsg('Done! Both files are ready.', 'ok');
+
+      } catch (e) {
+        showMsg(`Network error: ${e.message} — server may be starting up, try again in 30s.`, 'error');
       }
 
-      currentRid = data.report_id;
-
-      // Show logs
-      if (data.logs && data.logs.length) {
-        document.getElementById('progressLog').textContent = data.logs.join('\n');
-      }
-
-      // Show results panel
-      document.getElementById('resTicker').textContent = data.ticker;
-      const displayScore = data.adj_score != null ? data.adj_score : data.auto_score;
-      document.getElementById('resScore').textContent =
-        displayScore != null ? displayScore.toFixed(1) : 'N/A';
-
-      // Use permanent disk-based URLs (survive server restarts)
-      document.getElementById('excelBtn').href    = data.excel_url  || `/download/excel/${data.report_id}`;
-      document.getElementById('htmlBtn').href     = data.report_url || `/download/html/${data.report_id}`;
-      document.getElementById('viewBtn').href     = data.report_url || `/report/${data.report_id}`;
-
-      document.getElementById('resultsPanel').style.display = 'block';
-      showMsg('Done! Both files are ready.', 'ok');
-
-    } catch (e) {
-      showMsg(`Network error: ${e.message} — server may be starting up, try again in 30s.`, 'error');
+      setLoading(false);
     }
 
-    setLoading(false);
-  }
-
-  function setLoading(on) {
-    const btn = document.getElementById('generateBtn');
-    btn.disabled = on;
-    document.getElementById('btnText').textContent = on ? 'Generating…' : 'Generate Report →';
-    document.getElementById('btnSpinner').style.display = on ? 'block' : 'none';
-  }
-
-  function showMsg(text, type) {
-    const el = document.getElementById('genMsg');
-    el.className = `gen-msg ${type}`;
-    el.textContent = text;
-  }
-
-  /* ── Enter key ── */
-  ['tickerInput','ratingInput','passwordInput'].forEach(id => {
-    document.getElementById(id)?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') runGenerate();
-    });
-  });
-
-  /* ── Speculative password probe ── */
-  (function() {
-    fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
-      .then(r => { if (r.status === 401) document.getElementById('specPasswordWrap').style.display = 'flex'; })
-      .catch(() => {});
-  })();
-
-  /* ── Maybe Unsafe Financial Freedom ── */
-  async function runSpeculative() {
-    const ticker             = document.getElementById('specTickerInput').value.trim().toUpperCase();
-    const hold_months        = document.getElementById('specHoldInput').value;
-    const narrative_theme    = document.getElementById('specNarrativeTheme').value;
-    const narrative_strength = document.getElementById('specNarrativeStrength').value;
-    const catalyst_desc      = document.getElementById('specCatalystDesc').value.trim();
-    const catalyst_timing    = document.getElementById('specCatalystTiming').value;
-    const custom_terms       = document.getElementById('specCustomTerms')?.value.trim() || '';
-    const password           = document.getElementById('specPasswordInput')?.value.trim() || '';
-
-    if (!ticker) { showSpecMsg('Enter a ticker symbol.', 'error'); return; }
-
-    setSpecLoading(true);
-    showSpecMsg('Fetching market signals and building scenario model…', 'info');
-    document.getElementById('specResultsPanel').style.display = 'none';
-
-    try {
-      const res = await fetch('/generate-speculative', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ ticker, hold_months: parseInt(hold_months), narrative_theme,
-                               narrative_strength, catalyst_desc, catalyst_timing,
-                               custom_terms, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        showSpecMsg(data.error || 'Scan failed.', 'error');
-        setSpecLoading(false);
-        return;
-      }
-
-      document.getElementById('specResTicker').textContent  = data.ticker;
-      document.getElementById('specResScore').textContent   = data.total_score ?? 'N/A';
-      document.getElementById('specResVerdict').textContent = data.verdict ?? '';
-
-      const bullRet   = data.bull_ret;
-      const bullPrice = data.bull_price;
-      document.getElementById('specResBullRet').textContent   = bullRet   != null ? (bullRet >= 0 ? '+' : '') + (bullRet * 100).toFixed(1) + '%' : 'N/A';
-      document.getElementById('specResBullPrice').textContent = bullPrice != null ? '$' + bullPrice.toFixed(2) : 'N/A';
-
-      document.getElementById('specExcelBtn').href = data.excel_url  || `/download/speculative-model/${data.ticker}`;
-      document.getElementById('specViewBtn').href  = data.report_url || `/reports/${data.ticker}_speculative_report.html`;
-
-      document.getElementById('specResultsPanel').style.display = 'block';
-      showSpecMsg('Done! Scenario model and report ready.', 'ok');
-
-    } catch (e) {
-      showSpecMsg(`Network error: ${e.message} — try again in 30s.`, 'error');
+    function setLoading(on) {
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = on;
+      document.getElementById('btnText').textContent = on ? 'Generating…' : 'Generate Report →';
+      document.getElementById('btnSpinner').style.display = on ? 'block' : 'none';
     }
 
-    setSpecLoading(false);
-  }
+    function showMsg(text, type) {
+      const el = document.getElementById('genMsg');
+      el.className = `gen-msg ${type}`;
+      el.textContent = text;
+    }
 
-  function setSpecLoading(on) {
-    const btn = document.getElementById('specGenerateBtn');
-    btn.disabled = on;
-    document.getElementById('specBtnText').textContent    = on ? 'Scanning…' : 'Scan for Asymmetry →';
-    document.getElementById('specBtnSpinner').style.display = on ? 'block' : 'none';
-  }
-
-  function showSpecMsg(text, type) {
-    const el = document.getElementById('specGenMsg');
-    el.className = `gen-msg ${type}`;
-    el.textContent = text;
-  }
-
-  document.getElementById('specTickerInput')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') runSpeculative();
-  });
-
-  /* ── Score ring animation ── */
-  function animateRings() {
-    document.querySelectorAll('.card[data-score]').forEach(card => {
-      const score = parseInt(card.dataset.score);
-      if (!score) return;
-      const fill = card.querySelector('.ring-fill');
-      if (!fill) return;
-      const circ = 2 * Math.PI * 26;
-      setTimeout(() => { fill.style.strokeDashoffset = circ * (1 - score/100); }, 400);
+    ['tickerInput','ratingInput','passwordInput'].forEach(id => {
+      document.getElementById(id)?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') runGenerate();
+      });
     });
-  }
 
-  /* ── Scroll reveal ── */
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
-  }, { threshold: 0.08 });
-  document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => obs.observe(el));
+    /* ── Speculative password probe ── */
+    (function() {
+      fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
+        .then(r => { if (r.status === 401) document.getElementById('specPasswordWrap').style.display = 'block'; })
+        .catch(() => {});
+    })();
 
-  animateRings();
+    /* ── Maybe Unsafe Financial Freedom ── */
+    async function runSpeculative() {
+      const ticker             = document.getElementById('specTickerInput').value.trim().toUpperCase();
+      const hold_months        = document.getElementById('specHoldInput').value;
+      const narrative_theme    = document.getElementById('specNarrativeTheme').value;
+      const narrative_strength = document.getElementById('specNarrativeStrength').value;
+      const catalyst_desc      = document.getElementById('specCatalystDesc').value.trim();
+      const catalyst_timing    = document.getElementById('specCatalystTiming').value;
+      const custom_terms       = document.getElementById('specCustomTerms')?.value.trim() || '';
+      const password           = document.getElementById('specPasswordInput')?.value.trim() || '';
 
-</script>
+      if (!ticker) { showSpecMsg('Enter a ticker symbol.', 'error'); return; }
 
-<!-- Heatmap coming-soon overlay -->
-<div id="heatmap-coming-soon" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center" onclick="this.style.display='none'">
-  <div style="background:#1a2332;border:1px solid #2e4057;border-radius:12px;padding:48px 56px;text-align:center;max-width:420px;box-shadow:0 24px 60px rgba(0,0,0,0.5)" onclick="event.stopPropagation()">
-    <div style="font-size:32px;margin-bottom:16px">🗺️</div>
-    <div style="font-family:'Inter',sans-serif;font-size:22px;font-weight:700;color:#e8edf3;margin-bottom:10px">Heatmap</div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;color:#5b8dd9;text-transform:uppercase;margin-bottom:20px">Coming Soon</div>
-    <div style="font-size:13px;color:#8a9bb0;line-height:1.6;margin-bottom:28px">Portfolio-wide visualisation of all scored tickers — valuation, quality, and momentum in one view. Available once 10–15 tickers have been generated.</div>
-    <button onclick="document.getElementById('heatmap-coming-soon').style.display='none'" style="background:#2e4a7a;color:#e8edf3;border:none;border-radius:6px;padding:10px 28px;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif">Close</button>
-  </div>
-</div>
+      setSpecLoading(true);
+      showSpecMsg('Fetching market signals and building scenario model…', 'info');
+      document.getElementById('specResultsPanel').style.display = 'none';
+
+      try {
+        const res = await fetch('/generate-speculative', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ticker, hold_months: parseInt(hold_months), narrative_theme,
+                                 narrative_strength, catalyst_desc, catalyst_timing,
+                                 custom_terms, password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showSpecMsg(data.error || 'Scan failed.', 'error');
+          setSpecLoading(false);
+          return;
+        }
+
+        document.getElementById('specResTicker').textContent  = data.ticker;
+        document.getElementById('specResScore').textContent   = data.total_score ?? 'N/A';
+        document.getElementById('specResVerdict').textContent = data.verdict ?? '';
+
+        const bullRet   = data.bull_ret;
+        const bullPrice = data.bull_price;
+        document.getElementById('specResBullRet').textContent   = bullRet   != null ? (bullRet >= 0 ? '+' : '') + (bullRet * 100).toFixed(1) + '%' : 'N/A';
+        document.getElementById('specResBullPrice').textContent = bullPrice != null ? '$' + bullPrice.toFixed(2) : 'N/A';
+
+        document.getElementById('specExcelBtn').href = data.excel_url  || `/download/speculative-model/${data.ticker}`;
+        document.getElementById('specViewBtn').href  = data.report_url || `/reports/${data.ticker}_speculative_report.html`;
+
+        document.getElementById('specResultsPanel').style.display = 'block';
+        showSpecMsg('Done! Scenario model and report ready.', 'ok');
+
+      } catch (e) {
+        showSpecMsg(`Network error: ${e.message} — try again in 30s.`, 'error');
+      }
+
+      setSpecLoading(false);
+    }
+
+    function setSpecLoading(on) {
+      const btn = document.getElementById('specGenerateBtn');
+      btn.disabled = on;
+      document.getElementById('specBtnText').textContent      = on ? 'Scanning…' : 'Scan for Asymmetry →';
+      document.getElementById('specBtnSpinner').style.display = on ? 'block' : 'none';
+    }
+
+    function showSpecMsg(text, type) {
+      const el = document.getElementById('specGenMsg');
+      el.className = `gen-msg ${type}`;
+      el.textContent = text;
+    }
+
+    document.getElementById('specTickerInput')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') runSpeculative();
+    });
+  </script>
 </body>
 </html>

@@ -1,91 +1,161 @@
-/* Investment Utopia — Design Tokens */
+/* ============================================================
+   Equity.Research — Design Tokens
+   Light default + [data-theme="dark"] overrides.
+   ============================================================ */
 
 :root {
-  /* ── SURFACES (5-step elevation) ── */
-  --bg:        #06080d;
-  --surface-1: #0c1320;
-  --surface-2: #121b2c;
-  --surface-3: #1a2438;
-  --surface-4: #232f47;
+  --maxw: 1280px;
+  --gutter: 32px;
 
-  /* ── BORDERS ── */
-  --border-1:  rgba(255,255,255,0.05);
-  --border-2:  rgba(255,255,255,0.10);
-  --border-3:  rgba(255,255,255,0.16);
+  /* Page background */
+  --bg: #ece7df;
 
-  /* ── ACCENT (gold — used sparingly) ── */
-  --gold:        #e6c168;
-  --gold-soft:   #c9a652;
-  --gold-bright: #f5dc94;
-  --gold-dim:    rgba(230,193,104,0.12);
-  --gold-glow:   rgba(230,193,104,0.28);
+  /* Surface hierarchy */
+  --surface:    #ffffff;
+  --surface-2:  #fbfaf6;
+  --surface-3:  #f6f3eb;
+  --surface-hi: #f0ece2;
+  --surface-4:  #f3efe7;
 
-  /* ── INK (text, 5-step) ── */
-  --ink-1: #ffffff;
-  --ink-2: #e6ebf3;
-  --ink-3: #a3acc0;
-  --ink-4: #6b7589;
-  --ink-5: #3a4258;
+  /* Ink */
+  --ink:        #1a1814;
+  --ink-2:      #3a3328;
+  --muted:      #6b6353;
+  --muted-soft: #9e9180;
 
-  /* ── SEMANTIC ── */
-  --pos:      #34d399;
-  --pos-dim:  rgba(52,211,153,0.12);
-  --pos-bg:   rgba(52,211,153,0.06);
-  --warn:     #fbbf24;
-  --warn-dim: rgba(251,191,36,0.12);
-  --warn-bg:  rgba(251,191,36,0.06);
-  --neg:      #f87171;
-  --neg-dim:  rgba(248,113,113,0.12);
-  --neg-bg:   rgba(248,113,113,0.06);
+  /* Lines */
+  --line:        #ebe5d4;
+  --line-strong: #d9d1bc;
 
-  /* ── EDIT (input cells — calmer blue) ── */
-  --edit:     #6ea8ff;
-  --edit-dim: rgba(110,168,255,0.10);
-  --edit-bg:  rgba(110,168,255,0.04);
+  /* Accent — warm amber */
+  --accent:     #c98b3c;
+  --accent-ink: #a66a1e;
+  --focus:      #c98b3c;
 
-  /* ── TYPOGRAPHY ── */
-  --font-display: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
-  --font-body:    'IBM Plex Sans', 'Inter', system-ui, sans-serif;
-  --font-mono:    'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  /* Typography */
+  --font-sans:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'IBM Plex Mono', monospace;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-serif:   'Newsreader', Georgia, serif;
 
-  --t-display:  72px;
-  --t-h1:       40px;
-  --t-h2:       26px;
-  --t-h3:       18px;
-  --t-body:     15px;
-  --t-small:    13px;
-  --t-eyebrow:  11px;
-  --t-micro:    10px;
+  /* Type scale */
+  --t-display: 44px;
+  --t-title:   28px;
+  --t-heading: 18px;
+  --t-body:    14px;
+  --t-sm:      13px;
+  --t-xs:      12px;
+  --t-micro:   11px;
+  --t-tiny:    10px;
+  --t-kpi:     60px;
+  --t-score:   32px;
 
-  /* ── SPACING (8-pt scale) ── */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 20px;
-  --s-6: 24px;
-  --s-8: 32px;
-  --s-10: 40px;
-  --s-12: 48px;
-  --s-16: 64px;
-  --s-20: 80px;
+  /* Font weights */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semi:    600;
+  --weight-bold:    700;
 
-  /* ── RADII ── */
-  --r-sm: 3px;
-  --r-md: 6px;
-  --r-lg: 10px;
-  --r-xl: 14px;
+  /* Spacing (4px grid) */
+  --s-1:  4px;  --s-2:  8px;  --s-3:  12px; --s-4:  16px;
+  --s-5:  20px; --s-6:  24px; --s-7:  28px; --s-8:  32px;
+  --s-9:  36px; --s-10: 40px; --s-11: 44px; --s-12: 48px;
+  --s-14: 56px; --s-16: 64px;
 
-  /* ── SHADOWS ── */
-  --shadow-1: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-2: 0 4px 16px rgba(0,0,0,0.35);
-  --shadow-3: 0 16px 48px rgba(0,0,0,0.5);
-  --glow-gold: 0 0 0 1px rgba(212,177,90,0.25), 0 12px 40px rgba(212,177,90,0.08);
+  /* Radii */
+  --r-xs:   4px;  --r-sm:  6px;  --r-md:  8px;
+  --r-lg:   10px; --r-xl:  14px; --r-2xl: 18px;
+  --r-3xl:  24px; --r-pill: 999px;
 
-  /* ── MOTION ── */
-  --ease:       cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
-  --dur-fast:   120ms;
-  --dur-base:   220ms;
-  --dur-slow:   400ms;
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+
+  /* Motion */
+  --dur: 180ms; --dur-fast: 100ms; --dur-slow: 320ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Status */
+  --status-live:  #34c75a;
+  --status-warn:  #f5a623;
+  --status-info:  #4a90d9;
+
+  /* Verdict palette */
+  --v-high-bg:  #dcefdf; --v-high-fg:  #0f6e3f; --v-high-dot: #2faa6a;
+  --v-buy-bg:   #e3f2e6; --v-buy-fg:   #147d4a; --v-buy-dot:  #4cbe7d;
+  --v-hold-bg:  #fbeed1; --v-hold-fg:  #8a5a00; --v-hold-dot: #d9a431;
+  --v-avoid-bg: #fbe1e3; --v-avoid-fg: #9c2540; --v-avoid-dot:#d44e64;
+  --v-pend-bg:  #e7ebf2; --v-pend-fg:  #4a5468; --v-pend-dot: #7b8499;
+
+  /* Score tier colours */
+  --score-gg: #1a9e5c;
+  --score-g:  #4cbe7d;
+  --score-n:  #d9a431;
+  --score-r:  #e07a2f;
+  --score-rr: #d44e64;
+
+  /* Heat map */
+  --h-gg-bg: #dcefdf; --h-gg-fg: #0f6e3f;
+  --h-g-bg:  #e3f2e6; --h-g-fg:  #1a7a46;
+  --h-n-bg:  #f5f0e8; --h-n-fg:  #6b6353;
+  --h-r-bg:  #fde9e0; --h-r-fg:  #9a3a1e;
+  --h-rr-bg: #fbe1e3; --h-rr-fg: #9c2540;
+
+  /* KPI tile variants */
+  --kpi-a-bg: #f6f3eb; --kpi-a-fg: #3a3328;
+  --kpi-b-bg: #f5f0e4; --kpi-b-fg: #4a3c24;
+  --kpi-c-bg: #dcefdf; --kpi-c-fg: #0f6e3f;
+  --kpi-d-bg: #deeaf5; --kpi-d-fg: #1a4a7a;
 }
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg: #0e0c09;
+  --surface: #18160f; --surface-2: #201e16; --surface-3: #282520;
+  --surface-hi: #2e2b24; --surface-4: #242118;
+
+  --ink: #f2ede4; --ink-2: #c8c0ae;
+  --muted: #8a8070; --muted-soft: #5c5548;
+
+  --line: #2e2b22; --line-strong: #3d3a2e;
+
+  --accent: #d99c52; --accent-ink: #d99c52; --focus: #d99c52;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.40);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.50);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.60);
+
+  --v-high-bg:  #0c3a25; --v-high-fg:  #7be0a4; --v-high-dot: #2faa6a;
+  --v-buy-bg:   #0e3a23; --v-buy-fg:   #86d4a8; --v-buy-dot:  #4cbe7d;
+  --v-hold-bg:  #3a2a05; --v-hold-fg:  #f0c876; --v-hold-dot: #d9a431;
+  --v-avoid-bg: #3c121b; --v-avoid-fg: #f08a98; --v-avoid-dot:#d44e64;
+  --v-pend-bg:  #222630; --v-pend-fg:  #a8b0bf; --v-pend-dot: #7b8499;
+
+  --h-gg-bg: #0c3a25; --h-gg-fg: #7be0a4;
+  --h-g-bg:  #0e3a23; --h-g-fg:  #86d4a8;
+  --h-n-bg:  #2e2a20; --h-n-fg:  #c8b880;
+  --h-r-bg:  #3c2010; --h-r-fg:  #e8a070;
+  --h-rr-bg: #3c121b; --h-rr-fg: #f08a98;
+
+  --kpi-a-bg: #201e14; --kpi-a-fg: #c8c0ae;
+  --kpi-b-bg: #241e10; --kpi-b-fg: #d4c090;
+  --kpi-c-bg: #0c3a25; --kpi-c-fg: #7be0a4;
+  --kpi-d-bg: #0c2240; --kpi-d-fg: #7ab0e0;
+}
+
+/* Base reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
