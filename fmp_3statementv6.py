@@ -4015,12 +4015,25 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     else 1 if rev_std < 0.18 else 0)
     om_risk_idx  = (3 if om_std < 0.02 else 2 if om_std < 0.04
                     else 1 if om_std < 0.08 else 0)
-    exec_idx  = (rev_risk_idx + om_risk_idx) // 2
+    # High-CAGR companies (3yr avg rev growth > 40%) naturally show high revenue-
+    # growth σ as an artefact of an accelerating ramp — not operational instability.
+    # Using revenue σ as an execution proxy for these names systematically misfires
+    # (e.g. a company growing 100%→120%→80% looks "risky" but is executing well).
+    # For CAGR > 40% we substitute revenue-growth σ with operating-margin σ so the
+    # score reflects control of profitability rather than the shape of the growth curve.
+    _high_growth_exec = rev_cagr is not None and rev_cagr > 0.40
+    if _high_growth_exec:
+        exec_idx   = om_risk_idx          # pure margin-stability score
+        score_exec = round(om_risk_idx / 3.0 * 10.0, 2)
+        note_exec  = (f"Rev CAGR={rev_cagr:.0%} >40% — rev σ replaced by margin σ  |  "
+                      f"Op margin σ={om_std:.1%}  [lower σ = lower risk = higher score]")
+    else:
+        exec_idx   = (rev_risk_idx + om_risk_idx) // 2
+        # Continuous score from average of the two 0-3 sub-indices, scaled to 0-10.
+        score_exec = round((rev_risk_idx + om_risk_idx) / 6.0 * 10.0, 2)
+        note_exec  = (f"Rev growth σ={rev_std:.1%}  |  Op margin σ={om_std:.1%}"
+                      f"  [proxy — lower σ = lower risk = higher score]")
     tier_exec = TIER_ORDER[exec_idx]
-    # Continuous score from average of the two 0-3 sub-indices, scaled to 0-10.
-    score_exec = round((rev_risk_idx + om_risk_idx) / 6.0 * 10.0, 2)
-    note_exec = (f"Rev growth σ={rev_std:.1%}  |  Op margin σ={om_std:.1%}"
-                 f"  [proxy — lower σ = lower risk = higher score]")
 
     # ── Valuation: P/E and P/FCF vs 5yr historical average ───────────────────
     # ── DCF-implied valuation anchor (#8) ─────────────────────────────────────
@@ -4060,15 +4073,19 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                                 f"(earnings/FCF below zero, multiple meaningless)")
         premium_ok = (roic_v is not None and roic_v > 0.25 and
                       cagr_v is not None and cagr_v > 0.15)
-        # Take the most conservative (lowest) positive benchmark across the
-        # three anchors so multiple expansion in any single source doesn't
-        # let the company look "fairly valued" against an inflated reference.
-        _bench_candidates = [b for b in (hist_avg, sect_med, dcf_imp) if b and b > 0]
+        # Benchmark = min of historical 5yr average and sector peer median.
+        # DCF-implied multiple is shown for context only — it is NOT used as a
+        # benchmark here. Including the DCF in the benchmark created a circular
+        # penalty: when GG says a stock is overvalued, the DCF-implied multiple
+        # becomes the binding floor, which *further* penalises the valuation score
+        # and double-counts the DCF's scepticism. P/E and P/FCF scoring must be
+        # independent of the DCF to avoid this self-reinforcing feedback loop.
+        _bench_candidates = [b for b in (hist_avg, sect_med) if b and b > 0]
         benchmark = min(_bench_candidates) if _bench_candidates else None
         parts_v   = [f"Current {current:.1f}x"]
         if hist_avg:    parts_v.append(f"5yr avg {hist_avg:.1f}x")
         if sect_med:    parts_v.append(f"Sector median {sect_med:.1f}x")
-        if dcf_imp:     parts_v.append(f"DCF-implied {dcf_imp:.1f}x")
+        if dcf_imp:     parts_v.append(f"DCF-implied {dcf_imp:.1f}x [ref only — not used as benchmark]")
         note_v = "  |  ".join(parts_v)
         if not benchmark:
             return None, 0.0, note_v + "  [no benchmark — review manually]"
@@ -4169,14 +4186,32 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _ABS_W        = 0.20
     _ABS_BANK_CAP = 6.0
 
-    def _abs_pe_score(pe):
+    def _abs_pe_score(pe, peg=None):
+        """
+        Absolute P/E lookup (0–12 scale), with optional PEG-ratio boost.
+
+        When next-year EPS growth justifies the multiple (PEG < 1.5), the absolute
+        penalty is partially relieved — a 37x P/E for a 50%-growth company is very
+        different from a 37x P/E for a 5%-growth company.  The boost is capped at
+        3.0 pts and the result is clipped to 12.0 so the absolute component never
+        dominates the 40/40/20 blend.
+
+        PEG < 1.0  → boost +3.0 (growth more than justifies the multiple)
+        PEG 1.0–1.5 → boost +1.5 (growth largely justifies premium)
+        PEG 1.5–2.5 → boost +0.5 (partial justification)
+        PEG ≥ 2.5  → no boost   (growth does not justify premium)
+        """
         if pe is None or pe <= 0: return 0.0
-        if pe <= 15: return 12.0
-        if pe <= 20: return 10.0
-        if pe <= 25: return  7.0
-        if pe <= 35: return  4.0
-        if pe <= 50: return  1.5
-        return 0.0
+        if pe <= 15: raw = 12.0
+        elif pe <= 20: raw = 10.0
+        elif pe <= 25: raw =  7.0
+        elif pe <= 35: raw =  4.0
+        elif pe <= 50: raw =  1.5
+        else:          raw =  0.0
+        if peg is not None and 0 < peg < 2.5:
+            boost = 3.0 if peg < 1.0 else 1.5 if peg < 1.5 else 0.5
+            raw   = min(12.0, raw + boost)
+        return raw
 
     def _abs_pfcf_score(pfcf):
         if pfcf is None or pfcf <= 0: return 0.0
@@ -4199,9 +4234,40 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                                          "Fwd P/FCF", roic_latest, rev_cagr)
         print(f"  Fwd P/FCF relative score: {_fwd_pfcf_score:.2f}")
 
+    # ── PEG ratio — modifier for absolute P/E penalty ─────────────────────────
+    # Forward PEG = forward P/E ÷ forward EPS growth (vs trailing TTM EPS).
+    # Falls back to trailing P/E ÷ revenue CAGR when EPS estimates are absent.
+    # A PEG < 1.5 indicates growth meaningfully justifies the absolute multiple,
+    # and earns a score boost inside _abs_pe_score (see function docstring).
+    _peg_val  = None
+    _peg_note = ""
+    try:
+        _pe_for_peg = forward_pe_val or pe_current
+        if _pe_for_peg and _pe_for_peg > 0 and analyst_ests and is_data:
+            _fwd_eps_est = float((analyst_ests[0] or {}).get("estimatedEpsAvg") or 0) or None
+            _shs_peg     = (is_data[-1].get("weightedAverageShsOut") or
+                            is_data[-1].get("weightedAverageShsOutDil") or 0)
+            _ttm_ni_peg  = is_data[-1].get("netIncome") or 0
+            _ttm_eps_peg = (_ttm_ni_peg / _shs_peg) if _shs_peg > 0 else None
+            if _fwd_eps_est and _ttm_eps_peg and _ttm_eps_peg > 0 and _fwd_eps_est > 0:
+                _eps_growth_peg = (_fwd_eps_est / _ttm_eps_peg) - 1
+                if _eps_growth_peg > 0:
+                    _peg_val  = round(_pe_for_peg / _eps_growth_peg, 2)
+                    _peg_note = (f"PEG={_peg_val:.2f} (fwd_pe={_pe_for_peg:.1f}x"
+                                 f" / eps_growth={_eps_growth_peg:.0%})")
+        # Fallback: use revenue CAGR as growth proxy
+        if _peg_val is None and pe_current and pe_current > 0 and rev_cagr and rev_cagr > 0.02:
+            _peg_val  = round(pe_current / rev_cagr, 2)
+            _peg_note = (f"PEG≈{_peg_val:.2f} (trailing_pe={pe_current:.1f}x"
+                         f" / rev_cagr={rev_cagr:.0%}, revenue proxy)")
+    except Exception:
+        pass
+    if _peg_note:
+        print(f"  {_peg_note}")
+
     # P/E blend
     if score_pe is not None and pe_current and pe_current > 0:
-        _abs_pe  = _abs_pe_score(pe_current)
+        _abs_pe  = _abs_pe_score(pe_current, peg=_peg_val)
         if is_bank:
             _abs_pe = min(_abs_pe, _ABS_BANK_CAP)
         _rel_pe  = score_pe
@@ -4209,10 +4275,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         _blended_pe = round(_TRAIL_W * _rel_pe + _FWD_W * _fpe + _ABS_W * _abs_pe, 4)
         _fwd_note  = f"fwd_pe={forward_pe_val:.1f}x→{_fpe:.2f}" if _fwd_pe_score is not None else "no_fwd_data(fallback)"
         _bank_note = f" [bank cap {_ABS_BANK_CAP}]" if is_bank and _abs_pe == _ABS_BANK_CAP else ""
+        _peg_str   = f"  {_peg_note}" if _peg_note else ""
         note_pe   += (f"  [trail={_rel_pe:.2f} | {_fwd_note} | abs={_abs_pe:.1f}{_bank_note}"
-                      f" → blended 40/40/20={_blended_pe:.2f}]")
+                      f" → blended 40/40/20={_blended_pe:.2f}]{_peg_str}")
         print(f"  PE blend 40/40/20: trail={_rel_pe:.2f}  fwd={_fpe:.2f}"
-              f"  abs={_abs_pe:.1f}  → {_blended_pe:.2f}")
+              f"  abs={_abs_pe:.1f}  → {_blended_pe:.2f}"
+              f"  {_peg_note}")
         score_pe = _blended_pe
 
     # P/FCF blend (non-banks only)
