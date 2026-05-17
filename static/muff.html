@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MUFF — Unsafe Financial Freedom</title>
+  <script>(function(){try{var t=localStorage.getItem('eq.theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .gen-card {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
+      padding: var(--s-6);
+      box-shadow: var(--shadow-md);
+    }
+    .gen-field { margin-bottom: var(--s-3); }
+    .gen-field label {
+      display: block;
+      font-size: var(--t-xs);
+      font-weight: var(--weight-semi);
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: var(--s-1);
+    }
+    .gen-field .opt { font-weight: var(--weight-regular); color: var(--muted-soft); text-transform: none; letter-spacing: 0; }
+    .gen-field input, .gen-field select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: var(--t-sm);
+      outline: none;
+      transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    .gen-field input:focus, .gen-field select:focus {
+      border-color: #e05c20;
+      box-shadow: 0 0 0 3px rgba(224,92,32,0.15);
+    }
+    .gen-field input#specTickerInput {
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-size: 15px;
+      font-weight: var(--weight-semi);
+      font-family: var(--font-mono);
+    }
+    .gen-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+
+    .gen-btn {
+      width: 100%;
+      padding: 13px 20px;
+      border: none;
+      border-radius: var(--r-lg);
+      font-size: var(--t-body);
+      font-weight: var(--weight-semi);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s-2);
+      margin-top: var(--s-4);
+      transition: background var(--dur) var(--ease);
+      background: #e05c20;
+      color: #fff;
+    }
+    .gen-btn:hover:not(:disabled) { background: #c54e18; }
+    .gen-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .gen-meta { font-family: var(--font-mono); font-size: var(--t-tiny); color: var(--muted-soft); text-align: center; margin-top: var(--s-2); }
+    .gen-msg { margin-top: var(--s-2); font-family: var(--font-mono); font-size: var(--t-xs); min-height: 18px; text-align: center; }
+    .gen-msg.info  { color: var(--muted); }
+    .gen-msg.error { color: var(--v-avoid-fg); }
+    .gen-msg.ok    { color: var(--v-high-fg); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+
+    /* Hero */
+    .muff-hero {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: var(--s-12);
+      align-items: center;
+      padding: var(--s-12) 0 var(--s-8);
+    }
+    .muff-hero .display-title {
+      font-size: clamp(36px, 5vw, 60px);
+      line-height: 1.0;
+      letter-spacing: -0.03em;
+      margin-bottom: var(--s-4);
+      font-weight: var(--weight-medium);
+    }
+    .muff-hero .display-title em {
+      font-family: var(--font-serif);
+      font-style: italic;
+      color: #c94a12;
+      font-weight: var(--weight-regular);
+    }
+    .muff-hero .lede {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--muted);
+      margin-bottom: var(--s-5);
+    }
+    .muff-hero .small-stats {
+      display: flex;
+      gap: var(--s-6);
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      color: var(--muted);
+    }
+    .muff-hero .small-stats b { color: var(--ink); font-weight: var(--weight-semi); font-size: var(--t-sm); display: block; margin-bottom: 2px; font-family: var(--font-sans); }
+
+    .card-eyebrow {
+      font-size: var(--t-micro);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #c94a12;
+      font-weight: var(--weight-semi);
+      margin-bottom: var(--s-4);
+    }
+
+    /* Results panel */
+    .results-panel {
+      margin-top: var(--s-4);
+      background: color-mix(in srgb, #e05c20 6%, var(--surface));
+      border: 1px solid color-mix(in srgb, #e05c20 25%, var(--line));
+      border-radius: var(--r-xl);
+      padding: var(--s-5);
+      display: none;
+    }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-4); }
+    .results-ticker { font-family: var(--font-mono); font-size: 20px; font-weight: var(--weight-bold); color: #c94a12; }
+    .results-score  { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted); margin-top: var(--s-1); }
+    .results-score span { color: #c94a12; font-size: 15px; font-weight: var(--weight-bold); }
+    .results-btns { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-3); }
+    .res-btn {
+      flex: 1;
+      min-width: 130px;
+      padding: 10px 14px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--line-strong);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s-2);
+      transition: background var(--dur) var(--ease);
+      white-space: nowrap;
+    }
+    .res-btn-excel { background: var(--h-gg-bg); color: var(--h-gg-fg); border-color: color-mix(in srgb, var(--h-gg-fg) 20%, transparent); }
+    .res-btn-excel:hover { background: color-mix(in srgb, var(--h-gg-bg) 80%, var(--h-gg-fg) 10%); }
+    .res-btn-view  { background: var(--surface-3); color: var(--ink-2); border-color: var(--line-strong); }
+    .res-btn-view:hover  { background: var(--surface-hi); }
+    .results-note { font-size: var(--t-xs); color: var(--muted); line-height: 1.65; }
+    .results-note strong { color: var(--ink-2); }
+
+    /* Pipeline */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--r-2xl);
+      overflow: hidden;
+      background: var(--surface);
+      margin-top: var(--s-5);
+    }
+    .step { padding: var(--s-5); border-right: 1px solid var(--line); }
+    .step:last-child { border-right: none; }
+    .step .step-n { font-family: var(--font-mono); font-size: var(--t-tiny); color: #c94a12; letter-spacing: 0.18em; margin-bottom: var(--s-2); font-weight: var(--weight-semi); }
+    .step .step-title { font-size: var(--t-heading); font-weight: var(--weight-semi); letter-spacing: -0.01em; margin-bottom: var(--s-2); }
+    .step .step-body { font-size: var(--t-xs); color: var(--muted); line-height: 1.55; }
+
+    /* Disclaimer banner */
+    .risk-banner {
+      background: color-mix(in srgb, #e05c20 8%, var(--surface));
+      border: 1px solid color-mix(in srgb, #e05c20 30%, var(--line));
+      border-radius: var(--r-lg);
+      padding: var(--s-3) var(--s-4);
+      font-family: var(--font-mono);
+      font-size: var(--t-tiny);
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: var(--s-5);
+    }
+
+    @media (max-width: 900px) {
+      .muff-hero { grid-template-columns: 1fr; gap: var(--s-6); padding: var(--s-8) 0; }
+      .muff-hero .display-title { font-size: 36px; }
+      .gen-grid-2 { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr 1fr; }
+      .step { border-right: none; border-bottom: 1px solid var(--line); }
+      .step:nth-child(odd) { border-right: 1px solid var(--line); }
+    }
+    @media (max-width: 600px) {
+      .pipeline { grid-template-columns: 1fr; }
+      .step:nth-child(odd) { border-right: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell page">
+    <div class="shell-card">
+
+      <!-- NAVIGATION -->
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="brand">
+          <span class="brand-mk" aria-hidden="true"></span>
+          <span>Investment<span style="color:var(--accent)">.</span>Utopia</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/">Safe</a></li>
+          <li><a href="/muff" aria-current="page" style="color:#c94a12">MUFF</a></li>
+          <li><a href="/dashboard">Dashboard</a></li>
+          <li><a href="/daily">Daily</a></li>
+          <li><a href="/dcf">DCF</a></li>
+          <li><a href="/heatmap">Heatmap</a></li>
+          <li><a href="/news">News</a></li>
+        </ul>
+        <div class="nav-aside">
+          <span class="nav-time" id="navTime"></span>
+          <span class="live-badge"><span class="dot"></span>Live · FMP</span>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+            <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- HERO -->
+      <section>
+        <div class="muff-hero">
+          <div>
+            <div class="eyebrow" style="color:#c94a12">● Asymmetric · Speculative · 3–12 Month Horizon</div>
+            <h1 class="display-title">Maybe <em>Unsafe</em><br/>Financial Freedom</h1>
+            <p class="lede">Scan for asymmetric setups with 1.5×+ potential over 3–12 months. The engine scores 10 momentum + sentiment signals and builds a narrative re-rating scenario model.</p>
+            <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);line-height:1.6;max-width:500px;margin-bottom:var(--s-5)">
+              Speculative plays carry material risk of loss. This tool surfaces pattern signals — not investment advice. Size positions accordingly.
+            </p>
+            <div class="small-stats">
+              <div><b>FMP+</b>Data Source</div>
+              <div><b>10</b>Signals</div>
+              <div><b>3–12m</b>Horizon</div>
+              <div><b>Scenario</b>Model</div>
+            </div>
+          </div>
+
+          <div class="gen-card">
+            <div class="card-eyebrow">▲ Unsafe Financial Freedom</div>
+
+            <div class="risk-banner">
+              Speculative plays carry material risk of loss. This tool surfaces pattern signals — not investment advice. Size positions accordingly.
+            </div>
+
+            <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+              <div class="gen-field">
+                <label>Ticker Symbol</label>
+                <input type="text" id="specTickerInput" placeholder="PLTR, RKLB, IONQ…" maxlength="6" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="gen-field">
+                <label>Hold Horizon <span class="opt">months</span></label>
+                <select id="specHoldInput">
+                  <option value="3">3 months</option>
+                  <option value="6" selected>6 months</option>
+                  <option value="9">9 months</option>
+                  <option value="12">12 months</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+              <div class="gen-field">
+                <label>Narrative Theme <span class="opt">optional</span></label>
+                <select id="specNarrativeTheme">
+                  <option value="">— Select theme</option>
+                  <option value="AI / Machine Learning">AI / Machine Learning</option>
+                  <option value="Defence &amp; Aerospace">Defence &amp; Aerospace</option>
+                  <option value="Biotech Catalyst">Biotech Catalyst</option>
+                  <option value="GLP-1 / Weight Loss">GLP-1 / Weight Loss</option>
+                  <option value="Energy Transition">Energy Transition</option>
+                  <option value="Nuclear / SMR">Nuclear / SMR</option>
+                  <option value="Crypto-Adjacent">Crypto-Adjacent</option>
+                  <option value="Turnaround / Restructuring">Turnaround / Restructuring</option>
+                  <option value="Supply Chain Re-shoring">Supply Chain Re-shoring</option>
+                  <option value="Space / Deep Tech">Space / Deep Tech</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="gen-field">
+                <label>Narrative Strength <span class="opt">optional</span></label>
+                <select id="specNarrativeStrength">
+                  <option value="MOD">MOD — Reasonable connection</option>
+                  <option value="HIGH">HIGH — Company is central to theme</option>
+                  <option value="LOW">LOW — Tangential exposure only</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="gen-field">
+              <label>Catalyst Description <span class="opt">optional</span></label>
+              <input type="text" id="specCatalystDesc" placeholder="e.g. FDA PDUFA date set for Q3, earnings beat cycle, contract announcement…" autocomplete="off">
+            </div>
+
+            <div class="gen-grid-2" style="margin-bottom:var(--s-3)">
+              <div class="gen-field">
+                <label>Catalyst Timing</label>
+                <select id="specCatalystTiming">
+                  <option value="vague">Vague / no clear date</option>
+                  <option value="near">Near-term (&lt; 3 months, specific event)</option>
+                  <option value="medium">Medium-term (3–9 months, expected)</option>
+                </select>
+              </div>
+              <div class="gen-field" id="specPasswordWrap" style="display:none">
+                <label>Password</label>
+                <input type="password" id="specPasswordInput" placeholder="Enter access password">
+              </div>
+            </div>
+
+            <div class="gen-field">
+              <label>Custom Google Trends Terms <span class="opt">optional · comma-separated sector keywords</span></label>
+              <input type="text" id="specCustomTerms" placeholder="e.g. HBM memory, DRAM cycle, AI inference chips" autocomplete="off">
+            </div>
+
+            <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);margin-bottom:var(--s-4);line-height:1.6">
+              10 signals auto-scored (momentum, volume, short interest, options, insiders, technical setup, Google Trends) · 2 signals from your inputs above · Max score 120
+            </p>
+
+            <button class="gen-btn" id="specGenerateBtn" onclick="runSpeculative()">
+              <span id="specBtnText">Scan for Asymmetry →</span>
+              <div class="spinner" id="specBtnSpinner" style="display:none"></div>
+            </button>
+
+            <div class="gen-meta">Scores 10 momentum + sentiment signals · builds scenario model · ~15–30 seconds</div>
+            <div class="gen-msg info" id="specGenMsg"></div>
+
+            <div class="results-panel" id="specResultsPanel">
+              <div class="results-header">
+                <div>
+                  <div class="results-ticker" id="specResTicker">—</div>
+                  <div class="results-score">
+                    Spec score: <span id="specResScore">—</span><span style="color:var(--muted-soft);font-size:var(--t-xs)">/120</span>
+                    &nbsp;·&nbsp; <span id="specResVerdict" style="color:var(--muted);font-size:var(--t-xs)">—</span>
+                  </div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted)">Scan ready</div>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:var(--t-xs);color:var(--muted);margin-bottom:var(--s-3)">
+                Bull scenario: <span id="specResBullRet" style="color:var(--v-high-fg);font-weight:var(--weight-bold)">—</span>
+                &nbsp;→&nbsp; <span id="specResBullPrice" style="color:var(--ink)">—</span>
+              </div>
+              <div class="results-btns">
+                <a class="res-btn res-btn-excel" id="specExcelBtn" href="#" target="_blank" rel="noopener">↓ Scenario Model (Excel)</a>
+                <a class="res-btn res-btn-view"  id="specViewBtn"  href="#" target="_blank" rel="noopener">↗ View Full Report</a>
+              </div>
+              <div class="results-note">
+                <strong>Quantitative signals</strong> (momentum, volume, short interest, options, insiders) auto-fetched from FMP + yfinance.
+                Scenario model uses EV/Revenue re-rating — adjust the Excel workbook to test your own multiple assumptions.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <div class="section-head">
+          <h3>How it works</h3>
+          <span class="meta">FMP · yfinance · Google Trends · scenario model</span>
+        </div>
+        <div class="pipeline">
+          <div class="step">
+            <div class="step-n">STEP 01</div>
+            <div class="step-title">Signals</div>
+            <div class="step-body">Pull price momentum, volume, short interest, options flow, and insider activity from FMP + yfinance.</div>
+          </div>
+          <div class="step">
+            <div class="step-n">STEP 02</div>
+            <div class="step-title">Narrative</div>
+            <div class="step-body">Score the narrative setup: theme alignment, catalyst timing, and Google Trends search momentum.</div>
+          </div>
+          <div class="step">
+            <div class="step-n">STEP 03</div>
+            <div class="step-title">Score</div>
+            <div class="step-body">10 quantitative + 2 qualitative signals scored up to 120. Verdict: Strong / Moderate / Weak asymmetry.</div>
+          </div>
+          <div class="step">
+            <div class="step-n">STEP 04</div>
+            <div class="step-title">Scenario</div>
+            <div class="step-body">EV/Revenue re-rating model with bear / base / bull price targets. Excel workbook for your own assumptions.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="footer">
+        <div>
+          <a class="brand" href="/"><span class="brand-mk"></span>Investment<span style="color:var(--accent)">.</span>Utopia</a>
+          <p style="margin:var(--s-3) 0 0;max-width:360px;line-height:1.6;color:var(--muted);font-size:var(--t-sm)">An equity research workbench — DCF, valuation history, and speculative setups in one workflow. Not investment advice.</p>
+        </div>
+        <div>
+          <h4>Tools</h4>
+          <a href="/">Safe Financial Freedom</a>
+          <a href="/muff">MUFF (Unsafe)</a>
+          <a href="/dcf">DCF Calculator</a>
+        </div>
+        <div>
+          <h4>Coverage</h4>
+          <a href="/dashboard">Dashboard</a>
+          <a href="/daily">Daily Discoveries</a>
+          <a href="/news">News</a>
+        </div>
+        <div>
+          <h4>Data</h4>
+          <a href="#">FMP API</a>
+          <a href="#">yfinance</a>
+          <a href="#">Google Trends</a>
+        </div>
+        <div class="legal">
+          <span>© 2026 Investment Utopia · Not investment advice</span>
+          <span>Financials sourced from FMP API · Reports expire after 2 hours</span>
+        </div>
+      </footer>
+
+    </div><!-- /shell-card -->
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    /* ── Password probe ── */
+    (function() {
+      fetch('/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{"ticker":"__probe__","password":""}'})
+        .then(r => { if (r.status === 401) document.getElementById('specPasswordWrap').style.display = 'block'; })
+        .catch(() => {});
+    })();
+
+    /* ── Maybe Unsafe Financial Freedom ── */
+    async function runSpeculative() {
+      const ticker             = document.getElementById('specTickerInput').value.trim().toUpperCase();
+      const hold_months        = document.getElementById('specHoldInput').value;
+      const narrative_theme    = document.getElementById('specNarrativeTheme').value;
+      const narrative_strength = document.getElementById('specNarrativeStrength').value;
+      const catalyst_desc      = document.getElementById('specCatalystDesc').value.trim();
+      const catalyst_timing    = document.getElementById('specCatalystTiming').value;
+      const custom_terms       = document.getElementById('specCustomTerms')?.value.trim() || '';
+      const password           = document.getElementById('specPasswordInput')?.value.trim() || '';
+
+      if (!ticker) { showSpecMsg('Enter a ticker symbol.', 'error'); return; }
+
+      setSpecLoading(true);
+      showSpecMsg('Fetching market signals and building scenario model…', 'info');
+      document.getElementById('specResultsPanel').style.display = 'none';
+
+      try {
+        const res = await fetch('/generate-speculative', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ticker, hold_months: parseInt(hold_months), narrative_theme,
+                                 narrative_strength, catalyst_desc, catalyst_timing,
+                                 custom_terms, password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showSpecMsg(data.error || 'Scan failed.', 'error');
+          setSpecLoading(false);
+          return;
+        }
+
+        document.getElementById('specResTicker').textContent  = data.ticker;
+        document.getElementById('specResScore').textContent   = data.total_score ?? 'N/A';
+        document.getElementById('specResVerdict').textContent = data.verdict ?? '';
+
+        const bullRet   = data.bull_ret;
+        const bullPrice = data.bull_price;
+        document.getElementById('specResBullRet').textContent   = bullRet   != null ? (bullRet >= 0 ? '+' : '') + (bullRet * 100).toFixed(1) + '%' : 'N/A';
+        document.getElementById('specResBullPrice').textContent = bullPrice != null ? '$' + bullPrice.toFixed(2) : 'N/A';
+
+        document.getElementById('specExcelBtn').href = data.excel_url  || `/download/speculative-model/${data.ticker}`;
+        document.getElementById('specViewBtn').href  = data.report_url || `/reports/${data.ticker}_speculative_report.html`;
+
+        document.getElementById('specResultsPanel').style.display = 'block';
+        showSpecMsg('Done! Scenario model and report ready.', 'ok');
+
+      } catch (e) {
+        showSpecMsg(`Network error: ${e.message} — try again in 30s.`, 'error');
+      }
+
+      setSpecLoading(false);
+    }
+
+    function setSpecLoading(on) {
+      const btn = document.getElementById('specGenerateBtn');
+      btn.disabled = on;
+      document.getElementById('specBtnText').textContent      = on ? 'Scanning…' : 'Scan for Asymmetry →';
+      document.getElementById('specBtnSpinner').style.display = on ? 'block' : 'none';
+    }
+
+    function showSpecMsg(text, type) {
+      const el = document.getElementById('specGenMsg');
+      el.className = `gen-msg ${type}`;
+      el.textContent = text;
+    }
+
+    document.getElementById('specTickerInput')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') runSpeculative();
+    });
+  </script>
+</body>
+</html>

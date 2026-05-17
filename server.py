@@ -823,6 +823,11 @@ def dcf_page():
     return send_file(os.path.join(os.path.dirname(__file__), "static", "dcf.html"))
 
 
+@app.route("/muff")
+def muff_page():
+    return send_file(os.path.join(os.path.dirname(__file__), "static", "muff.html"))
+
+
 @app.route("/api/price-history/<ticker>")
 def api_price_history(ticker):
     """Return the time-series of price vs DCF fair value for a ticker.
