@@ -3,5 +3,6 @@ gunicorn
 requests
 openpyxl
 yfinance
-pytrends
 praw
+pandas
+pandas-ta

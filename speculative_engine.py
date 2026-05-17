@@ -38,6 +38,8 @@ import requests as _req
 
 TIER_PTS = {"HIGH": 10, "MOD": 5, "LOW": 0}
 
+POLYGON_API_KEY = ""   # set from env in server.py
+
 NARRATIVE_THEMES = [
     "AI / Machine Learning",
     "Defence & Aerospace",
@@ -51,23 +53,6 @@ NARRATIVE_THEMES = [
     "Space / Deep Tech",
     "Other",
 ]
-
-# Maps each narrative theme to 1–2 Google search terms that capture sector-level momentum.
-# These run alongside the ticker query so we catch narrative waves even before they
-# show up in the specific ticker's search volume (e.g. "HBM memory" trending → MU opportunity).
-THEME_KEYWORDS: dict[str, list[str]] = {
-    "AI / Machine Learning":        ["AI stocks", "artificial intelligence investing"],
-    "Defence & Aerospace":          ["defense stocks", "defense spending"],
-    "Biotech Catalyst":             ["biotech stocks", "FDA approval"],
-    "GLP-1 / Weight Loss":          ["GLP-1", "weight loss drug"],
-    "Energy Transition":            ["clean energy stocks", "solar energy stocks"],
-    "Nuclear / SMR":                ["nuclear energy stocks", "small modular reactor"],
-    "Crypto-Adjacent":              ["bitcoin", "crypto stocks"],
-    "Turnaround / Restructuring":   ["turnaround stocks", "restructuring"],
-    "Supply Chain Re-shoring":      ["reshoring", "US manufacturing stocks"],
-    "Space / Deep Tech":            ["space stocks", "satellite stocks"],
-    "Other":                        [],
-}
 
 VERDICTS = [
     (90, "Moonshot Conviction"),
@@ -162,85 +147,92 @@ def _mock_data(ticker: str) -> dict:
     }
 
 
-# ── Social / trend helpers ─────────────────────────────────────────────────────
+# ── Polygon helpers ────────────────────────────────────────────────────────────
 
-def _trend_ratio_from_series(vals: list) -> float | None:
-    """Compute 7-day vs prior-period ratio from a Google Trends value series."""
-    if not vals or len(vals) < 10:
-        return None
-    recent = vals[-7:]
-    prior  = vals[:-7]
-    r_avg  = sum(recent) / len(recent)
-    p_avg  = sum(prior)  / len(prior) if prior else 1
-    return round(r_avg / p_avg, 2) if p_avg > 0 else None
+def _fetch_polygon_ohlcv(ticker: str, polygon_key: str) -> list | None:
+    """Fetch ~500 days of daily OHLCV bars from Polygon, sorted ascending.
 
-
-def _fetch_google_trends(ticker: str, theme_keywords: list[str] | None = None,
-                         custom_terms: list[str] | None = None) -> dict:
-    """Pull 90-day Google Trends for the ticker + theme keyword + custom terms.
-
-    All terms run in a single pytrends query so they share the same 0-100
-    relative index and are directly comparable to each other.
-
-    pytrends caps at 5 keywords per query, so slots are allocated as:
-      [ticker, theme_kw, custom_1, custom_2, custom_3]  (ticker always included)
-
-    Scoring uses the best-performing non-ticker term so one hot narrative
-    is enough to register — you don't need all of them trending simultaneously.
-
-    Returns:
-        trend_ratio       — ticker 7d/90d ratio
-        best_theme_ratio  — highest ratio among all non-ticker keywords
-        best_theme_kw     — which keyword produced that ratio
-        all_ratios        — dict of {keyword: ratio} for every term queried
-        trend_values      — last 30 ticker data points
+    Returns a list of dicts with keys: o, h, l, c, v, t (timestamp ms).
+    Returns None if the key is missing or the request fails.
     """
-    theme_kw     = (theme_keywords or [])[:1]
-    custom       = [t.strip() for t in (custom_terms or []) if t.strip()]
-    extra_slots  = 4   # 5 total minus the ticker
-    extras       = (theme_kw + custom)[:extra_slots]
-    kw_list      = [ticker] + extras
-
+    if not polygon_key:
+        return None
     try:
-        import time as _time
-        from pytrends.request import TrendReq
-        _time.sleep(2)
-        pt = TrendReq(hl="en-US", tz=0, timeout=(10, 30))
-        pt.build_payload(kw_list, cat=0, timeframe="today 3-m", geo="", gprop="")
-        df = pt.interest_over_time()
-        if df is None or df.empty:
-            return {"trend_ratio": None, "best_theme_ratio": None,
-                    "best_theme_kw": None, "all_ratios": {}, "trend_values": []}
+        from datetime import date, timedelta
+        end   = date.today().strftime("%Y-%m-%d")
+        start = (date.today() - timedelta(days=720)).strftime("%Y-%m-%d")
+        url   = (f"https://api.polygon.io/v2/aggs/ticker/{ticker}"
+                 f"/range/1/day/{start}/{end}")
+        r = _req.get(url, params={"adjusted": "true", "sort": "asc",
+                                  "limit": 500, "apiKey": polygon_key},
+                     timeout=15)
+        return r.json().get("results") or None
+    except Exception:
+        return None
 
-        all_ratios = {}
-        for kw in kw_list:
-            if kw in df.columns:
-                vals = [int(v) for v in df[kw].tolist()]
-                all_ratios[kw] = _trend_ratio_from_series(vals)
 
-        ticker_ratio = all_ratios.get(ticker)
-        ticker_vals  = [int(v) for v in df[ticker].tolist()] if ticker in df.columns else []
+def _fetch_polygon_ticker_details(ticker: str, polygon_key: str) -> dict:
+    """Fetch ticker reference data from Polygon (market cap, shares outstanding)."""
+    if not polygon_key:
+        return {}
+    try:
+        r = _req.get(f"https://api.polygon.io/v3/reference/tickers/{ticker}",
+                     params={"apiKey": polygon_key}, timeout=10)
+        return r.json().get("results") or {}
+    except Exception:
+        return {}
 
-        # Best-performing non-ticker keyword
-        non_ticker = {k: v for k, v in all_ratios.items()
-                      if k != ticker and v is not None}
-        best_kw    = max(non_ticker, key=non_ticker.get) if non_ticker else None
-        best_ratio = non_ticker[best_kw] if best_kw else None
 
+def _fetch_polygon_news(ticker: str, polygon_key: str) -> dict:
+    """Fetch recent news from Polygon with built-in per-ticker sentiment.
+
+    Polygon's insights array carries a sentiment field ('positive' / 'negative' /
+    'neutral') pre-scored by their NLP model — cleaner than keyword matching.
+    """
+    if not polygon_key:
+        return {"news_count": None, "news_bullish_pct": None,
+                "news_error": "No Polygon API key"}
+    try:
+        r = _req.get("https://api.polygon.io/v2/reference/news",
+                     params={"ticker": ticker, "limit": 20, "apiKey": polygon_key},
+                     timeout=10)
+        articles = r.json().get("results") or []
+        if not articles:
+            return {"news_count": 0, "news_7d": 0, "news_bullish": 0,
+                    "news_bearish": 0, "news_bullish_pct": None}
+
+        cutoff_7d = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)
+        bullish = bearish = recent_7d = 0
+        for article in articles:
+            insights      = article.get("insights") or []
+            ticker_insight = next((i for i in insights if i.get("ticker") == ticker), None)
+            if ticker_insight:
+                s = ticker_insight.get("sentiment", "neutral")
+                if s == "positive":
+                    bullish += 1
+                elif s == "negative":
+                    bearish += 1
+            pub = article.get("published_utc", "")
+            try:
+                ts = datetime.datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                if ts > cutoff_7d:
+                    recent_7d += 1
+            except Exception:
+                pass
+
+        total_scored = bullish + bearish
         return {
-            "trend_ratio":      ticker_ratio,
-            "best_theme_ratio": best_ratio,
-            "best_theme_kw":    best_kw,
-            "all_ratios":       all_ratios,
-            "trend_values":     ticker_vals[-30:],
+            "news_count":       len(articles),
+            "news_7d":          recent_7d,
+            "news_bullish":     bullish,
+            "news_bearish":     bearish,
+            "news_bullish_pct": (bullish / total_scored) if total_scored else None,
         }
     except Exception as e:
-        return {"trend_ratio": None, "best_theme_ratio": None,
-                "best_theme_kw": None, "all_ratios": {},
-                "trend_values": [], "gt_error": str(e)}
+        return {"news_count": None, "news_bullish_pct": None, "news_error": str(e)}
 
 
-# ── Sentiment keyword sets (shared by news + Reddit scorers) ──────────────────
+# ── Sentiment keyword sets (used by Reddit scorer) ────────────────────────────
 
 _BULL_WORDS = frozenset([
     "beat", "beats", "upgrade", "upgrades", "surge", "surges", "soar", "soars",
@@ -268,65 +260,6 @@ def _text_sentiment(text: str) -> int:
     if bear and not bull:
         return -1
     return 0
-
-
-def _fetch_yf_news_sentiment(ticker: str) -> dict:
-    """Fetch recent news via yfinance and score sentiment from headline keywords.
-
-    Handles both old schema (item['title'], item['providerPublishTime'])
-    and new schema (item['content']['title'], item['content']['pubDate']).
-
-    Returns news_count, news_7d (last-7-day articles), news_bullish, news_bearish,
-    news_bullish_pct.
-    """
-    try:
-        import yfinance as yf
-        news = yf.Ticker(ticker).news or []
-        if not news:
-            return {"news_count": 0, "news_7d": 0, "news_bullish": 0,
-                    "news_bearish": 0, "news_bullish_pct": None}
-
-        cutoff_7d = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)
-        bullish = bearish = recent_7d = 0
-
-        for item in news:
-            # Support both old flat schema and new nested content schema
-            content   = item.get("content") or item
-            title     = content.get("title") or ""
-            summary   = content.get("summary") or ""
-            text      = title + " " + summary
-            sentiment = _text_sentiment(text)
-            if sentiment > 0:
-                bullish += 1
-            elif sentiment < 0:
-                bearish += 1
-            # Timestamp: new schema uses ISO string pubDate; old uses unix providerPublishTime
-            pub_date = content.get("pubDate") or content.get("displayTime")
-            pub_unix  = item.get("providerPublishTime")
-            try:
-                if pub_date:
-                    ts = datetime.datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
-                elif pub_unix:
-                    ts = datetime.datetime.fromtimestamp(pub_unix, tz=datetime.timezone.utc)
-                else:
-                    ts = None
-                if ts and ts > cutoff_7d:
-                    recent_7d += 1
-            except Exception:
-                pass
-
-        total_scored = bullish + bearish
-        bullish_pct  = (bullish / total_scored) if total_scored > 0 else None
-
-        return {
-            "news_count":       len(news),
-            "news_7d":          recent_7d,
-            "news_bullish":     bullish,
-            "news_bearish":     bearish,
-            "news_bullish_pct": bullish_pct,
-        }
-    except Exception as e:
-        return {"news_count": None, "news_bullish_pct": None, "news_error": str(e)}
 
 
 def _fetch_reddit_sentiment(ticker: str) -> dict:
@@ -407,8 +340,8 @@ def _fetch_reddit_sentiment(ticker: str) -> dict:
 
 # ── Live data fetch ────────────────────────────────────────────────────────────
 
-def fetch_speculative_data(ticker: str, api_key: str, mock: bool = False,
-                           narrative_theme: str = "",
+def fetch_speculative_data(ticker: str, api_key: str, polygon_key: str = "",
+                           mock: bool = False, narrative_theme: str = "",
                            custom_terms: list[str] | None = None) -> dict:
     """Fetch all signals needed to score the speculative scorecard.
 
@@ -432,16 +365,24 @@ def fetch_speculative_data(ticker: str, api_key: str, mock: bool = False,
         except Exception:
             return None
 
-    # ── Profile ───────────────────────────────────────────────────────────────
+    # ── Profile (FMP — name, sector, price) ──────────────────────────────────
     prof_raw = _get(f"profile?symbol={ticker}")
     profile  = (prof_raw[0] if isinstance(prof_raw, list) and prof_raw else prof_raw or {})
     data["profile"]       = profile
     data["company_name"]  = profile.get("companyName") or ticker
     data["sector"]        = profile.get("sector") or "Unknown"
     data["current_price"] = float(profile.get("price") or 0) or None
-    data["market_cap"]    = float(profile.get("mktCap") or 0) or None
-    data["float_shares"]  = float(profile.get("floatShares") or 0) or None
-    data["shares_out"]    = float(profile.get("sharesOutstanding") or 0) or None
+
+    # ── Market cap / shares — Polygon ticker details (more reliable than FMP) ─
+    poly_details          = _fetch_polygon_ticker_details(ticker, polygon_key)
+    data["market_cap"]    = float(poly_details.get("market_cap") or 0) or None
+    data["shares_out"]    = float(poly_details.get("weighted_shares_outstanding") or 0) or None
+    data["float_shares"]  = float(poly_details.get("share_class_shares_outstanding") or 0) or None
+    # Fallback to FMP profile if Polygon didn't return market cap
+    if not data["market_cap"]:
+        data["market_cap"]  = float(profile.get("mktCap") or 0) or None
+    if not data["shares_out"]:
+        data["shares_out"]  = float(profile.get("sharesOutstanding") or 0) or None
 
     # ── Balance sheet (latest) ────────────────────────────────────────────────
     bs_raw = _get(f"balance-sheet-statement?symbol={ticker}&limit=1")
@@ -477,69 +418,84 @@ def fetch_speculative_data(ticker: str, api_key: str, mock: bool = False,
     data["fwd_rev_1yr"] = fwd_revs[0] if len(fwd_revs) > 0 else None
     data["fwd_rev_2yr"] = fwd_revs[1] if len(fwd_revs) > 1 else None
 
-    # ── Historical prices → momentum + volume ─────────────────────────────────
-    hist_raw = _get(f"historical-price-full?symbol={ticker}&serietype=line")
-    hist = []
-    if isinstance(hist_raw, dict):
-        hist = hist_raw.get("historical") or []
-    hist = sorted(hist, key=lambda x: x.get("date", ""), reverse=True)
+    # ── OHLCV + all technical indicators — Polygon + pandas-ta ────────────────
+    # Polygon returns full bars (O/H/L/C/V), sorted ascending. pandas-ta then
+    # computes RSI/MACD/EMA locally — no extra API calls needed.
+    data["price_vs_50ma"]  = None
+    data["price_vs_200ma"] = None
+    data["vol_10d_avg"]    = None
+    data["vol_50d_avg"]    = None
+    data["rsi_14"]         = None
+    data["macd"]           = data["macd_signal"] = data["macd_hist"] = None
+    data["ema_21"]         = data["ema_50"]       = None
+    data["high_52w"]       = data["low_52w"]      = data["pct_from_52w_high"] = None
 
-    prices = [float(h.get("close") or 0) for h in hist if h.get("close")]
-    vols   = [float(h.get("volume") or 0) for h in hist if h.get("volume")]
+    poly_bars = _fetch_polygon_ohlcv(ticker, polygon_key)
+    if poly_bars and len(poly_bars) >= 50:
+        closes_asc = [float(b["c"]) for b in poly_bars]
+        highs_asc  = [float(b["h"]) for b in poly_bars]
+        lows_asc   = [float(b["l"]) for b in poly_bars]
+        vols_asc   = [float(b["v"]) for b in poly_bars]
 
-    if len(prices) >= 200:
-        ma50  = sum(prices[:50])  / 50
-        ma200 = sum(prices[:200]) / 200
-        cur   = prices[0]
-        data["price_vs_50ma"]  = (cur / ma50  - 1) if ma50  else None
-        data["price_vs_200ma"] = (cur / ma200 - 1) if ma200 else None
-    else:
-        data["price_vs_50ma"]  = None
-        data["price_vs_200ma"] = None
+        # Descending lists for simple slice-based MA / volume calcs
+        closes_desc = list(reversed(closes_asc))
+        vols_desc   = list(reversed(vols_asc))
 
-    if len(vols) >= 50:
-        data["vol_10d_avg"] = sum(vols[:10]) / 10
-        data["vol_50d_avg"] = sum(vols[:50]) / 50
-    else:
-        data["vol_10d_avg"] = None
-        data["vol_50d_avg"] = None
+        if len(closes_desc) >= 200:
+            cur   = closes_desc[0]
+            ma50  = sum(closes_desc[:50])  / 50
+            ma200 = sum(closes_desc[:200]) / 200
+            data["price_vs_50ma"]  = (cur / ma50  - 1) if ma50  else None
+            data["price_vs_200ma"] = (cur / ma200 - 1) if ma200 else None
 
-    # ── RSI from FMP technical endpoint ───────────────────────────────────────
-    rsi_raw = _get(f"technical_indicator/daily?symbol={ticker}&type=rsi&period=14&limit=1")
-    data["rsi_14"] = None
-    if isinstance(rsi_raw, list) and rsi_raw:
-        data["rsi_14"] = float(rsi_raw[0].get("rsi") or 0) or None
+        if len(vols_desc) >= 50:
+            data["vol_10d_avg"] = sum(vols_desc[:10]) / 10
+            data["vol_50d_avg"] = sum(vols_desc[:50]) / 50
 
-    # ── MACD ──────────────────────────────────────────────────────────────────
-    data["macd"] = data["macd_signal"] = data["macd_hist"] = None
-    macd_raw = _get(f"technical_indicator/daily?symbol={ticker}&type=macd&limit=2")
-    if isinstance(macd_raw, list) and macd_raw:
-        m = macd_raw[0]
-        data["macd"]        = float(m.get("macd")       or 0) or None
-        data["macd_signal"] = float(m.get("signal")     or 0) or None
-        data["macd_hist"]   = float(m.get("histogram")  or 0) or None
+        # 52-week high / low — use actual H/L bars from Polygon (not just close)
+        year_bars = min(len(poly_bars), 252)
+        year_highs = highs_asc[-year_bars:]
+        year_lows  = lows_asc[-year_bars:]
+        data["high_52w"] = max(year_highs)
+        data["low_52w"]  = min(year_lows)
+        if data["high_52w"] > 0 and closes_desc:
+            data["pct_from_52w_high"] = (closes_desc[0] / data["high_52w"]) - 1
 
-    # ── EMA 21 + EMA 50 ───────────────────────────────────────────────────────
-    data["ema_21"] = data["ema_50"] = None
-    for period, key in [(21, "ema_21"), (50, "ema_50")]:
-        ema_raw = _get(f"technical_indicator/daily?symbol={ticker}&type=ema&period={period}&limit=1")
-        if isinstance(ema_raw, list) and ema_raw:
-            data[key] = float(ema_raw[0].get("ema") or 0) or None
+        # pandas-ta — all TA computed from Polygon closes, no extra API calls
+        try:
+            import pandas as pd
+            import pandas_ta as ta
 
-    # ── 52-week high/low (from historical prices already fetched) ─────────────
-    data["high_52w"] = data["low_52w"] = data["pct_from_52w_high"] = None
-    if len(prices) >= 252:
-        highs = [float(h.get("high") or h.get("close") or 0) for h in hist[:252] if h.get("high") or h.get("close")]
-        lows  = [float(h.get("low")  or h.get("close") or 0) for h in hist[:252] if h.get("low")  or h.get("close")]
-        if highs:
-            data["high_52w"] = max(highs)
-        if lows:
-            data["low_52w"] = min(lows)
-    elif prices:
-        data["high_52w"] = max(prices[:min(len(prices), 252)])
-        data["low_52w"]  = min(prices[:min(len(prices), 252)])
-    if data["high_52w"] and prices and data["high_52w"] > 0:
-        data["pct_from_52w_high"] = (prices[0] / data["high_52w"]) - 1
+            df_ta = pd.DataFrame({"close": closes_asc, "high": highs_asc,
+                                  "low": lows_asc, "volume": vols_asc})
+
+            rsi_s = ta.rsi(df_ta["close"], length=14)
+            if rsi_s is not None and not rsi_s.empty:
+                v = rsi_s.iloc[-1]
+                data["rsi_14"] = float(v) if pd.notna(v) else None
+
+            macd_df = ta.macd(df_ta["close"])   # cols: MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
+            if macd_df is not None and not macd_df.empty:
+                cols = macd_df.columns.tolist()
+                macd_col  = next((c for c in cols if c.startswith("MACD_")),  None)
+                hist_col  = next((c for c in cols if c.startswith("MACDh_")), None)
+                sig_col   = next((c for c in cols if c.startswith("MACDs_")), None)
+                def _last(col):
+                    if col and col in macd_df.columns:
+                        v = macd_df[col].iloc[-1]
+                        return float(v) if pd.notna(v) else None
+                    return None
+                data["macd"]        = _last(macd_col)
+                data["macd_hist"]   = _last(hist_col)
+                data["macd_signal"] = _last(sig_col)
+
+            for period, key in [(21, "ema_21"), (50, "ema_50")]:
+                ema_s = ta.ema(df_ta["close"], length=period)
+                if ema_s is not None and not ema_s.empty:
+                    v = ema_s.iloc[-1]
+                    data[key] = float(v) if pd.notna(v) else None
+        except Exception as e:
+            data["ta_error"] = str(e)
 
     # ── Short interest ────────────────────────────────────────────────────────
     si_raw = _get(f"short-interest?symbol={ticker}")
@@ -598,40 +554,31 @@ def fetch_speculative_data(ticker: str, api_key: str, mock: bool = False,
     data["insider_buy_usd"] = buy_usd
     data["insider_sells"]   = sells
 
-    # ── Options activity (yfinance — free, no quota) ──────────────────────────
+    # ── Options activity (yfinance — no free alternative for options) ─────────
     data["put_call_ratio"] = None
     data["call_oi"]        = None
     data["put_oi"]         = None
     try:
         import yfinance as yf
-        yt = yf.Ticker(ticker)
+        yt   = yf.Ticker(ticker)
         exps = yt.options
         if exps:
-            chain = yt.option_chain(exps[0])
+            chain   = yt.option_chain(exps[0])
             call_oi = chain.calls["openInterest"].sum()
             put_oi  = chain.puts["openInterest"].sum()
             data["call_oi"]        = int(call_oi)
             data["put_oi"]         = int(put_oi)
             data["put_call_ratio"] = (put_oi / call_oi) if call_oi else None
-    except Exception:
-        pass
+    except Exception as e:
+        data["options_error"] = str(e)
 
-    # ── Google Trends (pytrends — free, no key) ───────────────────────────────
-    theme_kws = THEME_KEYWORDS.get(narrative_theme, [])
-    gt = _fetch_google_trends(ticker, theme_keywords=theme_kws, custom_terms=custom_terms or [])
-    data["trend_ratio"]       = gt.get("trend_ratio")
-    data["best_theme_ratio"]  = gt.get("best_theme_ratio")
-    data["best_theme_kw"]     = gt.get("best_theme_kw")
-    data["all_gt_ratios"]     = gt.get("all_ratios", {})
-    data["trend_values"]      = gt.get("trend_values", [])
-
-    # ── yfinance news sentiment (no extra quota — uses yfinance already loaded) ──
-    yn = _fetch_yf_news_sentiment(ticker)
-    data["news_count"]       = yn.get("news_count")
-    data["news_7d"]          = yn.get("news_7d")
-    data["news_bullish"]     = yn.get("news_bullish")
-    data["news_bearish"]     = yn.get("news_bearish")
-    data["news_bullish_pct"] = yn.get("news_bullish_pct")
+    # ── News sentiment — Polygon NLP (replaces yfinance keyword scraping) ─────
+    pn = _fetch_polygon_news(ticker, polygon_key)
+    data["news_count"]       = pn.get("news_count")
+    data["news_7d"]          = pn.get("news_7d")
+    data["news_bullish"]     = pn.get("news_bullish")
+    data["news_bearish"]     = pn.get("news_bearish")
+    data["news_bullish_pct"] = pn.get("news_bullish_pct")
 
     # ── Reddit sentiment (PRAW — requires REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET) ─
     rd = _fetch_reddit_sentiment(ticker)
@@ -816,65 +763,17 @@ def _score_options(data: dict) -> tuple[str, int, str]:
 
 
 def _score_social_trend(data: dict) -> tuple[str, int, str]:
-    """Score social/trend momentum across four sub-signals:
+    """Score social/trend momentum across two sub-signals:
 
-      1. Ticker Google Trends  — is this specific stock being searched?
-      2. Narrative Google Trends — is the sector/theme trending? (early entry if hot sector, quiet ticker)
-      3. yfinance news sentiment — bullish vs bearish headline ratio (last ~10 articles)
-      4. Reddit sentiment       — mention count + bullish/bearish ratio across WSB/stocks/investing
+      1. Polygon news sentiment  — bullish vs bearish ratio from Polygon NLP (last 20 articles)
+      2. Reddit sentiment        — mention count + bullish/bearish ratio across WSB/stocks/investing
 
-    HIGH = ≥3 bullish votes · MOD = 1–2 bullish or all unavailable · LOW = 0 bullish with ≥1 bearish
+    HIGH = both sub-signals bullish · MOD = 1 bullish or all unavailable · LOW = 0 bullish with ≥1 bearish
     """
     bullish_signals = []
     notes = []
 
-    ticker_ratio  = data.get("trend_ratio")
-    theme_ratio   = data.get("best_theme_ratio")
-    theme_kw      = data.get("best_theme_kw") or "sector"
-    all_gt_ratios = data.get("all_gt_ratios") or {}
-
-    # Sub-signal 1: Ticker-level Google Trends
-    if ticker_ratio is not None:
-        if ticker_ratio >= 2.0:
-            bullish_signals.append(True)
-            notes.append(f"Ticker search: {ticker_ratio:.1f}× surge vs 90d avg")
-        elif ticker_ratio >= 1.3:
-            notes.append(f"Ticker search: {ticker_ratio:.1f}× above baseline (elevated)")
-        else:
-            bullish_signals.append(False)
-            notes.append(f"Ticker search: {ticker_ratio:.1f}× (no unusual interest)")
-    else:
-        notes.append("Ticker search: unavailable")
-
-    # Sub-signal 2: Best non-ticker keyword (theme keyword or custom term)
-    if theme_ratio is not None:
-        kw_label = f'"{theme_kw}"' if theme_kw and theme_kw != "sector" else "best keyword"
-        if theme_ratio >= 2.0:
-            bullish_signals.append(True)
-            notes.append(f"Narrative trend ({kw_label}): {theme_ratio:.1f}× surge — narrative is hot")
-        elif theme_ratio >= 1.3:
-            notes.append(
-                f"Narrative trend ({kw_label}): {theme_ratio:.1f}× — narrative building, "
-                f"ticker not yet noticed (potential early entry)"
-            )
-            bullish_signals.append(True)   # sector wave not yet priced = opportunity
-        else:
-            bullish_signals.append(False)
-            notes.append(f"Narrative trend ({kw_label}): {theme_ratio:.1f}× (not yet moving)")
-    elif theme_kw and theme_kw != "sector":
-        notes.append(f"Narrative trend (\"{theme_kw}\"): unavailable")
-    else:
-        notes.append("Narrative trend: no theme/custom terms provided")
-
-    # Append per-keyword breakdown if we have multiple non-ticker terms
-    non_ticker_gt = {k: v for k, v in all_gt_ratios.items()
-                     if v is not None and k != data.get("ticker", "")}
-    if len(non_ticker_gt) > 1:
-        breakdown = ", ".join(f'"{k}" {v:.1f}×' for k, v in sorted(
-            non_ticker_gt.items(), key=lambda x: (x[1] or 0), reverse=True))
-        notes.append(f"All tracked: {breakdown}")
-
-    # Sub-signal 3: yfinance news sentiment
+    # Sub-signal 1: Polygon news sentiment
     news_bp    = data.get("news_bullish_pct")
     news_bull  = data.get("news_bullish", 0) or 0
     news_bear  = data.get("news_bearish", 0) or 0
@@ -885,7 +784,7 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
         activity = f"{news_7d} articles in last 7d" if news_7d else f"{news_count} total"
         if news_bp >= 0.65:
             bullish_signals.append(True)
-            notes.append(f"News: {news_bp*100:.0f}% bullish headlines ({news_bull}+ / {news_bear}−, {activity})")
+            notes.append(f"News: {news_bp*100:.0f}% bullish ({news_bull}+ / {news_bear}−, {activity})")
         elif news_bp >= 0.40:
             notes.append(f"News: {news_bp*100:.0f}% bullish — mixed sentiment ({activity})")
         else:
@@ -894,14 +793,14 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
     elif news_count == 0:
         notes.append("News: no recent articles found")
     else:
-        notes.append("News: no scoreable headlines")
+        notes.append("News: unavailable")
 
-    # Sub-signal 4: Reddit sentiment (WSB + stocks + investing)
-    rd_bp      = data.get("reddit_bullish_pct")
-    rd_bull    = data.get("reddit_bullish", 0) or 0
-    rd_bear    = data.get("reddit_bearish", 0) or 0
-    rd_total   = data.get("reddit_mentions") or 0
-    rd_24h     = data.get("reddit_24h") or 0
+    # Sub-signal 2: Reddit sentiment (WSB + stocks + investing)
+    rd_bp    = data.get("reddit_bullish_pct")
+    rd_bull  = data.get("reddit_bullish", 0) or 0
+    rd_bear  = data.get("reddit_bearish", 0) or 0
+    rd_total = data.get("reddit_mentions") or 0
+    rd_24h   = data.get("reddit_24h") or 0
 
     if rd_bp is not None:
         activity = f"{rd_24h} posts in last 24h" if rd_24h else f"{rd_total} posts this week"
@@ -921,9 +820,9 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
     n_bullish = sum(1 for b in bullish_signals if b is True)
     n_bearish = sum(1 for b in bullish_signals if b is False)
 
-    if n_bullish >= 3:
+    if n_bullish >= 2:
         tier, pts = "HIGH", 10
-    elif n_bullish >= 1:
+    elif n_bullish == 1:
         tier, pts = "MOD", 5
     elif n_bullish == 0 and n_bearish == 0:
         tier, pts = "MOD", 5   # all unavailable — neutral, don't penalise

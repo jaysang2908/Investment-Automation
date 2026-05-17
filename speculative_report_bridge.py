@@ -108,7 +108,7 @@ def build_speculative_report_data(
         ("downside_floor",    "Downside Floor",           "Net cash / debt position"),
         ("options_activity",  "Options Activity",         "Put/Call ratio"),
         ("technical_setup",   "Technical Setup",          "MACD crossover · 52w high proximity · EMA stack"),
-        ("social_trend",      "Social / Trend Momentum",  "Google Trends spike · StockTwits sentiment"),
+        ("social_trend",      "Social / Trend Momentum",  "News sentiment · Reddit mentions"),
         ("narrative",         "Narrative Theme",          "User-supplied + theme heat"),
         ("catalyst",          "Catalyst Quality",         "User-supplied + timing anchor"),
     ]

@@ -34,9 +34,10 @@ import speculative_report_bridge as _spec_rb
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 # ── Config from environment ───────────────────────────────────────────────────
-mdl.API_KEY    = os.environ.get("FMP_API_KEY", mdl.API_KEY)
-_rb.GEMINI_KEY = os.environ.get("GEMINI_KEY", "")
-APP_PASSWORD   = os.environ.get("APP_PASSWORD", "")
+mdl.API_KEY          = os.environ.get("FMP_API_KEY", mdl.API_KEY)
+_rb.GEMINI_KEY       = os.environ.get("GEMINI_KEY", "")
+_spec.POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY", "")
+APP_PASSWORD         = os.environ.get("APP_PASSWORD", "")
 GITHUB_TOKEN   = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO    = os.environ.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
 GITHUB_BRANCH  = os.environ.get("GITHUB_BRANCH", "main")
@@ -686,6 +687,7 @@ def generate_speculative():
         data = _spec.fetch_speculative_data(
             ticker          = ticker,
             api_key         = mdl.API_KEY,
+            polygon_key     = _spec.POLYGON_API_KEY,
             mock            = use_mock,
             narrative_theme = narrative_theme,
             custom_terms    = custom_terms or None,
