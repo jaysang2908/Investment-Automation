@@ -480,8 +480,18 @@ def fetch_speculative_data(ticker: str, api_key: str, polygon_key: str = "",
             data["macd_signal"] = float(sig_v)  if pd.notna(sig_v)  else None
 
             for period, key in [(21, "ema_21"), (50, "ema_50")]:
-                ema_v = ta_lib.trend.EMAIndicator(close=close_s, window=period).ema_indicator().iloc[-1]
-                data[key] = float(ema_v) if pd.notna(ema_v) else None
+                try:
+                    ema_v = ta_lib.trend.EMAIndicator(close=close_s, window=period).ema_indicator().iloc[-1]
+                    data[key] = float(ema_v) if pd.notna(ema_v) else None
+                except Exception:
+                    pass
+                # Manual fallback if library returns NaN
+                if data[key] is None and len(closes_asc) >= period:
+                    alpha = 2.0 / (period + 1)
+                    ema = sum(closes_asc[:period]) / period
+                    for v in closes_asc[period:]:
+                        ema = alpha * v + (1 - alpha) * ema
+                    data[key] = ema
         except Exception as e:
             data["ta_error"] = str(e)
 
@@ -500,15 +510,18 @@ def fetch_speculative_data(ticker: str, api_key: str, polygon_key: str = "",
     cutoff = (datetime.date.today() - datetime.timedelta(days=90)).isoformat()
     ud_raw = _get(f"upgrades-downgrades?symbol={ticker}&limit=50")
     ups = downs = 0
-    if isinstance(ud_raw, list):
-        for e in ud_raw:
-            if (e.get("publishedDate") or "") < cutoff:
-                continue
-            action = (e.get("action") or e.get("newGrade") or "").lower()
-            if any(w in action for w in ("upgrade", "buy", "outperform", "overweight")):
-                ups += 1
-            elif any(w in action for w in ("downgrade", "sell", "underperform", "underweight")):
-                downs += 1
+    ud_list = ud_raw if isinstance(ud_raw, list) else (ud_raw.get("data") or [] if isinstance(ud_raw, dict) else [])
+    if not ud_list and isinstance(ud_raw, dict):
+        data["ud_error"] = ud_raw.get("message") or str(ud_raw)
+    for e in ud_list:
+        if (e.get("publishedDate") or e.get("date") or "") < cutoff:
+            continue
+        action = (e.get("action") or e.get("newGrade") or e.get("gradingCompany") or "").lower()
+        grade  = (e.get("newGrade") or "").lower()
+        if any(w in action or w in grade for w in ("upgrade", "buy", "outperform", "overweight", "positive")):
+            ups += 1
+        elif any(w in action or w in grade for w in ("downgrade", "sell", "underperform", "underweight", "negative")):
+            downs += 1
     data["upgrades_90d"]   = ups
     data["downgrades_90d"] = downs
 
@@ -739,7 +752,9 @@ def _score_options(data: dict) -> tuple[str, int, str]:
     p_oi = data.get("put_oi")
 
     if pc is None:
-        return "MOD", 5, "Options data unavailable (no listed options or data error)"
+        err = data.get("options_error", "")
+        note = f"Options data unavailable — {err}" if err else "Options data unavailable (no listed options or data error)"
+        return "MOD", 5, note
 
     if pc < 0.45:
         return "HIGH", 10, f"Put/Call ratio {pc:.2f} — heavy call-side positioning, smart money expressing bullish conviction"
