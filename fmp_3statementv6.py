@@ -3394,6 +3394,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     fcf_ni_trend  = (fcf_ni_latest is not None and fcf_ni_3ya is not None
                      and (fcf_ni_3ya - fcf_ni_latest) > 0.15)
 
+    # SBC adjustment (Option B: display metric, no scoring impact)
+    _sbc_raw     = (cf_data[-1].get("stockBasedCompensation") or 0) if cf_data else 0
+    _fcf_raw_sbc = _fcf(cf_data[-1]) if cf_data else 0
+    _fcf_ex_sbc  = _fcf_raw_sbc - _sbc_raw
+    _sbc_pct_fcf = (_sbc_raw / _fcf_raw_sbc) if _fcf_raw_sbc > 0 else None
+
     # 3. ROIC series
     def _roic(is_, bs_):
         ebit    = abs(is_.get("operatingIncome") or 0)
@@ -4875,6 +4881,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "pe_5yr_avg":         pe_5yr_avg,
         "pfcf_current":       trailing_pfcf,
         "pfcf_5yr_avg":       pfcf_5yr_avg,
+        # SBC display metrics (Option B: no scoring impact, shown in report)
+        "sbc_trailing_b":  (_sbc_raw / 1e9) if _sbc_raw else None,
+        "fcf_ex_sbc_b":    (_fcf_ex_sbc / 1e9) if _fcf_ex_sbc else None,
+        "sbc_pct_fcf":     _sbc_pct_fcf,
+        "pfcf_adj":        (round(trailing_pfcf * (_fcf_raw_sbc / _fcf_ex_sbc), 1)
+                            if (trailing_pfcf and _fcf_ex_sbc > 0 and _fcf_raw_sbc > 0)
+                            else None),
         "ev_ebitda_5yr_avg":  ev_ebitda_5yr_avg,
         # All computed scorecard tiers — passed to report_bridge so HTML matches Excel exactly.
         # report_bridge must read ALL of these directly; it must NOT re-derive them.

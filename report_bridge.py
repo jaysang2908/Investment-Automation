@@ -526,6 +526,29 @@ def _compute_css(d, current_price):
     return c
 
 
+def _build_sbc_callout(sbc_b, fcf_ex_sbc_b, sbc_pct, pfcf_adj, pfcf_reported):
+    """Return an HTML callout div when SBC > 5% of reported FCF, else empty string."""
+    if not sbc_b or not sbc_pct or sbc_pct <= 0.05:
+        return ""
+    sbc_str       = f"${sbc_b:.1f}B"
+    pct_str       = f"{sbc_pct:.0%}"
+    adj_fcf_str   = f"${fcf_ex_sbc_b:.1f}B" if fcf_ex_sbc_b is not None else "N/A"
+    adj_pfcf_str  = f"{pfcf_adj:.1f}x" if pfcf_adj is not None else "N/A"
+    rep_pfcf_str  = f"{pfcf_reported:.1f}x" if pfcf_reported else "N/A"
+    severity      = "#b45309" if sbc_pct > 0.15 else "#92400e"  # amber-700 / amber-800
+    return (
+        f'<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fcd34d;'
+        f'border-radius:4px;font-size:12px;color:#78350f">'
+        f'<strong style="color:{severity}">SBC Adjustment:</strong>&nbsp;'
+        f'Stock-based compensation of <strong>{sbc_str}</strong> ({pct_str} of reported FCF) '
+        f'is a real economic cost to shareholders. '
+        f'Reported P/FCF: <span style="font-family:monospace">{rep_pfcf_str}</span> &rarr; '
+        f'SBC-adjusted P/FCF: <span style="font-family:monospace;font-weight:700">{adj_pfcf_str}</span> '
+        f'(adj. FCF&nbsp;{adj_fcf_str}). Score reflects reported figure.'
+        f'</div>'
+    )
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN: build DATA dict
 # ══════════════════════════════════════════════════════════════════════════════
@@ -622,6 +645,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     n_analysts_eps_v   = scorecard_metrics.get("n_analysts_eps") or 0
     confidence_level_v = scorecard_metrics.get("confidence_level", "MEDIUM")
     confidence_note_v  = scorecard_metrics.get("confidence_note", "")
+    sbc_b_v      = scorecard_metrics.get("sbc_trailing_b")
+    fcf_ex_sbc_v = scorecard_metrics.get("fcf_ex_sbc_b")
+    sbc_pct_v    = scorecard_metrics.get("sbc_pct_fcf")
+    pfcf_adj_v   = scorecard_metrics.get("pfcf_adj")
 
     # ── Fallbacks: compute ROIC / rev_cagr directly if scorecard cache is stale ─
     if roic_v is None:
@@ -1547,6 +1574,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FORWARD_PFCF_10YR":    _x(pfcf_5yr),
         "FORWARD_PFCF_DELTA":   pfcf_delta,
         "FCF_YIELD_SPREAD":     _fcf_yield_spread_html,
+        "SBC_CALLOUT":         _build_sbc_callout(sbc_b_v, fcf_ex_sbc_v, sbc_pct_v, pfcf_adj_v, trailing_pfc),
         "EARNINGS_REVISION":    _revision_html,
         "EV_EBITDA_TRAILING":   _x(ev_ebitda),
         "EV_EBITDA_FWD_NOTE":   f"Trailing: {_x(ev_ebitda)}; fwd pending analyst estimates",
@@ -1700,7 +1728,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "P4_PE_SCORE_TEXT":     t_pe,   "P4_PE_WTD": str(round(P[t_pe]*10.0/10, 1)),
         "P4_PE_COMMENTARY":     f"P/E {_x(trailing_pe)} vs 5yr avg {_x(pe_5yr)} ({pe_delta}).",
         "P4_PFCF_SCORE_TEXT":   t_pfcf, "P4_PFCF_WTD": str(round(P[t_pfcf]*10.0/10, 1)),
-        "P4_PFCF_COMMENTARY":   f"P/FCF {_x(trailing_pfc)} vs 5yr avg {_x(pfcf_5yr)} ({pfcf_delta}).",
+        "P4_PFCF_COMMENTARY":   (
+            f"P/FCF {_x(trailing_pfc)} vs 5yr avg {_x(pfcf_5yr)} ({pfcf_delta})."
+            + (f" Adj. for SBC: {_x(pfcf_adj_v)}x." if pfcf_adj_v and (sbc_pct_v or 0) > 0.05 else "")
+        ),
 
         "TOTAL_WEIGHTED_SCORE": str(round(final_score, 1)) if final_score else "0",
 

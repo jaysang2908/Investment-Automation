@@ -24,6 +24,8 @@ COLUMNS = [
     "Revenue_B",
     "OCF_B",
     "FCF_B",
+    "SBC_B",
+    "SBC_pct",
     "Auto_Score",
     "Floor_Cap",
     "Manual_Clarity",
