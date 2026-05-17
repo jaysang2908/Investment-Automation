@@ -5,4 +5,4 @@ openpyxl
 yfinance
 praw
 pandas
-pandas-ta
+ta

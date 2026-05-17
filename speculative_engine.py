@@ -461,39 +461,27 @@ def fetch_speculative_data(ticker: str, api_key: str, polygon_key: str = "",
         if data["high_52w"] > 0 and closes_desc:
             data["pct_from_52w_high"] = (closes_desc[0] / data["high_52w"]) - 1
 
-        # pandas-ta — all TA computed from Polygon closes, no extra API calls
+        # ta library — RSI/MACD/EMA computed from Polygon closes, no extra API calls
         try:
             import pandas as pd
-            import pandas_ta as ta
+            import ta as ta_lib
 
-            df_ta = pd.DataFrame({"close": closes_asc, "high": highs_asc,
-                                  "low": lows_asc, "volume": vols_asc})
+            close_s = pd.Series(closes_asc)
 
-            rsi_s = ta.rsi(df_ta["close"], length=14)
-            if rsi_s is not None and not rsi_s.empty:
-                v = rsi_s.iloc[-1]
-                data["rsi_14"] = float(v) if pd.notna(v) else None
+            rsi_v = ta_lib.momentum.RSIIndicator(close=close_s, window=14).rsi().iloc[-1]
+            data["rsi_14"] = float(rsi_v) if pd.notna(rsi_v) else None
 
-            macd_df = ta.macd(df_ta["close"])   # cols: MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
-            if macd_df is not None and not macd_df.empty:
-                cols = macd_df.columns.tolist()
-                macd_col  = next((c for c in cols if c.startswith("MACD_")),  None)
-                hist_col  = next((c for c in cols if c.startswith("MACDh_")), None)
-                sig_col   = next((c for c in cols if c.startswith("MACDs_")), None)
-                def _last(col):
-                    if col and col in macd_df.columns:
-                        v = macd_df[col].iloc[-1]
-                        return float(v) if pd.notna(v) else None
-                    return None
-                data["macd"]        = _last(macd_col)
-                data["macd_hist"]   = _last(hist_col)
-                data["macd_signal"] = _last(sig_col)
+            macd_obj = ta_lib.trend.MACD(close=close_s)
+            macd_v   = macd_obj.macd().iloc[-1]
+            hist_v   = macd_obj.macd_diff().iloc[-1]
+            sig_v    = macd_obj.macd_signal().iloc[-1]
+            data["macd"]        = float(macd_v) if pd.notna(macd_v) else None
+            data["macd_hist"]   = float(hist_v) if pd.notna(hist_v) else None
+            data["macd_signal"] = float(sig_v)  if pd.notna(sig_v)  else None
 
             for period, key in [(21, "ema_21"), (50, "ema_50")]:
-                ema_s = ta.ema(df_ta["close"], length=period)
-                if ema_s is not None and not ema_s.empty:
-                    v = ema_s.iloc[-1]
-                    data[key] = float(v) if pd.notna(v) else None
+                ema_v = ta_lib.trend.EMAIndicator(close=close_s, window=period).ema_indicator().iloc[-1]
+                data[key] = float(ema_v) if pd.notna(ema_v) else None
         except Exception as e:
             data["ta_error"] = str(e)
 
