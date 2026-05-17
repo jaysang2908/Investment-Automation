@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MUFF Build — Chat Transcript</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface-2: #222;
+    --line: #2d2d2d;
+    --ink: #f0f0f0;
+    --ink-2: #c0c0c0;
+    --muted: #888;
+    --orange: #FF6B35;
+    --amber: #FFA62B;
+    --green: #34D399;
+    --blue: #60a5fa;
+    --user-bg: #1e2a3a;
+    --user-border: #2d4a6e;
+    --claude-bg: #1a1a1a;
+    --claude-border: #2d2d2d;
+    --code-bg: #111;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.65;
+    padding: 0 0 80px;
+  }
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .topbar-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--orange); flex-shrink: 0;
+  }
+  .topbar-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .topbar-sub { font-size: 11px; color: var(--muted); margin-left: auto; font-family: var(--mono); }
+
+  .thread {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 32px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .msg { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+
+  .msg-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0 4px;
+  }
+  .msg-header.user  { color: var(--blue); }
+  .msg-header.claude { color: var(--orange); }
+
+  .bubble {
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 14px;
+    line-height: 1.7;
+    border: 1px solid var(--line);
+  }
+  .bubble.user   { background: var(--user-bg);   border-color: var(--user-border); margin-left: 32px; }
+  .bubble.claude { background: var(--claude-bg); border-color: var(--claude-border); }
+
+  .bubble p + p { margin-top: 10px; }
+  .bubble ul, .bubble ol { padding-left: 20px; margin: 8px 0; }
+  .bubble li { margin: 4px 0; }
+  .bubble strong { color: var(--ink); font-weight: 600; }
+  .bubble em { color: var(--amber); font-style: normal; font-weight: 500; }
+  .bubble a { color: var(--blue); text-decoration: none; }
+  .bubble a:hover { text-decoration: underline; }
+
+  .bubble code {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--amber);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 13px;
+  }
+  th {
+    background: var(--surface-2);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--line);
+  }
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 8px;
+    color: var(--muted);
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .verdict-chip {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+  }
+  .chip-orange { background: rgba(255,107,53,0.15); color: var(--orange); border: 1px solid rgba(255,107,53,0.3); }
+  .chip-green  { background: rgba(52,211,153,0.12); color: var(--green);  border: 1px solid rgba(52,211,153,0.25); }
+  .chip-amber  { background: rgba(255,166,43,0.12); color: var(--amber);  border: 1px solid rgba(255,166,43,0.25); }
+
+  .note-box {
+    background: rgba(255,107,53,0.06);
+    border: 1px solid rgba(255,107,53,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .note-box strong { color: var(--orange); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-dot"></div>
+  <div class="topbar-title">MUFF Build — Session Transcript</div>
+  <div class="topbar-sub">Investment Utopia · 2026-05-16 → 2026-05-17</div>
+</div>
+
+<div class="thread">
+
+  <div class="divider">SESSION 1 — MUFF CONCEPT &amp; ARCHITECTURE</div>
+
+  <!-- 1 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>On the Render website I want to sort of split things a bit. Generate can be dubbed "Click here for Long Term Financial Freedom". I want to create a new section called "Accelerated Financial Freedom" — speculative plays, 1.5× return potential in 3–12 months. At the moment we use a scorecard logic — do you think the same approach should be taken here?</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Yes — scorecard logic is the right call here too. The difference is what you're scoring. For a speculative play you don't care about a sustainable moat or WACC — you care about <strong>momentum, narrative, and asymmetric catalyst potential</strong>.</p>
+      <p>My proposed 10-dimension scorecard would cover: Price Momentum, Volume Signal, Short Interest (squeeze fuel), Analyst Revisions, Float Size, Insider Buying, Downside Floor, Options Activity, Narrative Theme, and Catalyst Quality. HIGH = 10 pts, MOD = 5 pts, LOW = 0 pts, max 100.</p>
+      <p>Instead of a DCF we'd use an <strong>EV/Revenue re-rating scenario model</strong> (bear/base/bull) since speculative names are valued on narrative and multiple expansion, not discounted cash flows.</p>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>Actually call it <strong>Maybe Unsafe Financial Freedom</strong> sorry i didn't finish before. And our current tool can be dubbed "Safe Financial Freedom" lol</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Love it. Safe vs Maybe Unsafe — that's actually a perfect framing. Honest about the risk profile without being off-putting. MUFF it is.</p>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>Yeah that looks like a good start. Actually what are you? Can you bash Wilson? Yes start implementing this. But before you do, how will you source the data here and also i am out of FMP API calls for today.</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>I'm Claude, made by Anthropic. Wilson from Cast Away is a volleyball — I'm a large language model, somewhat more talkative. I'll spare him.</p>
+      <p>Data sourcing plan:</p>
+      <ul>
+        <li><strong>FMP API</strong> — price, RSI, MACD, EMA, volume, short interest, analyst revisions, insider trading, balance sheet (same key you already have)</li>
+        <li><strong>yfinance</strong> — options put/call ratio (free, no quota)</li>
+        <li><strong>Google Trends (pytrends)</strong> — search spike for ticker and sector narrative</li>
+        <li><strong>StockTwits public API</strong> — social sentiment (free, no auth)</li>
+      </ul>
+      <p>I'll implement with a full mock mode so we can test the pipeline without burning FMP quota. Everything renders with fake data, then flips to live on the next run.</p>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>btw i would think that technical analysis should also be a dimension</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>100% agree. I was going to suggest it. A speculative play needs both a narrative AND a chart setup — otherwise you're catching a falling knife where the story is real but the price action is broken.</p>
+      <p>I'd do it as 3 sub-signals (each voting bullish/neutral/bearish), 2-of-3 bullish = HIGH:</p>
+      <ul>
+        <li><strong>MACD crossover</strong> — histogram positive + MACD above signal line</li>
+        <li><strong>52-week high proximity</strong> — within 8% = breakout zone (bullish), 8–25% below = neutral, >25% = buried (bearish)</li>
+        <li><strong>EMA stack</strong> — price &gt; EMA21 &gt; EMA50 = fully bullish alignment</li>
+      </ul>
+      <p>This makes it 12 dimensions total, max 120 pts. Want me to go with that?</p>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>GO WITH OPTION A</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Building it now. 12 signals, max 120, EV/Rev re-rating scenario model, dark orange/amber theme to visually distinguish from the Safe tool. Mock mode included.</p>
+      <p>Verdict thresholds (75% / 60% / 45% / 30% of 120):</p>
+      <table>
+        <tr><th>Score</th><th>Verdict</th></tr>
+        <tr><td>≥ 90</td><td>Moonshot Conviction</td></tr>
+        <tr><td>≥ 72</td><td>Strong Speculative</td></tr>
+        <tr><td>≥ 54</td><td>Speculative Play</td></tr>
+        <tr><td>≥ 36</td><td>High Risk</td></tr>
+        <tr><td>&lt; 36</td><td>Pass</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="divider">SESSION 1 — GOOGLE TRENDS DEEP DIVE</div>
+
+  <!-- 6 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>not necessarily just specifically for the ticker symbol. A lot of the narrative could be sector specific… How do we ensure we capture this?</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Great point. We solve this with a <strong>sector-level keyword layer</strong> in Google Trends. Each narrative theme (e.g. "AI / Machine Learning") maps to 1–2 sector search terms ("AI stocks", "artificial intelligence investing") that run alongside the ticker in the same pytrends query.</p>
+      <p>Key insight: if "HBM memory" is trending but "MU" isn't being searched yet — that's an <strong>early entry signal</strong>, not a red flag. The sector wave hasn't been priced into the name yet.</p>
+      <p>So the scoring logic is: <em>hot sector + quiet ticker = MOD (opportunity)</em>, not LOW. Hot sector + hot ticker = 2 bullish votes.</p>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>okay is there a way to test this for the google trends linkage. just run one call to it right now on any ticker, let's say Rocketlab</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Running live…</p>
+      <pre><code>=== RKLB (Space / Deep Tech) ===
+  RKLB ticker ratio  : 2.0×  (surge vs 90d avg)
+  "space stocks"     : 0.38×
+  "satellite stocks" : 0.46×
+
+=== PLTR (Defence & Aerospace) ===
+  PLTR ticker ratio  : 0.82×
+  "defense stocks"   : 0.13×
+  "AI stocks"        : 0.39×</code></pre>
+      <p>RKLB is getting 2× its normal search volume — genuine retail interest spike. The space sector keywords are quiet, which actually makes the ticker interest more specific (people searching RKLB directly, not just browsing the theme).</p>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>sorry what the hell do those numbers mean? like 100/100 and 38-46 are they units of something</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Good question — Google Trends doesn't give you actual search volume numbers. It gives you a <strong>relative 0–100 index</strong>:</p>
+      <ul>
+        <li><strong>100</strong> = the peak day in the queried window (not 100% of all searches, just the busiest day for that term)</li>
+        <li><strong>50</strong> = half as much interest as that peak day</li>
+        <li><strong>0</strong> = basically no searches</li>
+      </ul>
+      <p>The ratio we compute (e.g. 2.0×) is: <em>average of last 7 days ÷ average of the prior period</em>. So 2.0× means the last 7 days are getting double the search interest compared to the prior baseline. That's the surge signal.</p>
+      <p>Critically — all terms in the same query share the same 0–100 scale, so they're directly comparable to each other.</p>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>ah cool that makes sense, thanks, yes please add custom search terms functionality. How prescriptive is this btw? like is it the EXACT words i put in the search term or will it also show data/analyse relevant stuff similar to that search query</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p><strong>Phrase-match, not exact.</strong> "HBM memory" will also capture "HBM memory chips", "HBM memory bandwidth", etc. It's not case-sensitive either.</p>
+      <p>It won't go fully semantic (it won't connect "HBM memory" to "DRAM" without you specifying both). So for best signal quality, use <strong>2–3 word compound terms</strong> rather than single words — "AI" is too broad (captures everything), "AI inference chips" is specific enough to mean something.</p>
+      <p>Custom terms will merge into the single pytrends query alongside the ticker and auto-selected theme keyword. Max 5 slots total: <code>[ticker, theme_kw, custom_1, custom_2, custom_3]</code>.</p>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>can you also show me the output of how you are generating to these conclusions. i.e. the actual things you are tracking on trends</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Here's the per-keyword breakdown from a live run — all keywords queried in a single pytrends call so they're on the same 0–100 relative scale:</p>
+      <pre><code>Keywords tracked: RKLB | "space stocks" | "satellite stocks"
+Timeframe: last 90 days
+
+RKLB          : ratio 2.0× (recent 7d avg: 58.4 vs prior avg: 29.2)
+"space stocks": ratio 0.38× (recent: 5.4 vs prior: 14.2)
+"sat. stocks" : ratio 0.46× (recent: 6.2 vs prior: 13.5)
+
+Best non-ticker keyword: "satellite stocks" at 0.46×
+→ Sector trend: NOT YET MOVING (below 1.3× threshold)
+→ Ticker trend: SURGE (2.0× ≥ 2.0 threshold)</code></pre>
+      <p>The "All tracked" breakdown will now appear in the scorecard rationale note for the Social/Trend Momentum dimension, so you can see exactly what's driving the score.</p>
+    </div>
+  </div>
+
+  <div class="divider">SESSION 2 — SOCIAL SENTIMENT &amp; STOCKTWITS FAILURE</div>
+
+  <!-- 11 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>i want to fix Reddit though — should i not use Chrome</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>I can try the other data source now — not Google Trends, I forget what else you've coded in.</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>i want to fix Reddit though should i not use Chrome</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>The other source was <strong>StockTwits</strong> — but I ran it live and it's dead now. All tickers return HTTP 403 via a Cloudflare challenge page. StockTwits has blocked programmatic access to their public API as of 2026.</p>
+      <div class="note-box"><strong>StockTwits abandoned.</strong> Do not attempt to revive without a paid API key — Cloudflare will block it regardless of User-Agent.</div>
+      <p>Replacement options:</p>
+      <table>
+        <tr><th>Option</th><th>What it gives</th><th>Friction</th></tr>
+        <tr><td>yfinance news</td><td>Recent headlines, keyword sentiment scoring</td><td>Zero — already installed</td></tr>
+        <tr><td>Reddit PRAW</td><td>Mention count + bullish/bearish ratio from WSB/stocks/investing</td><td>Free Reddit app registration</td></tr>
+        <tr><td>Finviz scraper</td><td>News + analyst ratings</td><td>Fragile, scraping-based</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 12 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>Let's do yfinance but also Reddit. Do I need to do anything for Reddit set up</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Yes, one quick step — it's free but needs an API app:</p>
+      <ol>
+        <li>Go to <strong>reddit.com/prefs/apps</strong> (logged in)</li>
+        <li>Click "create another app" at the bottom</li>
+        <li>Pick <strong>script</strong> type, name it anything, redirect URI = <code>http://localhost</code></li>
+        <li>Hit create — you get a <strong>client ID</strong> (under app name) and <strong>client secret</strong></li>
+      </ol>
+      <p>Add these to Render env vars:</p>
+      <ul>
+        <li><code>REDDIT_CLIENT_ID</code></li>
+        <li><code>REDDIT_CLIENT_SECRET</code></li>
+        <li><code>REDDIT_USER_AGENT</code> — e.g. <code>InvestmentResearch/1.0 by YourRedditUsername</code></li>
+      </ul>
+      <p>Reddit gracefully degrades to N/A if credentials are absent — won't crash anything, and yfinance news is already fully live.</p>
+    </div>
+  </div>
+
+  <div class="divider">REDDIT APP SETUP — CAPTCHA SAGA</div>
+
+  <!-- 13 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>[screenshot: Reddit create application page, "web app" selected]<br/>What do I select</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Select <strong>script</strong> — right type for a personal server-side tool. Redirect URI: <code>http://localhost</code>. Leave description and about URL blank, they're optional.</p>
+    </div>
+  </div>
+
+  <!-- 14 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>I can't seem to get through the reCAPTCHA it just keeps jumping back</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Try: different browser (Chrome tends to work), disable ad blockers/privacy extensions, incognito mode. Reddit's CAPTCHA is notoriously broken for new app creation.</p>
+    </div>
+  </div>
+
+  <!-- 15 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>Still doesn't work just pops up with that T&amp;C disclaimer</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>That disclaimer is informational only — the real issue is the CAPTCHA checkbox not registering. Try clicking directly on the white checkbox square (not the text), wait for green tick, then immediately click "create app".</p>
+      <p>If still stuck, most reliable fixes: <strong>VPN</strong> (Reddit flags certain IP ranges) or <strong>try on mobile data</strong> (different IP + device fingerprint, usually gets through instantly).</p>
+    </div>
+  </div>
+
+  <!-- 16 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>nup still doesn't work</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Skip it for now — yfinance news is live and working. Reddit will slot in when you get through. Try <strong>Firefox</strong> (private window) or your phone on mobile data when you want to retry.</p>
+    </div>
+  </div>
+
+  <!-- 17 -->
+  <div class="msg">
+    <div class="msg-header user">Justin</div>
+    <div class="bubble user">
+      <p>i want to fix Reddit though should i not use Chrome</p>
+    </div>
+  </div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p>Try <strong>Firefox</strong> private window — least friction with Reddit's reCAPTCHA. Nuclear option: phone browser on mobile data — completely different IP and device fingerprint, usually gets through instantly.</p>
+    </div>
+  </div>
+
+  <div class="divider">WHAT WAS BUILT — SUMMARY</div>
+
+  <div class="msg">
+    <div class="msg-header claude">Claude</div>
+    <div class="bubble claude">
+      <p><strong>Files created / modified across both sessions:</strong></p>
+      <table>
+        <tr><th>File</th><th>What changed</th></tr>
+        <tr><td><code>speculative_engine.py</code></td><td>Full 12-signal engine: scoring functions, Google Trends (pytrends), yfinance news sentiment, Reddit PRAW, EV/Rev scenario model, Excel workbook builder</td></tr>
+        <tr><td><code>speculative_report_bridge.py</code></td><td>Maps engine dict → HTML template variables</td></tr>
+        <tr><td><code>Speculative_Report_Template.html</code></td><td>Dark orange/amber HTML report template</td></tr>
+        <tr><td><code>server.py</code></td><td>Added <code>/generate-speculative</code> and <code>/download/speculative-model/&lt;ticker&gt;</code> routes</td></tr>
+        <tr><td><code>static/index.html</code></td><td>Added full MUFF form section with custom Trends terms input</td></tr>
+        <tr><td><code>requirements.txt</code></td><td>Added <code>pytrends</code>, <code>praw</code></td></tr>
+        <tr><td><code>handoff/MUFF_DESIGN_NOTES.md</code></td><td>Full design decisions + technical gotchas reference doc</td></tr>
+      </table>
+
+      <p style="margin-top:14px"><strong>Key technical decisions made:</strong></p>
+      <ul>
+        <li>EV/Revenue re-rating (not DCF) for speculative scenario model</li>
+        <li>Single pytrends query for all keywords (ticker + theme + custom) so they share the same 0–100 relative scale</li>
+        <li>2-second sleep before every pytrends call (Google rate limiting)</li>
+        <li>StockTwits abandoned — replaced with yfinance news keyword scoring + Reddit PRAW</li>
+        <li>yfinance news schema changed in ~v0.2.x — now <code>item['content']['title']</code>, handled transparently</li>
+        <li>Reddit credentials gracefully degrade to N/A — no crash, zero penalty</li>
+        <li>Hot narrative themes (AI, Defence, GLP-1, Nuclear, Crypto, Biotech) auto-upgrade to HIGH tier at MOD+ strength</li>
+        <li>Social/Trend dimension: 4 sub-signals, HIGH requires ≥3 bullish votes (was 3 signals, ≥2 votes)</li>
+      </ul>
+
+      <p style="margin-top:14px"><strong>Pending:</strong></p>
+      <ul>
+        <li>Reddit credentials — get through reCAPTCHA (try Firefox private window or mobile)</li>
+        <li>Render redeploy triggered automatically by git push (already done)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="height:40px"></div>
+
+</div>
+
+<div style="max-width:820px;margin:0 auto;padding:16px 20px;font-family:var(--mono);font-size:10px;color:#444;text-align:center">
+  MUFF Build Session · Investment Utopia · 2026-05-16–17 · Claude Sonnet 4.6
+</div>
+
+</body>
+</html>
