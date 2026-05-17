@@ -353,38 +353,46 @@
   <div id="_toast" class="toast"></div>
 
 <script>
-// ── Coverage data (sorted by score desc) ──────────────────────────────────────
-// price = last known price from model run; pt = DCF base price target (null if not computable)
-// mcap = market cap $B; upside computed in JS as (pt-price)/price
-// Last updated: 2026-05-15. Tickers marked * pending re-run (FMP daily limit reached).
-// 14 tickers re-run today with updated continuous-scoring engine (fmp_3statementv6.py v6).
-// 6 tickers (V, TSM, WMT, WFC, SOFI, UAL) carry prior-run data. ADBE/COST/JNJ/JPM/BAC re-run 2026-05-18 (SBC display + DCF-contamination fix). NFLX/NVDA/META re-run 2026-05-17. MSFT/TSLA/AAPL/AMD/V pending.
-const D = [
-  {t:"NFLX",n:"Netflix Inc.",            ex:"NASDAQ",score:9.4, sn:"auto-score",  price:87,  pt:170,  mcap:38,    gg:0.7081, em:0.9516, roic:0.359,cagr:0.126,fcfni:0.86, de:0.48, pe:36.1,pe5:40.2,pf:41.9,pf5:52.3, url:"/reports/NFLX_report.html",note:"EM primary (cagr >= 10%). GG $149 available as secondary. Re-run 2026-05-17 (DCF-contamination fix)."},
-  {t:"NVDA",n:"NVIDIA Corporation",      ex:"NASDAQ",score:9.2, sn:"auto-score",  price:225, pt:264,  mcap:5475,  gg:-0.2348,em:0.1715, roic:0.713,cagr:1.000,fcfni:0.81, de:0.06, pe:37.7,pe5:60.2,pf:46.9,pf5:70.4, url:"/reports/NVDA_report.html",note:"EM primary (high growth). GG $172 available as secondary. Re-run 2026-05-17 (exec-risk fix; op-margin σ replaces revenue-growth σ for CAGR>40% companies; PEG~0.38 -> +3pt abs-PE boost)."},
-  {t:"ADBE",n:"Adobe Inc.",              ex:"NASDAQ",score:9.2, sn:"auto-score",  price:248, pt:435,  mcap:99.5,  gg:0.4710, em:0.7566, roic:0.573,cagr:0.105,fcfni:1.38, de:0.64, pe:19.1,pe5:41.4,pf:13.8,pf5:29.6, url:"/reports/ADBE_report.html",note:"EM primary (cagr >= 10%). GG $364 secondary. Re-run 2026-05-18 (SBC $1.9B = 19.7% of FCF — adj. P/FCF ~16x vs 13.8x reported; PEG~1.8 +0.5pt boost)."},
-  {t:"JNJ", n:"Johnson & Johnson",       ex:"NYSE",  score:8.3, sn:"auto-score",  price:227, pt:388,  mcap:545,   gg:0.7129, em:0.3260, roic:0.192,cagr:0.056,fcfni:0.73, de:1.17, pe:18.8,pe5:20.4,pf:25.6,pf5:22.9, url:"/reports/JNJ_report.html",note:"Re-run 2026-05-18. SBC $1.4B = 6.9% of FCF — adj. P/FCF ~27.5x vs 25.6x reported."},
-  {t:"COST",n:"Costco Wholesale Corp.",  ex:"NASDAQ",score:9.8, sn:"auto-score",  price:1049,pt:321,  mcap:463,   gg:-0.6941,em:-0.4780,roic:0.375,cagr:0.066,fcfni:0.97, de:0.43, pe:51.7,pe5:44.9,pf:53.4,pf5:50.8, url:"/reports/COST_report.html",note:"Qual inputs (BC=HIGH, LTP=MOD) -> adj. score 9.5. Re-run 2026-05-18: DCF-contamination fix removed circular P/E penalty (+2.2 pts). SBC $0.9B = 11% of FCF."},
-  {t:"META",n:"Meta Platforms Inc.",     ex:"NASDAQ",score:7.6, sn:"auto-score",  price:614, pt:1211, mcap:1559,  gg:-0.1823,em:0.9724, roic:0.244,cagr:0.199,fcfni:0.76, de:0.56, pe:27.5,pe5:22.5,pf:36.1,pf5:25.1, url:"/reports/META_report.html",note:"EM primary (high growth). GG $502 available as secondary. Re-run 2026-05-17 (PEG~1.38 -> +1.5pt abs-PE boost)."},
-  {t:"V",   n:"Visa Inc.",               ex:"NYSE",  score:7.0, sn:"auto-score*", price:315, pt:273,  mcap:608,   gg:0.0359, em:0.1726, roic:0.463,cagr:0.109,fcfni:1.08, de:1.00, pe:null,pe5:null,pf:null,pf5:null,   url:"/reports/V_report.html",note:"*Pending re-run (2026-04-19 data)."},
-  {t:"AAPL",n:"Apple Inc.",              ex:"NASDAQ",score:6.9, sn:"auto-score",  price:298, pt:150,  mcap:4379.9,gg:-0.4961,em:-0.5543,roic:0.823,cagr:0.018,fcfni:0.88, de:0.68, pe:34.1,pe5:29.9,pf:38.7,pf5:29.2, url:"/reports/AAPL_report.html",note:"Qual inputs (BC+LTP) not included this run. Previous adj. score: 8.5."},
-  {t:"MSFT",n:"Microsoft Corporation",   ex:"NASDAQ",score:6.8, sn:"auto-score",  price:411, pt:429,  mcap:3054,  gg:-0.3770,em:0.6290, roic:0.297,cagr:0.124,fcfni:0.70, de:0.30, pe:36.3,pe5:33.9,pf:51.6,pf5:41.2, url:"/reports/MSFT_report.html",note:"EM primary (cagr >= 10%). Re-run 2026-05-16 on updated engine."},
-  {t:"CSCO",n:"Cisco Systems Inc.",      ex:"NASDAQ",score:6.7, sn:"auto-score",  price:116, pt:59,   mcap:456.3, gg:-0.4863,em:-0.5885,roic:0.162,cagr:0.032,fcfni:1.31, de:1.83, pe:26.8,pe5:20.1,pf:20.6,pf5:16.3, url:"/reports/CSCO_report.html"},
-  {t:"ABBV",n:"AbbVie Inc.",             ex:"NYSE",  score:6.0, sn:"auto-score",  price:211, pt:238,  mcap:372.5, gg:0.1305, em:-0.3924,roic:0.215,cagr:0.018,fcfni:4.22, de:3.88, pe:96.3,pe5:54.2,pf:22.8,pf5:15.1, url:"/reports/ABBV_report.html",note:"FCF/NI >100% reflects amortisation of Allergan intangibles. Soft cap 10.9 applied (non-binding at 0-10 scale)."},
-  {t:"TSM", n:"Taiwan Semiconductor",    ex:"NYSE",  score:6.0, sn:"auto-score*", price:363, pt:null, mcap:1885,  gg:null,   em:null,   roic:0.447,cagr:0.193,fcfni:0.63, de:0.00, pe:28.5,pe5:23.6,pf:45.0,pf5:45.9, url:"/reports/TSM_report.html",note:"*Pending re-run (2026-04-19 data). DCF prices in TWD — FX conversion not applied."},
-  {t:"KO",  n:"The Coca-Cola Company",   ex:"NYSE",  score:6.0, sn:"auto-score",  price:80,  pt:65,   mcap:346.1, gg:-0.1927,em:-0.4775,roic:0.168,cagr:0.037,fcfni:0.40, de:2.43, pe:23.0,pe5:25.4,pf:56.8,pf5:38.2, url:"/reports/KO_report.html"},
-  {t:"AMD", n:"Advanced Micro Devices",  ex:"NASDAQ",score:5.5, sn:"auto-score",  price:450, pt:267,  mcap:733.3, gg:-0.6478,em:-0.4062,roic:0.059,cagr:0.136,fcfni:1.55, de:0.53, pe:80.5,pe5:123.1,pf:51.8,pf5:87.2,url:"/reports/AMD_report.html"},
-  {t:"WMT", n:"Walmart Inc.",            ex:"NYSE",  score:4.6, sn:"auto-score*", price:128, pt:29,   mcap:1016,  gg:-0.8936,em:-0.1803,roic:0.166,cagr:0.053,fcfni:0.68, de:1.00, pe:43.4,pe5:35.0,pf:63.7,pf5:44.7, url:"/reports/WMT_report.html",note:"*Pending re-run (2026-04-28 data)."},
-  {t:"WFC", n:"Wells Fargo & Co.",       ex:"NYSE",  score:4.4, sn:"bank adj.*",  price:81,  pt:13,   mcap:270,   gg:-0.8350,em:-0.3510,roic:0.049,cagr:0.140,fcfni:0.89, de:14.5, pe:13.9,pe5:11.2,pf:null,pf5:29.9,  url:"/reports/WFC_report.html",note:"*Pending re-run. Bank: D/EBITDA exempt. Equity/Assets 8.5% (CET1 proxy)."},
-  {t:"BAC", n:"Bank of America Corp.",   ex:"NYSE",  score:4.5, sn:"bank adj.",   price:50,  pt:65,   mcap:353.2, gg:-0.2673,em:0.3043, roic:0.070,cagr:0.185,fcfni:0.41, de:9.15, pe:13.3,pe5:11.5,pf:32.1,pf5:19.1, url:"/reports/BAC_report.html",note:"Bank: cap=6.8 applied; adj. score 4.0. Re-run 2026-05-18. GG price unreliable for deposit-funded structure."},
-  {t:"JPM", n:"JPMorgan Chase & Co.",    ex:"NYSE",  score:4.8, sn:"bank adj.",   price:298, pt:314,  mcap:797.9, gg:-0.2437,em:0.0537, roic:0.059,cagr:0.221,fcfni:1.77, de:11.57,pe:15.8,pe5:11.6,pf:8.9, pf5:14.3, url:"/reports/JPM_report.html",note:"Bank: cap=5.5 applied; adj. score 5.1 (BC=MOD, LTP=MOD). Re-run 2026-05-18."},
-  {t:"F",   n:"Ford Motor Company",      ex:"NYSE",  score:4.2, sn:"auto-score",  price:14,  pt:null, mcap:56.6,  gg:null,   em:-1.0888,roic:0.010,cagr:0.058,fcfni:-1.52,de:19.33,pe:null,pe5:7.5,pf:4.2, pf5:6.5,  url:"/reports/F_report.html",note:"GG and EM both negative — DCF inoperative at current leverage. Soft cap 4.6/10 applied."},
-  {t:"C",   n:"Citigroup Inc.",          ex:"NYSE",  score:4.1, sn:"bank adj.",   price:125, pt:null, mcap:214.1, gg:null,   em:-1.7177,roic:0.025,cagr:0.189,fcfni:null, de:30.99,pe:14.9,pe5:9.5, pf:null,pf5:3.7,  url:"/reports/C_report.html",note:"Bank: EM negative (bank structure). Equity/Assets 8.0%. D/EBITDA non-comparable."},
-  {t:"SOFI",n:"SoFi Technologies Inc.",  ex:"NASDAQ",score:4.1, sn:"bank adj.*",  price:19,  pt:41,   mcap:25,    gg:0.3242, em:1.2831, roic:0.209,cagr:0.393,fcfni:8.28, de:0.00, pe:62.6,pe5:47.5,pf:null,pf5:null,  url:"/reports/SOFI_report.html",note:"*Pending re-run (2026-04-19 data). Bank: Equity/Assets 20.7%. FCF/NI non-standard."},
-  {t:"TSLA",n:"Tesla Inc.",              ex:"NASDAQ",score:3.6, sn:"auto-score",  price:401, pt:98,   mcap:1289,  gg:-0.9656,em:-0.6791,roic:0.043,cagr:0.017,fcfni:1.64, de:0.00, pe:127.1,pe5:167.1,pf:233.2,pf5:225.0,url:"/reports/TSLA_report.html",note:"Rev CAGR 1.7% — model sees growth stall vs current 127x PE. DCF ~$98 target."},
-  {t:"INTC",n:"Intel Corporation",       ex:"NASDAQ",score:2.1, sn:"auto-score",  price:116, pt:11,   mcap:582.7, gg:null,   em:-0.9052,roic:0.000,cagr:-0.057,fcfni:18.54,de:3.25, pe:null,pe5:49.6,pf:null,pf5:null,   url:"/reports/INTC_report.html",note:"GG disabled (negative FCF/EBIT). ROIC near-zero; capex cycle ongoing. Soft cap 9.9/10 applied."},
-  {t:"UAL", n:"United Airlines Holdings",ex:"NASDAQ",score:null,sn:null,pending:true,price:null,pt:null,mcap:null,gg:null,em:null,roic:null,cagr:null,fcfni:null,de:null,pe:null,pe5:null,pf:null,pf5:null,url:"/reports/UAL_report.html",note:"UAL scorecard not available — report shows financial data only."},
-];
+// ── Per-ticker metadata (company name, exchange, editorial notes, score label) ─
+// _pt/_gg/_em: fallback DCF values used when CSV has blanks (e.g. AAPL, COST, JNJ, V)
+// _dcf_null:true → force DCF fields to null (TSM prices are in TWD, not USD)
+// pending:true → ticker not yet in CSV; shown in Pending section with no score
+const META_MAP = {
+  "NFLX": {n:"Netflix Inc.",              ex:"NASDAQ", sn:"auto-score",  note:"EM primary (cagr ≥10%). GG available as secondary. Re-run 2026-05-17 (DCF-contamination fix)."},
+  "NVDA": {n:"NVIDIA Corporation",        ex:"NASDAQ", sn:"auto-score",  note:"EM primary (high growth). Re-run 2026-05-17 (exec-risk fix; PEG~0.38 → +3pt abs-PE boost)."},
+  "ADBE": {n:"Adobe Inc.",                ex:"NASDAQ", sn:"auto-score",  note:"EM primary (cagr ≥10%). Re-run 2026-05-18. SBC $1.9B = 19.7% of FCF — adj. P/FCF ~16x vs 13.8x reported."},
+  "JNJ":  {n:"Johnson & Johnson",         ex:"NYSE",   sn:"auto-score",  note:"Re-run 2026-05-18. SBC $1.4B = 6.9% of FCF.", _pt:388, _gg:0.7129, _em:0.3260},
+  "HCA":  {n:"HCA Healthcare",            ex:"NYSE",   sn:"auto-score"},
+  "TGT":  {n:"Target Corporation",        ex:"NYSE",   sn:"auto-score"},
+  "COST": {n:"Costco Wholesale Corp.",    ex:"NASDAQ", sn:"auto-score",  note:"Qual inputs (BC=HIGH, LTP=MOD). Re-run 2026-05-18: DCF-contamination fix (+2.2 pts). SBC $0.9B = 11% of FCF.", _pt:321, _gg:-0.6941, _em:-0.4780},
+  "META": {n:"Meta Platforms Inc.",       ex:"NASDAQ", sn:"auto-score",  note:"EM primary (high growth). Re-run 2026-05-17 (PEG~1.38 → +1.5pt abs-PE boost)."},
+  "PEP":  {n:"PepsiCo Inc.",              ex:"NASDAQ", sn:"auto-score"},
+  "V":    {n:"Visa Inc.",                 ex:"NYSE",   sn:"auto-score*", note:"*Pending re-run (2026-04-19 data).", _pt:273, _gg:0.0359, _em:0.1726},
+  "NKE":  {n:"Nike Inc.",                 ex:"NYSE",   sn:"auto-score"},
+  "AAPL": {n:"Apple Inc.",                ex:"NASDAQ", sn:"auto-score",  note:"Qual inputs (BC+LTP) not included this run. Previous adj. score: 8.5.", _pt:150, _gg:-0.4961, _em:-0.5543},
+  "MSFT": {n:"Microsoft Corporation",     ex:"NASDAQ", sn:"auto-score",  note:"EM primary (cagr ≥10%). Re-run 2026-05-16 on updated engine."},
+  "CSCO": {n:"Cisco Systems Inc.",        ex:"NASDAQ", sn:"auto-score"},
+  "ABBV": {n:"AbbVie Inc.",               ex:"NYSE",   sn:"auto-score",  note:"FCF/NI >100% reflects amortisation of Allergan intangibles. Soft cap 10.9 applied (non-binding at 0–10 scale)."},
+  "TSM":  {n:"Taiwan Semiconductor",      ex:"NYSE",   sn:"auto-score*", note:"*Pending re-run (2026-04-19 data). DCF prices in TWD — FX conversion not applied.", _dcf_null:true},
+  "FDX":  {n:"FedEx Corporation",         ex:"NYSE",   sn:"auto-score"},
+  "KO":   {n:"The Coca-Cola Company",     ex:"NYSE",   sn:"auto-score"},
+  "AMD":  {n:"Advanced Micro Devices",    ex:"NASDAQ", sn:"auto-score"},
+  "CVX":  {n:"Chevron Corporation",       ex:"NYSE",   sn:"auto-score"},
+  "DIS":  {n:"The Walt Disney Company",   ex:"NYSE",   sn:"auto-score"},
+  "WMT":  {n:"Walmart Inc.",              ex:"NYSE",   sn:"auto-score*", note:"*Pending re-run (2026-04-28 data)."},
+  "SNAP": {n:"Snap Inc.",                 ex:"NYSE",   sn:"auto-score"},
+  "WFC":  {n:"Wells Fargo & Co.",         ex:"NYSE",   sn:"bank adj.*",  pending:true, note:"*Pending re-run. Bank: D/EBITDA exempt. Equity/Assets 8.5% (CET1 proxy).", _pt:13, _gg:-0.8350, _em:-0.3510},
+  "BAC":  {n:"Bank of America Corp.",     ex:"NYSE",   sn:"bank adj.",   note:"Bank: cap=6.8 applied; adj. score 4.0. Re-run 2026-05-18. GG price unreliable for deposit-funded structure."},
+  "JPM":  {n:"JPMorgan Chase & Co.",      ex:"NYSE",   sn:"bank adj.",   note:"Bank: cap=5.5 applied; adj. score 5.1 (BC=MOD, LTP=MOD). Re-run 2026-05-18."},
+  "F":    {n:"Ford Motor Company",        ex:"NYSE",   sn:"auto-score",  note:"GG and EM both negative — DCF inoperative at current leverage. Soft cap 4.6/10 applied."},
+  "C":    {n:"Citigroup Inc.",            ex:"NYSE",   sn:"bank adj.",   note:"Bank: EM negative (bank structure). Equity/Assets 8.0%. D/EBITDA non-comparable."},
+  "SOFI": {n:"SoFi Technologies Inc.",    ex:"NASDAQ", sn:"bank adj.*",  note:"*Pending re-run (2026-04-19 data). Bank: Equity/Assets 20.7%. FCF/NI non-standard."},
+  "TSLA": {n:"Tesla Inc.",                ex:"NASDAQ", sn:"auto-score",  note:"Rev CAGR 1.7% — model sees growth stall vs current 127x PE. DCF ~$98 target."},
+  "INTC": {n:"Intel Corporation",         ex:"NASDAQ", sn:"auto-score",  note:"GG disabled (negative FCF/EBIT). ROIC near-zero; capex cycle ongoing. Soft cap 9.9/10 applied."},
+  "UAL":  {n:"United Airlines Holdings",  ex:"NASDAQ", sn:null, pending:true, note:"UAL scorecard not available — report shows financial data only."},
+};
+
+let D = [];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const p = (v, d=1) => v == null ? '—' : ((v >= 0 ? '+' : '') + (v*100).toFixed(d) + '%');
@@ -853,7 +861,8 @@ function _applyFilter(search) {
 }
 
 // ── Discovery (original — adapted for card layout) ────────────────────────────
-const CORE_SET = new Set(["NVDA","MSFT","AAPL","ADBE","COST","AMD","JNJ","META","TSM","V","KO","NFLX","ABBV","CSCO","WMT","F","WFC","INTC","TSLA","SOFI","JPM","C","BAC","UAL"]);
+// Auto-built from META_MAP keys — keeps Discovery section clear of main coverage tickers
+const CORE_SET = new Set(Object.keys(META_MAP));
 
 async function loadDiscovery() {
   try {
@@ -911,10 +920,60 @@ async function loadLive() {
   } catch(e) { document.getElementById('sLive').textContent = '0'; }
 }
 
-render();
-loadQualOverrides();
-loadDiscovery();
-loadLive();
+async function init() {
+  try {
+    const rows = await (await fetch('/api/scores')).json();
+    D = rows.map(r => {
+      const meta   = META_MAP[r.t] || {};
+      const n      = meta.n  ?? r.t;
+      const ex     = meta.ex ?? '';
+      const sn     = meta.sn ?? (r.score != null ? 'auto-score' : null);
+      const dcfNull = meta._dcf_null ?? false;
+      const gg     = dcfNull ? null : (r.gg   ?? meta._gg  ?? null);
+      const em     = dcfNull ? null : (r.em   ?? meta._em  ?? null);
+      let pt = null;
+      if (!dcfNull) {
+        if (r.gg_px != null || r.em_px != null) {
+          const useEM = r.cagr != null && r.cagr >= 0.10;
+          const rawPt = useEM ? (r.em_px ?? r.gg_px) : (r.gg_px ?? r.em_px);
+          pt = (rawPt != null && rawPt > 0) ? rawPt : null;
+        } else {
+          pt = meta._pt ?? null;
+        }
+      }
+      return {
+        t: r.t, n, ex, score: r.score, sn,
+        price: r.price, pt, mcap: r.mcap,
+        gg, em, roic: r.roic, cagr: r.cagr,
+        pe: r.pe, pe5: r.pe5, pf: r.pf, pf5: r.pf5,
+        de: r.de, fcfni: r.fcfni,
+        url: `/reports/${r.t}_report.html`,
+        note: meta.note ?? null,
+        pending: meta.pending ?? false,
+      };
+    });
+    // Add pending tickers from META_MAP not yet in CSV (e.g. WFC, UAL)
+    Object.entries(META_MAP).forEach(([t, meta]) => {
+      if (meta.pending && !D.find(c => c.t === t)) {
+        D.push({
+          t, n: meta.n ?? t, ex: meta.ex ?? '', score: null,
+          sn: meta.sn, pending: true,
+          price: null, pt: null, mcap: null, gg: null, em: null,
+          roic: null, cagr: null, pe: null, pe5: null,
+          pf: null, pf5: null, de: null, fcfni: null,
+          url: `/reports/${t}_report.html`, note: meta.note ?? null,
+        });
+      }
+    });
+  } catch(e) {
+    console.warn('Failed to load /api/scores:', e);
+  }
+  render();
+  loadQualOverrides();
+  loadDiscovery();
+  loadLive();
+}
+init();
 </script>
 <script src="/js/app.js"></script>
 </body>

@@ -1614,6 +1614,52 @@ def api_heatmap_data():
     return jsonify({"tickers": tickers})
 
 
+@app.route("/api/scores")
+def api_scores():
+    import csv as _csv, io as _io
+    csv_path = os.path.join(os.path.dirname(__file__), "outputs.csv")
+    if not os.path.exists(csv_path):
+        return jsonify([])
+
+    with open(csv_path, "r", encoding="utf-8") as f:
+        content = _schema.migrate(f.read())
+
+    def _f(v):
+        try:
+            return float(v) if v not in ("", None) else None
+        except Exception:
+            return None
+
+    rows = []
+    for row in _csv.DictReader(_io.StringIO(content)):
+        t = row.get("Ticker", "").strip().upper()
+        if not t:
+            continue
+        rows.append({
+            "t":         t,
+            "score":     _f(row.get("Auto_Score")),
+            "floor_cap": _f(row.get("Floor_Cap")),
+            "price":     _f(row.get("Price")),
+            "mcap":      _f(row.get("MktCap_B")),
+            "gg":        _f(row.get("GG_Upside")),
+            "em":        _f(row.get("EM_Upside")),
+            "gg_px":     _f(row.get("GG_Price")),
+            "em_px":     _f(row.get("EM_Price")),
+            "roic":      _f(row.get("ROIC")),
+            "cagr":      _f(row.get("Rev_CAGR")),
+            "pe":        _f(row.get("PE_Current")),
+            "pe5":       _f(row.get("PE_5yr")),
+            "pf":        _f(row.get("PFCF_Current")),
+            "pf5":       _f(row.get("PFCF_5yr")),
+            "de":        _f(row.get("D_EBITDA")),
+            "fcfni":     _f(row.get("FCF_NI")),
+            "date":      row.get("Date", ""),
+        })
+
+    rows.sort(key=lambda r: (r["score"] is None, -(r["score"] or 0)))
+    return jsonify(rows)
+
+
 # ── Dev entry point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
