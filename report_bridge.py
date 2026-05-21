@@ -11,7 +11,220 @@ import re
 import os
 import datetime
 
+import requests as _req
+
 from data_validation import validate_fmp_data, persist_anomalies
+
+
+# ── Historical price fetch (for the 3-year price chart) ──────────────────────
+def _fetch_price_history(ticker, years=3):
+    """Fetch ~`years` of split- and dividend-adjusted daily closes from FMP.
+
+    Uses /stable/historical-price-eod/full which returns `adjClose` — the
+    correct field for a charted price path through corporate actions (NVDA's
+    10:1 split would otherwise show as a $700→$130 cliff). Falls back to
+    `close` only if `adjClose` is absent (legacy responses).
+
+    Returns (labels, values, stats) where:
+      labels = ISO date strings (oldest → newest)
+      values = adjusted closes
+      stats  = {first, last, high, low, return_pct, high_date, low_date}
+              — used to populate hero-card range / return indicators.
+
+    On any failure returns ([], [], {}) and the chart template renders its
+    'no data' placeholder so report generation continues uninterrupted.
+    """
+    try:
+        from fmp_3statementv6 import API_KEY
+    except Exception:
+        return [], [], {}
+    if not API_KEY:
+        return [], [], {}
+    try:
+        end_date   = datetime.date.today()
+        start_date = end_date - datetime.timedelta(days=int(years * 365.25))
+        url = (f"https://financialmodelingprep.com/stable/historical-price-eod/full"
+               f"?symbol={ticker}"
+               f"&from={start_date.isoformat()}&to={end_date.isoformat()}"
+               f"&apikey={API_KEY}")
+        r = _req.get(url, timeout=10)
+        if r.status_code != 200:
+            return [], [], {}
+        data = r.json()
+        if not isinstance(data, list) or not data:
+            return [], [], {}
+
+        # Newest-first → chronological
+        data = list(reversed(data))
+
+        # Build the full series first (we need it for accurate 3yr range stats
+        # — sampling first would mis-report the high/low).
+        full_labels, full_values = [], []
+        for d in data:
+            try:
+                v = d.get("adjClose")
+                if v is None:
+                    v = d.get("price") or d.get("close")
+                v = float(v) if v is not None else 0.0
+            except Exception:
+                continue
+            if v <= 0:
+                continue
+            full_labels.append(str(d.get("date") or "")[:10])
+            full_values.append(round(v, 4))
+        if len(full_values) < 2:
+            return [], [], {}
+
+        # Stats from full series (not sampled)
+        first_val, last_val = full_values[0], full_values[-1]
+        high_idx = max(range(len(full_values)), key=lambda i: full_values[i])
+        low_idx  = min(range(len(full_values)), key=lambda i: full_values[i])
+        stats = {
+            "first":      first_val,
+            "last":       last_val,
+            "high":       full_values[high_idx],
+            "low":        full_values[low_idx],
+            "high_date":  full_labels[high_idx],
+            "low_date":   full_labels[low_idx],
+            "return_pct": (last_val / first_val - 1) if first_val > 0 else None,
+            "first_date": full_labels[0],
+            "last_date":  full_labels[-1],
+            "n_points":   len(full_values),
+        }
+
+        # Sample down to ~120 points for chart payload size
+        target = 120
+        step   = max(1, len(full_values) // target)
+        sampled_labels = full_labels[::step]
+        sampled_values = full_values[::step]
+        # Always include the latest observation
+        if sampled_labels and sampled_labels[-1] != full_labels[-1]:
+            sampled_labels.append(full_labels[-1])
+            sampled_values.append(full_values[-1])
+
+        return sampled_labels, [round(v, 2) for v in sampled_values], stats
+    except Exception:
+        return [], [], {}
+
+
+# ── Analyst data fetch (consensus PT, grades, recent PT changes) ─────────────
+def _fetch_analyst_data(ticker, current_price=None, limit_news=10):
+    """Fetch analyst consensus + grades + recent PT-change news via FMP.
+
+    yfinance was used previously but is unreliable in production (Yahoo
+    rate-limits anonymous batch traffic and silently returns empty info).
+    FMP's analyst endpoints are stable and use the same key we already pay for.
+
+    Returns a dict (empty on total failure):
+      consensus_pt, consensus_pt_high, consensus_pt_low, consensus_pt_med
+      grades_buy, grades_hold, grades_sell, grades_total, grades_label
+      news_rows: list of {date, firm, analyst, pt, title}
+    """
+    try:
+        from fmp_3statementv6 import API_KEY
+    except Exception:
+        return {}
+    if not API_KEY:
+        return {}
+    result = {}
+
+    # 1. Price target consensus (mean/high/low/median)
+    try:
+        url = (f"https://financialmodelingprep.com/stable/price-target-consensus"
+               f"?symbol={ticker}&apikey={API_KEY}")
+        r = _req.get(url, timeout=10)
+        if r.status_code == 200:
+            d = r.json()
+            if isinstance(d, list) and d:
+                row = d[0]
+                def _flt(v):
+                    try: return float(v) if v is not None else None
+                    except Exception: return None
+                result["consensus_pt"]      = _flt(row.get("targetConsensus"))
+                result["consensus_pt_high"] = _flt(row.get("targetHigh"))
+                result["consensus_pt_low"]  = _flt(row.get("targetLow"))
+                result["consensus_pt_med"]  = _flt(row.get("targetMedian"))
+    except Exception:
+        pass
+
+    # 2. Grades consensus (Strong Buy / Buy / Hold / Sell / Strong Sell counts)
+    try:
+        url = (f"https://financialmodelingprep.com/stable/grades-consensus"
+               f"?symbol={ticker}&apikey={API_KEY}")
+        r = _req.get(url, timeout=10)
+        if r.status_code == 200:
+            d = r.json()
+            if isinstance(d, list) and d:
+                row = d[0]
+                def _i(k):
+                    try: return int(row.get(k) or 0)
+                    except Exception: return 0
+                sb, b, h, s, ss = _i("strongBuy"), _i("buy"), _i("hold"), _i("sell"), _i("strongSell")
+                total = sb + b + h + s + ss
+                if total > 0:
+                    result["grades_buy"]   = sb + b
+                    result["grades_hold"]  = h
+                    result["grades_sell"]  = s + ss
+                    result["grades_total"] = total
+                    result["grades_label"] = str(row.get("consensus") or "")
+    except Exception:
+        pass
+
+    # 3. Recent grade changes per firm — /stable/grades is on the free tier
+    # (price-target-news with snippets and per-firm PTs requires paid tier).
+    # Returns firm + previousGrade + newGrade + action + date (no PT per row).
+    try:
+        url = (f"https://financialmodelingprep.com/stable/grades"
+               f"?symbol={ticker}&apikey={API_KEY}")
+        r = _req.get(url, timeout=10)
+        if r.status_code == 200:
+            d = r.json()
+            if isinstance(d, list):
+                rows = []
+                # Already date-desc per FMP; take first N
+                for row in d[:limit_news]:
+                    rows.append({
+                        "date":           str(row.get("date", ""))[:10],
+                        "firm":           str(row.get("gradingCompany") or "—"),
+                        "previous_grade": str(row.get("previousGrade") or ""),
+                        "new_grade":      str(row.get("newGrade") or ""),
+                        "action":         str(row.get("action") or ""),
+                    })
+                result["grade_rows"] = rows
+    except Exception:
+        pass
+
+    # 4. PT revision momentum — average PT changes over 30d / 90d / 12mo / all-time.
+    # Free-tier substitute for per-firm PTs: surfaces direction & magnitude of
+    # sell-side revisions across the whole street.
+    try:
+        url = (f"https://financialmodelingprep.com/stable/price-target-summary"
+               f"?symbol={ticker}&apikey={API_KEY}")
+        r = _req.get(url, timeout=10)
+        if r.status_code == 200:
+            d = r.json()
+            if isinstance(d, list) and d:
+                row = d[0]
+                def _f(k):
+                    try: return float(row.get(k) or 0) or None
+                    except Exception: return None
+                def _ic(k):
+                    try: return int(row.get(k) or 0)
+                    except Exception: return 0
+                result["pt_summary"] = {
+                    "pt_30d":     _f("lastMonthAvgPriceTarget"),
+                    "pt_90d":     _f("lastQuarterAvgPriceTarget"),
+                    "pt_12mo":    _f("lastYearAvgPriceTarget"),
+                    "pt_alltime": _f("allTimeAvgPriceTarget"),
+                    "n_30d":      _ic("lastMonthCount"),
+                    "n_90d":      _ic("lastQuarterCount"),
+                    "n_12mo":     _ic("lastYearCount"),
+                    "n_alltime":  _ic("allTimeCount"),
+                }
+    except Exception:
+        pass
+
+    return result
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "Report_Template.html")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "static", "data")
@@ -1557,6 +1770,24 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     else:
         _scorecard_rescale_note = ""
 
+    # ── 3-year price history (for chart + hero stats) ────────────────────────
+    _px_labels, _px_values, _px_stats = _fetch_price_history(ticker, years=3)
+    if _px_values:
+        _px_labels_js = "[" + ", ".join(f'"{l}"' for l in _px_labels) + "]"
+        _px_data_js   = "[" + ", ".join(f"{v}" for v in _px_values) + "]"
+    else:
+        _px_labels_js = "[]"
+        _px_data_js   = "[0]"   # signal for template's 'no data' placeholder
+
+    # Hero-card 3yr return + range strings (graceful fallback to blank)
+    if _px_stats and _px_stats.get("return_pct") is not None:
+        _ret = _px_stats["return_pct"]
+        _3yr_return_str = f"3yr {_ret*100:+.0f}%"
+        _3yr_range_str  = f"3yr range ${_px_stats['low']:.0f}–${_px_stats['high']:.0f}"
+    else:
+        _3yr_return_str = ""
+        _3yr_range_str  = ""
+
     # ── Assemble DATA dict ─────────────────────────────────────────────────────
     D = {
         # Header
@@ -1728,8 +1959,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "ROIC_LABELS_JS":  _js_str_arr(yr_labels),
         "ROIC_DATA_JS":    _js_arr(roic_pct, 1),
         "WACC_VALUE":      f"{(wacc_val or 0)*100:.2f}",
-        "PRICE_LABELS_JS": _js_str_arr(yr_labels),
-        "PRICE_DATA_JS":   "[0]",
+        "PRICE_LABELS_JS": _px_labels_js,
+        "PRICE_DATA_JS":   _px_data_js,
+        "PRICE_3YR_RETURN": _3yr_return_str,
+        "PRICE_3YR_RANGE":  _3yr_range_str,
         "RET_LABELS_JS":   _js_str_arr(yr_labels),
         "BUYBACK_JS":      _js_arr(buyback_b_lst, 2),
         "FCF_PER_SHARE_JS": _js_arr(fcf_ps_lst, 2),
@@ -1967,6 +2200,7 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "CONSENSUS_PT":       "—",
         "CONSENSUS_PT_VS":    "—",
         "PT_RANGE":           "—",
+        "PT_REVISION_MOMENTUM": "PT revision data not available.",
         "ANALYST_TABLE_NOTE": f"Forward analyst estimates not available on FMP free tier. DCF-implied fair value: ${base_px:.0f} ({_vs(base_px, current_price)})." if base_px else "Forward analyst estimates not available on FMP free tier.",
 
         # Footnotes
@@ -2106,54 +2340,138 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     non_na = [(years[i], v) for i, v in enumerate(ebitint_vals) if v != "N/A"]
     D["EBITINT_NOTE"] = " · ".join(f"FY{yr}: {v}" for yr, v in non_na) if non_na else "N/A — interest data not available"
 
-    # ── Analyst price targets (yfinance) ──────────────────────────────────────
+    # ── Analyst data — FMP first (reliable), yfinance fallback ───────────────
     _at = analyst_targets or {}
     if not _at:
-        try:
-            import yfinance as _yf
-            _yfi = _yf.Ticker(ticker).info
-            _pt_mean = _yfi.get("targetMeanPrice")
-            _pt_low  = _yfi.get("targetLowPrice")
-            _pt_high = _yfi.get("targetHighPrice")
-            _pt_n    = _yfi.get("numberOfAnalystOpinions")
-            _rec     = (_yfi.get("recommendationKey") or "").replace("_", " ").upper()
-            if _pt_mean and current_price:
-                D["CONSENSUS_PT"]    = f"${_pt_mean:.2f}"
-                D["CONSENSUS_PT_VS"] = _vs(_pt_mean, current_price)
-            if _pt_n:
-                D["ANALYST_COUNT"] = str(int(_pt_n))
-            if _pt_low and _pt_high:
-                D["PT_RANGE"] = f"${_pt_low:.2f} – ${_pt_high:.2f}"
-            if _pt_mean:
-                D["ANALYST_TABLE_NOTE"] = (
-                    f"Consensus target ${_pt_mean:.2f} ({_vs(_pt_mean, current_price)}) · "
-                    f"Range ${_pt_low:.2f}–${_pt_high:.2f} · {_pt_n} analysts · "
-                    f"Consensus: {_rec}. Source: Yahoo Finance."
-                )
-            # Fill individual analyst rows from upgrades_downgrades
+        _fmp_an = _fetch_analyst_data(ticker, current_price, limit_news=10)
+
+        # Consensus PT block
+        cpt = _fmp_an.get("consensus_pt")
+        if cpt and current_price:
+            D["CONSENSUS_PT"]    = f"${cpt:.2f}"
+            D["CONSENSUS_PT_VS"] = _vs(cpt, current_price)
+        cph = _fmp_an.get("consensus_pt_high")
+        cpl = _fmp_an.get("consensus_pt_low")
+        if cph and cpl:
+            D["PT_RANGE"] = f"${cpl:.2f} – ${cph:.2f}"
+
+        # Grades consensus → Buy/Hold/Sell bar
+        g_total = _fmp_an.get("grades_total")
+        if g_total:
+            g_buy  = _fmp_an.get("grades_buy", 0)
+            g_hold = _fmp_an.get("grades_hold", 0)
+            g_sell = _fmp_an.get("grades_sell", 0)
+            D["BUY_PCT"]    = f"{g_buy  / g_total * 100:.0f}%"
+            D["BUY_COUNT"]  = f"{g_buy} of {g_total}"
+            D["HOLD_PCT"]   = f"{g_hold / g_total * 100:.0f}%"
+            D["HOLD_COUNT"] = f"{g_hold} of {g_total}"
+            D["SELL_PCT"]   = f"{g_sell / g_total * 100:.0f}%"
+            D["SELL_COUNT"] = f"{g_sell} of {g_total}"
+            D["ANALYST_COUNT"] = str(g_total)
+
+        # Individual analyst rows from /stable/grades (recent per-firm grade changes)
+        def _grade_class(g):
+            g = (g or "").upper()
+            if any(k in g for k in ("STRONG BUY", "BUY", "OUTPERFORM", "OVERWEIGHT",
+                                     "ACCUMULATE", "POSITIVE", "ADD")):
+                return "rating-buy"
+            if any(k in g for k in ("SELL", "UNDERPERFORM", "UNDERWEIGHT", "NEGATIVE", "REDUCE")):
+                return "rating-sell"
+            return "rating-hold"   # default for Hold / Neutral / Market Perform / Equal Weight
+
+        _grades = _fmp_an.get("grade_rows") or []
+        for _i, _row in enumerate(_grades[:7], 1):
+            _action = (_row.get("action") or "").strip().lower()
+            _action_display = {
+                "upgrade":   "Upgrade",
+                "downgrade": "Downgrade",
+                "maintain":  "Maintain",
+                "initiate":  "Initiate",
+                "reiterate": "Reiterate",
+                "hold":      "Maintain",
+            }.get(_action, _action.title() if _action else "—")
+            _new_g  = _row.get("new_grade") or "—"
+            _prev_g = _row.get("previous_grade") or ""
+            if _action == "upgrade" and _prev_g:
+                _rating_text = f"{_prev_g} → {_new_g}"
+            elif _action == "downgrade" and _prev_g:
+                _rating_text = f"{_prev_g} → {_new_g}"
+            else:
+                _rating_text = _new_g
+            D[f"A{_i}_NAME"]         = _action_display
+            D[f"A{_i}_FIRM"]         = _row.get("firm") or "—"
+            D[f"A{_i}_RATING_TEXT"]  = _rating_text
+            D[f"A{_i}_RATING_CLASS"] = _grade_class(_new_g)
+            D[f"A{_i}_PT"]           = "—"     # per-firm PT requires paid FMP tier
+            D[f"A{_i}_PT_VS"]        = "—"
+            D[f"A{_i}_PT_CLASS"]     = ""
+            D[f"A{_i}_DATE"]         = _row.get("date") or "—"
+
+        # PT revision momentum panel (substitute for per-firm PTs on free tier)
+        _pts = _fmp_an.get("pt_summary") or {}
+        _pt_30  = _pts.get("pt_30d")
+        _pt_90  = _pts.get("pt_90d")
+        _pt_12  = _pts.get("pt_12mo")
+        _pt_all = _pts.get("pt_alltime")
+        _n_30   = _pts.get("n_30d", 0)
+        _n_90   = _pts.get("n_90d", 0)
+        _n_12   = _pts.get("n_12mo", 0)
+        if _pt_30 and _pt_12:
+            _delta_pct = (_pt_30 / _pt_12 - 1) * 100
+            if   _delta_pct >=  5: _dir, _dir_color = "↑ Rising",   "var(--up)"
+            elif _delta_pct <= -5: _dir, _dir_color = "↓ Falling",  "var(--down)"
+            else:                  _dir, _dir_color = "↔ Stable",   "var(--ink-2)"
+            _parts = []
+            if _pt_30 and _n_30:  _parts.append(f"30d ${_pt_30:.2f} ({_n_30} upd)")
+            if _pt_90 and _n_90:  _parts.append(f"90d ${_pt_90:.2f} ({_n_90} upd)")
+            if _pt_12 and _n_12:  _parts.append(f"12mo ${_pt_12:.2f} ({_n_12} upd)")
+            _trend_str = (
+                f"avg PT  " + "  ·  ".join(_parts) +
+                f"   <span style=\"color:{_dir_color};font-weight:600\">{_dir} {_delta_pct:+.1f}%</span> "
+                f"<span style=\"color:var(--muted);font-size:11px\">(30d vs 12mo)</span>"
+            )
+            D["PT_REVISION_MOMENTUM"] = _trend_str
+        elif _pt_30:
+            D["PT_REVISION_MOMENTUM"] = f"30d avg PT: ${_pt_30:.2f} ({_n_30} updates)"
+
+        # Footer note
+        if cpt and g_total:
+            _label = _fmp_an.get("grades_label") or ""
+            D["ANALYST_TABLE_NOTE"] = (
+                f"Consensus target ${cpt:.2f} ({_vs(cpt, current_price)}) · "
+                f"Range ${cpl:.2f}–${cph:.2f} · {g_total} analysts · "
+                f"{_fmp_an.get('grades_buy',0)} Buy / "
+                f"{_fmp_an.get('grades_hold',0)} Hold / "
+                f"{_fmp_an.get('grades_sell',0)} Sell"
+                + (f" ({_label})" if _label else "")
+                + ". Source: FMP."
+            )
+
+        # yfinance fallback only if FMP returned no consensus PT
+        if not cpt:
             try:
-                _upgrades = _yf.Ticker(ticker).upgrades_downgrades
-                if _upgrades is not None and not _upgrades.empty:
-                    _upgrades = _upgrades.reset_index()
-                    # Sort by date descending, take top 7
-                    _upgrades = _upgrades.sort_values("GradeDate", ascending=False).head(7)
-                    for _row_i, (_, _ug) in enumerate(_upgrades.iterrows(), 1):
-                        _firm = str(_ug.get("Firm") or "")
-                        _action = str(_ug.get("Action") or "")
-                        _to_grade = str(_ug.get("ToGrade") or "")
-                        _from_grade = str(_ug.get("FromGrade") or "")
-                        _date = str(_ug.get("GradeDate", ""))[:10]
-                        _rating_text = _to_grade or _action
-                        D[f"A{_row_i}_NAME"]        = _action.title() if _action else "—"
-                        D[f"A{_row_i}_FIRM"]        = _firm or "—"
-                        D[f"A{_row_i}_RATING_TEXT"] = _rating_text or "—"
-                        D[f"A{_row_i}_PT"]          = "—"
-                        D[f"A{_row_i}_PT_VS"]       = "—"
-                        D[f"A{_row_i}_DATE"]        = _date or "—"
+                import yfinance as _yf
+                _yfi = _yf.Ticker(ticker).info or {}
+                _pt_mean = _yfi.get("targetMeanPrice")
+                _pt_low  = _yfi.get("targetLowPrice")
+                _pt_high = _yfi.get("targetHighPrice")
+                _pt_n    = _yfi.get("numberOfAnalystOpinions")
+                _rec     = (_yfi.get("recommendationKey") or "").replace("_", " ").upper()
+                if _pt_mean and current_price:
+                    D["CONSENSUS_PT"]    = f"${_pt_mean:.2f}"
+                    D["CONSENSUS_PT_VS"] = _vs(_pt_mean, current_price)
+                if _pt_n:
+                    D["ANALYST_COUNT"] = str(int(_pt_n))
+                if _pt_low and _pt_high:
+                    D["PT_RANGE"] = f"${_pt_low:.2f} – ${_pt_high:.2f}"
+                if _pt_mean:
+                    D["ANALYST_TABLE_NOTE"] = (
+                        f"Consensus target ${_pt_mean:.2f} ({_vs(_pt_mean, current_price)}) · "
+                        f"Range ${_pt_low:.2f}–${_pt_high:.2f} · {_pt_n} analysts · "
+                        f"Consensus: {_rec}. Source: Yahoo Finance (FMP empty)."
+                    )
             except Exception:
                 pass
-        except Exception:
-            pass
 
     # Flag for render_html_report to decide whether to show COMING SOON
     D["ANALYSTS_HAVE_DATA"] = D.get("CONSENSUS_PT", "—") != "—"

@@ -590,6 +590,8 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="price-block">
         <div class="price-label">Current Price</div>
         <div class="price-value">{{CURRENT_PRICE}}</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);margin-top:6px;letter-spacing:0.02em">{{PRICE_3YR_RETURN}}</div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:0.02em">{{PRICE_3YR_RANGE}}</div>
       </div>
       <div class="price-arrow">→</div>
       <div class="price-block">
@@ -996,7 +998,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div class="two-col no-break" style="margin-bottom:16px">
     <div class="chart-card">
-      <div class="chart-title">Share Price — 5 Year History ({{CURRENCY_SYMBOL}}) <sup><a href="#fn4">[4]</a></sup></div>
+      <div class="chart-title">Share Price — 3 Year History ({{CURRENCY_SYMBOL}}, split/dividend-adjusted) <sup><a href="#fn4">[4]</a></sup></div>
       <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -1460,6 +1462,9 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div style="margin-bottom:10px;padding:8px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
     <strong style="color:var(--ink)">EPS Revision Momentum:</strong>&nbsp;{{EARNINGS_REVISION}}
+  </div>
+  <div style="margin-bottom:10px;padding:8px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
+    <strong style="color:var(--ink)">PT Revision Momentum:</strong>&nbsp;{{PT_REVISION_MOMENTUM}}
   </div>
   <div class="no-break">
     <div class="analyst-consensus-bar">
