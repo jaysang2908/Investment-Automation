@@ -262,6 +262,104 @@ def _text_sentiment(text: str) -> int:
     return 0
 
 
+def _fetch_google_trends(ticker: str, company_name: str = "",
+                         custom_terms: list | None = None) -> dict:
+    """Fetch Google Trends search-interest data for the ticker and optional custom keywords.
+
+    Uses pytrends (unofficial Google Trends API — no key required).
+    Compares recent 30-day average search interest vs prior 60-day baseline.
+    A ratio >1 means rising interest; >2 means a significant spike.
+
+    custom_terms: optional list of sector-theme keywords (e.g. ['HBM memory', 'AI chips'])
+                  compared in addition to the ticker itself.
+
+    Returns dict with:
+        trend_ratio     — recent/baseline ratio for the ticker keyword
+        trend_kw        — keyword used (ticker or company name, whichever had more data)
+        best_theme_ratio — highest ratio across ticker + custom_terms
+        best_theme_kw   — keyword that achieved best_theme_ratio
+        all_gt_ratios   — {keyword: ratio} for all terms attempted
+        trend_error     — error string if unavailable (None when successful)
+    """
+    try:
+        from pytrends.request import TrendReq
+        import time as _time
+
+        pytrends = TrendReq(hl="en-US", tz=360, timeout=(10, 30), retries=1, backoff_factor=0.5)
+
+        def _ratio_for_kw(kw: str) -> float | None:
+            """Return recent/baseline ratio for a single keyword. Returns None on failure."""
+            try:
+                pytrends.build_payload([kw], cat=0, timeframe="today 3-m", geo="")
+                df = pytrends.interest_over_time()
+                if df is None or df.empty or kw not in df.columns:
+                    return None
+                series = df[kw].dropna()
+                if len(series) < 10:
+                    return None
+                # Last ~4 data points ≈ most recent ~4 weeks; everything before = baseline
+                recent   = float(series.iloc[-4:].mean())
+                baseline = float(series.iloc[:-4].mean())
+                if baseline <= 0:
+                    return None
+                return round(recent / baseline, 2)
+            except Exception:
+                return None
+
+        # Primary: try ticker symbol first, fall back to company name
+        primary_kw    = ticker
+        primary_ratio = _ratio_for_kw(ticker)
+
+        if primary_ratio is None and company_name and company_name != ticker:
+            short_name = company_name.split()[0]  # just first word (e.g. "Apple" not "Apple Inc.")
+            r = _ratio_for_kw(short_name)
+            if r is not None:
+                primary_ratio = r
+                primary_kw    = short_name
+
+        all_ratios: dict = {}
+        if primary_ratio is not None:
+            all_ratios[primary_kw] = primary_ratio
+
+        best_ratio = primary_ratio or 0.0
+        best_kw    = primary_kw
+
+        # Custom sector-theme keywords
+        terms_to_check = (custom_terms or [])[:4]  # cap at 4 to stay within rate limits
+        for term in terms_to_check:
+            if not term.strip():
+                continue
+            _time.sleep(0.6)   # polite delay — Google Trends throttles aggressive scrapers
+            r = _ratio_for_kw(term)
+            if r is not None:
+                all_ratios[term] = r
+                if r > best_ratio:
+                    best_ratio = r
+                    best_kw    = term
+
+        return {
+            "trend_ratio":      primary_ratio,
+            "trend_kw":         primary_kw,
+            "best_theme_ratio": best_ratio if best_ratio > 0 else primary_ratio,
+            "best_theme_kw":    best_kw,
+            "all_gt_ratios":    all_ratios,
+            "trend_error":      None,
+        }
+
+    except ImportError:
+        return {
+            "trend_ratio":   None, "trend_error": "pytrends not installed (pip install pytrends)",
+            "trend_kw":      ticker, "best_theme_ratio": None, "best_theme_kw": ticker,
+            "all_gt_ratios": {},
+        }
+    except Exception as e:
+        return {
+            "trend_ratio":   None, "trend_error": str(e),
+            "trend_kw":      ticker, "best_theme_ratio": None, "best_theme_kw": ticker,
+            "all_gt_ratios": {},
+        }
+
+
 def _fetch_reddit_sentiment(ticker: str) -> dict:
     """Search r/wallstreetbets, r/stocks, r/investing for ticker mentions (last 7 days).
 
@@ -589,6 +687,19 @@ def fetch_speculative_data(ticker: str, api_key: str, polygon_key: str = "",
     data["reddit_bearish"]     = rd.get("reddit_bearish")
     data["reddit_bullish_pct"] = rd.get("reddit_bullish_pct")
 
+    # ── Google Trends (pytrends — no API key required) ────────────────────────
+    gt = _fetch_google_trends(
+        ticker,
+        company_name = data.get("company_name", ""),
+        custom_terms = custom_terms or [],
+    )
+    data["trend_ratio"]      = gt.get("trend_ratio")
+    data["trend_kw"]         = gt.get("trend_kw")
+    data["best_theme_ratio"] = gt.get("best_theme_ratio")
+    data["best_theme_kw"]    = gt.get("best_theme_kw")
+    data["all_gt_ratios"]    = gt.get("all_gt_ratios")
+    data["trend_error"]      = gt.get("trend_error")
+
     return data
 
 
@@ -766,12 +877,13 @@ def _score_options(data: dict) -> tuple[str, int, str]:
 
 
 def _score_social_trend(data: dict) -> tuple[str, int, str]:
-    """Score social/trend momentum across two sub-signals:
+    """Score social/trend momentum across three sub-signals:
 
       1. Polygon news sentiment  — bullish vs bearish ratio from Polygon NLP (last 20 articles)
-      2. Reddit sentiment        — mention count + bullish/bearish ratio across WSB/stocks/investing
+      2. Reddit crowd positioning — INVERTED: crowded/bullish crowd = late; under-the-radar = early
+      3. Google Trends           — recent 30d search interest vs prior 60d baseline (rising = bullish)
 
-    HIGH = both sub-signals bullish · MOD = 1 bullish or all unavailable · LOW = 0 bullish with ≥1 bearish
+    HIGH = ≥2 bullish sub-signals · MOD = 1 bullish or all unavailable · LOW = 0 bullish with ≥1 bearish
     """
     bullish_signals = []
     notes = []
@@ -830,6 +942,29 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
         notes.append("Reddit: no mentions found — not on retail radar, early positioning potential")
     else:
         notes.append("Reddit: credentials not configured")
+
+    # Sub-signal 3: Google Trends — search interest vs 60-day baseline
+    # Rising search interest (ratio > 1) suggests growing awareness/discovery.
+    # Unlike Reddit, this is NOT inverted — a spike from a low base is bullish.
+    gt_ratio  = data.get("best_theme_ratio") or data.get("trend_ratio")
+    gt_kw     = data.get("best_theme_kw")    or data.get("trend_kw", "ticker")
+    gt_err    = data.get("trend_error")
+
+    if gt_ratio is not None:
+        if gt_ratio >= 2.0:
+            bullish_signals.append(True)
+            notes.append(f"Google Trends: {gt_ratio:.1f}× spike in '{gt_kw}' searches vs 60d baseline — significant discovery surge")
+        elif gt_ratio >= 1.3:
+            # Elevated but not extreme — neutral (don't reward moderately rising stocks)
+            notes.append(f"Google Trends: {gt_ratio:.1f}× for '{gt_kw}' — elevated search interest, not extreme")
+        elif gt_ratio <= 0.7:
+            bullish_signals.append(False)
+            notes.append(f"Google Trends: {gt_ratio:.1f}× for '{gt_kw}' — declining search interest, fading attention")
+        else:
+            notes.append(f"Google Trends: {gt_ratio:.1f}× for '{gt_kw}' — near-baseline search volume")
+    else:
+        err_msg = f" ({gt_err})" if gt_err else ""
+        notes.append(f"Google Trends: unavailable{err_msg}")
 
     n_bullish = sum(1 for b in bullish_signals if b is True)
     n_bearish = sum(1 for b in bullish_signals if b is False)

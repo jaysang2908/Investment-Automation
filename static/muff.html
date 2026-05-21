@@ -329,8 +329,13 @@
               </div>
             </div>
 
+            <div class="gen-field">
+              <label>Custom Google Trends Keywords <span class="opt">optional · comma-separated sector themes</span></label>
+              <input type="text" id="specCustomTerms" placeholder="e.g. HBM memory, DRAM cycle, AI inference chips" autocomplete="off">
+            </div>
+
             <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);margin-bottom:var(--s-4);line-height:1.6">
-              10 signals auto-scored (momentum, volume, short interest, options, insiders, technical setup, news &amp; Reddit sentiment) · 2 signals from your inputs above · Max score 120
+              10 signals auto-scored (momentum, volume, short interest, options, insiders, technicals, news &amp; Reddit sentiment, Google Trends) · 2 signals from your inputs above · Max score 120
             </p>
 
             <button class="gen-btn" id="specGenerateBtn" onclick="runSpeculative()">
@@ -384,7 +389,7 @@
         <!-- HOW IT WORKS -->
         <div class="section-head">
           <h3>How it works</h3>
-          <span class="meta">FMP · yfinance · Polygon · Reddit · scenario model</span>
+          <span class="meta">FMP · Polygon · Reddit · Google Trends · scenario model</span>
         </div>
         <div class="pipeline">
           <div class="step">
@@ -395,7 +400,7 @@
           <div class="step">
             <div class="step-n">STEP 02</div>
             <div class="step-title">Narrative</div>
-            <div class="step-body">Score narrative setup: theme alignment, catalyst timing, news sentiment (Polygon NLP), and Reddit crowd positioning (inverted — crowded = late).</div>
+            <div class="step-body">Score narrative setup: theme alignment, catalyst timing, news sentiment (Polygon NLP), Reddit crowd positioning (inverted — crowded = late), and Google Trends search-interest spike vs 60-day baseline.</div>
           </div>
           <div class="step">
             <div class="step-n">STEP 03</div>
@@ -433,6 +438,7 @@
           <a href="#">FMP API</a>
           <a href="#">yfinance</a>
           <a href="#">Polygon.io</a>
+          <a href="#">Google Trends</a>
         </div>
         <div class="legal">
           <span>© 2026 Investment Utopia · Not investment advice</span>
@@ -460,6 +466,7 @@
       const narrative_strength = document.getElementById('specNarrativeStrength').value;
       const catalyst_desc      = document.getElementById('specCatalystDesc').value.trim();
       const catalyst_timing    = document.getElementById('specCatalystTiming').value;
+      const custom_terms       = document.getElementById('specCustomTerms')?.value.trim() || '';
       const password           = document.getElementById('specPasswordInput')?.value.trim() || '';
 
       if (!ticker) { showSpecMsg('Enter a ticker symbol.', 'error'); return; }
@@ -474,7 +481,7 @@
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ ticker, hold_months: parseInt(hold_months), narrative_theme,
                                  narrative_strength, catalyst_desc, catalyst_timing,
-                                 password }),
+                                 custom_terms, password }),
         });
 
         const data = await res.json();

@@ -6,3 +6,4 @@ yfinance
 praw
 pandas
 ta
+pytrends
