@@ -3253,9 +3253,9 @@ def _tier(value, thresholds, inverted=False):
 
 # Continuous scoring — eliminates threshold cliffs of the discrete tier system.
 # Anchors: LOW=0, MOD-LOW=3 (at ml), MOD-HIGH=7 (at mh), HIGH=10 (at h).
-# Above HIGH, reward up to SCORE_CAP (12) for genuine outliers (NVDA-level ROIC,
-# net-cash balance sheets, etc.) so top-decile names differentiate from "just HIGH".
-SCORE_CAP = 12.0
+# HIGH is the ceiling — no bonus above the top tier so each criterion's maximum
+# contribution equals its stated weight, keeping the scorecard self-consistent.
+SCORE_CAP = 10.0
 
 def _score(value, thresholds, inverted=False):
     """Continuous piecewise-linear score [0, SCORE_CAP] from a metric value.
@@ -3305,6 +3305,53 @@ def _proxy_score(n_pos, n_total):
     if not n_total:
         return 0.0
     return round(n_pos / n_total * 10.0, 2)
+
+
+def _exec_quality(series, expansion_threshold=0.05):
+    """Score a metric series 0-3 on execution quality (direction + stability).
+
+    Pure σ conflates two opposite cases: a company whose op margin expanded
+    25% → 65% (exceptional execution) has the same σ profile as one whose
+    margin oscillated unpredictably (poor execution). This function rewards
+    directional improvement while still penalising erratic behaviour.
+
+    Returns:
+      3 (HIGH)     — expanding ≥ expansion_threshold AND recent trajectory
+                     stronger than earlier years; OR rock-steady (|Δ| ≤ 2pp,
+                     σ < 4%) which captures mature stable compounders.
+      2 (MOD-HIGH) — broadly stable (no material decline) with σ < 4%.
+      1 (MOD-LOW)  — modest decline (≤ 5pp) OR moderate volatility (σ < 8%).
+      0 (LOW)      — significant decline OR high volatility.
+    """
+    vals = [v for v in series if v is not None]
+    if len(vals) < 3:
+        return 0
+
+    earliest, latest = vals[0], vals[-1]
+    direction = latest - earliest
+    mu        = sum(vals) / len(vals)
+    sigma     = (sum((v - mu) ** 2 for v in vals) / len(vals)) ** 0.5
+
+    if len(vals) >= 4:
+        recent_avg = sum(vals[-2:]) / 2
+        prior_avg  = sum(vals[:-2]) / (len(vals) - 2)
+        recent_improving = recent_avg >= prior_avg
+    else:
+        recent_improving = latest >= earliest
+
+    # HIGH — meaningful expansion with sustained recent strength
+    if direction >= expansion_threshold and recent_improving:
+        return 3
+    # HIGH — rock-steady mature business
+    if abs(direction) <= 0.02 and sigma < 0.04:
+        return 3
+    # MOD-HIGH — broadly stable with minor noise, no material decline
+    if direction >= -0.02 and sigma < 0.04:
+        return 2
+    # MOD-LOW — modest decline or moderate volatility
+    if direction >= -0.05 and sigma < 0.08:
+        return 1
+    return 0
 
 
 def _val_score(delta, premium_ok=False):
@@ -4016,30 +4063,41 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     score_mgmt = _proxy_score(n_mgmt, mgmt_total)
     note_mgmt = "  |  ".join(mgmt_parts) + f"  [{n_mgmt}/{mgmt_total} indicators positive — proxy score]"
 
-    # ── Execution Risk proxy (rev + margin volatility → tier) ────────────────
+    # ── Execution Risk proxy (revenue stability + margin trajectory → tier) ──
+    # Revenue: σ-based (lumpiness is the right signal for revenue execution —
+    # mature businesses should have predictable demand year-over-year).
     rev_risk_idx = (3 if rev_std < 0.05 else 2 if rev_std < 0.10
                     else 1 if rev_std < 0.18 else 0)
+    # Op margin: direction-aware quality (not σ alone). A company expanding
+    # margins 25% → 65% has high σ but is *exceptional* execution, not poor.
+    # _exec_quality() rewards directional improvement and recent strength;
+    # σ-only would mis-flag the inflection as instability.
+    om_quality   = _exec_quality(om_valid)
+    # Legacy σ-bucket kept only for the note string (transparency).
     om_risk_idx  = (3 if om_std < 0.02 else 2 if om_std < 0.04
                     else 1 if om_std < 0.08 else 0)
-    # High-CAGR companies (3yr avg rev growth > 40%) naturally show high revenue-
-    # growth σ as an artefact of an accelerating ramp — not operational instability.
-    # Using revenue σ as an execution proxy for these names systematically misfires
-    # (e.g. a company growing 100%→120%→80% looks "risky" but is executing well).
-    # For CAGR > 40% we substitute revenue-growth σ with operating-margin σ so the
-    # score reflects control of profitability rather than the shape of the growth curve.
+
+    _om_first  = om_valid[0]  if om_valid else None
+    _om_latest = om_valid[-1] if om_valid else None
+    _om_delta  = ((_om_latest - _om_first)
+                  if (_om_first is not None and _om_latest is not None) else None)
+    _delta_str = f"{_om_delta:+.1%}" if _om_delta is not None else "N/A"
+
+    # Hypergrowth (3yr CAGR > 40%): rev σ is structurally high from the ramp
+    # itself, not from operational issues. Score on margin trajectory only.
     _high_growth_exec = rev_cagr is not None and rev_cagr > 0.40
     if _high_growth_exec:
-        exec_idx   = om_risk_idx          # pure margin-stability score
-        score_exec = round(om_risk_idx / 3.0 * 10.0, 2)
-        note_exec  = (f"Rev CAGR={rev_cagr:.0%} >40% — rev σ replaced by margin σ  |  "
-                      f"Op margin σ={om_std:.1%}  [lower σ = lower risk = higher score]")
+        exec_idx  = om_quality
+        note_exec = (f"Rev CAGR={rev_cagr:.0%} >40% — margin trajectory only  |  "
+                     f"OM trend {_delta_str} ({_om_first:.1%}→{_om_latest:.1%}), "
+                     f"σ={om_std:.1%}  [quality = direction + stability]")
     else:
-        exec_idx   = (rev_risk_idx + om_risk_idx) // 2
-        # Continuous score from average of the two 0-3 sub-indices, scaled to 0-10.
-        score_exec = round((rev_risk_idx + om_risk_idx) / 6.0 * 10.0, 2)
-        note_exec  = (f"Rev growth σ={rev_std:.1%}  |  Op margin σ={om_std:.1%}"
-                      f"  [proxy — lower σ = lower risk = higher score]")
-    tier_exec = TIER_ORDER[exec_idx]
+        exec_idx  = (rev_risk_idx + om_quality) // 2
+        note_exec = (f"Rev growth σ={rev_std:.1%}  |  "
+                     f"OM trend {_delta_str}, σ={om_std:.1%}  "
+                     f"[quality = direction + stability]")
+    score_exec = round(exec_idx / 3.0 * 10.0, 2)
+    tier_exec  = TIER_ORDER[exec_idx]
 
     # ── Valuation: P/E and P/FCF vs 5yr historical average ───────────────────
     # ── DCF-implied valuation anchor (#8) ─────────────────────────────────────
@@ -4809,12 +4867,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _active_weight = sum(w for _, _, w in _auto_criteria)   # total achievable weight (regime-adjusted)
     _scored = [(t, s, w) for t, s, w in _auto_criteria if t is not None and s is not None]
     if _scored:
-        # Outlier reward flows into the total: per-criterion scores above 10
-        # (NVDA-grade ROIC, net-cash balance sheet, etc.) lift the total above
-        # 87.5 — by design, so genuinely top-decile names differentiate from
-        # "just HIGH" in the headline number, not only per-criterion in Excel.
-        # Practical max ~105/87.5; display shows numerator/denominator so users
-        # can read >87.5 as "above typical max" without confusion.
+        # Sum weighted scores. With SCORE_CAP=10, the maximum _raw_sum equals
+        # the sum of all active weights (87.5 for a full non-bank scorecard).
         _raw_sum = sum((s / 10.0) * w for _, s, w in _scored)
         _scored_weight = sum(w for _, _, w in _scored)
         # Denominator normalization: if some criteria returned N/A (data gap,
@@ -4831,9 +4885,8 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         if floor_cap is not None:
             _auto_score_raw = min(_auto_score_raw, floor_cap)
         # Normalize to 0-10 scale. Fixed 87.5 denominator regardless of regime so
-        # scores are comparable across bank/standard/EVS weight regimes. Cap at 10.0
-        # — SCORE_CAP outliers can push raw above 87.5 by design (rewards top-decile
-        # names) but display caps at 10 for readability.
+        # scores are comparable across bank/standard/EVS weight regimes.
+        # With SCORE_CAP=10, raw_sum is bounded at 87.5 by construction.
         _auto_score = round(min(10.0, _auto_score_raw / 87.5 * 10), 1)
     else:
         _auto_score_raw = None

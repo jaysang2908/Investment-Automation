@@ -1164,8 +1164,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_mgmt    = _et("tier_mgmt")
     t_cap_ret = _et("tier_cap_ret")
     t_exec    = _et("tier_exec")
-    t_pe      = _et("tier_pe")
-    t_pfcf    = _et("tier_pfcf")
+    # Valuation tiers: use None (not "MOD") when genuinely N/A so WTD shows
+    # 0.0 and SCORE_TEXT shows "N/A" instead of a spurious MOD fallback.
+    t_pe      = _et("tier_pe",   fallback=None)
+    t_pfcf    = _et("tier_pfcf", fallback=None)
 
     # Qualitative tiers (user-supplied via web form — 3-state: HIGH/MOD/LOW).
     # "MOD" from user maps to 7pts (midpoint); MOD-LOW is not user-selectable.
@@ -1208,10 +1210,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     s_bc  = float(P[t_bc  or "MOD"])
     s_ltp = float(P[t_ltp or "MOD"])
 
-    # Outlier reward (score > 10) flows into part totals so a NVDA-grade
-    # criterion lifts the headline number, not only per-criterion in Excel.
     # Qualitative scores are capped at 10 since user dropdowns only emit
-    # discrete HIGH/MOD/LOW with no continuous outlier signal.
+    # discrete HIGH/MOD/LOW. With SCORE_CAP=10 in the engine, continuous
+    # scores are already bounded at 10, so _cap() is a safety clamp only.
     def _cap(x): return min(float(x), 10.0)
 
     # Regime-aware weights (#9). When the engine emits a `weights` dict (banks,
@@ -1515,6 +1516,47 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f'</div>'
         )
 
+    # ── N/A rescaling disclosure ──────────────────────────────────────────────
+    # When criteria return tier=None (no valid benchmark / regime exclusion), the
+    # engine rescales the scored criteria to the full active-weight pool so the
+    # company isn't penalised for data it structurally cannot produce.
+    # Surface this as a note row at the bottom of the scorecard.
+    _scored_w  = scorecard_metrics.get("scored_weight", 0.0)
+    _active_w  = scorecard_metrics.get("active_weight", 87.5)
+    _low_conf  = scorecard_metrics.get("low_data_confidence", False)
+    _rescale_applied = (
+        _scored_w > 0
+        and _scored_w < _active_w
+        and not _low_conf
+    )
+    _na_labels = [
+        lbl for lbl, t in [
+            ("P/E",            t_pe),
+            ("P/FCF",          t_pfcf),
+            ("Rev CAGR",       t_rev),
+            ("FCF Quality",    t_fcf_ni),
+            ("ROIC",           t_roic),
+            ("Leverage",       t_debd),
+            ("Interest Cover", t_eint),
+            ("Execution Risk", t_exec),
+            ("Cap Returns",    t_cap_ret),
+        ] if t is None
+    ]
+    if _rescale_applied and _na_labels:
+        _rf = _active_w / _scored_w
+        _excl = ", ".join(_na_labels)
+        _scorecard_rescale_note = (
+            f'<tr><td colspan="5" style="padding:6px 12px;font-size:11.5px;'
+            f'color:var(--muted);font-style:italic;'
+            f'border-top:1px dashed var(--border);line-height:1.5">'
+            f'ℹ <strong>Score rescaled ×{_rf:.2f}</strong> — '
+            f'{_excl} excluded (no valid 5-year benchmark). '
+            f'Active criteria weighted to full pool ({_active_w:.0f}pts) '
+            f'so missing data does not penalise the company.</td></tr>'
+        )
+    else:
+        _scorecard_rescale_note = ""
+
     # ── Assemble DATA dict ─────────────────────────────────────────────────────
     D = {
         # Header
@@ -1721,18 +1763,21 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         ),
         "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD": str(round(P[t_eint]*7.5/10, 1)),
         "P3_IC_COMMENTARY":     f"EBIT/Interest: {ebit_int_str}.",
-        "P3_ER_SCORE_TEXT":     t_exec, "P3_ER_WTD": str(round(P[t_exec]*2.5/10, 2)),
+        "P3_ER_SCORE_TEXT":     t_exec, "P3_ER_WTD": str(round(P[t_exec]*5.0/10, 1)),
         "P3_ER_COMMENTARY":     _er_commentary,
 
         "P4_WEIGHTED":          str(p4),
-        "P4_PE_SCORE_TEXT":     t_pe,   "P4_PE_WTD": str(round(P[t_pe]*10.0/10, 1)),
+        "P4_PE_SCORE_TEXT":     t_pe if t_pe is not None else "N/A",
+        "P4_PE_WTD": str(round(P[t_pe]*10.0/10, 1)) if t_pe is not None else "0.0",
         "P4_PE_COMMENTARY":     f"P/E {_x(trailing_pe)} vs 5yr avg {_x(pe_5yr)} ({pe_delta}).",
-        "P4_PFCF_SCORE_TEXT":   t_pfcf, "P4_PFCF_WTD": str(round(P[t_pfcf]*10.0/10, 1)),
+        "P4_PFCF_SCORE_TEXT":   t_pfcf if t_pfcf is not None else "N/A",
+        "P4_PFCF_WTD": str(round(P[t_pfcf]*10.0/10, 1)) if t_pfcf is not None else "0.0",
         "P4_PFCF_COMMENTARY":   (
             f"P/FCF {_x(trailing_pfc)} vs 5yr avg {_x(pfcf_5yr)} ({pfcf_delta})."
             + (f" Adj. for SBC: {_x(pfcf_adj_v)}x." if pfcf_adj_v and (sbc_pct_v or 0) > 0.05 else "")
         ),
 
+        "SCORECARD_RESCALE_NOTE": _scorecard_rescale_note,
         "TOTAL_WEIGHTED_SCORE": str(round(final_score, 1)) if final_score else "0",
 
         # Scenarios
