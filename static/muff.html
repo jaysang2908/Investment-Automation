@@ -357,6 +357,18 @@
                 </div>
                 <div style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted)">Scan ready</div>
               </div>
+              <!-- Probability-weighted expected return — headline -->
+              <div style="background:color-mix(in srgb, #e05c20 12%, var(--surface));border:1px solid color-mix(in srgb, #e05c20 35%, var(--line));border-radius:var(--r-md);padding:10px 14px;margin-bottom:var(--s-3);display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div style="font-family:var(--font-mono);font-size:var(--t-micro);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">E[Return] · Probability-Weighted</div>
+                  <div style="font-family:var(--font-mono);font-size:18px;font-weight:var(--weight-bold);color:#c94a12;margin-top:2px" id="specResExpRet">—</div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:var(--t-xs);color:var(--muted);text-align:right">
+                  <div id="specResExpPrice" style="color:var(--ink)">—</div>
+                  <div id="specResProbWeights" style="color:var(--muted-soft);font-size:var(--t-tiny);letter-spacing:.05em">bear / base / bull · —</div>
+                </div>
+              </div>
+
               <div style="font-family:var(--font-mono);font-size:var(--t-xs);margin-bottom:var(--s-3);display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                 <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:8px 10px;">
                   <div style="color:var(--muted);font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Bear</div>
@@ -374,6 +386,7 @@
                   <div style="color:var(--muted-soft);font-size:var(--t-micro)" id="specResBullPrice">—</div>
                 </div>
               </div>
+              <div id="specResSectorBucket" style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);margin-bottom:var(--s-3);letter-spacing:.05em">Sector calibration: <span style="color:var(--muted)">—</span></div>
               <div class="results-btns">
                 <a class="res-btn res-btn-excel" id="specExcelBtn" href="#" target="_blank" rel="noopener">↓ Scenario Model (Excel)</a>
                 <a class="res-btn res-btn-view"  id="specViewBtn"  href="#" target="_blank" rel="noopener">↗ View Full Report</a>
@@ -505,6 +518,20 @@
         document.getElementById('specResBasePrice').textContent = fmtPx(data.base_price);
         document.getElementById('specResBullRet').textContent   = fmtRet(data.bull_ret);
         document.getElementById('specResBullPrice').textContent = fmtPx(data.bull_price);
+
+        // Expected return + sector calibration
+        document.getElementById('specResExpRet').textContent   = fmtRet(data.expected_ret);
+        document.getElementById('specResExpPrice').textContent = fmtPx(data.expected_price);
+        if (data.p_bear != null && data.p_base != null && data.p_bull != null) {
+          const pb = Math.round(data.p_bear * 100);
+          const pm = Math.round(data.p_base * 100);
+          const pu = Math.round(data.p_bull * 100);
+          document.getElementById('specResProbWeights').textContent = `bear / base / bull · ${pb} / ${pm} / ${pu}%`;
+        }
+        if (data.sector_bucket) {
+          const bucketLabel = data.sector_bucket.replace(/_/g, ' ');
+          document.getElementById('specResSectorBucket').innerHTML = `Sector calibration: <span style="color:var(--ink-2)">${bucketLabel}</span>`;
+        }
 
         document.getElementById('specExcelBtn').href = data.excel_url  || `/download/speculative-model/${data.ticker}`;
         document.getElementById('specViewBtn').href  = data.report_url || `/reports/${data.ticker}_speculative_report.html`;

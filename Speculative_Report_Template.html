@@ -463,12 +463,15 @@
         <div class="hero-stat-label">EV / Fwd Revenue</div>
       </div>
       <div class="hero-stat">
-        <div style="display:flex;gap:10px;align-items:baseline">
-          <span style="font-family:var(--mono);font-size:0.95rem;font-weight:600;color:#F87171">{{BEAR_RET}}</span>
-          <span style="font-family:var(--mono);font-size:0.95rem;font-weight:600;color:var(--amber)">{{BASE_RET}}</span>
-          <span style="font-family:var(--mono);font-size:0.95rem;font-weight:600;color:var(--green)">{{BULL_RET}}</span>
+        <div class="hero-stat-val" style="color:var(--orange)">{{EXPECTED_RET}}</div>
+        <div class="hero-stat-label">E[Return] · Prob-Weighted</div>
+        <div style="display:flex;gap:8px;align-items:baseline;margin-top:6px;font-family:var(--mono);font-size:10px;font-weight:500">
+          <span style="color:#F87171">{{BEAR_RET}}</span>
+          <span style="color:var(--ink-4)">/</span>
+          <span style="color:var(--amber)">{{BASE_RET}}</span>
+          <span style="color:var(--ink-4)">/</span>
+          <span style="color:var(--green)">{{BULL_RET}}</span>
         </div>
-        <div class="hero-stat-label">Bear / Base / Bull Return</div>
       </div>
     </div>
 
@@ -572,11 +575,17 @@
     {{TARGET_1_5X_HTML}}
 
     <p style="margin-top:16px;font-size:10px;color:var(--ink-4);line-height:1.7;font-family:var(--mono)">
-      METHODOLOGY — Bear assumes narrative fails and multiple de-rates 35% from current.
+      METHODOLOGY — Bear/Bull factors are <strong style="color:var(--ink-3)">sector-calibrated</strong>
+      (bucket: <strong style="color:var(--amber)">{{SECTOR_BUCKET}}</strong>; bear ×{{BEAR_FACTOR}}, bull ×{{BULL_FACTOR}}).
+      Biotech catalysts have wider tails than defence contractors — multiples reflect that.
+      Score modulates the bull factor — higher conviction → more aggressive re-rating ceiling.
       Base assumes flat multiple with revenue growth only.
-      Bull multiple expansion calibrated to speculative score tier.
-      All prices derived from: Target EV = Multiple × Fwd Revenue → Target Equity = Target EV − Net Debt → Price = Target Equity ÷ Shares.
-      This is a re-rating model, not a DCF. Adjust the Excel workbook for custom assumptions.
+      All prices: Target EV = Multiple × Fwd Revenue → Equity = EV − Net Debt → Price = Equity ÷ Shares.
+      <br><br>
+      <strong style="color:var(--ink-3)">E[Return]</strong> is probability-weighted across scenarios
+      using score-calibrated odds — current weights bear/base/bull = <strong style="color:var(--amber)">{{PROB_WEIGHTS}}</strong>%.
+      Higher scores shift mass toward the bull case; low scores shift it toward bear.
+      This is a re-rating model, not a DCF — adjust the Excel workbook for custom assumptions.
     </p>
   </div>
 

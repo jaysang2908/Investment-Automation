@@ -64,6 +64,38 @@ VERDICTS = [
 
 MAX_SCORE = 120
 
+# ── Sector-calibrated scenario multiples ──────────────────────────────────────
+# Each bucket: (bear_factor, default_bull_factor) applied to current EV/Revenue.
+# Bear factor reflects narrative-fails de-rating risk in that sector; bull factor
+# reflects realistic re-rating ceiling on success.  Tighter bear/bull ranges in
+# stable sectors (defence), wider in binary-catalyst sectors (biotech, crypto).
+SECTOR_SCENARIOS = {
+    "ai_ml":              (0.55, 2.10),  # rich multiples, sharp de-rating on disappointment
+    "defense_aerospace":  (0.70, 1.55),  # stable contract revenue, contained re-rating
+    "biotech_catalyst":   (0.35, 3.00),  # binary outcomes — phase 3 / FDA / readouts
+    "glp1_weight_loss":   (0.55, 2.10),  # demand-driven, regulatory/supply risk
+    "energy_transition":  (0.60, 1.85),  # policy-sensitive, slower re-rating
+    "nuclear_smr":        (0.50, 2.50),  # nascent commercial deployment
+    "crypto_adjacent":    (0.40, 2.80),  # high beta to BTC/ETH price action
+    "turnaround":         (0.40, 2.30),  # execution-binary, often levered
+    "supply_chain":       (0.65, 1.70),  # mature industries, capex-driven
+    "space_deeptech":     (0.45, 2.60),  # contract / mission cadence dependent
+    "default":            (0.65, 1.80),
+}
+
+THEME_TO_BUCKET = {
+    "AI / Machine Learning":      "ai_ml",
+    "Defence & Aerospace":        "defense_aerospace",
+    "Biotech Catalyst":           "biotech_catalyst",
+    "GLP-1 / Weight Loss":        "glp1_weight_loss",
+    "Energy Transition":          "energy_transition",
+    "Nuclear / SMR":              "nuclear_smr",
+    "Crypto-Adjacent":            "crypto_adjacent",
+    "Turnaround / Restructuring": "turnaround",
+    "Supply Chain Re-shoring":    "supply_chain",
+    "Space / Deep Tech":          "space_deeptech",
+}
+
 
 def _verdict(score: float) -> str:
     for threshold, label in VERDICTS:
@@ -1093,23 +1125,82 @@ def _score_narrative(narrative_theme: str, narrative_strength: str) -> tuple[str
 
 
 def _score_catalyst(catalyst_desc: str, catalyst_timing: str) -> tuple[str, int, str]:
-    """Catalyst quality scored from user-supplied description and timing tier."""
+    """Catalyst quality — combines timing dropdown with content-quality of the description.
+
+    Previously scored purely on the timing dropdown ignoring what the user actually wrote
+    — meaning "stuff happens" + near-term = HIGH same as a detailed FDA PDUFA citation.
+    Now also rewards:
+      - concrete date markers (Q3 2026, March, H1 2026, etc.)
+      - dollar/scale figures ($500M contract, $2B TAM)
+      - known event-type keywords (PDUFA, FDA approval, earnings beat, M&A, etc.)
+    """
+    import re
+
     if not catalyst_desc or len(catalyst_desc.strip()) < 5:
         return "LOW", 0, "No specific catalyst identified — without a trigger, timing a move is speculative at best"
 
-    timing_pts = {"near": 10, "medium": 5, "vague": 0}.get((catalyst_timing or "vague").lower(), 0)
+    desc       = catalyst_desc.strip()
+    desc_lower = desc.lower()
 
-    if timing_pts == 10:
-        tier = "HIGH"
-        note = f"Near-term catalyst: {catalyst_desc[:120]} — specific event with clear timing"
-    elif timing_pts == 5:
-        tier = "MOD"
-        note = f"Medium-term catalyst: {catalyst_desc[:120]} — expected but timing uncertain"
-    else:
-        tier = "LOW"
-        note = f"Vague catalyst: {catalyst_desc[:120]} — no clear timing anchor"
+    # ── Content-quality signals ───────────────────────────────────────────────
+    has_date = bool(re.search(
+        r'\b(q[1-4]\s*20\d{2}|h[12]\s*20\d{2}|'
+        r'jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|'
+        r'jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?|'
+        r'20\d{2}-\d{1,2}|20\d{2}/\d{1,2}|20[2-9]\d)\b',
+        desc_lower,
+    ))
+    has_dollar = bool(re.search(r'\$\s*\d', desc))
+    event_keywords = [
+        "pdufa", "fda approval", "fda decision", "phase 3", "phase 2", "phase iii", "phase ii",
+        "data readout", "topline data", "interim data", "clinical trial",
+        "earnings beat", "guidance raise", "guidance cut", "preannouncement",
+        "contract award", "contract win", "design win", "partnership", "licensing deal",
+        "acquisition", "merger", "buyout", "takeover", "spin-off", "spinoff",
+        "approval", "launch", "product launch", "ipo", "uplisting",
+        "court ruling", "patent", "split", "buyback", "dividend",
+        "milestone payment", "tender", "rfp",
+    ]
+    matched_kw   = [kw for kw in event_keywords if kw in desc_lower]
+    n_event_kw   = len(matched_kw)
 
-    return tier, timing_pts, note
+    # Content quality 0-3: dates / $ figures / event-type keywords
+    quality_pts = (1 if has_date else 0) + (1 if has_dollar else 0) + (1 if n_event_kw >= 1 else 0)
+
+    timing = (catalyst_timing or "vague").lower()
+    short_desc = desc[:120] + ("…" if len(desc) > 120 else "")
+
+    # ── Combined scoring: timing × content quality ────────────────────────────
+    if timing == "near":
+        if quality_pts >= 2:
+            return ("HIGH", 10,
+                    f"Near-term catalyst with concrete detail (date={has_date}, $={has_dollar}, "
+                    f"event-type={n_event_kw}): {short_desc}")
+        elif quality_pts == 1:
+            return ("HIGH", 10,
+                    f"Near-term catalyst — some specificity: {short_desc}")
+        else:
+            return ("MOD", 5,
+                    f"Near-term claim but vague text — add a date, dollar figure, or event type "
+                    f"to qualify as HIGH: {short_desc}")
+
+    if timing == "medium":
+        if quality_pts >= 2:
+            return ("MOD", 5,
+                    f"Medium-term catalyst with detail: {short_desc}")
+        elif quality_pts == 1:
+            return ("MOD", 5,
+                    f"Medium-term catalyst (limited specifics): {short_desc}")
+        else:
+            return ("LOW", 0,
+                    f"Medium-term claim but text is generic — no qualifying detail: {short_desc}")
+
+    # timing == "vague" or other
+    if quality_pts >= 2:
+        return ("MOD", 5,
+                f"Detailed catalyst but no timing anchor: {short_desc}")
+    return ("LOW", 0,
+            f"Vague catalyst — no timing, no specifics, no event type: {short_desc}")
 
 
 # ── Main scorecard builder ─────────────────────────────────────────────────────
@@ -1185,11 +1276,15 @@ def build_speculative_scorecard(
 # ── Scenario / re-rating model ─────────────────────────────────────────────────
 
 def build_scenario_model(data: dict, scorecard: dict, hold_months: int = 6) -> dict:
-    """Build a bear/base/bull scenario model based on EV/Revenue re-rating.
+    """Build a bear/base/bull scenario model with sector-calibrated EV/Revenue re-rating.
 
-    Uses forward revenue estimates and scenarios for EV/Revenue multiple expansion
-    to project a target price in the hold_months timeframe.
-    Returns a dict with all scenario inputs and outputs.
+    Bear/bull multiple factors are now sector-specific (biotech catalyst plays have
+    wider tails than defence contractors). Score modulates the bull factor on top
+    of the sector default — high-conviction scans get more aggressive bull multiples,
+    low-conviction scans get more conservative ones.
+
+    Also computes a probability-weighted expected return: E[ret] = p_bull*bull_ret +
+    p_base*base_ret + p_bear*bear_ret, with probabilities calibrated to the score.
     """
     price     = data.get("current_price") or 0
     mktcap    = data.get("market_cap")    or 0
@@ -1202,22 +1297,26 @@ def build_scenario_model(data: dict, scorecard: dict, hold_months: int = 6) -> d
     # Current EV/fwd revenue multiple
     cur_ev_rev_mult = (cur_ev / fwd_rev) if fwd_rev else None
 
-    # Scenario multiplier assumptions
-    # We calibrate around the current multiple and the narrative theme
-    total_score = scorecard.get("total_score", 50)
+    # Sector calibration — narrative theme drives bear/bull tail widths
+    total_score    = scorecard.get("total_score", 50)
+    narrative_theme = scorecard.get("narrative_theme", "") or ""
+    sector_bucket  = THEME_TO_BUCKET.get(narrative_theme, "default")
+    bear_factor, default_bull_factor = SECTOR_SCENARIOS[sector_bucket]
+
+    # Score modulates the bull factor (high-conviction → more aggressive re-rating)
+    if total_score >= 80:
+        score_mult = 1.15
+    elif total_score >= 65:
+        score_mult = 1.00
+    elif total_score >= 50:
+        score_mult = 0.85
+    else:
+        score_mult = 0.70
+    bull_factor = default_bull_factor * score_mult
 
     if cur_ev_rev_mult and cur_ev_rev_mult > 0:
-        bear_mult = cur_ev_rev_mult * 0.65   # narrative fails → de-rating
-        base_mult = cur_ev_rev_mult * 1.00   # stays flat, only rev growth drives return
-        # Bull multiple expansion: function of how high-conviction the setup is
-        if total_score >= 75:
-            bull_factor = 2.20
-        elif total_score >= 60:
-            bull_factor = 1.70
-        elif total_score >= 45:
-            bull_factor = 1.40
-        else:
-            bull_factor = 1.20
+        bear_mult = cur_ev_rev_mult * bear_factor
+        base_mult = cur_ev_rev_mult * 1.00   # base = flat multiple, growth carries return
         bull_mult = cur_ev_rev_mult * bull_factor
     else:
         # No EV/Rev data — use simple price-based scenarios
@@ -1253,6 +1352,27 @@ def build_scenario_model(data: dict, scorecard: dict, hold_months: int = 6) -> d
     base_ret = _ret(base_price)
     bull_ret = _ret(bull_price)
 
+    # ── Probability-weighted expected return ─────────────────────────────────
+    # Score-calibrated scenario probabilities. The probabilities sum to 1.0 and
+    # shift toward the bull case as conviction (total_score) rises.
+    if total_score >= 80:
+        p_bull, p_base, p_bear = 0.45, 0.40, 0.15
+    elif total_score >= 65:
+        p_bull, p_base, p_bear = 0.35, 0.45, 0.20
+    elif total_score >= 50:
+        p_bull, p_base, p_bear = 0.25, 0.45, 0.30
+    elif total_score >= 36:
+        p_bull, p_base, p_bear = 0.20, 0.40, 0.40
+    else:
+        p_bull, p_base, p_bear = 0.15, 0.35, 0.50
+
+    if bear_ret is not None and base_ret is not None and bull_ret is not None:
+        expected_ret = p_bull * bull_ret + p_base * base_ret + p_bear * bear_ret
+        expected_price = price * (1 + expected_ret) if price else None
+    else:
+        expected_ret  = None
+        expected_price = None
+
     # Target price to achieve 1.5x
     target_1_5x_price = (price * 1.5) if price else None
 
@@ -1270,6 +1390,11 @@ def build_scenario_model(data: dict, scorecard: dict, hold_months: int = 6) -> d
         "trail_rev_b":          trail_rev / 1e9 if trail_rev else None,
         "current_ev_b":         cur_ev / 1e9 if cur_ev else None,
         "current_ev_rev_mult":  cur_ev_rev_mult,
+        # Sector calibration
+        "sector_bucket":        sector_bucket,
+        "bear_factor":          bear_factor,
+        "bull_factor":          bull_factor,
+        "default_bull_factor":  default_bull_factor,
         # Scenario multiples
         "bear_mult":            bear_mult,
         "base_mult":            base_mult,
@@ -1282,11 +1407,97 @@ def build_scenario_model(data: dict, scorecard: dict, hold_months: int = 6) -> d
         "bear_ret":             bear_ret,
         "base_ret":             base_ret,
         "bull_ret":             bull_ret,
+        # Probability-weighted expected return
+        "p_bear":               p_bear,
+        "p_base":               p_base,
+        "p_bull":               p_bull,
+        "expected_ret":         expected_ret,
+        "expected_price":       expected_price,
         # 1.5x analysis
         "target_1_5x_price":    target_1_5x_price,
         "req_mult_for_1_5x":    req_mult_for_1_5x,
         "bull_reaches_1_5x":    bull_price is not None and price > 0 and bull_price >= price * 1.5,
     }
+
+
+# ── Track-record CSV logging ──────────────────────────────────────────────────
+
+def append_track_record(ticker: str, data: dict, scorecard: dict, scenario: dict,
+                        hold_months: int = 6, path: str | None = None) -> str:
+    """Append a single MUFF scan to the track-record CSV.
+
+    Foundation for validating the engine over time — every scan becomes a row that
+    can later be cross-referenced against actual realised returns to test whether
+    higher scores actually produce better outcomes.
+
+    Schema is append-only. Adding new columns is safe; renaming/removing breaks
+    historical analysis.
+    """
+    import csv
+    import os
+
+    if path is None:
+        path = os.path.join(os.path.dirname(__file__), "muff_track_record.csv")
+
+    HEADERS = [
+        "timestamp", "scan_date", "ticker", "company_name", "sector",
+        "score", "verdict", "low_data_confidence",
+        "current_price", "market_cap_b", "fwd_rev_b", "current_ev_rev_mult",
+        "sector_bucket", "bear_factor", "bull_factor",
+        "bear_price", "base_price", "bull_price",
+        "bear_ret", "base_ret", "bull_ret",
+        "p_bear", "p_base", "p_bull", "expected_ret", "expected_price",
+        "narrative_theme", "narrative_strength",
+        "catalyst_timing", "catalyst_desc",
+        "hold_months",
+    ]
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    row = {
+        "timestamp":            now.isoformat(timespec="seconds"),
+        "scan_date":            now.date().isoformat(),
+        "ticker":               ticker,
+        "company_name":         data.get("company_name") or "",
+        "sector":               data.get("sector") or "",
+        "score":                scorecard.get("total_score"),
+        "verdict":              scorecard.get("verdict"),
+        "low_data_confidence":  scorecard.get("low_data_confidence", False),
+        "current_price":        scenario.get("current_price"),
+        "market_cap_b":         round((data.get("market_cap") or 0) / 1e9, 3) if data.get("market_cap") else None,
+        "fwd_rev_b":            scenario.get("fwd_rev_b"),
+        "current_ev_rev_mult":  scenario.get("current_ev_rev_mult"),
+        "sector_bucket":        scenario.get("sector_bucket"),
+        "bear_factor":          scenario.get("bear_factor"),
+        "bull_factor":          scenario.get("bull_factor"),
+        "bear_price":           scenario.get("bear_price"),
+        "base_price":           scenario.get("base_price"),
+        "bull_price":           scenario.get("bull_price"),
+        "bear_ret":             scenario.get("bear_ret"),
+        "base_ret":             scenario.get("base_ret"),
+        "bull_ret":             scenario.get("bull_ret"),
+        "p_bear":               scenario.get("p_bear"),
+        "p_base":               scenario.get("p_base"),
+        "p_bull":               scenario.get("p_bull"),
+        "expected_ret":         scenario.get("expected_ret"),
+        "expected_price":       scenario.get("expected_price"),
+        "narrative_theme":      scorecard.get("narrative_theme") or "",
+        "narrative_strength":   scorecard.get("narrative_strength") or "",
+        "catalyst_timing":      scorecard.get("catalyst_timing") or "",
+        "catalyst_desc":        (scorecard.get("catalyst_desc") or "")[:240],
+        "hold_months":          hold_months,
+    }
+
+    new_file = not os.path.exists(path)
+    try:
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=HEADERS, extrasaction="ignore")
+            if new_file:
+                w.writeheader()
+            w.writerow(row)
+        return path
+    except Exception as e:
+        # Logging failure must NEVER block a scan from completing
+        return f"track-record write failed: {e}"
 
 
 # ── Excel workbook builder ─────────────────────────────────────────────────────

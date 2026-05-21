@@ -160,6 +160,28 @@ def build_speculative_report_data(
         sc.get("bull_mult"), sc.get("bull_price"), sc.get("bull_ret"), "row-bull"
     )
 
+    # Probability-weighted expected return row — the headline number
+    p_bear = sc.get("p_bear")
+    p_base = sc.get("p_base")
+    p_bull = sc.get("p_bull")
+    exp_ret = sc.get("expected_ret")
+    exp_px  = sc.get("expected_price")
+    if p_bear is not None and p_base is not None and p_bull is not None:
+        prob_label = (f"EXPECTED — Prob-Weighted "
+                      f"({int(round(p_bear*100))}/{int(round(p_base*100))}/{int(round(p_bull*100))})")
+    else:
+        prob_label = "EXPECTED — Prob-Weighted"
+    exp_ret_str = _fmt_pct(exp_ret) if exp_ret is not None else "N/A"
+    exp_px_str  = _fmt_price(exp_px) if exp_px is not None else "N/A"
+    exp_css     = "pos" if (exp_ret is not None and exp_ret >= 0) else "neg"
+    scenario_rows += f"""
+        <tr class="sc-row" style="border-top:2px solid var(--border)">
+          <td class="scenario-label" style="color:var(--orange);font-weight:600">{prob_label}</td>
+          <td class="scenario-val" style="color:var(--ink-3)">—</td>
+          <td class="scenario-val" style="color:var(--orange)">{exp_px_str}</td>
+          <td class="scenario-val {exp_css}" style="font-weight:700">{exp_ret_str}</td>
+        </tr>"""
+
     # 1.5x note
     bull_hits_1_5x = sc.get("bull_reaches_1_5x", False)
     target_1_5x    = _fmt_price(sc.get("target_1_5x_price"))
@@ -222,6 +244,14 @@ def build_speculative_report_data(
         "BEAR_RET":             _fmt_pct(sc.get("bear_ret")),
         "BASE_RET":             _fmt_pct(sc.get("base_ret")),
         "BULL_RET":             _fmt_pct(sc.get("bull_ret")),
+        "EXPECTED_RET":         _fmt_pct(sc.get("expected_ret")),
+        "EXPECTED_PRICE":       _fmt_price(sc.get("expected_price")),
+        "SECTOR_BUCKET":        (sc.get("sector_bucket") or "default").replace("_", " "),
+        "PROB_WEIGHTS":         (f"{int(round((sc.get('p_bear') or 0)*100))} / "
+                                  f"{int(round((sc.get('p_base') or 0)*100))} / "
+                                  f"{int(round((sc.get('p_bull') or 0)*100))}"),
+        "BEAR_FACTOR":          f"{sc.get('bear_factor'):.2f}×" if sc.get('bear_factor') else "—",
+        "BULL_FACTOR":          f"{sc.get('bull_factor'):.2f}×" if sc.get('bull_factor') else "—",
         # Catalyst / Narrative
         "NARRATIVE_THEME":      narr_theme,
         "NARRATIVE_STRENGTH":   narr_str,

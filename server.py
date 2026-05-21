@@ -753,19 +753,31 @@ def generate_speculative():
             "mode":   "speculative",
         }
 
+        # ── Append to track-record CSV (best-effort, never blocks the response) ──
+        try:
+            _spec.append_track_record(ticker, data, scorecard, scenario, hold_months=hold_months)
+        except Exception:
+            pass
+
         return jsonify({
-            "report_id":   rid,
-            "ticker":      ticker,
-            "total_score": scorecard.get("total_score"),
-            "verdict":     scorecard.get("verdict"),
-            "bear_ret":    scenario.get("bear_ret"),
-            "bear_price":  scenario.get("bear_price"),
-            "base_ret":    scenario.get("base_ret"),
-            "base_price":  scenario.get("base_price"),
-            "bull_ret":    scenario.get("bull_ret"),
-            "bull_price":  scenario.get("bull_price"),
-            "report_url":  f"/reports/{ticker}_speculative_report.html",
-            "excel_url":   f"/download/speculative-model/{ticker}",
+            "report_id":     rid,
+            "ticker":        ticker,
+            "total_score":   scorecard.get("total_score"),
+            "verdict":       scorecard.get("verdict"),
+            "bear_ret":      scenario.get("bear_ret"),
+            "bear_price":    scenario.get("bear_price"),
+            "base_ret":      scenario.get("base_ret"),
+            "base_price":    scenario.get("base_price"),
+            "bull_ret":      scenario.get("bull_ret"),
+            "bull_price":    scenario.get("bull_price"),
+            "expected_ret":  scenario.get("expected_ret"),
+            "expected_price":scenario.get("expected_price"),
+            "p_bear":        scenario.get("p_bear"),
+            "p_base":        scenario.get("p_base"),
+            "p_bull":        scenario.get("p_bull"),
+            "sector_bucket": scenario.get("sector_bucket"),
+            "report_url":    f"/reports/{ticker}_speculative_report.html",
+            "excel_url":     f"/download/speculative-model/{ticker}",
         })
 
     except Exception as e:
