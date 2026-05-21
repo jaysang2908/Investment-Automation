@@ -21,9 +21,9 @@ Scores 12 dimensions across two categories:
 
 Scoring: HIGH = 10 pts · MOD = 5 pts · LOW = 0 pts  (max 120)
 
-Verdicts (75% / 60% / 45% / 30% of 120):
+Verdicts (75% / ~54% / 45% / 30% of 120):
     ≥ 90 → Moonshot Conviction
-    ≥ 72 → Strong Speculative
+    ≥ 65 → Strong Speculative
     ≥ 54 → Speculative Play
     ≥ 36 → High Risk
      < 36 → Pass
@@ -56,7 +56,7 @@ NARRATIVE_THEMES = [
 
 VERDICTS = [
     (90, "Moonshot Conviction"),
-    (72, "Strong Speculative"),
+    (65, "Strong Speculative"),
     (54, "Speculative Play"),
     (36, "High Risk"),
     (0,  "Pass"),
@@ -798,7 +798,9 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
     else:
         notes.append("News: unavailable")
 
-    # Sub-signal 2: Reddit sentiment (WSB + stocks + investing)
+    # Sub-signal 2: Reddit sentiment (WSB + stocks + investing) — INVERTED SCORING
+    # Contrarian logic: extreme crowd bullishness on retail forums means you're late.
+    # What we want is UNDER-THE-RADAR positioning, not confirmation that WSB already piled in.
     rd_bp    = data.get("reddit_bullish_pct")
     rd_bull  = data.get("reddit_bullish", 0) or 0
     rd_bear  = data.get("reddit_bearish", 0) or 0
@@ -807,16 +809,25 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
 
     if rd_bp is not None:
         activity = f"{rd_24h} posts in last 24h" if rd_24h else f"{rd_total} posts this week"
-        if rd_bp >= 0.65:
-            bullish_signals.append(True)
-            notes.append(f"Reddit: {rd_bp*100:.0f}% bullish ({rd_bull}+ / {rd_bear}−, {activity})")
-        elif rd_bp >= 0.40:
-            notes.append(f"Reddit: {rd_bp*100:.0f}% bullish — mixed ({activity})")
-        else:
+        if rd_bp >= 0.75 and rd_total >= 15:
+            # Crowded retail trade — late entry risk
             bullish_signals.append(False)
-            notes.append(f"Reddit: {rd_bp*100:.0f}% bullish — bearish lean ({activity})")
+            notes.append(f"Reddit: {rd_bp*100:.0f}% bullish ({rd_bull}+ / {rd_bear}−, {activity}) — crowded retail trade, asymmetry eroded")
+        elif rd_total < 8:
+            # Under the radar — early positioning opportunity
+            bullish_signals.append(True)
+            notes.append(f"Reddit: low visibility ({rd_total} mentions this week) — not yet retail-crowded, potential early setup")
+        elif rd_bp < 0.35:
+            # Crowd is skeptical — confirms weak setup signal
+            bullish_signals.append(False)
+            notes.append(f"Reddit: {rd_bp*100:.0f}% bullish — crowd skeptical ({activity})")
+        else:
+            # Moderate interest, mixed sentiment — neutral; don't penalise or reward
+            notes.append(f"Reddit: {rd_bp*100:.0f}% bullish — moderate interest ({activity}), no extreme crowding")
     elif rd_total == 0:
-        notes.append("Reddit: no mentions found this week")
+        # No mentions at all — stock under the radar (positive for asymmetry)
+        bullish_signals.append(True)
+        notes.append("Reddit: no mentions found — not on retail radar, early positioning potential")
     else:
         notes.append("Reddit: credentials not configured")
 
@@ -1017,6 +1028,13 @@ def build_speculative_scorecard(
 
     total = sum(s["pts"] for s in scores.values())
     verdict = _verdict(total)
+
+    # Stamp all auto-scored signals with the data date so readers know signal freshness
+    _as_of = datetime.date.today().isoformat()
+    _manual_keys = {"narrative", "catalyst"}
+    for key, s in scores.items():
+        if key not in _manual_keys and s.get("note"):
+            s["note"] = s["note"] + f"  [data: {_as_of}]"
 
     return {
         "scores":            scores,
@@ -1270,7 +1288,7 @@ def build_speculative_excel(
     _hdr(ws1, r, 1, "TOTAL SCORE", bg="FF1F1F1F", fg=GOLD)
     _hdr(ws1, r, 2, verdict,       bg="FF1F1F1F", fg=ORANGE)
     _hdr(ws1, r, 3, total,         bg="FF1F1F1F", fg=WHITE)
-    _hdr(ws1, r, 4, "Score out of 120 · Verdict: ≥90 Moonshot · ≥72 Strong Spec · ≥54 Spec Play · ≥36 High Risk · <36 Pass",
+    _hdr(ws1, r, 4, "Score out of 120 · Verdict: ≥90 Moonshot · ≥65 Strong Spec · ≥54 Spec Play · ≥36 High Risk · <36 Pass",
          bg="FF1F1F1F", fg=GREY)
 
     # ═══════════════════════════════════════════════════════════════════════════

@@ -463,8 +463,12 @@
         <div class="hero-stat-label">EV / Fwd Revenue</div>
       </div>
       <div class="hero-stat">
-        <div class="hero-stat-val" style="color:var(--green)">{{BULL_RET}}</div>
-        <div class="hero-stat-label">Bull Scenario Return</div>
+        <div style="display:flex;gap:10px;align-items:baseline">
+          <span style="font-family:var(--mono);font-size:0.95rem;font-weight:600;color:#F87171">{{BEAR_RET}}</span>
+          <span style="font-family:var(--mono);font-size:0.95rem;font-weight:600;color:var(--amber)">{{BASE_RET}}</span>
+          <span style="font-family:var(--mono);font-size:0.95rem;font-weight:600;color:var(--green)">{{BULL_RET}}</span>
+        </div>
+        <div class="hero-stat-label">Bear / Base / Bull Return</div>
       </div>
     </div>
 
@@ -520,7 +524,7 @@
           <td class="sc-total-verdict" style="text-align:center">{{VERDICT}}</td>
           <td class="sc-total-score">{{TOTAL_SCORE}}</td>
           <td style="color:var(--ink-4);font-size:11px;font-family:var(--mono)">
-            ≥90 Moonshot Conviction · ≥72 Strong Speculative · ≥54 Speculative Play · ≥36 High Risk · &lt;36 Pass
+            ≥90 Moonshot Conviction · ≥65 Strong Speculative · ≥54 Speculative Play · ≥36 High Risk · &lt;36 Pass
           </td>
         </tr>
       </tbody>

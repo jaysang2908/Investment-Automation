@@ -246,7 +246,7 @@
           <div>
             <div class="eyebrow" style="color:#c94a12">● Asymmetric · Speculative · 3–12 Month Horizon</div>
             <h1 class="display-title">Maybe <em>Unsafe</em><br/>Financial Freedom</h1>
-            <p class="lede">Scan for asymmetric setups with 1.5×+ potential over 3–12 months. The engine scores 10 momentum + sentiment signals and builds a narrative re-rating scenario model.</p>
+            <p class="lede">Scan for asymmetric setups with 1.5×+ potential over 3–12 months. The engine scores 10 quantitative signals (momentum, volume, short interest, technicals, options, insiders, news sentiment, and Reddit crowd positioning) plus 2 qualitative inputs, then builds a bear/base/bull re-rating scenario model.</p>
             <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);line-height:1.6;max-width:500px;margin-bottom:var(--s-5)">
               Speculative plays carry material risk of loss. This tool surfaces pattern signals — not investment advice. Size positions accordingly.
             </p>
@@ -329,13 +329,8 @@
               </div>
             </div>
 
-            <div class="gen-field">
-              <label>Custom Google Trends Terms <span class="opt">optional · comma-separated sector keywords</span></label>
-              <input type="text" id="specCustomTerms" placeholder="e.g. HBM memory, DRAM cycle, AI inference chips" autocomplete="off">
-            </div>
-
             <p style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted-soft);margin-bottom:var(--s-4);line-height:1.6">
-              10 signals auto-scored (momentum, volume, short interest, options, insiders, technical setup, Google Trends) · 2 signals from your inputs above · Max score 120
+              10 signals auto-scored (momentum, volume, short interest, options, insiders, technical setup, news &amp; Reddit sentiment) · 2 signals from your inputs above · Max score 120
             </p>
 
             <button class="gen-btn" id="specGenerateBtn" onclick="runSpeculative()">
@@ -357,9 +352,22 @@
                 </div>
                 <div style="font-family:var(--font-mono);font-size:var(--t-tiny);color:var(--muted)">Scan ready</div>
               </div>
-              <div style="font-family:var(--font-mono);font-size:var(--t-xs);color:var(--muted);margin-bottom:var(--s-3)">
-                Bull scenario: <span id="specResBullRet" style="color:var(--v-high-fg);font-weight:var(--weight-bold)">—</span>
-                &nbsp;→&nbsp; <span id="specResBullPrice" style="color:var(--ink)">—</span>
+              <div style="font-family:var(--font-mono);font-size:var(--t-xs);margin-bottom:var(--s-3);display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:8px 10px;">
+                  <div style="color:var(--muted);font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Bear</div>
+                  <div style="color:#F87171;font-weight:var(--weight-bold)" id="specResBearRet">—</div>
+                  <div style="color:var(--muted-soft);font-size:var(--t-micro)" id="specResBearPrice">—</div>
+                </div>
+                <div style="background:rgba(255,166,43,0.07);border:1px solid rgba(255,166,43,0.2);border-radius:6px;padding:8px 10px;">
+                  <div style="color:var(--muted);font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Base</div>
+                  <div style="color:#FFA62B;font-weight:var(--weight-bold)" id="specResBaseRet">—</div>
+                  <div style="color:var(--muted-soft);font-size:var(--t-micro)" id="specResBasePrice">—</div>
+                </div>
+                <div style="background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:8px 10px;">
+                  <div style="color:var(--muted);font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Bull</div>
+                  <div style="color:#34D399;font-weight:var(--weight-bold)" id="specResBullRet">—</div>
+                  <div style="color:var(--muted-soft);font-size:var(--t-micro)" id="specResBullPrice">—</div>
+                </div>
               </div>
               <div class="results-btns">
                 <a class="res-btn res-btn-excel" id="specExcelBtn" href="#" target="_blank" rel="noopener">↓ Scenario Model (Excel)</a>
@@ -376,18 +384,18 @@
         <!-- HOW IT WORKS -->
         <div class="section-head">
           <h3>How it works</h3>
-          <span class="meta">FMP · yfinance · Google Trends · scenario model</span>
+          <span class="meta">FMP · yfinance · Polygon · Reddit · scenario model</span>
         </div>
         <div class="pipeline">
           <div class="step">
             <div class="step-n">STEP 01</div>
             <div class="step-title">Signals</div>
-            <div class="step-body">Pull price momentum, volume, short interest, options flow, and insider activity from FMP + yfinance.</div>
+            <div class="step-body">Pull price momentum, volume, short interest, options flow, and insider activity from FMP, yfinance, and Polygon.</div>
           </div>
           <div class="step">
             <div class="step-n">STEP 02</div>
             <div class="step-title">Narrative</div>
-            <div class="step-body">Score the narrative setup: theme alignment, catalyst timing, and Google Trends search momentum.</div>
+            <div class="step-body">Score narrative setup: theme alignment, catalyst timing, news sentiment (Polygon NLP), and Reddit crowd positioning (inverted — crowded = late).</div>
           </div>
           <div class="step">
             <div class="step-n">STEP 03</div>
@@ -424,7 +432,7 @@
           <h4>Data</h4>
           <a href="#">FMP API</a>
           <a href="#">yfinance</a>
-          <a href="#">Google Trends</a>
+          <a href="#">Polygon.io</a>
         </div>
         <div class="legal">
           <span>© 2026 Investment Utopia · Not investment advice</span>
@@ -452,7 +460,6 @@
       const narrative_strength = document.getElementById('specNarrativeStrength').value;
       const catalyst_desc      = document.getElementById('specCatalystDesc').value.trim();
       const catalyst_timing    = document.getElementById('specCatalystTiming').value;
-      const custom_terms       = document.getElementById('specCustomTerms')?.value.trim() || '';
       const password           = document.getElementById('specPasswordInput')?.value.trim() || '';
 
       if (!ticker) { showSpecMsg('Enter a ticker symbol.', 'error'); return; }
@@ -467,7 +474,7 @@
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ ticker, hold_months: parseInt(hold_months), narrative_theme,
                                  narrative_strength, catalyst_desc, catalyst_timing,
-                                 custom_terms, password }),
+                                 password }),
         });
 
         const data = await res.json();
@@ -482,10 +489,15 @@
         document.getElementById('specResScore').textContent   = data.total_score ?? 'N/A';
         document.getElementById('specResVerdict').textContent = data.verdict ?? '';
 
-        const bullRet   = data.bull_ret;
-        const bullPrice = data.bull_price;
-        document.getElementById('specResBullRet').textContent   = bullRet   != null ? (bullRet >= 0 ? '+' : '') + (bullRet * 100).toFixed(1) + '%' : 'N/A';
-        document.getElementById('specResBullPrice').textContent = bullPrice != null ? '$' + bullPrice.toFixed(2) : 'N/A';
+        function fmtRet(v) { return v != null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : 'N/A'; }
+        function fmtPx(v)  { return v != null ? '$' + v.toFixed(2) : 'N/A'; }
+
+        document.getElementById('specResBearRet').textContent   = fmtRet(data.bear_ret);
+        document.getElementById('specResBearPrice').textContent = fmtPx(data.bear_price);
+        document.getElementById('specResBaseRet').textContent   = fmtRet(data.base_ret);
+        document.getElementById('specResBasePrice').textContent = fmtPx(data.base_price);
+        document.getElementById('specResBullRet').textContent   = fmtRet(data.bull_ret);
+        document.getElementById('specResBullPrice').textContent = fmtPx(data.bull_price);
 
         document.getElementById('specExcelBtn').href = data.excel_url  || `/download/speculative-model/${data.ticker}`;
         document.getElementById('specViewBtn').href  = data.report_url || `/reports/${data.ticker}_speculative_report.html`;
