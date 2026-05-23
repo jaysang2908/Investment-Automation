@@ -600,6 +600,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <span class="price-upside">{{PRICE_TARGET_VS_CURRENT}}</span>
         <span class="price-upside" style="margin-top:3px">{{PRICE_TARGET_METHOD}}</span>
         <div style="font-size:11px;color:var(--ink-2);margin-top:6px;line-height:1.5;max-width:320px;text-align:left">{{PRICE_TARGET_RATIONALE}}</div>
+        {{CONSENSUS_PT_HERO}}
       </div>
     </div>
 
@@ -627,7 +628,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <a class="tab-link" href="#section-scenarios">Scenarios</a>
     <a class="tab-link" href="#section-risks">Risks</a>
     <a class="tab-link" href="#section-valuation">Valuation</a>
-    <a class="tab-link" href="#section-analysts">Analysts</a>
+    <a class="tab-link" href="#section-analysts">Insider Signal</a>
   </div>
 </nav>
 
@@ -1451,111 +1452,16 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
 </section>
 
-<!-- ─── Analysts ─── -->
+<!-- ─── Analysts / Insider Signal ─── -->
 <section id="section-analysts">
   <div class="section-header">
     <span class="section-num">12</span>
     <div>
-      <div class="section-title">Analyst Price Targets</div>
+      <div class="section-title">Street Consensus &amp; Insider Signal</div>
       <div class="section-sub">{{TICKER_SHORT}} · {{REPORT_DATE}}</div>
     </div>
   </div>
-  <div style="margin-bottom:10px;padding:8px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
-    <strong style="color:var(--ink)">EPS Revision Momentum:</strong>&nbsp;{{EARNINGS_REVISION}}
-  </div>
-  <div style="margin-bottom:10px;padding:8px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
-    <strong style="color:var(--ink)">PT Revision Momentum:</strong>&nbsp;{{PT_REVISION_MOMENTUM}}
-  </div>
-  <div class="no-break">
-    <div class="analyst-consensus-bar">
-      <div class="cons-cell buy-cell">
-        <div class="cons-label">Buy / Strong Buy</div>
-        <div class="cons-val">{{BUY_PCT}}</div>
-        <div class="cons-sub">{{BUY_COUNT}}</div>
-      </div>
-      <div class="cons-cell hold-cell">
-        <div class="cons-label">Hold</div>
-        <div class="cons-val">{{HOLD_PCT}}</div>
-        <div class="cons-sub">{{HOLD_COUNT}}</div>
-      </div>
-      <div class="cons-cell sell-cell">
-        <div class="cons-label">Sell</div>
-        <div class="cons-val">{{SELL_PCT}}</div>
-        <div class="cons-sub">{{SELL_COUNT}}</div>
-      </div>
-    </div>
-    <table class="analyst-table">
-      <thead>
-        <tr>
-          <th style="width:20%">Analyst</th>
-          <th style="width:20%">Firm</th>
-          <th class="center" style="width:12%">Rating</th>
-          <th class="center" style="width:14%">Price Target</th>
-          <th class="center" style="width:12%">vs {{CURRENT_PRICE}}</th>
-          <th style="width:22%">Last Updated</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="analyst-name">{{A1_NAME}}</td><td class="firm-name">{{A1_FIRM}}</td>
-          <td class="center"><span class="{{A1_RATING_CLASS}}">{{A1_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A1_PT_CLASS}}">{{A1_PT}}</td>
-          <td class="center {{A1_PT_CLASS}}">{{A1_PT_VS}}</td>
-          <td>{{A1_DATE}}</td>
-        </tr>
-        <tr>
-          <td class="analyst-name">{{A2_NAME}}</td><td class="firm-name">{{A2_FIRM}}</td>
-          <td class="center"><span class="{{A2_RATING_CLASS}}">{{A2_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A2_PT_CLASS}}">{{A2_PT}}</td>
-          <td class="center {{A2_PT_CLASS}}">{{A2_PT_VS}}</td>
-          <td>{{A2_DATE}}</td>
-        </tr>
-        <tr>
-          <td class="analyst-name">{{A3_NAME}}</td><td class="firm-name">{{A3_FIRM}}</td>
-          <td class="center"><span class="{{A3_RATING_CLASS}}">{{A3_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A3_PT_CLASS}}">{{A3_PT}}</td>
-          <td class="center {{A3_PT_CLASS}}">{{A3_PT_VS}}</td>
-          <td>{{A3_DATE}}</td>
-        </tr>
-        <tr>
-          <td class="analyst-name">{{A4_NAME}}</td><td class="firm-name">{{A4_FIRM}}</td>
-          <td class="center"><span class="{{A4_RATING_CLASS}}">{{A4_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A4_PT_CLASS}}">{{A4_PT}}</td>
-          <td class="center {{A4_PT_CLASS}}">{{A4_PT_VS}}</td>
-          <td>{{A4_DATE}}</td>
-        </tr>
-        <tr>
-          <td class="analyst-name">{{A5_NAME}}</td><td class="firm-name">{{A5_FIRM}}</td>
-          <td class="center"><span class="{{A5_RATING_CLASS}}">{{A5_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A5_PT_CLASS}}">{{A5_PT}}</td>
-          <td class="center {{A5_PT_CLASS}}">{{A5_PT_VS}}</td>
-          <td>{{A5_DATE}}</td>
-        </tr>
-        <tr>
-          <td class="analyst-name">{{A6_NAME}}</td><td class="firm-name">{{A6_FIRM}}</td>
-          <td class="center"><span class="{{A6_RATING_CLASS}}">{{A6_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A6_PT_CLASS}}">{{A6_PT}}</td>
-          <td class="center {{A6_PT_CLASS}}">{{A6_PT_VS}}</td>
-          <td>{{A6_DATE}}</td>
-        </tr>
-        <tr>
-          <td class="analyst-name">{{A7_NAME}}</td><td class="firm-name">{{A7_FIRM}}</td>
-          <td class="center"><span class="{{A7_RATING_CLASS}}">{{A7_RATING_TEXT}}</span></td>
-          <td class="center pt-val {{A7_PT_CLASS}}">{{A7_PT}}</td>
-          <td class="center {{A7_PT_CLASS}}">{{A7_PT_VS}}</td>
-          <td>{{A7_DATE}}</td>
-        </tr>
-        <tr style="background:var(--accent-soft) !important; font-weight:600; border-top: 1px solid var(--line-strong);">
-          <td colspan="2" style="font-size:13px;color:var(--accent-ink)">Consensus Average ({{ANALYST_COUNT}} analysts)</td>
-          <td class="center" style="color:var(--up);font-family:var(--font-mono);font-size:11px">{{BUY_PCT}} Buy</td>
-          <td class="center pt-val" style="color:var(--accent)">{{CONSENSUS_PT}}</td>
-          <td class="center" style="color:var(--up);font-family:var(--font-mono);font-size:12px">{{CONSENSUS_PT_VS}}</td>
-          <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">Range: {{PT_RANGE}}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="analyst-note">{{ANALYST_TABLE_NOTE}}</p>
-  </div>
+  {{CONSENSUS_PT_SECTION}}
   {{INSIDER_SIGNAL_HTML}}
 </section>
 

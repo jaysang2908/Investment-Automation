@@ -98,23 +98,12 @@ def main():
         sm_raw = cached.get("scorecard_metrics") or {}
         sm     = _normalise_sm(sm_raw, csv_auto, csv_cap)
 
-        # ── adj_score: reconstruct from normalised auto_score_raw + quals ─────
-        adj_score = None
-        if bc_manual or ltp_manual:
-            try:
-                _W       = sm.get("weights") or {}
-                _w_bc    = float(_W.get("BC",  2.5))
-                _w_ltp   = float(_W.get("LTP", 10.0))
-                bc_pts   = TIER_PTS.get(bc_manual,  0) * _w_bc  / 10
-                ltp_pts  = TIER_PTS.get(ltp_manual, 0) * _w_ltp / 10
-                # Use stored auto_score_raw if available; otherwise approximate
-                auto_raw = sm.get("auto_score_raw") or ((csv_auto or 0) * 8.75)
-                adj_score = round((auto_raw + bc_pts + ltp_pts) / 10, 1)
-                fc = sm.get("floor_cap")
-                if fc is not None:
-                    adj_score = min(adj_score, float(fc))
-            except Exception:
-                pass
+        # ── display score: CSV is authoritative ──────────────────────────────
+        # When quals are present, the CSV Auto_Score already stores the correct
+        # adj_score from the original run (Rule 10).  Use it directly rather
+        # than recomputing from cached raw values, which may differ by one
+        # rounding step on old-format caches (auto_score_raw=None).
+        adj_score = csv_auto if (bc_manual or ltp_manual) else None
 
         try:
             profile      = cached.get("profile") or {}
