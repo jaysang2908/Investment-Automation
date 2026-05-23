@@ -3384,7 +3384,8 @@ def _val_score(delta, premium_ok=False):
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     biz_clarity=None, ltp=None, dcf_gg_price=None,
-                    evs_regime=False, bank_credit=None, analyst_ests=None):
+                    evs_regime=False, bank_credit=None, analyst_ests=None,
+                    profile=None):
     """
     JS Scorecard tab — auto-scores 11 of 13 criteria.
     Quantitative: Revenue CAGR, FCF/NI, Capital Returns, ROIC, D/EBITDA, EBIT/Int
@@ -3582,6 +3583,10 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         except Exception:
             pass
         sector_str   = prof_sc.get("industry") or prof_sc.get("sector") or ""
+        # If the internal API call returned nothing, fall back to the profile
+        # already fetched by the caller (passed as the `profile` kwarg).
+        if not sector_str and profile:
+            sector_str = profile.get("industry") or profile.get("sector") or ""
         # Bank/financial sector detection — D/EBITDA is meaningless for deposit-funded institutions
         _BANK_KW = {"bank", "banking", "financial services", "savings", "thrift",
                     "mortgage", "credit union", "investment bank", "diversified financial"}

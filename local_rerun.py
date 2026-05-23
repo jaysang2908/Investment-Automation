@@ -220,6 +220,7 @@ def main():
                 evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
                 bank_credit=_bank_credit,
                 analyst_ests=analyst_ests,
+                profile=profile,
             )
 
             # Adj score
