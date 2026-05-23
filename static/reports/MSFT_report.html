@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MSFT — Investment Utopia</title>
+<title>Microsoft Corporation — Investment Utopia</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -298,7 +298,7 @@ table { border-collapse: collapse; }
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
-.fin-table th { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--bg-elev); font-weight: 500; }
+.fin-table th { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); background: #E8E6DF; font-weight: 600; }
 .fin-table th:not(.row-head) { text-align: right; }
 .fin-table td { font-family: var(--font-mono); color: var(--ink-2); }
 .fin-table td.row-label { font-family: var(--font-body); font-size: 13px; color: var(--ink-2); font-weight: 500; text-align: left; }
@@ -373,7 +373,7 @@ table { border-collapse: collapse; }
 
 /* ===== Scenarios ===== */
 .scenario-table { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.scenario-table th { padding: 10px 14px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; text-align: left; }
+.scenario-table th { padding: 10px 14px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; text-align: left; }
 .scenario-table th.bear-h { background: var(--red-soft); color: var(--down); }
 .scenario-table th.base-h { background: var(--accent-soft); color: var(--accent); }
 .scenario-table th.bull-h { background: #E8F0EC; color: var(--up); }
@@ -384,7 +384,10 @@ table { border-collapse: collapse; }
 .scenario-table .price-row td.bear-p { color: var(--down); background: var(--red-soft); }
 .scenario-table .price-row td.base-p { color: var(--accent); background: var(--accent-soft); }
 .scenario-table .price-row td.bull-p { color: var(--up); background: #E8F0EC; }
-.scenario-table thead tr th:first-child { background: var(--bg-elev); color: var(--muted); }
+.scenario-table thead tr th:first-child { background: #E0DED7; color: var(--ink-2); }
+.scenario-table .scen-section td { background: #E0DED7; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); padding: 8px 14px; border-bottom: 1px solid var(--line-strong); }
+.scenario-table .upside-row td.vs-up { color: var(--up); font-weight: 600; font-family: var(--font-mono); }
+.scenario-table .upside-row td.vs-dn { color: var(--down); font-weight: 600; font-family: var(--font-mono); }
 
 /* ===== Key risks ===== */
 .risks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -402,7 +405,7 @@ table { border-collapse: collapse; }
 .val-card { background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; }
 .val-card-title { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .dcf-scenario-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 16px; }
-.dcf-scenario-table th { font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: var(--muted); padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.08em; }
+.dcf-scenario-table th { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line-strong); text-transform: uppercase; letter-spacing: 0.06em; }
 .dcf-scenario-table th:first-child { text-align: left; }
 .dcf-scenario-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); }
 .dcf-scenario-table td:first-child { text-align: left; font-weight: 600; color: var(--ink); }
@@ -435,7 +438,7 @@ table { border-collapse: collapse; }
 .valuation-verdict p + p { margin-top: 8px; }
 
 .mult-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.mult-table th { font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: var(--muted); padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.08em; }
+.mult-table th { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line-strong); text-transform: uppercase; letter-spacing: 0.06em; }
 .mult-table th:first-child { text-align: left; }
 .mult-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); }
 .mult-table td:first-child { text-align: left; font-family: var(--font-body); font-size: 13px; color: var(--ink-2); }
@@ -553,9 +556,9 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <div class="topbar-ticker" style="margin-left:auto">
       <span class="ticker-symbol">MSFT</span>
       <span class="ticker-sep">/</span>
-      <span class="ticker-price">411.22</span>
+      <span class="ticker-price">419.09</span>
     </div>
-    <div class="topbar-date">April 2026</div>
+    <div class="topbar-date">May 2026</div>
   </div>
 </nav>
 
@@ -563,24 +566,22 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 <div class="hero">
   <div class="hero-eyebrow">
     <span class="pill pill-solid">MSFT</span>
-    <span class="pill pill-ghost">N/A</span>
+    <span class="pill pill-ghost">Software - Infrastructure</span>
   </div>
-  <h1 class="hero-title">MSFT</h1>
-  <p class="hero-tagline">MSFT operates in the N/A sector. CEO: N/A.</p>
+  <h1 class="hero-title">Microsoft Corporation</h1>
+  <p class="hero-tagline">Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. The company operates in three segments: Productivity and Business Processes, Intelligent Cloud, and More Personal Computing. The Productivity and Business Processes segment offers Office, Exchange, SharePoint, Microsoft Teams, Office 365 Security and Compliance, Microsoft Viva, and Skype for Business; Skype, Outlook.com, OneDrive, and LinkedIn; and Dynamics 365, a set of cloud-based and on-premises business solutions for organizations and enterprise divisions. The Intelligent Cloud segment licenses SQL, Windows Servers, Visual Studio, System Center, and related Client Access Licenses; GitHub that provides a collaboration platform and code hosting service for developers; Nuance provides healthcare and enterprise AI solutions; and Azure, a cloud platform. It also offers enterprise support, Microsoft consulting, and nuance professional services to assist customers in developing, deploying, and managing Microsoft server and desktop solutions; and training and certification on Microsoft products. The More Personal Computing segment provides Windows original equipment manufacturer (OEM) licensing and other non-volume licensing of the Windows operating system; Windows Commercial, such as volume licensing of the Windows operating system, Windows cloud services, and other Windows commercial offerings; patent licensing; and Windows Internet of Things. It also offers Surface, PC accessories, PCs, tablets, gaming and entertainment consoles, and other devices; Gaming, including Xbox hardware, and Xbox content and services; video games and third-party video game royalties; and Search, including Bing and Microsoft advertising. The company sells its products through OEMs, distributors, and resellers; and directly through digital marketplaces, online stores, and retail stores. Microsoft Corporation was founded in 1975 and is headquartered in Redmond, Washington.</p>
 
   <div class="hero-grid">
     <!-- Verdict card -->
-    <div class="hero-verdict verdict-green">
+    <div class="hero-verdict verdict-amber">
       <div>
         <div class="verdict-label">Research Verdict</div>
-        <div class="verdict-value">Good Business at Fair Price</div>
+        <div class="verdict-value">Hold — Monitor</div>
+        <div style="font-size:10px;color:var(--ink-2);margin-top:4px;letter-spacing:0.3px">Conservative of Quant + Full scores</div>
       </div>
       <div>
-        <div class="verdict-score-row">
-          <span class="verdict-score-num">72.0</span>
-          <span class="verdict-score-den">/100</span>
-        </div>
-        <div class="verdict-score-sub">JS Proprietary Score · April 2026</div>
+        <div class="verdict-score-row"><span class="verdict-score-num">6.2</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant only — qualitative inputs pending</div>
+        <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · May 2026</div>
       </div>
     </div>
 
@@ -588,23 +589,31 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <div class="hero-price">
       <div class="price-block">
         <div class="price-label">Current Price</div>
-        <div class="price-value">411.22</div>
+        <div class="price-value">419.09</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);margin-top:6px;letter-spacing:0.02em"></div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:0.02em"></div>
       </div>
       <div class="price-arrow">→</div>
       <div class="price-block">
         <div class="price-label">Price Target</div>
-        <div class="price-value price-target">429.0</div>
-        <span class="price-upside">Base case target</span>
+        <div class="price-value price-target">643.0</div>
+        <span class="price-upside">+53.4% vs current</span>
+        <span class="price-upside" style="margin-top:3px">EV/EBITDA Exit (18x)</span>
+        <div style="font-size:11px;color:var(--ink-2);margin-top:6px;line-height:1.5;max-width:320px;text-align:left">High Growth (12.5% 3yr avg rev growth). EV/EBITDA multiples prioritised — high-growth companies are better valued on forward earnings power and peer multiples. Base 18x exit multiple.</div>
       </div>
     </div>
 
     <!-- Meta card -->
     <div class="hero-meta-card">
-      <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;$3053.6B &nbsp;·&nbsp; <strong>EV</strong> &nbsp;$3066.5B</div>
-      <div class="hero-meta-line"><strong>Net debt $12.9B</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;N/A</div>
-      <div class="hero-meta-line">Score: <strong>72.0/100</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
+      <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;$3113.2B &nbsp;·&nbsp; <strong>EV</strong> &nbsp;$3126.1B</div>
+      <div class="hero-meta-line"><strong>Net debt $12.9B</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;29.7%</div>
+      <div class="hero-meta-line">Score: <strong>6.2/10</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
     </div>
   </div>
+
+  <div style="margin:14px 0 18px;padding:12px 18px;background:var(--warn-bg);border-left:3px solid var(--warn);border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:var(--ink-1)"><strong style="color:var(--warn);font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">⚠ Material Valuation Gap</strong><br>Fundamentals-derived target is <strong>53% above</strong> current market price. Market is discounting the stock below what the fundamentals justify. Possible drivers (sector-typical): regulatory/competitive overhang, disruption risk, multiple compression on growth deceleration. User judgment required: consider qualitatively whether the gap is justified.</div>
+  <div style="margin:6px 0 14px;padding:8px 14px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.4;color:#2e7d32"><strong>✓ Score confidence: HIGH</strong> — 5 yr FCF history; 24 analyst(s) covering</div>
+
 </div>
 
 <!-- ═══ TAB NAV ═══ -->
@@ -638,47 +647,47 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <div class="metrics-grid">
     <div class="metric-cell">
       <div class="m-label">Market Cap</div>
-      <div class="m-value">$3053.6B</div>
-      <div class="m-sub">7.46B shares</div>
+      <div class="m-value">$3113.2B</div>
+      <div class="m-sub">7.43B shares</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">Enterprise Value</div>
-      <div class="m-value">$3066.5B</div>
+      <div class="m-value">$3126.1B</div>
       <div class="m-sub">Net debt $12.9B</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">Trailing P/E</div>
-      <div class="m-value ">N/A</div>
-      <div class="m-sub">10yr avg N/A <span style="color:#b45309;font-weight:600">N/A</span></div>
+      <div class="m-value warn">36.3x</div>
+      <div class="m-sub">10yr avg 33.9x (5yr avg) <span style="color:#b45309;font-weight:600">+7%</span></div>
     </div>
-    <div class="metric-cell highlight">
+    <div class="metric-cell ">
       <div class="m-label">Forward P/E</div>
-      <div class="m-value">N/A</div>
-      <div class="m-sub">10yr avg N/A <span style="color:#b45309;font-weight:600">N/A</span> · Awaiting analyst estimates</div>
+      <div class="m-value">27.2x</div>
+      <div class="m-sub">10yr avg 33.9x <span style="color:#b45309;font-weight:600">+7%</span> · FY+1E EPS $15.40 (trailing 12.4% CAGR projection)</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">Trailing P/FCF</div>
-      <div class="m-value">N/A</div>
-      <div class="m-sub">10yr avg N/A <span style="color:#b45309;font-weight:600">N/A</span></div>
+      <div class="m-value">51.6x</div>
+      <div class="m-sub">10yr avg 41.2x (5yr avg) <span style="color:#b45309;font-weight:600">+25%</span></div>
     </div>
     <div class="metric-cell ">
       <div class="m-label">Forward P/FCF</div>
-      <div class="m-value">N/A</div>
-      <div class="m-sub">10yr avg N/A <span style="color:#b45309;font-weight:600">N/A</span> · Awaiting analyst estimates</div>
+      <div class="m-value">38.7x</div>
+      <div class="m-sub">10yr avg 41.2x <span style="color:#b45309;font-weight:600">+25%</span> · FY+1E FCF/sh $10.84 (trailing 12.4% CAGR projection)</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">EV/EBITDA (LTM)</div>
-      <div class="m-value">19.1x</div>
-      <div class="m-sub">Trailing: 19.1x; fwd pending analyst estimates</div>
+      <div class="m-value">19.5x</div>
+      <div class="m-sub">Trailing: 19.5x; fwd pending analyst estimates</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">EV/Revenue (LTM)</div>
-      <div class="m-value">10.9x</div>
+      <div class="m-value">11.1x</div>
       <div class="m-sub">Enterprise Value ÷ LTM Revenue</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">EV/Gross Profit (LTM)</div>
-      <div class="m-value">19.1x</div>
+      <div class="m-value">16.1x</div>
       <div class="m-sub">Enterprise Value ÷ LTM Gross Profit</div>
     </div>
     <div class="metric-cell">
@@ -693,18 +702,18 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     </div>
     <div class="metric-cell positive">
       <div class="m-label">Free Cash Flow</div>
-      <div class="m-value">$73.4B</div>
-      <div class="m-sub">+7% YoY</div>
+      <div class="m-value">$71.6B</div>
+      <div class="m-sub">-3% YoY</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">ROIC</div>
-      <div class="m-value ">N/A</div>
+      <div class="m-value positive">29.7%</div>
       <div class="m-sub">FY2025</div>
     </div>
     <div class="metric-cell">
       <div class="m-label">Capital Returns</div>
-      <div class="m-value">Minimal</div>
-      <div class="m-sub">Capital primarily reinvested at N/A ROIC; direct shareholder returns negligible over 5yr.</div>
+      <div class="m-value">$218.3B</div>
+      <div class="m-sub">Balanced returns: $118.0B buybacks + $100.3B dividends over 5yr.</div>
     </div>
   </div>
 </section>
@@ -714,25 +723,25 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <div class="section-header">
     <span class="section-num">02</span>
     <div>
-      <div class="section-title">Revenue Mix</div>
-      <div class="section-sub">Revenue Mix</div>
+      <div class="section-title">Financial Highlights</div>
+      <div class="section-sub">FY2025 · Segment detail in 10-K</div>
     </div>
   </div>
   <div class="mix-band">
     <div class="mix-cell">
-      <div class="mix-name">📊 Total Revenue</div>
-      <div class="mix-rev">100%</div>
-      <div class="mix-sub">$281.7B total revenue in FY2025 (14.9% YoY). Segment breakdown in 10-K.</div>
+      <div class="mix-name">📈 Revenue Growth</div>
+      <div class="mix-rev">14.9%</div>
+      <div class="mix-sub">Total revenue $281.7B in FY2025. 3yr avg annual growth 12.5%; 4yr CAGR 12.4%. Segment mix in 10-K.</div>
     </div>
     <div class="mix-cell seg2">
-      <div class="mix-name">📊 EBITDA</div>
+      <div class="mix-name">💰 EBITDA Margin</div>
       <div class="mix-rev">56.9%</div>
-      <div class="mix-sub">EBITDA margin 56.9% in FY2025; 4yr avg trend improving.</div>
+      <div class="mix-sub">EBITDA $160.2B in FY2025; margin declining over 4yr review period.</div>
     </div>
     <div class="mix-cell seg3">
-      <div class="mix-name">📊 Free Cash Flow</div>
-      <div class="mix-rev">26.1%</div>
-      <div class="mix-sub">FCF $73.4B in FY2025, N/A FCF/NI conversion. 4yr FCF CAGR: 7.8%.</div>
+      <div class="mix-name">🏦 FCF Margin</div>
+      <div class="mix-rev">25.4%</div>
+      <div class="mix-sub">FCF $71.6B in FY2025, 70.3% FCF/NI conversion. 4yr FCF CAGR: 6.3%.</div>
     </div>
   </div>
 </section>
@@ -767,7 +776,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     </div>
   </div>
   <div class="credit-note">
-    Credit metrics: 0.1x D/EBITDA, N/A interest coverage. Net debt $12.9B.<sup><a href="#fn1">[1]</a></sup>
+    Credit metrics: 0.3x D/EBITDA, 53.9x interest coverage. Net debt $12.9B.<sup><a href="#fn1">[1]</a></sup>
   </div>
 </section>
 
@@ -784,17 +793,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <div class="thesis-card">
       <div class="thesis-icon">🏰</div>
       <div class="thesis-label">The Moat</div>
-      <p class="thesis-body">MSFT (MSFT) operates in N/A. FY2025 ROIC: N/A (below 15% threshold), gross margin: 56.9% (improving over review period). Revenue CAGR: N/A; FCF conversion: N/A.<sup><a href="#fn2">[2]</a></sup></p>
+      <p class="thesis-body">MSFT is a high-quality compounder generating 30% ROIC on 12% revenue CAGR, indicating durable competitive advantages and strong reinvestment economics.<sup><a href="#fn2">[2]</a></sup></p>
     </div>
     <div class="thesis-card">
       <div class="thesis-icon">🚀</div>
       <div class="thesis-label">Growth Catalysts</div>
-      <p class="thesis-body">Base case: 5.0% revenue growth with 56.9% EBITDA margins sustained. Bear: growth slows to 1.2% with margin compression to 53.9%. Bull: 7.0% revenue acceleration with margin expansion to 58.9%. DCF range: $180–$305 (bear–bull).</p>
+      <p class="thesis-body">With 0.3x leverage, 70% FCF conversion, and 12% revenue CAGR, the base case is stable compounding — key upside optionality lies in capital returns acceleration.</p>
     </div>
     <div class="thesis-card">
       <div class="thesis-icon">⚖️</div>
       <div class="thesis-label">Valuation &amp; Entry</div>
-      <p class="thesis-body">At $411.22, MSFT trades at N/A trailing P/E (N/A vs N/A 5yr avg) and N/A P/FCF (N/A vs N/A 5yr avg). Gordon Growth DCF (WACC 9.5%): base $235 (−43%), bear $180 (−56%), bull $305 (−26%).</p>
+      <p class="thesis-body">Valuation appears broadly in line with history at 36.3x P/E vs. 33.9x 5-year average — returns will likely track earnings rather than multiple expansion.</p>
     </div>
   </div>
 </section>
@@ -822,13 +831,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="row-label">Revenue</td>
         <td>168,088</td><td>198,270</td><td>211,915</td><td>245,122</td><td>281,724</td>
       </tr>
+      <tr class="margin-row">
+        <td class="row-label" style="padding-left:18px;font-style:italic">Revenue YoY %</td>
+        <td>—</td><td>18.0%</td><td>6.9%</td><td>15.7%</td><td>14.9%</td>
+      </tr>
       <tr>
         <td class="row-label">Gross Profit</td>
-        <td>85,134</td><td>100,239</td><td>105,140</td><td>133,009</td><td>160,165</td>
+        <td>115,856</td><td>135,620</td><td>146,052</td><td>171,008</td><td>193,893</td>
       </tr>
       <tr class="margin-row">
         <td class="row-label" style="padding-left:18px;font-style:italic">Gross Margin</td>
-        <td>50.6%</td><td>50.6%</td><td>49.6%</td><td>54.3%</td><td>56.9%</td>
+        <td>68.9%</td><td>68.4%</td><td>68.9%</td><td>69.8%</td><td>68.8%</td>
       </tr>
       <tr>
         <td class="row-label">EBITDA</td>
@@ -838,62 +851,70 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA Margin</td>
         <td>50.6%</td><td>50.6%</td><td>49.6%</td><td>54.3%</td><td>56.9%</td>
       </tr>
+      <tr class="margin-row">
+        <td class="row-label" style="padding-left:18px;font-style:italic">EBITDA YoY %</td>
+        <td>—</td><td>17.7%</td><td>4.9%</td><td>26.5%</td><td>20.4%</td>
+      </tr>
       <tr>
         <td class="row-label">EBIT</td>
-        <td>73,452</td><td>85,785</td><td>91,281</td><td>110,727</td><td>126,020</td>
+        <td>69,916</td><td>83,383</td><td>88,523</td><td>109,433</td><td>128,528</td>
+      </tr>
+      <tr class="margin-row">
+        <td class="row-label" style="padding-left:18px;font-style:italic">EBIT YoY %</td>
+        <td>—</td><td>19.3%</td><td>6.2%</td><td>23.6%</td><td>17.4%</td>
       </tr>
       <tr class="highlight-row">
         <td class="row-label">Net Income (GAAP)</td>
-        <td>63,296</td><td>74,544</td><td>73,948</td><td>90,537</td><td>103,799</td>
+        <td>61,271</td><td>72,738</td><td>72,361</td><td>88,136</td><td>101,832</td>
       </tr>
 
       <tr class="section-row"><td colspan="6">Balance Sheet</td></tr>
       <tr>
         <td class="row-label">Cash &amp; Equivalents (incl. investments)</td>
-        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+        <td>14,224</td><td>13,931</td><td>34,704</td><td>18,315</td><td>30,242</td>
       </tr>
       <tr>
         <td class="row-label">Total Debt (incl. leases)</td>
-        <td>0</td><td>0</td><td>0</td><td>0</td><td>12,909</td>
+        <td>58,146</td><td>49,781</td><td>47,237</td><td>51,630</td><td>43,151</td>
       </tr>
       <tr class="highlight-row">
         <td class="row-label">Net Cash / (Net Debt)</td>
-        <td>0</td><td>0</td><td>0</td><td>0</td><td>(12,909)</td>
+        <td>(43,922)</td><td>(35,850)</td><td>(12,533)</td><td>(33,315)</td><td>(12,909)</td>
       </tr>
       <tr>
         <td class="row-label">Total Equity</td>
-        <td>316,479</td><td>372,721</td><td>369,742</td><td>452,685</td><td>518,993</td>
+        <td>141,988</td><td>166,542</td><td>206,223</td><td>268,477</td><td>343,479</td>
       </tr>
       <tr>
         <td class="row-label">Total Intangibles (goodwill + other)</td>
-        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+        <td>57,511</td><td>78,822</td><td>77,252</td><td>146,817</td><td>142,113</td>
       </tr>
 
       <tr class="margin-row">
         <td class="row-label" style="padding-left:18px;font-style:italic">Net Margin</td>
-        <td>37.7%</td><td>37.6%</td><td>34.9%</td><td>36.9%</td><td>36.8%</td>
+        <td>36.5%</td><td>36.7%</td><td>34.1%</td><td>36.0%</td><td>36.1%</td>
       </tr>
 
       <tr class="section-row"><td colspan="6">Free Cash Flow Bridge (UFCF)</td></tr>
       <tr>
         <td class="row-label">D&amp;A (Depreciation &amp; Amortisation)</td>
-        <td>11,682</td><td>14,454</td><td>13,859</td><td>22,282</td><td>34,145</td>
+        <td>15,218</td><td>16,856</td><td>16,617</td><td>23,576</td><td>31,637</td>
       </tr>
       <tr>
         <td class="row-label">NOPAT (EBIT after tax)</td>
-        <td>63,293</td><td>74,539</td><td>73,956</td><td>90,542</td><td>103,803</td>
+        <td>60,249</td><td>72,449</td><td>71,723</td><td>89,482</td><td>105,869</td>
       </tr>
       <tr class="highlight-row">
         <td class="row-label">UFCF (NOPAT + D&amp;A − CapEx)</td>
-        <td>54,351</td><td>65,101</td><td>59,715</td><td>68,358</td><td>73,405</td>
+        <td>54,845</td><td>65,419</td><td>60,233</td><td>68,581</td><td>72,955</td>
       </tr>
       <tr class="margin-row">
         <td class="row-label" style="padding-left:18px;font-style:italic">UFCF Margin %</td>
-        <td>32.3%</td><td>32.8%</td><td>28.2%</td><td>27.9%</td><td>26.1%</td>
+        <td>32.6%</td><td>33.0%</td><td>28.4%</td><td>28.0%</td><td>25.9%</td>
       </tr>
       <tr class="margin-row">
         <td class="row-label" style="padding-left:18px;font-style:italic">FCF Margin % (Levered)</td>
-        <td>32.3%</td><td>32.8%</td><td>28.2%</td><td>27.9%</td><td>26.1%</td>
+        <td>33.4%</td><td>32.9%</td><td>28.1%</td><td>30.2%</td><td>25.4%</td>
       </tr>
       <tr class="margin-row">
         <td class="row-label" style="padding-left:18px;font-style:italic">FCF Conversion (FCF/NI)</td>
@@ -903,30 +924,30 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <tr class="section-row"><td colspan="6">Credit &amp; Coverage Ratios</td></tr>
       <tr>
         <td class="row-label">Debt / EBITDA</td>
-        <td>0.0x</td><td>0.0x</td><td>0.0x</td><td>0.0x</td><td>0.1x</td>
+        <td>0.7x</td><td>0.5x</td><td>0.4x</td><td>0.4x</td><td>0.3x</td>
       </tr>
       <tr>
         <td class="row-label">EBIT / Interest</td>
-        <td colspan="5" style="text-align:center;color:var(--up);font-weight:600">N/A — interest data not available</td>
+        <td>29.8x</td><td>40.4x</td><td>45.0x</td><td>37.3x</td><td>53.9x</td>
       </tr>
 
       <tr class="section-row"><td colspan="6">Cash Flow Statement</td></tr>
       <tr>
         <td class="row-label">Operating Cash Flow</td>
-        <td>74,981</td><td>88,996</td><td>87,809</td><td>112,811</td><td>137,941</td>
+        <td>76,740</td><td>89,035</td><td>87,582</td><td>118,548</td><td>136,162</td>
       </tr>
       <tr>
         <td class="row-label">CAPEX</td>
-        <td>(20,624)</td><td>(23,892)</td><td>(28,100)</td><td>(44,465)</td><td>(64,543)</td>
+        <td>(20,622)</td><td>(23,886)</td><td>(28,107)</td><td>(44,477)</td><td>(64,551)</td>
       </tr>
       <tr class="highlight-row">
         <td class="row-label">Free Cash Flow</td>
-        <td>54,357</td><td>65,104</td><td>59,710</td><td>68,346</td><td>73,398</td>
+        <td>56,118</td><td>65,149</td><td>59,475</td><td>74,071</td><td>71,611</td>
       </tr>
     </tbody>
   </table>
   </div>
-  <p class="fin-table-note">FY2025 data from MSFT annual report via FMP API; figures in USD millions.</p>
+  <p class="fin-table-note">FY2025 data from Microsoft Corporation annual report via FMP API; figures in USD millions.</p>
 </section>
 
 <!-- ─── Growth Context ─── -->
@@ -941,27 +962,27 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <div class="stat-row">
     <div class="stat-cell">
       <div class="s-label">Revenue 3yr CAGR</div>
-      <div class="s-trail">Trailing 4yr: N/A</div>
-      <div class="s-fwd">Pending analyst estimates<sup><a href="#fn3">[3]</a></sup></div>
+      <div class="s-trail">Trailing 4yr: 12.4%</div>
+      <div class="s-fwd">FY+1E: 12.4% (trailing CAGR projection)<sup><a href="#fn3">[3]</a></sup></div>
       <div class="s-avg">Source: FMP API. FY2021–2025.</div>
     </div>
     <div class="stat-cell">
       <div class="s-label">FCF 3yr CAGR</div>
-      <div class="s-trail">Trailing 4yr: 7.8%</div>
+      <div class="s-trail">Trailing 4yr: 6.3%</div>
       <div class="s-fwd">Pending analyst estimates<sup><a href="#fn3">[3]</a></sup></div>
-      <div class="s-avg">FCF: $73.4B in FY2025.</div>
+      <div class="s-avg">FCF: $71.6B in FY2025.</div>
     </div>
     <div class="stat-cell">
       <div class="s-label">P/E vs 10yr Avg</div>
-      <div class="s-trail">N/A</div>
-      <div class="s-fwd">N/A</div>
-      <div class="s-avg">5-yr avg: N/A</div>
+      <div class="s-trail">36.3x</div>
+      <div class="s-fwd">27.2x</div>
+      <div class="s-avg">5-yr avg: 33.9x</div>
     </div>
     <div class="stat-cell">
       <div class="s-label">P/FCF vs 10yr Avg</div>
-      <div class="s-trail">N/A</div>
-      <div class="s-fwd">N/A</div>
-      <div class="s-avg">5-yr avg: N/A</div>
+      <div class="s-trail">51.6x</div>
+      <div class="s-fwd">38.7x</div>
+      <div class="s-avg">5-yr avg: 41.2x</div>
     </div>
   </div>
 </section>
@@ -977,7 +998,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div class="two-col no-break" style="margin-bottom:16px">
     <div class="chart-card">
-      <div class="chart-title">Share Price — 5 Year History ($) <sup><a href="#fn4">[4]</a></sup></div>
+      <div class="chart-title">Share Price — 3 Year History ($, split/dividend-adjusted) <sup><a href="#fn4">[4]</a></sup></div>
       <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -1014,8 +1035,9 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div class="scorecard-header">
     <span>Weighted total across 13 criteria</span>
-    <span class="score-final score-final-green">72.0 / 100 — Good Business at Fair Price</span>
+    <span class="score-final score-final-amber">6.2 / 10 — Hold — Monitor</span>
   </div>
+  <div style="font-family:var(--font-mono);font-size:10px;color:var(--warn);letter-spacing:0.5px;margin:8px 0 0;padding:8px 14px;background:var(--warn-bg);border-left:2px solid var(--warn);border-radius:0 4px 4px 0">Qualitative inputs (Business Clarity, Long-Term Potential) not provided. Quant score shown out of 10 — verdict applies %-bands to that scale. Completing these inputs unlocks the full 0-10 scorecard.</div>
   <table class="scorecard-table">
     <thead>
       <tr>
@@ -1027,106 +1049,107 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
     </thead>
     <tbody>
-      <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 21.0</td></tr>
+      <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 13.7</td></tr>
       <tr>
         <td class="col-metric">Business Clarity</td>
         <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">2.5</td><td class="score-num">1.75</td>
-        <td class="col-commentary">Capital-efficient with moderate complexity: 56.9% gross margin, N/A FCF/NI conversion, CapEx 22.9% of revenue. Not manually rated.</td>
+        <td class="score-num">2.5</td><td class="score-num">—</td>
+        <td class="col-commentary">Capital-efficient with moderate complexity: 68.8% gross margin, 70.3% FCF/NI conversion, CapEx 22.9% of revenue. Not manually rated.</td>
       </tr>
       <tr>
         <td class="col-metric">Moat Profile</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">7.0</td>
-        <td class="col-commentary">Moderate competitive position: 56.9% gross margin (improving over 5yr), ROIC N/A (declining). ROIC near cost of capital; competitive advantage not yet clearly evident in returns.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
+        <td class="score-num">10</td><td class="score-num">7.5</td>
+        <td class="col-commentary">Strong competitive position: 68.8% gross margin (stable over 5yr), ROIC 29.7% (declining). ROIC comfortably above cost of capital — durable advantage supported by financials.</td>
       </tr>
       <tr>
         <td class="col-metric">Long-Term Potential</td>
         <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">7.0</td>
-        <td class="col-commentary">Mature business; growth reliant on market expansion or M&A. 4yr revenue CAGR: N/A, ROIC N/A, FCF $73.4B in FY2025. Not manually rated.</td>
+        <td class="score-num">10</td><td class="score-num">—</td>
+        <td class="col-commentary">Strong secular growth with high-return reinvestment. 4yr revenue CAGR: 12.4%, ROIC 29.7%, FCF $71.6B in FY2025. Not manually rated.</td>
       </tr>
       <tr>
         <td class="col-metric">Management<br><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">CEO <br>Tenure: </span></td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">7.5</td><td class="score-num">5.25</td>
-        <td class="col-commentary">CEO: N/A. ROIC N/A (declining over 5yr). Minimal direct returns over 5yr; capital reinvested at N/A ROIC.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
+        <td class="score-num">7.5</td><td class="score-num">6.25</td>
+        <td class="col-commentary">CEO: Satya Nadella. ROIC 29.7% (declining over 5yr). $118.0B buybacks + $100.3B dividends over 5yr.</td>
       </tr>
 
-      <tr class="part-header"><td colspan="5">Part 2 — Quantitative: Profitability Engine &nbsp;|&nbsp; Weighted: 22.8</td></tr>
+      <tr class="part-header"><td colspan="5">Part 2 — Quantitative: Profitability Engine &nbsp;|&nbsp; Weighted: 24.0</td></tr>
       <tr>
         <td class="col-metric">Revenue 3yr CAGR</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">7.0</td>
-        <td class="col-commentary">3yr revenue CAGR: N/A.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
+        <td class="score-num">10</td><td class="score-num">8.45</td>
+        <td class="col-commentary">3yr revenue CAGR: 12.4%.</td>
       </tr>
       <tr>
         <td class="col-metric">Cash Quality (FCF/NI)</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">7.0</td>
-        <td class="col-commentary">FCF/NI: N/A.</td>
+        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD-LOW</span></span></td>
+        <td class="score-num">10</td><td class="score-num">5.67</td>
+        <td class="col-commentary">FCF/NI: 70.3%.</td>
       </tr>
       <tr>
         <td class="col-metric">Capital Returns</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">5</td><td class="score-num">3.5</td>
-        <td class="col-commentary">Capital primarily reinvested at N/A ROIC; direct shareholder returns negligible over 5yr.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
+        <td class="score-num">5</td><td class="score-num">5.0</td>
+        <td class="col-commentary">Balanced returns: $118.0B buybacks + $100.3B dividends over 5yr.</td>
       </tr>
       <tr>
         <td class="col-metric">ROIC</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">7.5</td><td class="score-num">5.2</td>
-        <td class="col-commentary">Latest ROIC: N/A.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
+        <td class="score-num">7.5</td><td class="score-num">4.88</td>
+        <td class="col-commentary">Latest ROIC: 29.7%.</td>
       </tr>
 
-      <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: 14.2</td></tr>
+      <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: 15.8</td></tr>
       <tr>
         <td class="col-metric">Credit Risk (D/EBITDA)</td>
         <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
         <td class="score-num">5</td><td class="score-num">5.0</td>
-        <td class="col-commentary">D/EBITDA: 0.1x.<sup><a href="#fn1">[1]</a></sup></td>
+        <td class="col-commentary">D/EBITDA: 0.3x.<sup><a href="#fn1">[1]</a></sup></td>
       </tr>
       <tr>
         <td class="col-metric">Interest Cover (EBIT/Int)</td>
         <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
         <td class="score-num">7.5</td><td class="score-num">7.5</td>
-        <td class="col-commentary">EBIT/Interest: N/A.</td>
+        <td class="col-commentary">EBIT/Interest: 53.9x.</td>
       </tr>
       <tr>
         <td class="col-metric">Execution Risk</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">5</td><td class="score-num">1.75</td>
-        <td class="col-commentary">FCF/NI N/A — watch working capital and capex discipline; CapEx-intensive (22.9% of revenue, $64.5B) — delivery risk on major projects; Gross margin expanding 6.2% over 5yr.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
+        <td class="score-num">5</td><td class="score-num">3.33</td>
+        <td class="col-commentary">FCF/NI 70.3% — healthy conversion, limited near-term execution concern; CapEx-intensive (22.9% of revenue, $64.6B) — delivery risk on major projects.</td>
       </tr>
 
-      <tr class="part-header"><td colspan="5">Part 4 — Valuation (The Entry Point) &nbsp;|&nbsp; Weighted: 14.0</td></tr>
+      <tr class="part-header"><td colspan="5">Part 4 — Valuation (The Entry Point) &nbsp;|&nbsp; Weighted: 0.3</td></tr>
       <tr>
         <td class="col-metric">P/E vs. 5yr Median<br>
           <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
-            Trail: <strong style="color:#b45309">N/A</strong> (N/A vs 10yr)<br>
-            Fwd:&nbsp;&nbsp; <strong style="color:#b45309">N/A</strong> (N/A vs 10yr)
+            Trail: <strong style="color:#b45309">36.3x</strong> (+7% vs 10yr)<br>
+            Fwd:&nbsp;&nbsp; <strong style="color:#b45309">27.2x</strong> (+7% vs 10yr)
           </span>
         </td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">7.0</td>
-        <td class="col-commentary">P/E N/A vs 5yr avg N/A (N/A).</td>
+        <td class="score-num"><span class="score-pill score-low"><span style="color: #dc2626; font-weight: bold;">LOW</span></span></td>
+        <td class="score-num">10</td><td class="score-num">0.3</td>
+        <td class="col-commentary">P/E 36.3x vs 5yr avg 33.9x (+7%).</td>
       </tr>
       <tr>
         <td class="col-metric">P/FCF vs. 5yr Median<br>
           <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
-            Trail: <strong style="color:#b45309">N/A</strong> (N/A vs 10yr)<br>
-            Fwd:&nbsp;&nbsp; <strong style="color:#b45309">N/A</strong> (N/A vs 10yr)
+            Trail: <strong style="color:#b45309">51.6x</strong> (+25% vs 10yr)<br>
+            Fwd:&nbsp;&nbsp; <strong style="color:#b45309">38.7x</strong> (+25% vs 10yr)
           </span>
         </td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">7.0</td>
-        <td class="col-commentary">P/FCF N/A vs 5yr avg N/A (N/A).</td>
+        <td class="score-num"><span class="score-pill score-low"><span style="color: #dc2626; font-weight: bold;">LOW</span></span></td>
+        <td class="score-num">10</td><td class="score-num">0.0</td>
+        <td class="col-commentary">P/FCF 51.6x vs 5yr avg 41.2x (+25%). Adj. for SBC: 62.0xx.</td>
       </tr>
 
+      
       <tr class="weighted-row">
         <td colspan="3" style="text-align:right;padding-right:14px;font-family:var(--font-mono);font-size:12px;color:var(--muted)">Total Weighted Score</td>
-        <td class="score-num" style="color:var(--up)">72.0</td>
-        <td style="color:var(--up);font-size:13px">Final: 72.0</td>
+        <td class="score-num" style="color:var(--up)">53.8<span style="font-size:10px;color:var(--muted);font-weight:400"> / 87.5</span></td>
+        <td style="color:var(--up);font-size:13px">= 6.2 / 10</td>
       </tr>
     </tbody>
   </table>
@@ -1145,15 +1168,15 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <thead>
       <tr>
         <th style="background:var(--bg-elev);color:var(--muted);width:28%">Assumption</th>
-        <th class="bear-h" style="width:24%">🐻 Bear — $180</th>
-        <th class="base-h" style="width:24%">📊 Base — $235</th>
-        <th class="bull-h" style="width:24%">🐂 Bull — $305</th>
+        <th class="bear-h" style="width:24%">🐻 Bear</th>
+        <th class="base-h" style="width:24%">📊 Base</th>
+        <th class="bull-h" style="width:24%">🐂 Bull</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td class="row-label">Revenue / growth</td>
-        <td>1.2% (stress — 40% of N/A trailing CAGR)</td><td>5.0% CAGR (matches trailing 4yr)</td><td>7.0% (~140% of trailing CAGR — acceleration case)</td>
+        <td class="row-label">Revenue growth</td>
+        <td>5.0% (stress — 40% of 12.4% trailing CAGR)</td><td>12.4% CAGR (matches trailing 4yr)</td><td>17.4% (~140% of trailing CAGR — acceleration case)</td>
       </tr>
       <tr>
         <td class="row-label">EBITDA margin</td>
@@ -1161,27 +1184,53 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
       <tr>
         <td class="row-label">FCF (FY2028E)</td>
-        <td>$76.1B</td><td>$85.0B</td><td>$89.9B</td>
+        <td>$82.8B</td><td>$101.8B</td><td>$115.9B</td>
+      </tr>
+      <tr>
+        <td class="row-label">Terminal growth rate</td>
+        <td style="font-family:var(--font-mono)">3.00%</td>
+        <td style="font-family:var(--font-mono)">4.00%</td>
+        <td style="font-family:var(--font-mono)">5.00%</td>
+      </tr>
+
+      <!-- Gordon Growth DCF -->
+      <tr class="scen-section">
+        <td colspan="4">Gordon Growth DCF &nbsp;·&nbsp; WACC: Bear 10.2% / Base 9.7% / Bull 9.2%</td>
+      </tr>
+      <tr class="price-row">
+        <td class="row-label">GG Implied Price</td>
+        <td class="bear-p">$328</td>
+        <td class="base-p">$398</td>
+        <td class="bull-p">$518</td>
+      </tr>
+      <tr class="upside-row">
+        <td class="row-label">vs 419.09</td>
+        <td class="vs-dn">−22%</td>
+        <td class="vs-dn">−5%</td>
+        <td class="vs-up">+24%</td>
+      </tr>
+
+      <!-- EV/EBITDA Exit Multiple DCF -->
+      <tr class="scen-section">
+        <td colspan="4">EV/EBITDA Exit Multiple DCF</td>
       </tr>
       <tr>
         <td class="row-label">Exit multiple</td>
-        <td>12.0x P/E (de-rating to −20%)</td><td>18.0x P/E (5yr historical avg)</td><td>20.7x P/E (re-rating to +15%)</td>
-      </tr>
-      <tr>
-        <td class="row-label">Key catalyst / risk</td>
-        <td>Execution miss, margin compression, macro headwinds</td><td>Consensus estimates met, stable macro</td><td>Revenue acceleration, margin expansion, multiple re-rating</td>
+        <td style="font-family:var(--font-mono)">14x EV/EBITDA (bear)</td>
+        <td style="font-family:var(--font-mono)">18x EV/EBITDA (model base)</td>
+        <td style="font-family:var(--font-mono)">22x EV/EBITDA (bull)</td>
       </tr>
       <tr class="price-row">
-        <td class="row-label">Implied Price Range</td>
-        <td class="bear-p">$180</td>
-        <td class="base-p">$235</td>
-        <td class="bull-p">$305</td>
+        <td class="row-label">EM Implied Price</td>
+        <td class="bear-p">$516</td>
+        <td class="base-p">$643</td>
+        <td class="bull-p">$770</td>
       </tr>
-      <tr class="price-row">
-        <td class="row-label">Upside vs 411.22</td>
-        <td class="bear-p">−56%</td>
-        <td class="base-p">−43%</td>
-        <td class="bull-p">−26%</td>
+      <tr class="upside-row">
+        <td class="row-label">vs 419.09</td>
+        <td class="vs-up">+23%</td>
+        <td class="vs-up">+53%</td>
+        <td class="vs-up">+84%</td>
       </tr>
     </tbody>
   </table>
@@ -1200,27 +1249,27 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <div class="risk-card">
       <div class="risk-num">RISK 01</div>
       <div class="risk-title">Competitive / Pricing Risk</div>
-      <p class="risk-body">Gross margin 56.9% in FY2025, up 6.2% vs FY2021. Revenue CAGR N/A — moderate growth; monitor market share and pricing power in annual filings.</p>
+      <p class="risk-body">Gross margin 68.8% in FY2025, stable over review period. Revenue CAGR 12.4% — strong growth trajectory may attract competitive entry or invite pricing pressure.</p>
     </div>
     <div class="risk-card">
       <div class="risk-num">RISK 02</div>
       <div class="risk-title">Execution / Operating Risk</div>
-      <p class="risk-body">CapEx 22.9% of revenue ($64.5B). EBITDA margin 56.9%; FCF conversion N/A. Healthy FCF conversion suggests strong operational execution.<sup><a href="#fn7">[7]</a></sup></p>
+      <p class="risk-body">CapEx 22.9% of revenue ($64.6B). EBITDA margin 56.9%; FCF conversion 70.3%. Healthy FCF conversion suggests strong operational execution.<sup><a href="#fn7">[7]</a></sup></p>
     </div>
     <div class="risk-card">
       <div class="risk-num">RISK 03</div>
       <div class="risk-title">Macro / Rate Risk</div>
-      <p class="risk-body">Beta 1.20 — moderate market correlation; relatively resilient to broad selloffs. Net debt $12.9B. Net debt increases refinancing exposure if rates remain elevated.</p>
+      <p class="risk-body">Beta 1.09 — moderate market correlation; relatively resilient to broad selloffs. Net debt $12.9B. Net debt increases refinancing exposure if rates remain elevated.</p>
     </div>
     <div class="risk-card">
       <div class="risk-num">RISK 04</div>
       <div class="risk-title">Capital Allocation Risk</div>
-      <p class="risk-body">D/EBITDA: 0.1x; interest coverage: N/A. Conservative leverage with ample capacity for returns or strategic deployment.</p>
+      <p class="risk-body">D/EBITDA: 0.3x; interest coverage: 53.9x. Conservative leverage with ample capacity for returns or strategic deployment.</p>
     </div>
     <div class="risk-card">
       <div class="risk-num">RISK 05</div>
       <div class="risk-title">Valuation / Multiple Risk</div>
-      <p class="risk-body">Trailing P/E N/A vs. 5yr avg N/A (N/A); P/FCF N/A vs. 5yr avg N/A (N/A). Valuation broadly in line with history — limited multiple compression risk absent a shock.</p>
+      <p class="risk-body">Trailing P/E 36.3x vs. 5yr avg 33.9x (+7%); P/FCF 51.6x vs. 5yr avg 41.2x (+25%). Trading above historical averages — vulnerable to de-rating if earnings miss.</p>
     </div>
   </div>
 </section>
@@ -1237,7 +1286,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 
   <div class="valuation-verdict">
     <div class="verdict-title">Valuation Analysis</div>
-    <p>At $411.22, MSFT (MSFT) trades at EV/Revenue: 10.9x; EV/EBITDA: 19.1x. DCF (Gordon Growth) base case: <strong>$235 (−43%)</strong>. Bear: $180 (−56%) | Bull: $305 (−26%).</p>
+    <p>At $419.09, Microsoft Corporation trades at:<br>• Trailing P/E 36.3x (vs 5yr avg 33.9x — +7%)<br>• LTM P/FCF 51.6x (vs 5yr avg 41.2x — +25%)<br>• EV/EBITDA 19.5x (LTM, trailing) (vs 5yr avg 23.8x — -18%)<br><br>Gordon Growth DCF:<br>• Base: $398 (−5%) — WACC 9.7%, TGR 4.00%<br>• Bear: $328 (−22%) — WACC 10.2%, TGR 3.00%<br>• Bull: $518 (+24%) — WACC 9.2%, TGR 5.00%<br><br>EV/EBITDA Exit Multiple DCF:<br>• Base: $643 (+53%) — 18x terminal multiple<br>• Bear: $516 (+23%) — 14x (−22%)<br>• Bull: $770 (+84%) — 22x (+22%)</p>
   </div>
 
   <div class="valuation-grid">
@@ -1247,24 +1296,24 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <table class="dcf-scenario-table">
         <thead>
           <tr>
-            <th>Scenario</th><th>WACC</th><th>TGR</th><th>Rev CAGR</th><th>DCF Price</th><th>vs 411.22</th>
+            <th>Scenario</th><th>WACC</th><th>TGR</th><th>Rev CAGR</th><th>DCF Price</th><th>vs 419.09</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Bear</td><td>10.5%</td><td>2.0%</td><td>1.2% (bear — 40% of trailing)</td>
-            <td class="price-dn">$180</td>
-            <td class="price-dn">−56%</td>
+            <td>Bear</td><td>10.2%</td><td>3.00%</td><td>12.4%</td>
+            <td class="price-dn">$328</td>
+            <td class="price-dn">−22%</td>
           </tr>
           <tr class="base-row">
-            <td>Base</td><td>9.5%</td><td>3.0%</td><td>5.0% (base — trailing CAGR)</td>
-            <td class="price-dn">$235</td>
-            <td class="price-dn">−43%</td>
+            <td>Base</td><td>9.7%</td><td>4.00%</td><td>12.4%</td>
+            <td class="price-dn">$398</td>
+            <td class="price-dn">−5%</td>
           </tr>
           <tr>
-            <td>Bull</td><td>8.5%</td><td>3.5%</td><td>7.0% (bull — 140% of trailing)</td>
-            <td class="price-dn">$305</td>
-            <td class="price-dn">−26%</td>
+            <td>Bull</td><td>9.2%</td><td>5.00%</td><td>12.4%</td>
+            <td class="price-up">$518</td>
+            <td class="price-up">+24%</td>
           </tr>
         </tbody>
       </table>
@@ -1280,120 +1329,75 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
           </tr>
         </thead>
         <tbody>
-          <tr><td class="row-wacc">8.0%</td><td class="low-range">$255</td><td class="low-range">$278</td><td class="low-range">$306</td><td class="low-range">$339</td><td class="low-range">$382</td></tr>
-          <tr><td class="row-wacc">8.5%</td><td class="low-range">$235</td><td class="low-range">$255</td><td class="low-range">$278</td><td class="low-range">$306</td><td class="low-range">$339</td></tr>
-          <tr><td class="row-wacc">9.5%</td><td class="low-range">$204</td><td class="low-range">$218</td><td class="low-range">$235</td><td class="low-range">$255</td><td class="low-range">$278</td></tr>
-          <tr><td class="row-wacc">10.5%</td><td class="low-range">$180</td><td class="low-range">$191</td><td class="low-range">$204</td><td class="low-range">$218</td><td class="low-range">$235</td></tr>
-          <tr><td class="row-wacc">11.0%</td><td class="low-range">$170</td><td class="low-range">$180</td><td class="low-range">$191</td><td class="low-range">$204</td><td class="low-range">$218</td></tr>
-          <tr><td class="row-wacc">11.5%</td><td class="low-range">$161</td><td class="low-range">$170</td><td class="low-range">$180</td><td class="low-range">$191</td><td class="low-range">$204</td></tr>
+          <tr><td class="row-wacc">8.2%</td><td class="low-range">$366</td><td class="low-range">$398</td><td class="mid-range">$436</td><td class="near-market">$483</td><td class="near-market">$540</td></tr>
+          <tr><td class="row-wacc">8.7%</td><td class="low-range">$339</td><td class="low-range">$366</td><td class="low-range">$398</td><td class="mid-range">$436</td><td class="near-market">$483</td></tr>
+          <tr><td class="row-wacc">9.7%</td><td class="low-range">$295</td><td class="low-range">$315</td><td class="low-range">$339</td><td class="low-range">$366</td><td class="low-range">$398</td></tr>
+          <tr><td class="row-wacc">10.7%</td><td class="low-range">$261</td><td class="low-range">$277</td><td class="low-range">$295</td><td class="low-range">$315</td><td class="low-range">$339</td></tr>
+          <tr><td class="row-wacc">11.2%</td><td class="low-range">$247</td><td class="low-range">$261</td><td class="low-range">$277</td><td class="low-range">$295</td><td class="low-range">$315</td></tr>
+          <tr><td class="row-wacc">11.7%</td><td class="low-range">$234</td><td class="low-range">$247</td><td class="low-range">$261</td><td class="low-range">$277</td><td class="low-range">$295</td></tr>
         </tbody>
       </table>
       <p style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:6px">Red = Below Current Price | Yellow = 0–10% upside | Green = >10% upside</p>
 
       <div class="rev-dcf-box">
-        <div class="rdcf-title">Reverse DCF — What Does $411.22 Imply?</div>
-        <div class="rdcf-stats"><div class="rdcf-stat"><div class="rdcf-num">7.1%</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Perpetuity rate at current price</div></div><div class="rdcf-stat"><div class="rdcf-num">2.40%</div><div class="rdcf-lbl">FCF Yield</div><div class="rdcf-sub">Trailing FCF ÷ market cap</div></div><div class="rdcf-stat"><div class="rdcf-num">9.5%</div><div class="rdcf-lbl">WACC</div><div class="rdcf-sub">Implied growth = WACC − yield</div></div></div><div class="rdcf-verdict"><strong style="color:var(--amber)">Ambitious Pricing</strong> — Market embeds 7.1% implied FCF growth. Premium justified only if growth accelerates or margins expand materially.</div>
+        <div class="rdcf-title">Reverse DCF — What Does $419.09 Imply?</div>
+        <div class="rdcf-stats"><div class="rdcf-stat"><div class="rdcf-num">7.4%</div><div class="rdcf-lbl">Implied FCF Growth</div><div class="rdcf-sub">Perpetuity rate at current price</div></div><div class="rdcf-stat"><div class="rdcf-num">2.30%</div><div class="rdcf-lbl">FCF Yield</div><div class="rdcf-sub">Trailing FCF ÷ market cap</div></div><div class="rdcf-stat"><div class="rdcf-num">9.7%</div><div class="rdcf-lbl">WACC</div><div class="rdcf-sub">Implied growth = WACC − yield</div></div></div><div class="rdcf-verdict"><strong style="color:var(--accent)">Fairly Priced</strong> — Implied 7.4% perpetuity FCF growth broadly consistent vs. 6.3% historical FCF CAGR. Market pricing continuation of current trajectory — meaningful upside requires a re-rating catalyst or earnings surprise.</div>
       </div>
 
-      <!-- EV Bridge -->
-      <div style="margin-top:16px">
-        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Equity Value Bridge (Base Case)</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-          <tr style="border-bottom:1px solid var(--line)">
-            <td style="padding:6px 0;color:var(--ink-2)">+ Sum of PV(FCFs) — explicit period</td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:600;color:var(--ink)">$626.4B</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line)">
-            <td style="padding:6px 0;color:var(--ink-2)">+ PV of Terminal Value (Gordon Growth) <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">~65% (est.) of EV</span></td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:600;color:var(--ink)">$1139.3B</td>
-          </tr>
-          <tr style="border-bottom:2px solid var(--line-strong)">
-            <td style="padding:6px 0;font-weight:600;color:var(--ink)">= Enterprise Value</td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:700;color:var(--ink)">$1765.6B</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line)">
-            <td style="padding:6px 0;color:var(--ink-2)">− Net Debt / (+ Net Cash)</td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:600;color:var(--ink)">$12.9B</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line)">
-            <td style="padding:6px 0;font-weight:600;color:var(--ink)">= Equity Value</td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:700;color:var(--accent)">$1752.7B</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:var(--muted)">÷ Diluted Shares (mm)</td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:600;color:var(--muted)">7465.0mm</td>
-          </tr>
-          <tr style="border-top:2px solid var(--accent)">
-            <td style="padding:8px 0;font-weight:700;color:var(--accent)">= Implied Price / Share (Base)</td>
-            <td style="text-align:right;font-family:var(--font-mono);font-weight:700;font-size:16px;color:var(--accent)">$235</td>
-          </tr>
-        </table>
-      </div>
     </div>
 
-    <!-- RIGHT: Multiples -->
+    <!-- RIGHT: EV/EBITDA Exit Multiple Scenarios -->
     <div class="val-card">
-      <div class="val-card-title">Multiples Valuation (Historical Avg Exit)</div>
+      <div class="val-card-title">EV/EBITDA Exit Multiple DCF</div>
+
+      <!-- Scenario table: bear / base / bull -->
       <table class="mult-table">
         <thead>
           <tr>
-            <th>Method</th><th>FY2026E Px</th><th>Upside</th><th>FY2027E Px</th><th>Upside</th>
+            <th>Scenario</th><th>Multiple</th><th>Implied Price</th><th>vs Current</th>
           </tr>
         </thead>
         <tbody>
-          <tr class="section-divider"><td colspan="5">P/E Multiple</td></tr>
-          <tr>
-            <td>10yr avg P/E — N/A</td>
-            <td>—</td><td class="up">—</td>
-            <td>—</td><td class="up">—</td>
+          <tr style="background:rgba(220,38,38,0.06)">
+            <td style="font-weight:600;color:#b91c1c">Bear</td>
+            <td style="font-family:var(--font-mono)">14x EV/EBITDA (bear)</td>
+            <td class="dcf-bull" style="font-family:var(--font-mono);font-weight:700">$516</td>
+            <td class="dcf-bull">+23%</td>
           </tr>
-          <tr>
-            <td>5yr avg P/E — N/A</td>
-            <td>—</td><td class="up">—</td>
-            <td>—</td><td class="up">—</td>
+          <tr style="background:rgba(37,99,235,0.06)">
+            <td style="font-weight:700;color:var(--accent)">Base</td>
+            <td style="font-family:var(--font-mono)">18x EV/EBITDA (model base)</td>
+            <td class="dcf-bull" style="font-family:var(--font-mono);font-weight:700;font-size:15px">$643</td>
+            <td class="dcf-bull">+53%</td>
           </tr>
-          <tr class="section-divider"><td colspan="5">P/FCF Multiple</td></tr>
-          <tr>
-            <td>10yr avg P/FCF — N/A</td>
-            <td>—</td><td class="up">—</td>
-            <td>—</td><td class="up">—</td>
-          </tr>
-          <tr>
-            <td>5yr avg P/FCF — N/A</td>
-            <td>—</td><td class="up">—</td>
-            <td>—</td><td class="up">—</td>
-          </tr>
-          <tr class="section-divider"><td colspan="5">EV/EBITDA Multiple</td></tr>
-          <tr>
-            <td>10yr avg EV/EBITDA — 19.1x</td>
-            <td>—</td><td class="up">—</td>
-            <td>—</td><td class="up">—</td>
-          </tr>
-          <tr>
-            <td>5yr avg EV/EBITDA — 19.1x</td>
-            <td>—</td><td class="up">—</td>
-            <td>—</td><td class="up">—</td>
-          </tr>
-          <tr class="section-divider"><td colspan="5">LTM Revenue Multiples</td></tr>
-          <tr>
-            <td>EV/Revenue (LTM) — 10.9x</td>
-            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
-            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
-          </tr>
-          <tr>
-            <td>EV/Gross Profit (LTM) — 19.1x</td>
-            <td colspan="2" style="color:var(--muted);font-style:italic">Market-implied (current)</td>
-            <td colspan="2" style="color:var(--muted);font-style:italic">Fwd estimates pending</td>
+          <tr style="background:rgba(22,163,74,0.06)">
+            <td style="font-weight:600;color:#15803d">Bull</td>
+            <td style="font-family:var(--font-mono)">22x EV/EBITDA (bull)</td>
+            <td class="dcf-bull" style="font-family:var(--font-mono);font-weight:700">$770</td>
+            <td class="dcf-bull">+84%</td>
           </tr>
         </tbody>
       </table>
-      <p style="font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.55">Method: P/E (N/A vs 5yr avg N/A), P/FCF (N/A vs 5yr avg N/A), EV/EBITDA 19.1x. Forward multiples pending analyst estimates (FMP free tier).</p>
-      <p style="font-size:13px;color:var(--ink-2);margin-top:8px;line-height:1.55">Key Question: Does the N/A to 5yr P/E reflect a re-rating opportunity or justified caution given N/A revenue CAGR and N/A ROIC?</p>
-      <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.55">
-        <strong style="color:var(--accent-ink)">Composite Fair Value Range:</strong>
-        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)"> $235</span>
-        &nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--bg-card);border:1px solid var(--line);padding:2px 8px;border-radius:3px">DCF (Gordon Growth)</span><br>
-        <span style="color:var(--ink-2)">DCF (Gordon Growth) base: $235 (−43%); bear $180 (−56%), bull $305 (−26%).</span>
+
+      <!-- Historical multiples reference bar -->
+      <div style="margin-top:12px;padding:10px 12px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
+        <strong style="color:var(--ink)">5yr Avg Multiples (Reference):</strong>&nbsp;
+        P/E <span style="font-family:var(--font-mono)">33.9x</span>
+        &nbsp;·&nbsp; P/FCF <span style="font-family:var(--font-mono)">41.2x</span>
+        &nbsp;·&nbsp; EV/EBITDA <span style="font-family:var(--font-mono)">19.5x (trailing)</span>
+      </div>
+      <div style="margin-top:8px;padding:8px 12px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
+        <strong style="color:var(--ink)">FCF Yield vs 10Y Treasury:</strong>&nbsp;1.9% FCF yield vs 4.6% 10Y Treasury — <span style="color:#c62828;font-weight:600">-2.6% spread</span>
+      </div>
+      <div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:4px;font-size:12px;color:#78350f"><strong style="color:#b45309">SBC Adjustment:</strong>&nbsp;Stock-based compensation of <strong>$12.0B</strong> (17% of reported FCF) is a real economic cost to shareholders. Reported P/FCF: <span style="font-family:monospace">51.6x</span> &rarr; SBC-adjusted P/FCF: <span style="font-family:monospace;font-weight:700">62.0x</span> (adj. FCF&nbsp;$59.6B). Score reflects reported figure.</div>
+
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px;line-height:1.55">Bear/Base/Bull stress EV/EBITDA terminal multiple (14x / 18x / 22x). Same projection assumptions as Excel DCF model. Trailing: P/E 36.3x (+7% vs 5yr avg 33.9x), P/FCF 51.6x (+25% vs 5yr avg 41.2x).</p>
+      <p style="font-size:12.5px;color:var(--ink-2);margin-top:6px;line-height:1.55;font-style:italic">Key Question: Does the +7% to 5yr P/E reflect a re-rating opportunity or justified caution given 12.4% revenue CAGR and 29.7% ROIC?</p>
+
+      <div style="margin-top:12px;padding:14px 16px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:13.5px;line-height:1.6">
+        <strong style="color:var(--accent-ink)">Composite Fair Value:</strong>
+        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:16px"> $520</span><br>
+        <span style="color:var(--ink-2);font-size:12.5px">Gordon Growth (TGR 3%, WACC 9.7%): $398 (−5%) · EV/EBITDA Exit 18x (model base): $643 (+53%) · Composite avg: $520 (+24%).</span>
       </div>
     </div>
   </div>
@@ -1409,7 +1413,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </div>
       <div style="background:var(--bg-card);padding:14px 16px">
         <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">Beta (β)</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--ink)">1.20</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--ink)">1.09</div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px">FMP 5yr vs S&P500</div>
       </div>
       <div style="background:var(--bg-card);padding:14px 16px">
@@ -1419,12 +1423,12 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </div>
       <div style="background:var(--bg-card);padding:14px 16px">
         <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">Cost of Equity (Ke)</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--accent)">9.7%</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--accent)">9.2%</div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px">Rf + β × ERP</div>
       </div>
       <div style="background:var(--bg-card);padding:14px 16px">
         <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">Pre-tax Cost of Debt</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--ink)">0.0%</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--ink)">53.1%</div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px">Avg credit spread</div>
       </div>
       <div style="background:var(--bg-card);padding:14px 16px">
@@ -1434,16 +1438,16 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </div>
       <div style="background:var(--bg-card);padding:14px 16px">
         <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px">Capital Weights</div>
-        <div style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--ink)">E: 100% / D: 0%</div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--ink)">E: 99% / D: 1%</div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px">Mkt cap vs gross debt</div>
       </div>
       <div style="background:var(--ink);padding:14px 16px">
         <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted-2);margin-bottom:6px">WACC (Final)</div>
-        <div style="font-family:var(--font-mono);font-size:24px;font-weight:700;color:#fff">9.5%</div>
+        <div style="font-family:var(--font-mono);font-size:24px;font-weight:700;color:#fff">9.7%</div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted-2);margin-top:4px">Used as DCF discount rate</div>
       </div>
     </div>
-    <p style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">WACC = 100% equity × 9.7% Ke + 0% debt × 0.0% Kd × (1 − 18% tax) = 9.5%. Beta 1.20 (FMP 5yr), ERP 4.5% (Damodaran), Rf from FRED DGS10.</p>
+    <p style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">WACC = 99% equity × 9.2% Ke + 1% debt × 53.1% Kd × (1 − 18% tax) = 9.7%. Beta 1.09 (FMP 5yr), ERP 4.5% (Damodaran), Rf from FRED DGS10.</p>
   </div>
 </section>
 
@@ -1453,8 +1457,14 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <span class="section-num">12</span>
     <div>
       <div class="section-title">Analyst Price Targets</div>
-      <div class="section-sub">MSFT · April 2026</div>
+      <div class="section-sub">MSFT · May 2026</div>
     </div>
+  </div>
+  <div style="margin-bottom:10px;padding:8px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
+    <strong style="color:var(--ink)">EPS Revision Momentum:</strong>&nbsp;<span style="color:#78909c;font-weight:600">N/A</span> &nbsp;·&nbsp; 24 analysts covering
+  </div>
+  <div style="margin-bottom:10px;padding:8px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px;color:var(--ink-2)">
+    <strong style="color:var(--ink)">PT Revision Momentum:</strong>&nbsp;PT revision data not available.
   </div>
   <div class="no-break">
     <div class="analyst-consensus-bar">
@@ -1481,7 +1491,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
           <th style="width:20%">Firm</th>
           <th class="center" style="width:12%">Rating</th>
           <th class="center" style="width:14%">Price Target</th>
-          <th class="center" style="width:12%">vs 411.22</th>
+          <th class="center" style="width:12%">vs 419.09</th>
           <th style="width:22%">Last Updated</th>
         </tr>
       </thead>
@@ -1536,16 +1546,17 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
           <td>—</td>
         </tr>
         <tr style="background:var(--accent-soft) !important; font-weight:600; border-top: 1px solid var(--line-strong);">
-          <td colspan="2" style="font-size:13px;color:var(--accent-ink)">Consensus Average (— analysts)</td>
+          <td colspan="2" style="font-size:13px;color:var(--accent-ink)">Consensus Average (54 analysts)</td>
           <td class="center" style="color:var(--up);font-family:var(--font-mono);font-size:11px">— Buy</td>
-          <td class="center pt-val" style="color:var(--accent)">—</td>
-          <td class="center" style="color:var(--up);font-family:var(--font-mono);font-size:12px">—</td>
-          <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">Range: —</td>
+          <td class="center pt-val" style="color:var(--accent)">$560.63</td>
+          <td class="center" style="color:var(--up);font-family:var(--font-mono);font-size:12px">+34%</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">Range: $400.00 – $870.00</td>
         </tr>
       </tbody>
     </table>
-    <p class="analyst-note">Forward analyst estimates not available on FMP free tier. DCF-implied fair value: $235 (−43%).</p>
+    <p class="analyst-note">Consensus target $560.63 (+34%) · Range $400.00–$870.00 · 54 analysts · Consensus: STRONG BUY. Source: Yahoo Finance (FMP empty).</p>
   </div>
+  <div style="padding:10px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px"><div><strong style="color:var(--ink)">Insider Activity (6-month trailing):</strong> <span style="color:#78909c;font-weight:600">No data</span> &nbsp;·&nbsp; <span style="color:var(--ink-2)">No open-market insider transactions in the past 6 months.</span></div></div>
 </section>
 
 <!-- ─── Footnotes ─── -->
@@ -1554,12 +1565,13 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <ol>
     <li id="fn1">Credit ratings: S&P NR — manual input or Damodaran ICR model.</li>
     <li id="fn2">Historical financials via FMP API. Fiscal year 2025.</li>
-    <li id="fn3">Revenue 3yr CAGR: N/A from FY2022–2025.</li>
+    <li id="fn3">Revenue 3yr CAGR: 12.4% from FY2022–2025.</li>
     <li id="fn4">Share price history: sourced from FMP API where available.</li>
-    <li id="fn5">ROIC: N/A — NOPAT / Invested Capital from FMP data.</li>
+    <li id="fn5">ROIC: 29.7% — NOPAT / Invested Capital from FMP data.</li>
     <li id="fn6">Valuation multiples: 5-year averages from FMP ratios API.</li>
-    <li id="fn7">Key risks: FCF/NI N/A — watch working capital and capex discipline; CapEx-intensive (22.9% of revenue, $64.5B) — delivery risk on m...</li>
-    <li id="fn8">DCF: WACC 9.5% (Damodaran-based), TGR 3.0%.</li>
+    <li id="fn7">Key risks: FCF/NI 70.3% — healthy conversion, limited near-term execution concern; CapEx-intensive (22.9% of revenue, $64.6B) — del...</li>
+    <li id="fn8">DCF: WACC 9.7% (Damodaran-based), TGR 3.0%.</li>
+    <li id="fn9">SEC EDGAR 10-K filings — Microsoft Corporation (MSFT): <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MSFT&type=10-K&dateb=&owner=include&count=10" target="_blank">View 10-K filings on SEC EDGAR</a>.</li>
   </ol>
 </div>
 <div class="disclaimer">
@@ -1588,7 +1600,7 @@ const tooltipDefaults = {
 };
 const tickFont = { family: 'JetBrains Mono', size: 10 };
 
-const priceLabels = ['FY2021','FY2022','FY2023','FY2024','FY2025'];
+const priceLabels = [];
 const priceData   = [0];
 const currencySymbol = '$';
 
@@ -1629,9 +1641,9 @@ const finLabels = ['FY2021','FY2022','FY2023','FY2024','FY2025'];
 const nActuals  = 5;
 const rev    = [168.1,198.3,211.9,245.1,281.7];
 const ebitda = [85.1,100.2,105.1,133.0,160.2];
-const ni     = [63.3,74.5,73.9,90.5,103.8];
-const ocfData = [75.0,89.0,87.8,112.8,137.9];
-const fcfData = [54.4,65.1,59.7,68.3,73.4];
+const ni     = [61.3,72.7,72.4,88.1,101.8];
+const ocfData = [76.7,89.0,87.6,118.5,136.2];
+const fcfData = [56.1,65.1,59.5,74.1,71.6];
 const seg1 = ni;
 const seg2 = rev.map((r,i) => Math.max(0, ebitda[i] - ni[i]));
 const seg3 = rev.map((r,i) => Math.max(0, r - ebitda[i]));
@@ -1677,8 +1689,8 @@ new Chart(finCtx, {
 });
 
 const roicLabels = ['FY2021','FY2022','FY2023','FY2024','FY2025'];
-const roicData   = [20.0,20.0,20.0,20.0,19.5];
-const waccValue  = 9.52;
+const roicData   = [32.4,35.8,32.8,29.7,29.7];
+const waccValue  = 9.69;
 const waccLine   = roicLabels.map(() => waccValue);
 
 const roicCtx = document.getElementById('roicChart').getContext('2d');
@@ -1706,8 +1718,8 @@ new Chart(roicCtx, {
 });
 
 const retLabels   = ['FY2021','FY2022','FY2023','FY2024','FY2025'];
-const buybackData = [0.0,0.0,0.0,0.0,0.0];
-const fcfPerShare = [7.28,8.72,8.0,9.16,9.83];
+const buybackData = [27.39,32.7,22.25,17.25,18.42];
+const fcfPerShare = [7.55,8.77,8.01,9.97,9.64];
 
 const retCtx = document.getElementById('returnChart').getContext('2d');
 new Chart(retCtx, {

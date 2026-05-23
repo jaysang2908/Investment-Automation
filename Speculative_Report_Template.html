@@ -332,6 +332,132 @@
     .sc-total-score { font-family: var(--mono); font-size: 1.2rem; color: var(--orange); text-align: center; }
     .sc-total-verdict { color: var(--amber); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
 
+    /* ─── Parabolic Precursor Dashboard ──────────────────────────────────── */
+    .precursor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .precursor-summary {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+    .precursor-summary-num {
+      font-family: var(--mono);
+      font-size: 2.6rem;
+      font-weight: 600;
+      color: var(--orange);
+      line-height: 1;
+    }
+    .precursor-summary-of {
+      font-size: 0.9rem;
+      color: var(--ink-4);
+      font-weight: 400;
+    }
+    .precursor-summary-lbl {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--ink-4);
+      text-transform: uppercase;
+    }
+    .precursor-verdict {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      border-radius: 6px;
+      border: 1px solid;
+    }
+    .precursor-verdict-setup-active   { color: var(--green); border-color: rgba(52,211,153,0.45); background: rgba(52,211,153,0.10); }
+    .precursor-verdict-setup-partial  { color: var(--amber); border-color: rgba(255,166,43,0.45); background: rgba(255,166,43,0.10); }
+    .precursor-verdict-setup-dormant  { color: var(--ink-4); border-color: rgba(100,116,139,0.4); background: rgba(100,116,139,0.06); }
+
+    .precursor-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .precursor-tile {
+      background: var(--surface-3);
+      border: 1px solid var(--border-2);
+      border-radius: 10px;
+      padding: 14px 14px 14px 12px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+      cursor: help;
+    }
+    .precursor-tile:hover { transform: translateY(-1px); }
+    .precursor-dot {
+      font-size: 22px;
+      line-height: 1;
+      width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .precursor-body { flex: 1; min-width: 0; }
+    .precursor-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-1);
+      margin-bottom: 3px;
+      line-height: 1.25;
+    }
+    .precursor-detail {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-4);
+      line-height: 1.35;
+    }
+    .precursor-fire {
+      border-color: rgba(52,211,153,0.4);
+      background: linear-gradient(135deg, rgba(52,211,153,0.07) 0%, var(--surface-3) 80%);
+    }
+    .precursor-fire .precursor-dot { color: var(--green); }
+    .precursor-fire .precursor-name { color: var(--ink-1); }
+    .precursor-part {
+      border-color: rgba(255,166,43,0.3);
+      background: linear-gradient(135deg, rgba(255,166,43,0.05) 0%, var(--surface-3) 80%);
+    }
+    .precursor-part .precursor-dot { color: var(--amber); }
+    .precursor-off .precursor-dot  { color: var(--ink-4); }
+
+    .precursor-legend {
+      margin-top: 14px;
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-4);
+      letter-spacing: 0.5px;
+    }
+    .precursor-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .precursor-legend .lg-fire { color: var(--green); }
+    .precursor-legend .lg-part { color: var(--amber); }
+    .precursor-legend .lg-off  { color: var(--ink-4); }
+
+    .precursor-methodology {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: var(--surface-2);
+      border-left: 2px solid var(--orange);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--ink-3);
+      line-height: 1.65;
+    }
+    .precursor-methodology strong { color: var(--ink-2); }
+
     /* ─── Scenario model ─────────────────────────────────────────────────── */
     .scenario-table {
       width: 100%;
@@ -422,10 +548,14 @@
     }
 
     /* ─── Responsive ─────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .precursor-grid { grid-template-columns: repeat(2, 1fr); }
+    }
     @media (max-width: 720px) {
       .hero-grid      { grid-template-columns: repeat(2, 1fr); }
       .catalyst-grid  { grid-template-columns: 1fr; }
       .inputs-strip   { grid-template-columns: repeat(2, 1fr); }
+      .precursor-grid { grid-template-columns: 1fr; }
       .sc-note        { display: none; }
     }
   </style>
@@ -509,7 +639,7 @@
   <!-- ── SPECULATIVE SCORECARD ──────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-eyebrow">Signal Scorecard</div>
-    <div class="section-title">10-Dimension Asymmetric Signal Analysis</div>
+    <div class="section-title">12-Dimension Asymmetric Signal Analysis</div>
 
     <table class="sc-table">
       <thead>
@@ -532,6 +662,34 @@
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- ── PARABOLIC PRECURSOR DASHBOARD ──────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-eyebrow">Technical Read</div>
+    <div class="section-title">Parabolic Precursor Dashboard · 8 Leading Indicators</div>
+
+    {{PRECURSOR_DASHBOARD}}
+
+    <div class="precursor-legend">
+      <span class="lg-fire">● Firing — bullish signal confirmed</span>
+      <span class="lg-part">◐ Partial — building or watch condition</span>
+      <span class="lg-off">○ Dormant — no signal / insufficient data</span>
+    </div>
+
+    <div class="precursor-methodology">
+      <strong>What we look for:</strong> Parabolic moves rarely launch from "normal" market conditions.
+      They tend to emerge from a specific structural setup — <em>volatility compression</em> (the
+      coiled spring), <em>quiet institutional accumulation</em> (rising OBV with flat price),
+      <em>up-day volume dominance</em> (buyers controlling the daily tape), and <em>momentum
+      acceleration</em> (ROC turning up, MACD crossing, RSI in the 50–70 launch zone) — all
+      while the price is positioned <em>near a 52-week high</em> with the <em>EMA stack aligned
+      bullishly</em>. The more of these eight precursors that fire simultaneously, the more
+      structurally complete the setup. 6+ firing has been the historical threshold where the
+      probability-weighted risk/reward becomes genuinely asymmetric. Below 4 firing, the move
+      can still happen on news, but you're betting on a catalyst — not a setup. Hover each tile
+      for the rationale.
+    </div>
   </div>
 
   <!-- ── SCENARIO / RE-RATING MODEL ────────────────────────────────────────── -->

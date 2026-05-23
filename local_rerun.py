@@ -50,7 +50,13 @@ def _read_csv() -> dict:
 # ── Write one row back to outputs.csv ────────────────────────────────────────
 def _write_row(ticker, scorecard_metrics, dcf_prices,
                current_price, market_cap, is_data, cf_data,
-               biz_clarity=None, ltp=None):
+               biz_clarity=None, ltp=None, display_score=None):
+    """Write one row to outputs.csv.
+
+    display_score — the score that appears in the report hero (adj_score when
+    quals are present, auto_score otherwise).  This is the authoritative value
+    written to Auto_Score so the dashboard always matches the report.
+    """
     sm  = scorecard_metrics or {}
     dp  = dcf_prices or {}
 
@@ -65,6 +71,10 @@ def _write_row(ticker, scorecard_metrics, dcf_prices,
                    (cf_data[-1].get("capitalExpenditure") or 0))
     fcf_b     = (fcf_raw / 1e9) if fcf_raw is not None else None
     mkt_cap_b = (market_cap / 1e9) if market_cap else None
+
+    # Auto_Score must equal the hero score shown in the HTML report.
+    # Use display_score when provided; fall back to quant auto_score only.
+    _stored_score = display_score if display_score is not None else sm.get("auto_score")
 
     new_row = {
         "Ticker":         ticker,
@@ -87,7 +97,7 @@ def _write_row(ticker, scorecard_metrics, dcf_prices,
         "FCF_B":          _f(fcf_b,  2),
         "SBC_B":          _f(sm.get("sbc_trailing_b"), 2),
         "SBC_pct":        _f(sm.get("sbc_pct_fcf"), 4),
-        "Auto_Score":     "" if sm.get("auto_score") is None else str(sm["auto_score"]),
+        "Auto_Score":     "" if _stored_score is None else str(_stored_score),
         "Floor_Cap":      "" if sm.get("floor_cap")  is None else str(sm["floor_cap"]),
         "Manual_Clarity": biz_clarity or "",
         "Manual_LTP":     ltp or "",
@@ -119,7 +129,7 @@ def main():
     old_rows  = _read_csv()
     all_tickers = sorted(old_rows.keys()) if old_rows else []
 
-    REMAINING = {"NFLX", "NVDA", "ADBE", "COST", "META", "JNJ", "JPM", "BAC"}
+    REMAINING = {"WMT", "TSM", "SOFI", "TGT", "SNAP"}
     tickers = [t for t in all_tickers if t in REMAINING]
 
     if not tickers:
@@ -253,7 +263,9 @@ def main():
                 wacc_refs.get("wacc_val"), dcf_prices, scorecard_metrics, analyst_ests
             )
 
-            # Update outputs.csv
+            # Update outputs.csv — store the score that appears in the report hero
+            # (adj_score when quals are entered, auto_score when quant-only).
+            _display = adj_score if (bc_manual or ltp_manual) else auto_score
             _write_row(
                 ticker=ticker,
                 scorecard_metrics=scorecard_metrics,
@@ -264,6 +276,7 @@ def main():
                 cf_data=cf_data,
                 biz_clarity=bc_manual or None,
                 ltp=ltp_manual or None,
+                display_score=_display,
             )
 
             builtins.print = _orig

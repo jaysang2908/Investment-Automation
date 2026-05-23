@@ -260,3 +260,37 @@ In `report_bridge.py`:
   "evs_upside":        float,   # (evs_price / current_price) - 1
 }
 ```
+
+---
+
+## Rule 10: Dashboard Score Must Always Match the Report Hero — No Exceptions
+
+The `Auto_Score` column in `outputs.csv` is the single authoritative score that feeds the dashboard. It **must always equal the score displayed in the HTML report hero card** for that ticker. These are the same number and must never diverge.
+
+### What score to write
+
+| Situation | Hero score shown | Auto_Score to store |
+|---|---|---|
+| No qualitative inputs (BC/LTP) | `auto_score` (quant-only, 0-10) | `auto_score` |
+| BC and/or LTP entered | `adj_score` (quant + qual pts, 0-10, capped by `floor_cap`) | `adj_score` |
+
+The correct pattern in every write path:
+
+```python
+_display = adj_score if (biz_clarity or ltp) else auto_score
+# store _display in Auto_Score column
+```
+
+### Write paths — all three must follow this rule
+
+1. **`local_rerun.py` `_write_row()`** — pass `display_score=_display`; `_write_row()` stores it in `Auto_Score`.
+2. **`server.py` `_update_outputs_csv()`** — same pattern via `display_score` parameter; called from `/generate` with `display_score=_display_score`.
+3. **`server.py` `/api/qualitative/<ticker>`** — when qualitative inputs are updated via API, this endpoint regenerates the HTML report AND must also call `_update_outputs_csv(..., display_score=adj_score)` to keep the CSV in sync. It does this **in addition** to writing `qualitative_overrides.json`.
+
+### After changing report_bridge.py or Report_Template.html
+
+Run `python _rerender_reports.py` to re-render all 32+ HTML reports from cached data (no FMP calls). Then run `python _score_audit.py` to verify 0 mismatches between dashboard scores and report heroes before committing.
+
+### Never re-derive scores in the dashboard
+
+The dashboard reads `Auto_Score` directly from `outputs.csv` via `/api/scores`. It must not recalculate, reweight, or reinterpret scores. If the score on the dashboard differs from the report, fix the write path — do not patch the dashboard JS.

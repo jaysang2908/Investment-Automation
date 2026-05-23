@@ -398,6 +398,14 @@ let D = [];
 const p = (v, d=1) => v == null ? '—' : ((v >= 0 ? '+' : '') + (v*100).toFixed(d) + '%');
 const x = (v, d=1) => v == null ? '—' : (v.toFixed(d) + 'x');
 
+function _fmtDate(d) {
+  if (!d) return '';
+  const parts = d.split('-');
+  if (parts.length !== 3) return d;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(parts[2],10)} ${months[parseInt(parts[1],10)-1]} ${parts[0]}`;
+}
+
 // Heat class mapping
 function heatCls(v, pctMode) {
   if (v == null) return 'heat-n';
@@ -519,7 +527,11 @@ function buildCard(c) {
     <span class="stripe" style="background:${verdictStripe(vc)}"></span>
     <div class="ticker">
       <div class="b">${c.t.slice(0,4)}</div>
-      <div><div class="n">${c.n}</div><div class="ex">${c.ex} : ${c.t}</div></div>
+      <div>
+        <div class="n">${c.n}</div>
+        <div class="ex">${c.ex} : ${c.t}${c.date ? ' &nbsp;·&nbsp; <span title="Last run" style="color:var(--ink-4,var(--muted));font-style:normal">' + _fmtDate(c.date) + '</span>' : ''}</div>
+        ${c.price != null ? `<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3,var(--muted));margin-top:2px">$${c.price.toFixed(2)}${c.pt != null && c.pt > 0 ? ' &nbsp;·&nbsp; PT $' + c.pt.toFixed(0) : ''}</div>` : ''}
+      </div>
     </div>
     <div id="sc-${c.t}">${scoreHTML(c)}</div>
     <div><span class="verdict ${vc}"><span class="dot"></span>${verdictLabel(c)}</span></div>
@@ -947,6 +959,7 @@ async function init() {
         gg, em, roic: r.roic, cagr: r.cagr,
         pe: r.pe, pe5: r.pe5, pf: r.pf, pf5: r.pf5,
         de: r.de, fcfni: r.fcfni,
+        date: r.date ?? null,
         url: `/reports/${r.t}_report.html`,
         note: meta.note ?? null,
         pending: meta.pending ?? false,

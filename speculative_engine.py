@@ -173,6 +173,23 @@ def _mock_data(ticker: str) -> dict:
         "high_52w":        46.80,
         "low_52w":         22.30,
         "pct_from_52w_high": -0.093,      # -9.3% from 52w high
+        # Parabolic precursor block (mock illustrates a fully-firing setup)
+        "bb_upper":        45.20,
+        "bb_lower":        39.80,
+        "bb_mid":          42.50,
+        "bb_width_pct":    0.127,         # 12.7% — moderate
+        "bb_pos_pct":      0.62,
+        "bb_squeeze":      True,
+        "bb_expansion":    True,
+        "obv_slope_pct":   0.18,          # +18% relative — strong accumulation
+        "obv_rising":      True,
+        "obv_divergence":  True,
+        "up_vol_share":    0.68,
+        "acc_dist_tier":   "accumulation",
+        "roc_20d":         0.084,         # +8.4% over 20 days
+        "roc_accelerating": True,
+        "atr_14":          1.32,
+        "atr_pct_price":   0.031,
         "company_name":    f"{ticker} Corp.",
         "sector":          "Technology",
         "profile":         {},
@@ -625,6 +642,124 @@ def fetch_speculative_data(ticker: str, api_key: str, polygon_key: str = "",
         except Exception as e:
             data["ta_error"] = str(e)
 
+        # ── Parabolic-move precursor indicators ──────────────────────────────
+        # All computed from the Polygon OHLCV bars already in memory — no extra calls.
+        # These detect the "coiling spring" + "smart-money accumulation" pattern
+        # that historically precedes parabolic moves.
+        data["bb_upper"]        = data["bb_lower"]      = data["bb_mid"]        = None
+        data["bb_width_pct"]    = data["bb_pos_pct"]    = None
+        data["bb_squeeze"]      = data["bb_expansion"]  = None
+        data["obv_slope_pct"]   = data["obv_rising"]    = data["obv_divergence"] = None
+        data["up_vol_share"]    = data["acc_dist_tier"] = None
+        data["roc_20d"]         = data["roc_accelerating"] = None
+        data["atr_14"]          = data["atr_pct_price"] = None
+        try:
+            import pandas as _pd
+            import numpy as _np
+
+            close_s = _pd.Series(closes_asc)
+            high_s  = _pd.Series(highs_asc)
+            low_s   = _pd.Series(lows_asc)
+            vol_s   = _pd.Series(vols_asc)
+
+            # Bollinger Bands (20-period SMA, 2 std dev). Width as % of mid band
+            # is the cleanest cross-stock comparable metric (volatility-normalised).
+            if len(close_s) >= 60:
+                bb_mid_s   = close_s.rolling(20).mean()
+                bb_std_s   = close_s.rolling(20).std()
+                bb_up_s    = bb_mid_s + 2 * bb_std_s
+                bb_dn_s    = bb_mid_s - 2 * bb_std_s
+                bb_width_s = ((bb_up_s - bb_dn_s) / bb_mid_s).replace([_np.inf, -_np.inf], _np.nan)
+
+                cur_mid   = float(bb_mid_s.iloc[-1])
+                cur_up    = float(bb_up_s.iloc[-1])
+                cur_dn    = float(bb_dn_s.iloc[-1])
+                cur_width = float(bb_width_s.iloc[-1])
+                cur_close = float(close_s.iloc[-1])
+
+                data["bb_mid"]       = cur_mid
+                data["bb_upper"]     = cur_up
+                data["bb_lower"]     = cur_dn
+                data["bb_width_pct"] = cur_width
+                if cur_up > cur_dn:
+                    data["bb_pos_pct"] = (cur_close - cur_dn) / (cur_up - cur_dn)
+
+                # Squeeze: current BB width sits in the lowest 25% of the last 60 bars
+                width_hist  = bb_width_s.dropna().iloc[-60:]
+                if len(width_hist) >= 40:
+                    p25 = float(width_hist.quantile(0.25))
+                    data["bb_squeeze"] = bool(cur_width <= p25)
+                    # Expansion: width was in lowest 25% within last 10 bars AND is
+                    # now expanding (width up >15% from its 10-bar low). The
+                    # classic coiled-spring breakout signature.
+                    recent_widths = width_hist.iloc[-10:]
+                    recent_min    = float(recent_widths.min())
+                    was_squeezed_recently = recent_min <= p25
+                    expansion = (cur_width > recent_min * 1.15) and was_squeezed_recently
+                    data["bb_expansion"] = bool(expansion)
+
+            # OBV (On-Balance Volume) — cumulative signed volume. A rising OBV with
+            # flat price = institutional accumulation; classic pre-parabolic tell.
+            if len(close_s) >= 30:
+                price_diff = close_s.diff().fillna(0)
+                signed_vol = vol_s.where(price_diff > 0, -vol_s.where(price_diff < 0, 0))
+                obv_s = signed_vol.cumsum()
+
+                obv_now   = float(obv_s.iloc[-1])
+                obv_10ago = float(obv_s.iloc[-11]) if len(obv_s) >= 11 else float(obv_s.iloc[0])
+                obv_denom = max(abs(obv_10ago), abs(obv_s.iloc[-30:]).max(), 1.0)
+                obv_slope = (obv_now - obv_10ago) / obv_denom
+                data["obv_slope_pct"] = float(obv_slope)
+                data["obv_rising"]    = bool(obv_slope > 0.02)
+
+                # Divergence: OBV up >5% relative to recent range, price flat or down
+                if len(close_s) >= 11:
+                    price_10d_change = float(close_s.iloc[-1] / close_s.iloc[-11] - 1)
+                    data["obv_divergence"] = bool(
+                        obv_slope > 0.05 and price_10d_change < 0.02
+                    )
+
+            # Accumulation/Distribution — share of last 20 days' volume that
+            # occurred on up-close days. >0.60 = accumulation, <0.40 = distribution.
+            if len(close_s) >= 21:
+                last20_close = close_s.iloc[-20:]
+                last20_vol   = vol_s.iloc[-20:]
+                last20_prev  = close_s.iloc[-21:-1].values
+                up_mask      = last20_close.values > last20_prev
+                up_vol       = float(last20_vol[up_mask].sum())
+                tot_vol      = float(last20_vol.sum())
+                if tot_vol > 0:
+                    share = up_vol / tot_vol
+                    data["up_vol_share"] = share
+                    if share >= 0.60:
+                        data["acc_dist_tier"] = "accumulation"
+                    elif share <= 0.40:
+                        data["acc_dist_tier"] = "distribution"
+                    else:
+                        data["acc_dist_tier"] = "neutral"
+
+            # 20-day Rate of Change + acceleration check
+            if len(close_s) >= 26:
+                roc_now   = float(close_s.iloc[-1]  / close_s.iloc[-21] - 1)
+                roc_5ago  = float(close_s.iloc[-6]  / close_s.iloc[-26] - 1)
+                data["roc_20d"]            = roc_now
+                data["roc_accelerating"]   = bool(roc_now > roc_5ago and roc_now > 0)
+
+            # ATR-14 (Wilder's smoothing approximated by simple mean of TR)
+            if len(close_s) >= 15:
+                prev_close = close_s.shift(1)
+                tr = _pd.concat([
+                    high_s - low_s,
+                    (high_s - prev_close).abs(),
+                    (low_s  - prev_close).abs(),
+                ], axis=1).max(axis=1)
+                atr14 = float(tr.iloc[-14:].mean())
+                data["atr_14"] = atr14
+                if cur_close := float(close_s.iloc[-1]):
+                    data["atr_pct_price"] = atr14 / cur_close
+        except Exception as e:
+            data["parabolic_ta_error"] = str(e)
+
     # ── Short interest ────────────────────────────────────────────────────────
     si_raw = _get(f"short-interest?symbol={ticker}")
     data["short_float_pct"] = None
@@ -1014,87 +1149,146 @@ def _score_social_trend(data: dict) -> tuple[str, int, str]:
 
 
 def _score_technical_analysis(data: dict) -> tuple[str, int, str]:
-    """Score the technical setup using MACD crossover, 52w high proximity, and EMA stack.
+    """Score the technical setup using 7 sub-signals that together describe a
+    pre-parabolic structure.
 
-    Each of the three sub-signals votes bullish/neutral/bearish.
-    HIGH requires 2-3 bullish votes. MOD requires 1. LOW requires 0.
+    The constellation we are looking for is the classic "coiled-spring + smart-
+    money accumulation" pattern that historically precedes outsized moves:
+
+      Trend-confirmation block (3 signals):
+        1. MACD crossover           — momentum has turned positive
+        2. 52-week high proximity   — price is in a breakout watch zone
+        3. EMA stack alignment      — price > EMA21 > EMA50 (uptrend)
+
+      Pre-parabolic precursor block (4 signals):
+        4. Bollinger Band squeeze   — volatility compression (coiled spring)
+        5. OBV accumulation         — cumulative volume rising (institutional bid)
+        6. Up-day volume dominance  — accumulation vs distribution character
+        7. ROC acceleration         — rate of change turning up from flat/negative
+
+    Scoring:
+        HIGH = 5+ bullish votes (strong setup, multiple precursors firing)
+        MOD  = 3–4 bullish votes
+        LOW  = 0–2 bullish votes
     """
-    bullish_signals = []
+    votes = []  # list of (key, is_bullish, label)
     notes = []
 
-    # Sub-signal 1: MACD — histogram positive AND MACD above signal = bullish crossover
+    def _vote(key, bullish, label):
+        if bullish is None:
+            return
+        votes.append((key, bool(bullish), label))
+
+    # ── 1. MACD ─────────────────────────────────────────────────────────────
     macd      = data.get("macd")
     macd_sig  = data.get("macd_signal")
     macd_hist = data.get("macd_hist")
-
     if macd is not None and macd_sig is not None and macd_hist is not None:
         if macd_hist > 0 and macd > macd_sig:
-            bullish_signals.append(True)
-            notes.append(f"MACD bullish (hist +{macd_hist:.2f}, MACD {macd:.2f} > signal {macd_sig:.2f})")
+            _vote("macd", True, f"MACD+ ({macd_hist:+.2f})")
+            notes.append(f"MACD bullish · hist {macd_hist:+.2f}")
         elif macd_hist < 0:
-            bullish_signals.append(False)
-            notes.append(f"MACD bearish (hist {macd_hist:.2f})")
+            _vote("macd", False, f"MACD− ({macd_hist:+.2f})")
+            notes.append(f"MACD bearish · hist {macd_hist:+.2f}")
         else:
             notes.append("MACD neutral")
-    else:
-        notes.append("MACD unavailable")
 
-    # Sub-signal 2: 52-week high proximity
+    # ── 2. 52-week high proximity ──────────────────────────────────────────
     pct_off = data.get("pct_from_52w_high")
-    high_52w = data.get("high_52w")
-
     if pct_off is not None:
         if pct_off >= -0.08:
-            # Within 8% of 52w high — breakout zone
-            bullish_signals.append(True)
-            notes.append(f"{pct_off*100:.1f}% from 52w high (${high_52w:.2f}) — breakout watch zone")
+            _vote("52w_high", True, "near 52w high")
+            notes.append(f"{pct_off*100:+.1f}% from 52w high — breakout zone")
         elif pct_off >= -0.25:
-            # 8-25% below — neutral; not deeply buried
-            notes.append(f"{pct_off*100:.1f}% from 52w high — intermediate range")
+            notes.append(f"{pct_off*100:+.1f}% from 52w high — mid-range")
         else:
-            # >25% below 52w high — stock deeply buried, needs big catalyst
-            bullish_signals.append(False)
-            notes.append(f"{pct_off*100:.1f}% from 52w high — stock deeply off highs")
-    else:
-        notes.append("52w high data unavailable")
+            _vote("52w_high", False, "deep off 52w high")
+            notes.append(f"{pct_off*100:+.1f}% from 52w high — deep")
 
-    # Sub-signal 3: EMA stack — price > EMA21 > EMA50 = bullish alignment
+    # ── 3. EMA stack ───────────────────────────────────────────────────────
     price = data.get("current_price")
     ema21 = data.get("ema_21")
     ema50 = data.get("ema_50")
-
     if price and ema21 and ema50:
         if price > ema21 > ema50:
-            bullish_signals.append(True)
-            notes.append(f"EMA stack bullish: price ${price:.2f} > EMA21 ${ema21:.2f} > EMA50 ${ema50:.2f}")
+            _vote("ema_stack", True, "EMA21>EMA50, price above")
+            notes.append("EMA stack bullish")
         elif price < ema21 or ema21 < ema50:
-            bullish_signals.append(False)
-            notes.append(f"EMA stack bearish: price ${price:.2f} / EMA21 ${ema21:.2f} / EMA50 ${ema50:.2f}")
+            _vote("ema_stack", False, "EMA stack broken")
+            notes.append("EMA stack bearish")
         else:
-            notes.append(f"EMA mixed: price ${price:.2f} / EMA21 ${ema21:.2f} / EMA50 ${ema50:.2f}")
+            notes.append("EMA stack mixed")
+
+    # ── 4. Bollinger Band squeeze / expansion ──────────────────────────────
+    bb_sq  = data.get("bb_squeeze")
+    bb_exp = data.get("bb_expansion")
+    bb_w   = data.get("bb_width_pct")
+    if bb_exp:
+        _vote("bb", True, "BB expanding from squeeze")
+        notes.append(f"BB expansion from squeeze · width {bb_w*100:.1f}%" if bb_w else "BB expansion")
+    elif bb_sq:
+        # A pure squeeze without expansion isn't yet a directional signal — it's
+        # a "watch" condition. Don't vote either way; just narrate.
+        notes.append(f"BB squeeze active · coiled-spring setup (width {bb_w*100:.1f}%)" if bb_w else "BB squeeze")
+    elif bb_sq is False and bb_w is not None:
+        notes.append(f"BB normal-range volatility (width {bb_w*100:.1f}%)")
+
+    # ── 5. OBV accumulation / divergence ───────────────────────────────────
+    obv_rising = data.get("obv_rising")
+    obv_div    = data.get("obv_divergence")
+    obv_slope  = data.get("obv_slope_pct")
+    if obv_div:
+        _vote("obv", True, "OBV bullish divergence")
+        notes.append(f"OBV diverging · {obv_slope*100:+.1f}% with price flat")
+    elif obv_rising:
+        _vote("obv", True, "OBV rising")
+        notes.append(f"OBV rising · {obv_slope*100:+.1f}%")
+    elif obv_slope is not None and obv_slope < -0.05:
+        _vote("obv", False, "OBV declining")
+        notes.append(f"OBV declining · {obv_slope*100:+.1f}%")
+    elif obv_slope is not None:
+        notes.append(f"OBV flat · {obv_slope*100:+.1f}%")
+
+    # ── 6. Accumulation/Distribution character ─────────────────────────────
+    tier   = data.get("acc_dist_tier")
+    share  = data.get("up_vol_share")
+    if tier == "accumulation":
+        _vote("acc_dist", True, f"up-vol {share*100:.0f}%")
+        notes.append(f"Accumulation · {share*100:.0f}% of 20d volume on up days")
+    elif tier == "distribution":
+        _vote("acc_dist", False, f"up-vol {share*100:.0f}%")
+        notes.append(f"Distribution · {share*100:.0f}% of 20d volume on up days")
+    elif share is not None:
+        notes.append(f"Neutral acc/dist · {share*100:.0f}% up-day vol")
+
+    # ── 7. ROC acceleration ────────────────────────────────────────────────
+    roc      = data.get("roc_20d")
+    roc_acc  = data.get("roc_accelerating")
+    if roc_acc:
+        _vote("roc", True, f"ROC accelerating ({roc*100:+.1f}%)")
+        notes.append(f"20d ROC accelerating · {roc*100:+.1f}%")
+    elif roc is not None and roc < -0.10:
+        _vote("roc", False, f"ROC weak ({roc*100:+.1f}%)")
+        notes.append(f"20d ROC weak · {roc*100:+.1f}%")
+    elif roc is not None:
+        notes.append(f"20d ROC {roc*100:+.1f}% · no acceleration")
+
+    n_bullish = sum(1 for _, b, _ in votes if b)
+    n_bearish = sum(1 for _, b, _ in votes if not b)
+
+    if n_bullish >= 5:
+        tier, pts = "HIGH", 10
+    elif n_bullish >= 3 and n_bearish <= n_bullish:
+        tier, pts = "MOD", 5
+    elif n_bullish >= 1 and n_bearish == 0:
+        tier, pts = "MOD", 5
+    elif n_bearish >= 3:
+        tier, pts = "LOW", 0
     else:
-        notes.append("EMA data unavailable")
+        tier, pts = "MOD", 5
 
-    n_bullish = sum(1 for b in bullish_signals if b)
-    n_bearish = sum(1 for b in bullish_signals if not b)
-
-    if n_bullish >= 2:
-        tier = "HIGH"
-        pts  = 10
-    elif n_bullish == 1 and n_bearish == 0:
-        tier = "MOD"
-        pts  = 5
-    elif n_bullish == 1 and n_bearish == 1:
-        tier = "MOD"
-        pts  = 5
-    elif n_bearish >= 2:
-        tier = "LOW"
-        pts  = 0
-    else:
-        tier = "MOD"
-        pts  = 5
-
-    return tier, pts, " · ".join(notes)
+    header = f"[{n_bullish}↑ / {n_bearish}↓ of {len(votes)} signals]"
+    return tier, pts, header + " · " + " · ".join(notes)
 
 
 def _score_narrative(narrative_theme: str, narrative_strength: str) -> tuple[str, int, str]:

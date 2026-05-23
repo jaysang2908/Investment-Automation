@@ -62,8 +62,12 @@ _PRICE_HIST_HDR  = ",".join(_PRICE_HIST_COLS) + "\n"
 
 def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
                         current_price, market_cap, is_data, cf_data,
-                        biz_clarity=None, ltp=None):
+                        biz_clarity=None, ltp=None, display_score=None):
     """Write/update one row in outputs.csv for this ticker.
+
+    display_score — the score that appears in the report hero card (adj_score when
+    quals are entered, auto_score otherwise).  Written to Auto_Score so the
+    dashboard always matches the report.  Falls back to sm["auto_score"] if omitted.
 
     Reads the existing CSV, replaces the row for this ticker (or appends if new),
     then writes back to disk.  If GITHUB_TOKEN is configured, also pushes to
@@ -88,6 +92,10 @@ def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
 
     mkt_cap_b = (market_cap / 1e9) if market_cap else None
 
+    # Auto_Score must equal the hero score shown in the HTML report.
+    # Use display_score when provided; fall back to quant auto_score only.
+    _stored_score = display_score if display_score is not None else sm.get("auto_score")
+
     new_row = {
         "Ticker":         ticker,
         "Price":          _f(current_price, 2),
@@ -109,7 +117,7 @@ def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
         "FCF_B":          _f(fcf_b,  2),
         "SBC_B":          _f(sm.get("sbc_trailing_b"), 2),
         "SBC_pct":        _f(sm.get("sbc_pct_fcf"), 4),
-        "Auto_Score":     "" if sm.get("auto_score") is None else str(sm["auto_score"]),
+        "Auto_Score":     "" if _stored_score is None else str(_stored_score),
         "Floor_Cap":      "" if sm.get("floor_cap")  is None else str(sm["floor_cap"]),
         "Manual_Clarity": biz_clarity or "",
         "Manual_LTP":     ltp or "",
@@ -589,7 +597,10 @@ def generate():
             f.write(excel_bytes)
 
         # ── Update outputs.csv → Dashboard picks up the new row immediately ────
+        # Store the hero display score (adj when quals present, quant otherwise)
+        # so Auto_Score in the CSV always matches what the report shows.
         try:
+            _display_score = adj_score if (biz_clarity or ltp) else auto_score
             _update_outputs_csv(
                 ticker            = ticker,
                 scorecard_metrics = scorecard_metrics,
@@ -600,6 +611,7 @@ def generate():
                 cf_data           = cf_data,
                 biz_clarity       = biz_clarity or None,
                 ltp               = ltp or None,
+                display_score     = _display_score,
             )
         except Exception:
             pass  # never block report delivery over a CSV write failure
@@ -1518,6 +1530,25 @@ def api_update_qualitative(ticker):
         "updated":     datetime.date.today().isoformat(),
     }
     _save_qual_overrides(overrides)
+
+    # Update outputs.csv so the dashboard immediately reflects the new qual score.
+    # adj_score is now the hero display score (quals entered), so write it to Auto_Score.
+    try:
+        _prof = stored.get("profile") or {}
+        _update_outputs_csv(
+            ticker            = ticker,
+            scorecard_metrics = scorecard_metrics,
+            dcf_prices        = stored.get("dcf_prices") or {},
+            current_price     = float(_prof.get("price") or 0) or None,
+            market_cap        = float(_prof.get("mktCap") or _prof.get("marketCap") or 0) or None,
+            is_data           = stored.get("is_data") or [],
+            cf_data           = stored.get("cf_data") or [],
+            biz_clarity       = biz_clarity or None,
+            ltp               = ltp or None,
+            display_score     = adj_score,
+        )
+    except Exception:
+        pass  # never block response over a CSV write failure
 
     resp = {
         "ticker":      ticker,

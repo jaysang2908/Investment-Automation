@@ -1439,7 +1439,14 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                   "PE": 10.0, "PFCF": 10.0}
     W = scorecard_metrics.get("weights") or _DEFAULT_W
 
-    p1 = round((_cap(s_bc)*W["BC"] + s_moat*W["Moat"] + _cap(s_ltp)*W["LTP"] + s_mgmt*W["Mgmt"]) / 10, 1)
+    # Determine whether qualitative inputs (BC, LTP) were manually rated.
+    # When not rated, exclude them from p1 so the displayed raw total matches
+    # the quant-only auto_score from the engine (no phantom MOD defaults counted).
+    _qual_entered = bool(t_bc or t_ltp)
+    _bc_raw  = _cap(s_bc) * W["BC"]  if _qual_entered else 0.0
+    _ltp_raw = _cap(s_ltp) * W["LTP"] if _qual_entered else 0.0
+
+    p1 = round((_bc_raw + s_moat*W["Moat"] + _ltp_raw + s_mgmt*W["Mgmt"]) / 10, 1)
     p2 = round((s_rev*W["RevCAGR"] + s_fcf_ni*W["FCFNI"] + s_cap_ret*W["CapRet"] + s_roic*W["ROIC"]) / 10, 1)
     p3 = round((s_debd*W["Lev"] + s_eint*W["EBITInt"] + s_exec*W["Exec"]) / 10, 1)
     p4 = round((s_pe*W["PE"] + s_pfcf*W["PFCF"]) / 10, 1)
@@ -1679,11 +1686,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     # Quant is objective-only (11 auto-criteria). Full adds Business Clarity
     # (2.5 wt) + Long-Term Potential (10.0 wt). The verdict uses the more
     # conservative of the two (rank-min).
-    _qual_entered  = bool(t_bc or t_ltp)
-    # Fallback: p-sum minus qual contribution, then normalize to 0-10.
-    _quant_fallback = round(min(10.0, (p1 + p2 + p3 + p4 -
-                                       (P[t_bc or "MOD"]*2.5 +
-                                        P[t_ltp or "MOD"]*10.0)/10) / 87.5 * 10), 1)
+    # _qual_entered already set above (before p1 computation).
+    # Fallback: p-sum already excludes BC/LTP when not rated, so quant fallback
+    # only needs to subtract qual contribution when quals ARE rated.
+    _qual_contrib   = (_bc_raw + _ltp_raw) / 10  # 0 when not rated
+    _quant_fallback = round(min(10.0, (p1 + p2 + p3 + p4 - _qual_contrib) / 87.5 * 10), 1)
     _quant_score   = round(auto_score, 1) if auto_score else _quant_fallback
     _full_score    = round(adj_score, 1) if (adj_score and _qual_entered) else None
     _verdict_text  = _conservative_verdict(_quant_score, _full_score)
@@ -1969,49 +1976,53 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
         # Scorecard — totals use adj_score from Excel engine for consistency
         "P1_WEIGHTED":          str(p1),
-        "P1_BC_SCORE_TEXT":     t_bc or "MOD", "P1_BC_WTD": str(round(P[t_bc or "MOD"]*2.5/10, 2)),
+        "P1_BC_SCORE_TEXT":     t_bc or "MOD",
+        "P1_BC_WTD":            str(round(_cap(s_bc)*W["BC"]/10, 2)) if _qual_entered else "—",
         "P1_BC_COMMENTARY":     _bc_commentary,
-        "P1_MOAT_SCORE_TEXT":   t_moat, "P1_MOAT_WTD": str(round(P[t_moat]*10.0/10, 1)),
+        "P1_MOAT_SCORE_TEXT":   t_moat, "P1_MOAT_WTD": str(round(s_moat*W["Moat"]/10, 2)),
         "P1_MOAT_COMMENTARY":   _moat_commentary,
-        "P1_LTP_SCORE_TEXT":    t_ltp or "MOD", "P1_LTP_WTD": str(round(P[t_ltp or "MOD"]*10.0/10, 1)),
+        "P1_LTP_SCORE_TEXT":    t_ltp or "MOD",
+        "P1_LTP_WTD":           str(round(_cap(s_ltp)*W["LTP"]/10, 2)) if _qual_entered else "—",
         "P1_LTP_COMMENTARY":    _ltp_commentary,
-        "P1_MGT_SCORE_TEXT":    t_mgmt, "P1_MGT_WTD": str(round(P[t_mgmt]*7.5/10, 2)),
+        "P1_MGT_SCORE_TEXT":    t_mgmt, "P1_MGT_WTD": str(round(s_mgmt*W["Mgmt"]/10, 2)),
         "P1_MGT_COMMENTARY":    _mgt_commentary,
 
         "P2_WEIGHTED":          str(p2),
-        "P2_RC_SCORE_TEXT":     t_rev,  "P2_RC_WTD": str(round(P[t_rev]*10.0/10, 1)),
+        "P2_RC_SCORE_TEXT":     t_rev,    "P2_RC_WTD":   str(round(s_rev*W["RevCAGR"]/10, 2)),
         "P2_RC_COMMENTARY":     f"3yr revenue CAGR: {_pct(rev_cagr_v)}.",
-        "P2_CQ_SCORE_TEXT":     t_fcf_ni, "P2_CQ_WTD": str(round(P[t_fcf_ni]*10.0/10, 1)),
+        "P2_CQ_SCORE_TEXT":     t_fcf_ni, "P2_CQ_WTD":   str(round(s_fcf_ni*W["FCFNI"]/10, 2)),
         "P2_CQ_COMMENTARY":     f"FCF/NI: {_pct(fcf_ni_v)}.",
-        "P2_CR_SCORE_TEXT":     t_cap_ret, "P2_CR_WTD": str(round(P[t_cap_ret]*5.0/10, 2)),
+        "P2_CR_SCORE_TEXT":     t_cap_ret,"P2_CR_WTD":   str(round(s_cap_ret*W["CapRet"]/10, 2)),
         "P2_CR_COMMENTARY":     _p2_cr_commentary,
-        "P2_ROIC_SCORE_TEXT":   t_roic, "P2_ROIC_WTD": str(round(P[t_roic]*7.5/10, 1)),
+        "P2_ROIC_SCORE_TEXT":   t_roic,   "P2_ROIC_WTD": str(round(s_roic*W["ROIC"]/10, 2)),
         "P2_ROIC_COMMENTARY":   f"Latest ROIC: {_pct(roic_v)}.",
 
         "P3_WEIGHTED":          str(p3),
-        "P3_CREDRISK_SCORE_TEXT": t_debd, "P3_CREDRISK_WTD": str(round(P[t_debd]*5.0/10, 1)),
+        "P3_CREDRISK_SCORE_TEXT": t_debd, "P3_CREDRISK_WTD": str(round(s_debd*W["Lev"]/10, 2)),
         "P3_CREDRISK_COMMENTARY": (
             f"Capital Adequacy (Equity/Assets): {_pct(equity_assets_v)} — CET1 proxy."
             if is_bank_v else f"D/EBITDA: {d_ebd_str}."
         ),
-        "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD": str(round(P[t_eint]*7.5/10, 1)),
+        "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD":      str(round(s_eint*W["EBITInt"]/10, 2)),
         "P3_IC_COMMENTARY":     f"EBIT/Interest: {ebit_int_str}.",
-        "P3_ER_SCORE_TEXT":     t_exec, "P3_ER_WTD": str(round(P[t_exec]*5.0/10, 1)),
+        "P3_ER_SCORE_TEXT":     t_exec, "P3_ER_WTD":      str(round(s_exec*W["Exec"]/10, 2)),
         "P3_ER_COMMENTARY":     _er_commentary,
 
         "P4_WEIGHTED":          str(p4),
         "P4_PE_SCORE_TEXT":     t_pe if t_pe is not None else "N/A",
-        "P4_PE_WTD": str(round(P[t_pe]*10.0/10, 1)) if t_pe is not None else "0.0",
+        "P4_PE_WTD":            str(round(s_pe*W["PE"]/10, 2)),
         "P4_PE_COMMENTARY":     f"P/E {_x(trailing_pe)} vs 5yr avg {_x(pe_5yr)} ({pe_delta}).",
         "P4_PFCF_SCORE_TEXT":   t_pfcf if t_pfcf is not None else "N/A",
-        "P4_PFCF_WTD": str(round(P[t_pfcf]*10.0/10, 1)) if t_pfcf is not None else "0.0",
+        "P4_PFCF_WTD":          str(round(s_pfcf*W["PFCF"]/10, 2)),
         "P4_PFCF_COMMENTARY":   (
             f"P/FCF {_x(trailing_pfc)} vs 5yr avg {_x(pfcf_5yr)} ({pfcf_delta})."
             + (f" Adj. for SBC: {_x(pfcf_adj_v)}x." if pfcf_adj_v and (sbc_pct_v or 0) > 0.05 else "")
         ),
 
         "SCORECARD_RESCALE_NOTE": _scorecard_rescale_note,
-        "TOTAL_WEIGHTED_SCORE": str(round(final_score, 1)) if final_score else "0",
+        # Raw p-sum (0–87.5 scale) shown in the Wtd Pts total cell; normalized
+        # 0–10 auto_score shown alongside so both scales are visible at once.
+        "TOTAL_WEIGHTED_SCORE": str(round(p1 + p2 + p3 + p4, 1)),
 
         # Scenarios
         "BEAR_PRICE_RANGE": f"${bear_px:.0f}" if bear_px else "N/A",
