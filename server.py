@@ -480,10 +480,12 @@ def generate():
         mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs,
                          bank_credit=_bank_credit)
         mdl.build_segments(wb, ticker, years)
-        wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating)
+        wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, manual_rating,
+                                   profile=profile)
         dcf_refs  = mdl.build_dcf(
             wb, ticker, is_data, bs_data, cf_data, years,
-            pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
+            pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs,
+            profile=profile,
         )
         # ── Fetch analyst estimates (needed for forward P/E & P/FCF in scorecard) ─
         analyst_ests = []
@@ -500,22 +502,12 @@ def generate():
         except Exception:
             pass
 
-        # ── Fetch insider trading (trailing 6 months, open-market only) ──────────
+        # Insider trading endpoint dropped — open-market P-Purchase/S-Sale
+        # filter leaves 0 transactions for virtually every mega-cap (almost all
+        # insider activity is automatic 10b5-1 plan-based, which is noise by
+        # design). Wasted 1 FMP call per report. Re-enable per-ticker if
+        # extending coverage to small-caps where individual insider buys matter.
         insider_data = []
-        try:
-            _cutoff_ins = (datetime.date.today() - datetime.timedelta(days=180)).isoformat()
-            _id = _req.get(
-                f"https://financialmodelingprep.com/stable/insider-trading"
-                f"?symbol={ticker}&limit=50&apikey={mdl.API_KEY}", timeout=8
-            ).json()
-            if isinstance(_id, list):
-                insider_data = [
-                    e for e in _id
-                    if (e.get("transactionDate") or "") >= _cutoff_ins
-                    and e.get("transactionType") in ("P-Purchase", "S-Sale")
-                ]
-        except Exception:
-            pass
 
         _, scorecard_metrics = mdl.build_scorecard(
             wb, ticker, is_data, bs_data, cf_data, years,
@@ -1178,8 +1170,8 @@ def _build_dcf_response(stored):
         def_rev = []
         for i in range(5):
             if i < len(ae_raw):
-                er  = ae_raw[i].get("estimatedRevenueAvg") or 0
-                epr = (ae_raw[i-1].get("estimatedRevenueAvg")
+                er  = ae_raw[i].get("revenueAvg") or 0
+                epr = (ae_raw[i-1].get("revenueAvg")
                        if i > 0 else history[-1]["revenue_m"] * 1e6) or 0
                 if er and epr:
                     def_rev.append(round(er / epr - 1, 4)); continue
@@ -1243,9 +1235,9 @@ def _build_dcf_response(stored):
         "analyst_ests": [
             {
                 "year":      str(e.get("date",""))[:4],
-                "rev_avg_m": round((e.get("estimatedRevenueAvg") or 0) / 1e6, 1),
-                "eps_avg":   round(e.get("estimatedEpsAvg") or 0, 2),
-                "ebitda_m":  round((e.get("estimatedEbitdaAvg") or 0) / 1e6, 1),
+                "rev_avg_m": round((e.get("revenueAvg") or 0) / 1e6, 1),
+                "eps_avg":   round(e.get("epsAvg") or 0, 2),
+                "ebitda_m":  round((e.get("ebitdaAvg") or 0) / 1e6, 1),
             }
             for e in ae_raw
         ],

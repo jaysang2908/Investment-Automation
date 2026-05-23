@@ -1605,8 +1605,13 @@ def build_cover(wb, ticker, years, is_data):
 # ═══════════════════════════════════════════════════════════════════════════════
 # WACC TAB
 # ═══════════════════════════════════════════════════════════════════════════════
-def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None):
-    """Build WACC & Cost of Capital sheet."""
+def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None, profile=None):
+    """Build WACC & Cost of Capital sheet.
+
+    profile (optional): pre-fetched FMP profile dict for this ticker.  When
+    provided, skips the redundant internal /stable/profile call (the same one
+    the caller already made).  Saves 1 FMP call per report.
+    """
 
     NC = 3   # columns: label | value | source/note
 
@@ -1696,17 +1701,18 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None):
     # ── Fetch data ────────────────────────────────────────────────────────────
     print("  Fetching WACC inputs...")
 
-    # FMP profile
-    prof = {}
-    try:
-        p = requests.get(
-            f"https://financialmodelingprep.com/stable/profile"
-            f"?symbol={ticker}&apikey={API_KEY}", timeout=10
-        ).json()
-        prof = (p[0] if isinstance(p, list) and p
-                else p if isinstance(p, dict) else {})
-    except Exception:
-        pass
+    # FMP profile — reuse caller's profile if provided (saves 1 FMP call)
+    prof = profile or {}
+    if not prof:
+        try:
+            p = requests.get(
+                f"https://financialmodelingprep.com/stable/profile"
+                f"?symbol={ticker}&apikey={API_KEY}", timeout=10
+            ).json()
+            prof = (p[0] if isinstance(p, list) and p
+                    else p if isinstance(p, dict) else {})
+        except Exception:
+            pass
 
     raw_beta = float(prof.get("beta") or 0) or None
     mktcap   = float(prof.get("marketCap") or 0) or None
@@ -2082,7 +2088,7 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 # DCF TAB
 # ═══════════════════════════════════════════════════════════════════════════════
-def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, current_price=None, cf_refs=None):
+def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, current_price=None, cf_refs=None, profile=None):
     """Build DCF sheet — consensus years auto-populated from FMP, remainder user input."""
 
     last_hist_year = years[-1]
@@ -2855,6 +2861,9 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 
     if current_price:
         price = float(current_price)
+    elif profile and profile.get("price"):
+        # Reuse caller's profile (no extra FMP call)
+        price = float(profile.get("price") or 0)
     else:
         price = float(is_data[-1].get("price") or 0)
         try:
@@ -3571,22 +3580,21 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     sector_str = ""
     is_bank    = False
     try:
-        # Get sector from FMP profile (1 call — also used for beta below)
-        prof_sc = {}
-        try:
-            p_sc = requests.get(
-                f"https://financialmodelingprep.com/stable/profile"
-                f"?symbol={ticker}&apikey={API_KEY}", timeout=8
-            ).json()
-            prof_sc = (p_sc[0] if isinstance(p_sc, list) and p_sc
-                       else p_sc if isinstance(p_sc, dict) else {})
-        except Exception:
-            pass
-        sector_str   = prof_sc.get("industry") or prof_sc.get("sector") or ""
-        # If the internal API call returned nothing, fall back to the profile
-        # already fetched by the caller (passed as the `profile` kwarg).
-        if not sector_str and profile:
-            sector_str = profile.get("industry") or profile.get("sector") or ""
+        # Sector for is_bank detection — reuse caller's profile when present
+        # (saves 1 FMP call per report).  Only fetch fresh if caller didn't
+        # provide one (legacy call sites or tests).
+        prof_sc = profile or {}
+        if not prof_sc:
+            try:
+                p_sc = requests.get(
+                    f"https://financialmodelingprep.com/stable/profile"
+                    f"?symbol={ticker}&apikey={API_KEY}", timeout=8
+                ).json()
+                prof_sc = (p_sc[0] if isinstance(p_sc, list) and p_sc
+                           else p_sc if isinstance(p_sc, dict) else {})
+            except Exception:
+                pass
+        sector_str = prof_sc.get("industry") or prof_sc.get("sector") or ""
         # Bank/financial sector detection — D/EBITDA is meaningless for deposit-funded institutions
         _BANK_KW = {"bank", "banking", "financial services", "savings", "thrift",
                     "mortgage", "credit union", "investment bank", "diversified financial"}
@@ -4190,7 +4198,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     if analyst_ests and _sc_price:
         # Forward P/E
         try:
-            _fwd_eps = float((analyst_ests[0] or {}).get("estimatedEpsAvg") or 0) or None
+            _fwd_eps = float((analyst_ests[0] or {}).get("epsAvg") or 0) or None
             if _fwd_eps and _fwd_eps > 0:
                 forward_pe_val = round(_sc_price / _fwd_eps, 1)
                 print(f"  Fwd P/E: price={_sc_price:.2f}  eps_est={_fwd_eps:.2f}"
@@ -4200,7 +4208,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
 
         # Forward P/FCF via FCF-margin anchor
         try:
-            _fwd_rev = float((analyst_ests[0] or {}).get("estimatedRevenueAvg") or 0) or None
+            _fwd_rev = float((analyst_ests[0] or {}).get("revenueAvg") or 0) or None
             if _fwd_rev and cf_data and is_data:
                 _ttm_rev   = is_data[-1].get("revenue") or 0
                 _ttm_fcf   = (cf_data[-1].get("freeCashFlow") or
@@ -4313,7 +4321,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     try:
         _pe_for_peg = forward_pe_val or pe_current
         if _pe_for_peg and _pe_for_peg > 0 and analyst_ests and is_data:
-            _fwd_eps_est = float((analyst_ests[0] or {}).get("estimatedEpsAvg") or 0) or None
+            _fwd_eps_est = float((analyst_ests[0] or {}).get("epsAvg") or 0) or None
             _shs_peg     = (is_data[-1].get("weightedAverageShsOut") or
                             is_data[-1].get("weightedAverageShsOutDil") or 0)
             _ttm_ni_peg  = is_data[-1].get("netIncome") or 0
@@ -4345,7 +4353,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     if analyst_ests and is_data:
         try:
             _n_analysts_eps = int(analyst_ests[0].get("numAnalystsEps") or 0)
-            _fwd_eps_rev    = float(analyst_ests[0].get("estimatedEpsAvg") or 0) or None
+            _fwd_eps_rev    = float(analyst_ests[0].get("epsAvg") or 0) or None
             _shs_rev        = (is_data[-1].get("weightedAverageShsOut") or
                                is_data[-1].get("weightedAverageShsOutDil") or 0)
             _ttm_ni_rev     = is_data[-1].get("netIncome") or 0

@@ -207,10 +207,12 @@ def main():
             mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs,
                              bank_credit=_bank_credit)
             mdl.build_segments(wb, ticker, years)
-            wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, None)
+            wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, None,
+                                       profile=profile)
             dcf_refs  = mdl.build_dcf(
                 wb, ticker, is_data, bs_data, cf_data, years,
-                pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs
+                pl_refs, bs_refs, wacc_refs, current_price=current_price, cf_refs=cf_refs,
+                profile=profile,
             )
             _, scorecard_metrics = mdl.build_scorecard(
                 wb, ticker, is_data, bs_data, cf_data, years,

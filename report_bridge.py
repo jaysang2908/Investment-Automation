@@ -2526,11 +2526,11 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _ests = sorted(analyst_ests, key=lambda x: x.get("date", ""))
         _e1 = _ests[0] if _ests else {}
         _e2 = _ests[1] if len(_ests) >= 2 else {}
-        _eps1_fmp = float(_e1.get("estimatedEpsAvg") or 0)
-        _eps2_fmp = float(_e2.get("estimatedEpsAvg") or 0)
-        _ebd1_fmp = float(_e1.get("estimatedEbitdaAvg") or 0)
-        _ebd2_fmp = float(_e2.get("estimatedEbitdaAvg") or 0)
-        _rev1_fmp = float(_e1.get("estimatedRevenueAvg") or 0)
+        _eps1_fmp = float(_e1.get("epsAvg") or 0)
+        _eps2_fmp = float(_e2.get("epsAvg") or 0)
+        _ebd1_fmp = float(_e1.get("ebitdaAvg") or 0)
+        _ebd2_fmp = float(_e2.get("ebitdaAvg") or 0)
+        _rev1_fmp = float(_e1.get("revenueAvg") or 0)
         _fn_conv  = max(0.3, min(fcf_ni_v or 0.7, 2.0))
         _fp1_fmp  = round(_eps1_fmp * _fn_conv, 2) if _eps1_fmp > 0 else 0
         _fp2_fmp  = round(_eps2_fmp * _fn_conv, 2) if _eps2_fmp > 0 else 0
