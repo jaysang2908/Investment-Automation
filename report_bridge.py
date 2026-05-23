@@ -1802,6 +1802,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "FCF_VALUE":            _b(fcf0),
         "FCF_SUB":              (f"+{fcf_yoy*100:.0f}% YoY" if fcf_yoy and fcf_yoy >= 0
                                   else f"{fcf_yoy*100:.0f}% YoY" if fcf_yoy else "N/A"),
+        "ROIC_LABEL":           "ROE" if is_bank_v else "ROIC",
+        "ROIC_CHART_TITLE":     ("ROE % — Return on Equity"
+                                 if is_bank_v else "ROIC % — Return on Invested Capital"),
         "ROIC_VALUE":           _pct(roic_v),
         "ROIC_SUB":             f"FY{years[-1]}",
         "CAP_RETURNS_LABEL":    "Capital Returns",
@@ -1922,24 +1925,48 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "P2_CQ_COMMENTARY":     f"FCF/NI: {_pct(fcf_ni_v)}.",
         "P2_CR_SCORE_TEXT":     t_cap_ret,"P2_CR_WTD":   str(round(s_cap_ret*W["CapRet"]/10, 2)),
         "P2_CR_COMMENTARY":     _p2_cr_commentary,
+        # ROIC row — for banks, label and metric become ROE
+        "P2_ROIC_LABEL":        "ROE" if is_bank_v else "ROIC",
+        "P2_ROIC_WT":           f"{W['ROIC']:g}",
         "P2_ROIC_SCORE_TEXT":   t_roic,   "P2_ROIC_WTD": str(round(s_roic*W["ROIC"]/10, 2)),
-        "P2_ROIC_COMMENTARY":   f"Latest ROIC: {_pct(roic_v)}.",
+        "P2_ROIC_COMMENTARY":   (
+            f"Latest ROE: {_pct(roic_v)} — return on equity (banks: denominator is equity, not invested capital)."
+            if is_bank_v else f"Latest ROIC: {_pct(roic_v)}."
+        ),
 
         "P3_WEIGHTED":          str(p3),
+        # Leverage row — for banks, becomes Capital Adequacy (Equity/Assets)
+        "P3_CREDRISK_LABEL":    ("Capital Adequacy (Equity/Assets)"
+                                 if is_bank_v else "Credit Risk (D/EBITDA)"),
+        "P3_CREDRISK_WT":       f"{W['Lev']:g}",
         "P3_CREDRISK_SCORE_TEXT": t_debd, "P3_CREDRISK_WTD": str(round(s_debd*W["Lev"]/10, 2)),
         "P3_CREDRISK_COMMENTARY": (
-            f"Capital Adequacy (Equity/Assets): {_pct(equity_assets_v)} — CET1 proxy."
+            f"Equity/Assets: {_pct(equity_assets_v)} — CET1 proxy. Bank D/EBITDA is meaningless (deposit-funded)."
             if is_bank_v else f"D/EBITDA: {d_ebd_str}."
         ),
+        # Interest Cover row — hidden for banks (interest is their raw material)
+        "P3_IC_LABEL":          "Interest Cover (EBIT/Int)",
+        "P3_IC_WT":             f"{W['EBITInt']:g}",
+        "P3_IC_ROW_CLASS":      "row-hidden" if W["EBITInt"] == 0 else "",
         "P3_IC_SCORE_TEXT":     t_eint, "P3_IC_WTD":      str(round(s_eint*W["EBITInt"]/10, 2)),
         "P3_IC_COMMENTARY":     f"EBIT/Interest: {ebit_int_str}.",
+        # Execution Risk row
+        "P3_ER_LABEL":          "Execution Risk",
+        "P3_ER_WT":             f"{W['Exec']:g}",
         "P3_ER_SCORE_TEXT":     t_exec, "P3_ER_WTD":      str(round(s_exec*W["Exec"]/10, 2)),
         "P3_ER_COMMENTARY":     _er_commentary,
 
         "P4_WEIGHTED":          str(p4),
+        # P/E row — for banks, single equity-multiple anchor (weight doubled to 20)
+        "P4_PE_LABEL":          "P/E vs. 5yr Median",
+        "P4_PE_WT":             f"{W['PE']:g}",
         "P4_PE_SCORE_TEXT":     t_pe if t_pe is not None else "N/A",
         "P4_PE_WTD":            str(round(s_pe*W["PE"]/10, 2)),
         "P4_PE_COMMENTARY":     f"P/E {_x(trailing_pe)} vs 5yr avg {_x(pe_5yr)} ({pe_delta}).",
+        # P/FCF row — hidden for banks (no FCF rhythm; deposit-funded)
+        "P4_PFCF_LABEL":        "P/FCF vs. 5yr Median",
+        "P4_PFCF_WT":           f"{W['PFCF']:g}",
+        "P4_PFCF_ROW_CLASS":    "row-hidden" if W["PFCF"] == 0 else "",
         "P4_PFCF_SCORE_TEXT":   t_pfcf if t_pfcf is not None else "N/A",
         "P4_PFCF_WTD":          str(round(s_pfcf*W["PFCF"]/10, 2)),
         "P4_PFCF_COMMENTARY":   (

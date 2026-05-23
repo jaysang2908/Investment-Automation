@@ -370,6 +370,7 @@ table { border-collapse: collapse; }
 .col-commentary { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
 .col-metric { font-weight: 600; font-size: 13px; color: var(--ink); }
 .weighted-row td { background: var(--accent-soft) !important; font-weight: 700; font-size: 13px; border-top: 1px solid var(--line-strong); }
+.row-hidden { display: none !important; }
 
 /* ===== Scenarios ===== */
 .scenario-table { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -607,7 +608,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <!-- Meta card -->
     <div class="hero-meta-card">
       <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;{{MARKET_CAP}} &nbsp;·&nbsp; <strong>EV</strong> &nbsp;{{ENTERPRISE_VALUE}}</div>
-      <div class="hero-meta-line"><strong>{{NET_CASH_DEBT}}</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;{{ROIC_VALUE}}</div>
+      <div class="hero-meta-line"><strong>{{NET_CASH_DEBT}}</strong> &nbsp;·&nbsp; <strong>{{ROIC_LABEL}}</strong> &nbsp;{{ROIC_VALUE}}</div>
       <div class="hero-meta-line">Score: <strong>{{FINAL_SCORE}}/{{SCORE_MAX}}</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
     </div>
   </div>
@@ -707,7 +708,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="m-sub">{{FCF_SUB}}</div>
     </div>
     <div class="metric-cell">
-      <div class="m-label">ROIC</div>
+      <div class="m-label">{{ROIC_LABEL}}</div>
       <div class="m-value {{ROIC_VALUE_CLASS}}">{{ROIC_VALUE}}</div>
       <div class="m-sub">{{ROIC_SUB}}</div>
     </div>
@@ -1009,7 +1010,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div class="two-col no-break">
     <div class="chart-card">
-      <div class="chart-title">ROIC % — Return on Invested Capital <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-title">{{ROIC_CHART_TITLE}} <sup><a href="#fn5">[5]</a></sup></div>
       <div class="chart-canvas-wrap"><canvas id="roicChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -1096,53 +1097,53 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="col-commentary">{{P2_CR_COMMENTARY}}</td>
       </tr>
       <tr>
-        <td class="col-metric">ROIC</td>
+        <td class="col-metric">{{P2_ROIC_LABEL}}</td>
         <td class="score-num"><span class="score-pill {{P2_ROIC_SCORE_CLASS}}">{{P2_ROIC_SCORE_TEXT}}</span></td>
-        <td class="score-num">7.5</td><td class="score-num">{{P2_ROIC_WTD}}</td>
+        <td class="score-num">{{P2_ROIC_WT}}</td><td class="score-num">{{P2_ROIC_WTD}}</td>
         <td class="col-commentary">{{P2_ROIC_COMMENTARY}}</td>
       </tr>
 
       <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: {{P3_WEIGHTED}}</td></tr>
       <tr>
-        <td class="col-metric">Credit Risk (D/EBITDA)</td>
+        <td class="col-metric">{{P3_CREDRISK_LABEL}}</td>
         <td class="score-num"><span class="score-pill {{P3_CREDRISK_SCORE_CLASS}}">{{P3_CREDRISK_SCORE_TEXT}}</span></td>
-        <td class="score-num">5</td><td class="score-num">{{P3_CREDRISK_WTD}}</td>
+        <td class="score-num">{{P3_CREDRISK_WT}}</td><td class="score-num">{{P3_CREDRISK_WTD}}</td>
         <td class="col-commentary">{{P3_CREDRISK_COMMENTARY}}<sup><a href="#fn1">[1]</a></sup></td>
       </tr>
-      <tr>
-        <td class="col-metric">Interest Cover (EBIT/Int)</td>
+      <tr class="{{P3_IC_ROW_CLASS}}">
+        <td class="col-metric">{{P3_IC_LABEL}}</td>
         <td class="score-num"><span class="score-pill {{P3_IC_SCORE_CLASS}}">{{P3_IC_SCORE_TEXT}}</span></td>
-        <td class="score-num">7.5</td><td class="score-num">{{P3_IC_WTD}}</td>
+        <td class="score-num">{{P3_IC_WT}}</td><td class="score-num">{{P3_IC_WTD}}</td>
         <td class="col-commentary">{{P3_IC_COMMENTARY}}</td>
       </tr>
       <tr>
-        <td class="col-metric">Execution Risk</td>
+        <td class="col-metric">{{P3_ER_LABEL}}</td>
         <td class="score-num"><span class="score-pill {{P3_ER_SCORE_CLASS}}">{{P3_ER_SCORE_TEXT}}</span></td>
-        <td class="score-num">5</td><td class="score-num">{{P3_ER_WTD}}</td>
+        <td class="score-num">{{P3_ER_WT}}</td><td class="score-num">{{P3_ER_WTD}}</td>
         <td class="col-commentary">{{P3_ER_COMMENTARY}}</td>
       </tr>
 
       <tr class="part-header"><td colspan="5">Part 4 — Valuation (The Entry Point) &nbsp;|&nbsp; Weighted: {{P4_WEIGHTED}}</td></tr>
       <tr>
-        <td class="col-metric">P/E vs. 5yr Median<br>
+        <td class="col-metric">{{P4_PE_LABEL}}<br>
           <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
             Trail: <strong style="color:{{TRAIL_PE_COLOR}}">{{TRAILING_PE}}</strong> ({{TRAILING_PE_DELTA}} vs 10yr)<br>
             Fwd:&nbsp;&nbsp; <strong style="color:{{FWD_PE_COLOR}}">{{FORWARD_PE}}</strong> ({{FORWARD_PE_DELTA}} vs 10yr)
           </span>
         </td>
         <td class="score-num"><span class="score-pill {{P4_PE_SCORE_CLASS}}">{{P4_PE_SCORE_TEXT}}</span></td>
-        <td class="score-num">10</td><td class="score-num">{{P4_PE_WTD}}</td>
+        <td class="score-num">{{P4_PE_WT}}</td><td class="score-num">{{P4_PE_WTD}}</td>
         <td class="col-commentary">{{P4_PE_COMMENTARY}}</td>
       </tr>
-      <tr>
-        <td class="col-metric">P/FCF vs. 5yr Median<br>
+      <tr class="{{P4_PFCF_ROW_CLASS}}">
+        <td class="col-metric">{{P4_PFCF_LABEL}}<br>
           <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
             Trail: <strong style="color:{{TRAIL_PFCF_COLOR}}">{{TRAILING_PFCF}}</strong> ({{TRAILING_PFCF_DELTA}} vs 10yr)<br>
             Fwd:&nbsp;&nbsp; <strong style="color:{{FWD_PFCF_COLOR}}">{{FORWARD_PFCF}}</strong> ({{FORWARD_PFCF_DELTA}} vs 10yr)
           </span>
         </td>
         <td class="score-num"><span class="score-pill {{P4_PFCF_SCORE_CLASS}}">{{P4_PFCF_SCORE_TEXT}}</span></td>
-        <td class="score-num">10</td><td class="score-num">{{P4_PFCF_WTD}}</td>
+        <td class="score-num">{{P4_PFCF_WT}}</td><td class="score-num">{{P4_PFCF_WTD}}</td>
         <td class="col-commentary">{{P4_PFCF_COMMENTARY}}</td>
       </tr>
 

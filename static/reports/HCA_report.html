@@ -370,6 +370,7 @@ table { border-collapse: collapse; }
 .col-commentary { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
 .col-metric { font-weight: 600; font-size: 13px; color: var(--ink); }
 .weighted-row td { background: var(--accent-soft) !important; font-weight: 700; font-size: 13px; border-top: 1px solid var(--line-strong); }
+.row-hidden { display: none !important; }
 
 /* ===== Scenarios ===== */
 .scenario-table { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -1150,7 +1151,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="score-num">5</td><td class="score-num">3.37</td>
         <td class="col-commentary">D/EBITDA: 3.1x.<sup><a href="#fn1">[1]</a></sup></td>
       </tr>
-      <tr>
+      <tr class="">
         <td class="col-metric">Interest Cover (EBIT/Int)</td>
         <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
         <td class="score-num">7.5</td><td class="score-num">5.75</td>
@@ -1175,7 +1176,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="score-num">10</td><td class="score-num">4.16</td>
         <td class="col-commentary">P/E 15.9x vs 5yr avg 13.5x (+18%).</td>
       </tr>
-      <tr>
+      <tr class="">
         <td class="col-metric">P/FCF vs. 5yr Median<br>
           <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
             Trail: <strong style="color:#00695c">14.0x</strong> (−8% vs 10yr)<br>

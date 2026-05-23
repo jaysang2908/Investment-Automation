@@ -370,6 +370,7 @@ table { border-collapse: collapse; }
 .col-commentary { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
 .col-metric { font-weight: 600; font-size: 13px; color: var(--ink); }
 .weighted-row td { background: var(--accent-soft) !important; font-weight: 700; font-size: 13px; border-top: 1px solid var(--line-strong); }
+.row-hidden { display: none !important; }
 
 /* ===== Scenarios ===== */
 .scenario-table { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -639,7 +640,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <!-- Meta card -->
     <div class="hero-meta-card">
       <div class="hero-meta-line"><strong>Market Cap</strong> &nbsp;$807.7B &nbsp;·&nbsp; <strong>EV</strong> &nbsp;$1406.7B</div>
-      <div class="hero-meta-line"><strong>Net debt $599.0B</strong> &nbsp;·&nbsp; <strong>ROIC</strong> &nbsp;15.7%</div>
+      <div class="hero-meta-line"><strong>Net debt $599.0B</strong> &nbsp;·&nbsp; <strong>ROE</strong> &nbsp;15.7%</div>
       <div class="hero-meta-line">Score: <strong>6.5/10</strong> &nbsp;·&nbsp; Independent Research · Not investment advice</div>
     </div>
   </div>
@@ -744,7 +745,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="m-sub">-340% YoY</div>
     </div>
     <div class="metric-cell">
-      <div class="m-label">ROIC</div>
+      <div class="m-label">ROE</div>
       <div class="m-value ">15.7%</div>
       <div class="m-sub">FY2025</div>
     </div>
@@ -1046,7 +1047,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   </div>
   <div class="two-col no-break">
     <div class="chart-card">
-      <div class="chart-title">ROIC % — Return on Invested Capital <sup><a href="#fn5">[5]</a></sup></div>
+      <div class="chart-title">ROE % — Return on Equity <sup><a href="#fn5">[5]</a></sup></div>
       <div class="chart-canvas-wrap"><canvas id="roicChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -1133,23 +1134,23 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <td class="col-commentary">Balanced returns: $104.7B buybacks + $71.3B dividends over 5yr.</td>
       </tr>
       <tr>
-        <td class="col-metric">ROIC</td>
+        <td class="col-metric">ROE</td>
         <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH</span></span></td>
         <td class="score-num">7.5</td><td class="score-num">6.38</td>
-        <td class="col-commentary">Latest ROIC: 15.7%.</td>
+        <td class="col-commentary">Latest ROE: 15.7% — return on equity (banks: denominator is equity, not invested capital).</td>
       </tr>
 
       <tr class="part-header"><td colspan="5">Part 3 — Risk &amp; Credit &nbsp;|&nbsp; Weighted: 9.1</td></tr>
       <tr>
-        <td class="col-metric">Credit Risk (D/EBITDA)</td>
+        <td class="col-metric">Capital Adequacy (Equity/Assets)</td>
         <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">MOD-HIGH</span></span></td>
-        <td class="score-num">5</td><td class="score-num">9.11</td>
-        <td class="col-commentary">Capital Adequacy (Equity/Assets): 8.2% — CET1 proxy.<sup><a href="#fn1">[1]</a></sup></td>
+        <td class="score-num">12.5</td><td class="score-num">9.11</td>
+        <td class="col-commentary">Equity/Assets: 8.2% — CET1 proxy. Bank D/EBITDA is meaningless (deposit-funded).<sup><a href="#fn1">[1]</a></sup></td>
       </tr>
-      <tr>
+      <tr class="row-hidden">
         <td class="col-metric">Interest Cover (EBIT/Int)</td>
         <td class="score-num"><span class="score-pill score-low"><span style="color: #dc2626; font-weight: bold;">LOW</span></span></td>
-        <td class="score-num">7.5</td><td class="score-num">0.0</td>
+        <td class="score-num">0</td><td class="score-num">0.0</td>
         <td class="col-commentary">EBIT/Interest: 0.7x.</td>
       </tr>
       <tr>
@@ -1168,10 +1169,10 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
           </span>
         </td>
         <td class="score-num"><span class="score-pill score-low">N/A</span></td>
-        <td class="score-num">10</td><td class="score-num">0.0</td>
+        <td class="score-num">20</td><td class="score-num">0.0</td>
         <td class="col-commentary">P/E N/A vs 5yr avg N/A (N/A).</td>
       </tr>
-      <tr>
+      <tr class="row-hidden">
         <td class="col-metric">P/FCF vs. 5yr Median<br>
           <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
             Trail: <strong style="color:#b45309">N/A</strong> (N/A vs 10yr)<br>
@@ -1179,7 +1180,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
           </span>
         </td>
         <td class="score-num"><span class="score-pill score-low">N/A</span></td>
-        <td class="score-num">10</td><td class="score-num">0.0</td>
+        <td class="score-num">0</td><td class="score-num">0.0</td>
         <td class="col-commentary">P/FCF N/A vs 5yr avg N/A (N/A).</td>
       </tr>
 
