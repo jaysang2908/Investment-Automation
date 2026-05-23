@@ -699,7 +699,18 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                       manual_rating=None, current_price=None, market_cap=None,
                       biz_clarity=None, ltp=None, adj_score=None,
                       analyst_ests=None, analyst_targets=None,
-                      insider_data=None):
+                      insider_data=None,
+                      price_history=None, consensus_pt=None):
+    """build_report_data — assembles all template variables.
+
+    price_history (optional): pre-fetched price-history dict from cache.  When
+        provided, skips the live /historical-price-eod/full FMP call.
+    consensus_pt  (optional): pre-fetched consensus PT dict from cache.  When
+        provided, skips the live /price-target-consensus FMP call.
+
+    Both saved by the fresh-run path (server.py /generate, local_rerun.py)
+    via data_store.save_ticker_data so _rerender_reports.py burns ZERO calls.
+    """
 
     is0, bs0, cf0 = is_data[-1], bs_data[-1], cf_data[-1]
     today = datetime.date.today().strftime("%B %Y")
@@ -1706,13 +1717,26 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _scorecard_rescale_note = ""
 
     # ── 3-year price history (for chart + hero stats) ────────────────────────
-    _px_labels, _px_values, _px_stats = _fetch_price_history(ticker, years=3)
+    # Use cached price_history if caller provided it (re-renders), otherwise
+    # fetch fresh from FMP (this is the only FMP call gated by caching now).
+    if price_history and isinstance(price_history, dict) and price_history.get("values"):
+        _px_labels = price_history.get("labels") or []
+        _px_values = price_history.get("values") or []
+        _px_stats  = price_history.get("stats")  or {}
+    else:
+        _px_labels, _px_values, _px_stats = _fetch_price_history(ticker, years=3)
     if _px_values:
         _px_labels_js = "[" + ", ".join(f'"{l}"' for l in _px_labels) + "]"
         _px_data_js   = "[" + ", ".join(f"{v}" for v in _px_values) + "]"
     else:
         _px_labels_js = "[]"
         _px_data_js   = "[0]"   # signal for template's 'no data' placeholder
+    # Expose what we used to the caller (so server.py / local_rerun.py can cache)
+    _price_history_payload = {
+        "labels": _px_labels,
+        "values": _px_values,
+        "stats":  _px_stats or {},
+    }
 
     # Hero-card 3yr return + range strings (graceful fallback to blank)
     if _px_stats and _px_stats.get("return_pct") is not None:
@@ -2309,8 +2333,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     _cpt_low = None
     _cpt_high = None
     _cpt_n = None
+    # Use cached consensus_pt if caller supplied it (re-renders), else fetch
     if not _at:
-        _fmp_an = _fetch_analyst_data(ticker, current_price)
+        if consensus_pt and isinstance(consensus_pt, dict):
+            _fmp_an = consensus_pt
+        else:
+            _fmp_an = _fetch_analyst_data(ticker, current_price)
         _cpt      = _fmp_an.get("consensus_pt")
         _cpt_high = _fmp_an.get("consensus_pt_high")
         _cpt_low  = _fmp_an.get("consensus_pt_low")
@@ -2322,6 +2350,14 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             D["PT_RANGE"] = f"${_cpt_low:.2f} – ${_cpt_high:.2f}"
         if _cpt_n:
             D["ANALYST_COUNT"] = str(_cpt_n)
+    # Stash the resolved consensus_pt payload for the caller (fresh-run path
+    # uses this to persist into the data cache so re-renders don't refetch).
+    _consensus_pt_payload = {
+        "consensus_pt":      _cpt,
+        "consensus_pt_high": _cpt_high,
+        "consensus_pt_low":  _cpt_low,
+        "analyst_count":     _cpt_n,
+    }
 
     # Build the hero inline snippet and the section block from the same data
     _cpt_str  = D.get("CONSENSUS_PT", "—")
@@ -2839,6 +2875,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         except Exception:
             pass
 
+    # Expose resolved cacheable payloads to the caller (consumed by save_ticker_data)
+    # under leading-underscore keys so they don't collide with template vars.
+    D["_price_history_payload"] = _price_history_payload
+    D["_consensus_pt_payload"]  = _consensus_pt_payload
     return D
 
 

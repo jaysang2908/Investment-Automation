@@ -260,10 +260,13 @@ def main():
             with open(os.path.join(XLS_DIR, f"{ticker}_model.xlsx"), "wb") as f:
                 f.write(buf.getvalue())
 
-            # Save DCF data cache
+            # Save DCF data cache (including price_history + consensus_pt so
+            # re-renders make ZERO additional FMP calls)
             save_ticker_data(
                 ticker, is_data, bs_data, cf_data, profile, years,
-                wacc_refs.get("wacc_val"), dcf_prices, scorecard_metrics, analyst_ests
+                wacc_refs.get("wacc_val"), dcf_prices, scorecard_metrics, analyst_ests,
+                price_history=report_data.get("_price_history_payload"),
+                consensus_pt=report_data.get("_consensus_pt_payload"),
             )
 
             # Update outputs.csv — store the score that appears in the report hero

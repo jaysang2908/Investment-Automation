@@ -563,6 +563,8 @@ def generate():
         html_content = render_html_report(report_data)
 
         # ── Persist raw data for DCF calculator (avoids future FMP calls) ───
+        # Includes the resolved price_history + consensus_pt payloads from
+        # build_report_data so re-renders make ZERO additional FMP calls.
         try:
             save_ticker_data(
                 ticker=ticker, is_data=is_data, bs_data=bs_data, cf_data=cf_data,
@@ -571,6 +573,8 @@ def generate():
                 dcf_prices=(dcf_refs or {}).get("dcf_prices") or {},
                 scorecard_metrics=scorecard_metrics,
                 analyst_ests=analyst_ests,
+                price_history=report_data.get("_price_history_payload"),
+                consensus_pt=report_data.get("_consensus_pt_payload"),
             )
         except Exception:
             pass

@@ -114,6 +114,10 @@ def main():
             wacc_val     = cached.get("wacc_val")
             dcf_prices   = cached.get("dcf_prices") or {}
             analyst_ests = cached.get("analyst_ests") or []
+            # Reuse cached price_history and consensus_pt so re-render makes
+            # ZERO FMP calls (previously every re-render burned 2 per ticker).
+            price_history = cached.get("price_history")
+            consensus_pt  = cached.get("consensus_pt")
 
             current_price = float(profile.get("price") or 0) or None
             market_cap    = float(profile.get("mktCap") or profile.get("marketCap") or 0) or None
@@ -126,6 +130,7 @@ def main():
                 current_price=current_price, market_cap=market_cap,
                 biz_clarity=bc_manual, ltp=ltp_manual,
                 adj_score=adj_score, analyst_ests=analyst_ests,
+                price_history=price_history, consensus_pt=consensus_pt,
             )
             html = render_html_report(report_data)
             out_path = os.path.join(RPT_DIR, f"{ticker}_report.html")

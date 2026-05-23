@@ -616,6 +616,12 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   {{NARRATIVE_GAP_BANNER}}
   {{CONFIDENCE_BANNER}}
 
+  <!-- 3-Year Price Chart — moved to top (immediately after hero) -->
+  <div class="chart-card no-break" style="margin:18px 0 0">
+    <div class="chart-title">Share Price — 3 Year History ({{CURRENCY_SYMBOL}}, split/dividend-adjusted) <sup><a href="#fn4">[4]</a></sup></div>
+    <div class="chart-canvas-wrap" style="height:200px"><canvas id="priceChart"></canvas></div>
+  </div>
+
 </div>
 
 <!-- ═══ TAB NAV ═══ -->
@@ -998,15 +1004,10 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="section-sub">Price history · financials · ROIC · shareholder returns</div>
     </div>
   </div>
-  <div class="two-col no-break" style="margin-bottom:16px">
-    <div class="chart-card">
-      <div class="chart-title">Share Price — 3 Year History ({{CURRENCY_SYMBOL}}, split/dividend-adjusted) <sup><a href="#fn4">[4]</a></sup></div>
-      <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Revenue · OCF · FCF ({{CURRENCY_SYMBOL}}B) <sup><a href="#fn2">[2]</a></sup></div>
-      <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
-    </div>
+  <!-- Price chart relocated to top of report (immediately after hero) -->
+  <div class="chart-card no-break" style="margin-bottom:16px">
+    <div class="chart-title">Revenue · OCF · FCF ({{CURRENCY_SYMBOL}}B) <sup><a href="#fn2">[2]</a></sup></div>
+    <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
   </div>
   <div class="two-col no-break">
     <div class="chart-card">

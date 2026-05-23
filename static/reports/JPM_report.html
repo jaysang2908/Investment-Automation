@@ -648,6 +648,12 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   
   <div style="margin:6px 0 14px;padding:8px 14px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.4;color:#2e7d32"><strong>✓ Score confidence: HIGH</strong> — 5 yr FCF history; 15 analyst(s) covering</div>
 
+  <!-- 3-Year Price Chart — moved to top (immediately after hero) -->
+  <div class="chart-card no-break" style="margin:18px 0 0">
+    <div class="chart-title">Share Price — 3 Year History ($, split/dividend-adjusted) <sup><a href="#fn4">[4]</a></sup></div>
+    <div class="chart-canvas-wrap" style="height:200px"><canvas id="priceChart"></canvas></div>
+  </div>
+
 </div>
 
 <div class="data-quality-banner">
@@ -1035,15 +1041,10 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="section-sub">Price history · financials · ROIC · shareholder returns</div>
     </div>
   </div>
-  <div class="two-col no-break" style="margin-bottom:16px">
-    <div class="chart-card">
-      <div class="chart-title">Share Price — 3 Year History ($, split/dividend-adjusted) <sup><a href="#fn4">[4]</a></sup></div>
-      <div class="chart-canvas-wrap"><canvas id="priceChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Revenue · OCF · FCF ($B) <sup><a href="#fn2">[2]</a></sup></div>
-      <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
-    </div>
+  <!-- Price chart relocated to top of report (immediately after hero) -->
+  <div class="chart-card no-break" style="margin-bottom:16px">
+    <div class="chart-title">Revenue · OCF · FCF ($B) <sup><a href="#fn2">[2]</a></sup></div>
+    <div class="chart-canvas-wrap"><canvas id="financialChart"></canvas></div>
   </div>
   <div class="two-col no-break">
     <div class="chart-card">
