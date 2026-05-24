@@ -42,6 +42,28 @@ GITHUB_TOKEN   = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO    = os.environ.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
 GITHUB_BRANCH  = os.environ.get("GITHUB_BRANCH", "main")
 
+
+def _push_file_to_github(local_path: str, repo_path: str, commit_msg: str) -> None:
+    """Push any local file to GitHub so it survives Render redeploys."""
+    if not GITHUB_TOKEN:
+        return
+    try:
+        import base64 as _b64
+        with open(local_path, "rb") as _f:
+            content_b64 = _b64.b64encode(_f.read()).decode()
+        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_path}"
+        gh_hdr = {"Authorization": f"token {GITHUB_TOKEN}",
+                  "Accept": "application/vnd.github.v3+json"}
+        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        payload = {"message": commit_msg, "branch": GITHUB_BRANCH, "content": content_b64}
+        if sha:
+            payload["sha"] = sha
+        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=15)
+    except Exception as _e:
+        print(f"[github] push failed for {repo_path}: {_e}", file=sys.stderr)
+
+
 # ── Initialise scenario database ─────────────────────────────────────────────
 init_db()
 
@@ -592,6 +614,25 @@ def generate():
             f.write(html_content)
         with open(excel_path, "wb") as f:
             f.write(excel_bytes)
+
+        # ── Push HTML report + data JSON to GitHub (survives redeploys) ─────────
+        try:
+            _push_file_to_github(
+                html_path,
+                f"static/reports/{ticker}_report.html",
+                f"report: {ticker} auto-generated",
+            )
+            _data_json_path = os.path.join(
+                os.path.dirname(__file__), "static", "data", f"{ticker}_data.json"
+            )
+            if os.path.exists(_data_json_path):
+                _push_file_to_github(
+                    _data_json_path,
+                    f"static/data/{ticker}_data.json",
+                    f"data: {ticker} raw financials",
+                )
+        except Exception:
+            pass
 
         # ── Update outputs.csv → Dashboard picks up the new row immediately ────
         # Store the hero display score (adj when quals present, quant otherwise)

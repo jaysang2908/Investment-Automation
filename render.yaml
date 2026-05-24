@@ -25,3 +25,19 @@ services:
     envVars:
       - key: FMP_API_KEY
         sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+
+  - type: cron
+    name: daily-long-term-bets
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "0 2 * * *"
+    startCommand: python daily_long_term_bets.py
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: RENDER_INTERNAL_URL
+        value: https://investment-automation.onrender.com
