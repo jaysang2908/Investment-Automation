@@ -1348,6 +1348,18 @@ def news_page():
     return send_file(os.path.join(os.path.dirname(__file__), "static", "news.html"))
 
 
+@app.route("/api/score-alerts")
+def api_score_alerts():
+    path = os.path.join(os.path.dirname(__file__), "static", "data", "score_alerts.json")
+    if not os.path.exists(path):
+        return jsonify({"generated": None, "alerts": [], "threshold": 0.5})
+    try:
+        with open(path, encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception:
+        return jsonify({"generated": None, "alerts": [], "threshold": 0.5})
+
+
 @app.route("/api/news")
 def api_news():
     ticker = request.args.get("ticker", "").upper().strip()

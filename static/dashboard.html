@@ -288,6 +288,16 @@
       <div id="coverage-sections"></div>
       <div class="tnotes" id="tnotes"></div>
 
+      <!-- SCORE ALERTS (hidden until data loads) -->
+      <section id="alerts-section" style="display:none">
+        <div class="section-head">
+          <h3>Score Changes</h3>
+          <span class="ct" style="background: var(--surface-3); color: var(--muted);" id="alerts-ct">—</span>
+          <span class="meta">vs. previous run · ≥0.5 pt move</span>
+        </div>
+        <div id="alerts-list" style="display:flex; flex-wrap:wrap; gap:8px; padding: 4px 0 16px;"></div>
+      </section>
+
       <!-- DISCOVERY SECTION (shown when data available) -->
       <section id="disc-section" style="display:none" class="discovery">
         <div class="section-head">
@@ -985,7 +995,42 @@ async function init() {
   loadQualOverrides();
   loadDiscovery();
   loadLive();
+  loadScoreAlerts();
 }
+
+async function loadScoreAlerts() {
+  try {
+    const data = await (await fetch('/api/score-alerts')).json();
+    const alerts = data.alerts || [];
+    if (!alerts.length) return;
+
+    document.getElementById('alerts-section').style.display = '';
+    document.getElementById('alerts-ct').textContent = alerts.length;
+
+    const list = document.getElementById('alerts-list');
+    list.innerHTML = alerts.map(a => {
+      const up   = a.change > 0;
+      const sign = up ? '+' : '';
+      const col  = up ? '#22c55e' : '#ef4444';
+      const bg   = up ? 'color-mix(in oklab,#22c55e 12%,var(--surface))'
+                      : 'color-mix(in oklab,#ef4444 12%,var(--surface))';
+      return `<a href="/reports/${a.ticker}_report.html"
+                 style="display:inline-flex;align-items:center;gap:6px;
+                        padding:6px 12px;border-radius:6px;
+                        background:${bg};border:1px solid ${col}33;
+                        text-decoration:none;color:var(--ink);font-size:13px;">
+               <strong>${a.ticker}</strong>
+               <span style="color:${col};font-weight:600">${sign}${a.change.toFixed(1)}</span>
+               <span style="color:var(--muted);font-size:11px">
+                 ${a.prev_score.toFixed(1)} → ${a.curr_score.toFixed(1)}
+               </span>
+             </a>`;
+    }).join('');
+  } catch(e) {
+    // silently ignore — alerts are non-critical
+  }
+}
+
 init();
 </script>
 <script src="/js/app.js"></script>
