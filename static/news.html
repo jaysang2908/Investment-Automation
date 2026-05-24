@@ -290,6 +290,31 @@
       .art-thumb { display: none; }
     }
 
+    /* Congressional trades strip */
+    .congress-strip {
+      display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+      padding: var(--s-3) var(--s-4);
+      background: color-mix(in oklab, #6366f1 8%, var(--surface));
+      border: 1px solid #6366f133;
+      border-radius: var(--r-lg);
+      margin-bottom: var(--s-3);
+    }
+    .congress-strip-label {
+      font-family: var(--font-mono); font-size: var(--t-tiny);
+      letter-spacing: .12em; text-transform: uppercase;
+      color: #4f46e5; white-space: nowrap; font-weight: 600;
+    }
+    .congress-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      border-radius: 4px; font-size: 10px;
+      font-family: var(--font-mono); font-weight: 600;
+      padding: 2px 7px; letter-spacing: .4px; white-space: nowrap; cursor: default;
+      border: 1px solid transparent;
+    }
+    .congress-chip.buy  { background: color-mix(in oklab,#22c55e 12%,var(--surface)); color:#16a34a; border-color:#22c55e33; }
+    .congress-chip.sell { background: color-mix(in oklab,#ef4444 12%,var(--surface)); color:#dc2626; border-color:#ef444433; }
+    .congress-chip.mix  { background: color-mix(in oklab,#6366f1 12%,var(--surface)); color:#4f46e5; border-color:#6366f133; }
+
     /* Earnings strip */
     .earns-strip {
       display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
@@ -371,6 +396,12 @@
       <div class="earns-strip" id="earnsStrip" style="display:none">
         <span class="earns-strip-label">Earnings this week</span>
         <div id="earnsChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- CONGRESSIONAL ACTIVITY STRIP -->
+      <div class="congress-strip" id="congressStrip" style="display:none">
+        <span class="congress-strip-label">Congressional trades · 30 days</span>
+        <div id="congressChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
       </div>
 
       <!-- MAIN LAYOUT -->
@@ -660,7 +691,32 @@
     } catch(e) {}
   }
 
-  init().then(loadDiscoveryTickers).then(loadEarningsStrip);
+  async function loadCongressStrip() {
+    try {
+      const resp = await fetch('/api/congress?days=30');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const summary = data.ticker_summary || {};
+      const tickers = Object.keys(summary).sort((a, b) => {
+        const da = summary[a].last_date || '';
+        const db = summary[b].last_date || '';
+        return db.localeCompare(da);
+      });
+      if (!tickers.length) return;
+      document.getElementById('congressStrip').style.display = '';
+      document.getElementById('congressChips').innerHTML = tickers.map(tk => {
+        const s = summary[tk];
+        const hasBuy  = s.purchases > 0;
+        const hasSell = s.sales > 0;
+        const cls   = hasBuy && hasSell ? 'mix' : hasBuy ? 'buy' : 'sell';
+        const arrow = hasBuy && hasSell ? '↕' : hasBuy ? '↑' : '↓';
+        const tip = `${tk} · ${s.purchases} purchase${s.purchases !== 1 ? 's' : ''}, ${s.sales} sale${s.sales !== 1 ? 's' : ''} · last ${s.last_date || ''}`;
+        return `<span class="congress-chip ${cls}" title="${tip}">${arrow} ${tk}</span>`;
+      }).join('');
+    } catch(e) {}
+  }
+
+  init().then(loadDiscoveryTickers).then(loadEarningsStrip).then(loadCongressStrip);
 })();
 </script>
 <script src="/js/app.js"></script>
