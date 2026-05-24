@@ -1348,6 +1348,75 @@ def news_page():
     return send_file(os.path.join(os.path.dirname(__file__), "static", "news.html"))
 
 
+@app.route("/api/earnings-upcoming")
+def api_earnings_upcoming():
+    """
+    Return earnings in the next 7 days, filtered to covered tickers only.
+    Fetches from Nasdaq calendar API (free, no key). Cached 6 hours.
+    """
+    import csv as _csv, time as _time
+
+    # ── 6-hour in-memory cache ────────────────────────────────────────────────
+    _c = getattr(app, "_earnings_cache", None)
+    if _c and (_time.time() - _c["ts"] < 6 * 3600):
+        return jsonify(_c["data"])
+
+    # ── Load covered tickers from outputs.csv ─────────────────────────────────
+    csv_path = os.path.join(os.path.dirname(__file__), "outputs.csv")
+    covered = set()
+    try:
+        with open(csv_path, encoding="utf-8") as f:
+            for row in _csv.DictReader(f):
+                t = (row.get("Ticker") or "").strip().upper()
+                if t:
+                    covered.add(t)
+    except FileNotFoundError:
+        pass
+
+    if not covered:
+        return jsonify({"earnings": [], "fetched": None})
+
+    # ── Fetch next 7 days from Nasdaq ─────────────────────────────────────────
+    import datetime as _dt
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    results = []
+
+    for days_ahead in range(8):
+        date = (_dt.date.today() + _dt.timedelta(days=days_ahead)).isoformat()
+        try:
+            r = _req.get(
+                f"https://api.nasdaq.com/api/calendar/earnings?date={date}",
+                headers=headers, timeout=8,
+            )
+            if r.status_code != 200:
+                continue
+            rows = r.json().get("data", {}).get("rows") or []
+            for row in rows:
+                sym = (row.get("symbol") or "").strip().upper()
+                if sym not in covered:
+                    continue
+                t_raw = row.get("time", "")
+                timing = ("Pre-market"  if "pre"   in t_raw else
+                          "After close" if "after" in t_raw else "")
+                results.append({
+                    "ticker":   sym,
+                    "date":     date,
+                    "timing":   timing,
+                    "eps_est":  (row.get("epsForecast") or "").strip(),
+                    "quarter":  (row.get("fiscalQuarterEnding") or "").strip(),
+                })
+        except Exception:
+            continue
+
+    results.sort(key=lambda x: x["date"])
+    payload = {
+        "earnings": results,
+        "fetched":  _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    app._earnings_cache = {"data": payload, "ts": _time.time()}
+    return jsonify(payload)
+
+
 @app.route("/api/score-alerts")
 def api_score_alerts():
     path = os.path.join(os.path.dirname(__file__), "static", "data", "score_alerts.json")

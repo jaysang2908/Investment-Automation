@@ -289,6 +289,28 @@
       .art { grid-template-columns: 1fr; }
       .art-thumb { display: none; }
     }
+
+    /* Earnings strip */
+    .earns-strip {
+      display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+      padding: var(--s-3) var(--s-4);
+      background: color-mix(in oklab, #f59e0b 8%, var(--surface));
+      border: 1px solid #f59e0b33;
+      border-radius: var(--r-lg);
+      margin-bottom: var(--s-5);
+    }
+    .earns-strip-label {
+      font-family: var(--font-mono); font-size: var(--t-tiny);
+      letter-spacing: .12em; text-transform: uppercase;
+      color: #d97706; white-space: nowrap; font-weight: 600;
+    }
+    .earns-badge {
+      display: inline-block;
+      background: color-mix(in oklab, #f59e0b 14%, var(--surface));
+      color: #d97706; border: 1px solid #f59e0b44; border-radius: 4px;
+      font-size: 10px; font-family: var(--font-mono); font-weight: 600;
+      padding: 2px 7px; letter-spacing: .4px; white-space: nowrap; cursor: default;
+    }
   </style>
 </head>
 <body>
@@ -343,6 +365,12 @@
         <div class="tk-filters" id="chipsWrap">
           <button class="chip on" data-ticker="">All</button>
         </div>
+      </div>
+
+      <!-- EARNINGS STRIP -->
+      <div class="earns-strip" id="earnsStrip" style="display:none">
+        <span class="earns-strip-label">Earnings this week</span>
+        <div id="earnsChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
       </div>
 
       <!-- MAIN LAYOUT -->
@@ -616,7 +644,23 @@
     } catch(e) {}
   }
 
-  init().then(loadDiscoveryTickers);
+  async function loadEarningsStrip() {
+    try {
+      const resp = await fetch('/api/earnings-upcoming');
+      const data = await resp.json();
+      const earns = data.earnings || [];
+      if (!earns.length) return;
+      document.getElementById('earnsStrip').style.display = '';
+      document.getElementById('earnsChips').innerHTML = earns.map(e => {
+        const label = e.timing === 'Pre-market' ? 'Pre' : e.timing === 'After close' ? 'AH' : '';
+        const dateStr = e.date ? e.date.slice(5) : '';
+        const tip = `${e.ticker} · ${e.date || ''}${label ? ' · ' + label : ''}${e.eps_est ? ' · EPS est. $' + e.eps_est : ''}${e.quarter ? ' · ' + e.quarter : ''}`;
+        return `<span class="earns-badge" title="${tip}">${e.ticker} <span style="opacity:.65">${dateStr}</span>${label ? '<span style="opacity:.55;font-size:9px;margin-left:2px">' + label + '</span>' : ''}</span>`;
+      }).join('');
+    } catch(e) {}
+  }
+
+  init().then(loadDiscoveryTickers).then(loadEarningsStrip);
 })();
 </script>
 <script src="/js/app.js"></script>
