@@ -164,6 +164,18 @@ function render() {
   const cfg   = METRICS[curMetric];
   const rows  = DATA.filter(d => d[curMetric] !== null && d[curMetric] !== undefined);
 
+  const loadingEl = document.getElementById('loadingMsg');
+  const chartEl   = document.getElementById('heatmap');
+
+  if (!rows.length) {
+    chartEl.style.display = 'none';
+    loadingEl.textContent = DATA.length ? `No data for metric: ${cfg.label}` : 'No coverage data loaded.';
+    loadingEl.style.display = 'flex';
+    return;
+  }
+  loadingEl.style.display = 'none';
+  chartEl.style.display = 'block';
+
   // Collect unique sectors
   const sectors = [...new Set(rows.map(r => r.sector))].sort();
 
@@ -174,10 +186,11 @@ function render() {
   const colors   = [];
   const custom   = [];
 
-  // Root
+  // Root — value=0, branchvalues:'remainder' means root owns zero area
   labels.push('Coverage');  parents.push('');  values.push(0);  colors.push(null);  custom.push(null);
 
-  // Sector nodes
+  // Sector nodes — value=0 each; with branchvalues:'remainder' they own no area
+  // themselves but group all children correctly
   sectors.forEach(sec => {
     labels.push(sec);  parents.push('Coverage');  values.push(0);
     colors.push(null);  custom.push(null);
@@ -188,7 +201,7 @@ function render() {
     const sz = d[curSize] || d.mktcap_b || d.revenue_b || 5;
     labels.push(d.ticker);
     parents.push(d.sector);
-    values.push(Math.max(sz, 0.1));
+    values.push(Math.max(sz, 0.5));
     colors.push(d[curMetric]);
     custom.push(d);
   });
@@ -198,9 +211,9 @@ function render() {
     ? [[0,'#10b981'],[0.5,'#eab308'],[1,'#ef4444']]
     : [[0,'#ef4444'],[0.5,'#eab308'],[1,'#10b981']];
 
-  const metricVals = rows.map(d => d[curMetric]).filter(v => v !== null);
-  const cmin = Math.min(...metricVals);
-  const cmax = Math.max(...metricVals);
+  const metricVals = rows.map(d => d[curMetric]).filter(v => v !== null && isFinite(v));
+  const cmin = metricVals.length ? Math.min(...metricVals) : 0;
+  const cmax = metricVals.length ? Math.max(...metricVals) : 10;
 
   const bg   = getBg();
   const txtC = getTextColor();
@@ -211,12 +224,12 @@ function render() {
     labels,
     parents,
     values,
-    branchvalues: 'total',
+    branchvalues: 'remainder',   // sector nodes own zero area; ticker values size the tiles
     marker: {
       colors,
       colorscale,
       cmin,
-      cmax,
+      cmax: cmax === cmin ? cmin + 1 : cmax,  // prevent zero-range colorscale
       showscale: false,
       line: { width: 1.5, color: lineC },
     },
