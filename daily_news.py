@@ -1,21 +1,27 @@
 """
-daily_news.py — Fetch latest news via FMP stock_news API (primary) + Yahoo Finance RSS (fallback).
+daily_news.py — Fetch latest news via Google News RSS (primary), Seeking Alpha RSS
+(secondary), and Yahoo Finance RSS (fallback).
 
 Reads tickers dynamically from static/reports/*_report.html.
 Saves to static/data/news_cache.json.
 Designed to run standalone (cron / scheduler) — never called from request handlers.
 
-FMP batch endpoint: one call for all tickers, up to 200 articles.
-Yahoo RSS:          per-ticker fallback, used when FMP returns nothing for a ticker.
+All sources are free-tier, no API keys required.
+  Google News RSS:   one call per ticker, up to GOOGLE_LIMIT articles
+  Seeking Alpha RSS: one call per ticker, up to SA_LIMIT articles
+  Yahoo Finance RSS: one call per ticker, up to YAHOO_LIMIT articles
 """
 
 import os
+import re
 import sys
 import json
 import glob
+import time
 import logging
 import datetime
 import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 
 import requests
 
@@ -23,16 +29,11 @@ SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(SCRIPT_DIR, "static", "reports")
 CACHE_PATH  = os.path.join(SCRIPT_DIR, "static", "data", "news_cache.json")
 
-# FMP API key — read from environment (same var as server.py), fall back to hardcoded key.
-try:
-    import fmp_3statementv6 as _mdl
-    _FALLBACK_KEY = _mdl.API_KEY
-except Exception:
-    _FALLBACK_KEY = ""
-FMP_API_KEY = os.environ.get("FMP_API_KEY", _FALLBACK_KEY)
-
-FMP_NEWS_LIMIT = 200    # max articles per batch call
-YAHOO_LIMIT    = 6      # articles per ticker from Yahoo (fallback only)
+HEADERS      = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+GOOGLE_LIMIT = 10
+SA_LIMIT     = 10
+YAHOO_LIMIT  = 10
+REQUEST_TIMEOUT = 12
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -50,88 +51,100 @@ def discover_tickers() -> list:
     return sorted(set(tickers))
 
 
-# ── FMP news ──────────────────────────────────────────────────────────────────
-
-def fetch_fmp_news(tickers: list, limit: int = FMP_NEWS_LIMIT) -> list:
-    """Batch-fetch news from FMP /stable/news/stock for all tickers at once.
-
-    Returns normalised article dicts with source_type='fmp'.
-    Falls back to the v3 endpoint if the stable one fails.
-    """
-    if not FMP_API_KEY or not tickers:
-        return []
-
-    tickers_str = ",".join(tickers)
-    articles = []
-
-    # Try stable endpoint first, fall back to v3.
-    endpoints = [
-        (f"https://financialmodelingprep.com/stable/news/stock"
-         f"?tickers={tickers_str}&limit={limit}&apikey={FMP_API_KEY}"),
-        (f"https://financialmodelingprep.com/api/v3/stock_news"
-         f"?tickers={tickers_str}&limit={limit}&apikey={FMP_API_KEY}"),
-    ]
-
-    for url in endpoints:
-        try:
-            resp = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"})
-            if resp.status_code != 200:
-                log.warning("FMP news HTTP %d — %s", resp.status_code, url[:80])
-                continue
-            data = resp.json()
-            if not isinstance(data, list):
-                log.warning("FMP news unexpected response type: %s", type(data))
-                continue
-
-            for item in data:
-                sym  = (item.get("symbol") or item.get("tickers") or "").upper()
-                # FMP sometimes returns comma-separated tickers; take the first match.
-                if "," in sym:
-                    matched = [t for t in sym.split(",") if t.strip() in tickers]
-                    sym = matched[0] if matched else sym.split(",")[0].strip()
-
-                pub = item.get("publishedDate") or item.get("date") or ""
-                # FMP dates may be "2024-01-15 10:30:00" — normalise to ISO.
-                try:
-                    if pub and " " in pub:
-                        pub = pub.replace(" ", "T")
-                except Exception:
-                    pass
-
-                articles.append({
-                    "title":         (item.get("title") or "").strip(),
-                    "url":           (item.get("url") or "").strip(),
-                    "publishedDate": pub,
-                    "site":          (item.get("site") or "FMP / Newswire").strip(),
-                    "text":          (item.get("text") or item.get("description") or "").strip(),
-                    "symbol":        sym,
-                    "image":         item.get("image") or "",
-                    "source_type":   "fmp",
-                })
-
-            if articles:
-                log.info("FMP batch: %d articles for %d tickers", len(articles), len(tickers))
-                return articles
-
-        except Exception as e:
-            log.warning("FMP news error (%s): %s", url[:60], e)
-            continue
-
-    log.warning("FMP news: no articles returned from either endpoint")
-    return []
-
-
-# ── Yahoo RSS (fallback) ──────────────────────────────────────────────────────
-
-def fetch_yahoo_rss(ticker: str, limit: int = YAHOO_LIMIT) -> list:
-    """Fetch news for a single ticker via Yahoo Finance RSS. Returns normalised dicts."""
-    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+def _parse_rfc822_date(raw: str) -> str:
+    """Convert RFC 822 pubDate string to ISO 8601. Returns raw string on failure."""
     try:
-        resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        if resp.status_code != 200:
+        return parsedate_to_datetime(raw).isoformat()
+    except Exception:
+        return raw
+
+
+def fetch_google_news_rss(ticker: str, limit: int = GOOGLE_LIMIT) -> list:
+    """Fetch per-ticker news from Google News RSS. No API key required."""
+    url = (
+        f"https://news.google.com/rss/search"
+        f"?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
+    )
+    try:
+        r = requests.get(url, timeout=REQUEST_TIMEOUT, headers=HEADERS)
+        if r.status_code != 200:
+            log.warning("%s: Google News HTTP %d", ticker, r.status_code)
             return []
 
-        root     = ET.fromstring(resp.text)
+        root     = ET.fromstring(r.text)
+        articles = []
+
+        for item in root.findall(".//item")[:limit]:
+            title   = item.findtext("title", "").strip()
+            link    = item.findtext("link", "").strip()
+            pub     = _parse_rfc822_date(item.findtext("pubDate", ""))
+            src_el  = item.find("source")
+            site    = src_el.text.strip() if src_el is not None and src_el.text else "Google News"
+            articles.append({
+                "title":         title,
+                "url":           link,
+                "publishedDate": pub,
+                "site":          site,
+                "text":          "",   # Google News RSS has no article body
+                "symbol":        ticker,
+                "image":         "",
+                "source_type":   "google",
+            })
+
+        return articles
+
+    except Exception as e:
+        log.warning("%s: Google News error — %s", ticker, e)
+        return []
+
+
+def fetch_seeking_alpha_rss(ticker: str, limit: int = SA_LIMIT) -> list:
+    """Fetch per-ticker news from Seeking Alpha RSS. No API key required."""
+    url = f"https://seekingalpha.com/api/sa/combined/{ticker}.xml"
+    try:
+        r = requests.get(url, timeout=REQUEST_TIMEOUT, headers=HEADERS)
+        if r.status_code != 200:
+            log.warning("%s: Seeking Alpha HTTP %d", ticker, r.status_code)
+            return []
+
+        root     = ET.fromstring(r.text)
+        articles = []
+
+        for item in root.findall(".//item")[:limit]:
+            title = item.findtext("title", "").strip()
+            link  = item.findtext("link", "").strip()
+            pub   = _parse_rfc822_date(item.findtext("pubDate", ""))
+            desc  = item.findtext("description", "").strip()
+
+            desc_text = re.sub(r"<[^>]+>", "", desc).strip()
+
+            articles.append({
+                "title":         title,
+                "url":           link,
+                "publishedDate": pub,
+                "site":          "Seeking Alpha",
+                "text":          desc_text[:300],
+                "symbol":        ticker,
+                "image":         "",
+                "source_type":   "seeking_alpha",
+            })
+
+        return articles
+
+    except Exception as e:
+        log.warning("%s: Seeking Alpha error — %s", ticker, e)
+        return []
+
+
+def fetch_yahoo_rss(ticker: str, limit: int = YAHOO_LIMIT) -> list:
+    """Fetch per-ticker news from Yahoo Finance RSS. No API key required."""
+    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+    try:
+        r = requests.get(url, timeout=REQUEST_TIMEOUT, headers=HEADERS)
+        if r.status_code != 200:
+            return []
+
+        root     = ET.fromstring(r.text)
         articles = []
 
         for item in root.findall(".//item")[:limit]:
@@ -142,17 +155,10 @@ def fetch_yahoo_rss(ticker: str, limit: int = YAHOO_LIMIT) -> list:
             src_el   = item.find("source")
             source   = src_el.text.strip() if src_el is not None and src_el.text else "Yahoo Finance"
 
-            published = pub_date
-            try:
-                from email.utils import parsedate_to_datetime
-                published = parsedate_to_datetime(pub_date).isoformat()
-            except Exception:
-                pass
-
             articles.append({
                 "title":         title,
                 "url":           link,
-                "publishedDate": published,
+                "publishedDate": _parse_rfc822_date(pub_date),
                 "site":          source,
                 "text":          desc,
                 "symbol":        ticker,
@@ -167,38 +173,24 @@ def fetch_yahoo_rss(ticker: str, limit: int = YAHOO_LIMIT) -> list:
         return []
 
 
-# ── Merge + deduplicate ───────────────────────────────────────────────────────
+def fetch_all_for_ticker(ticker: str) -> list:
+    """Fetch and deduplicate articles from all sources for one ticker."""
+    seen_urls = set()
+    merged    = []
 
-def merge_and_dedup(fmp_articles: list, yahoo_articles: list) -> list:
-    """Merge FMP and Yahoo articles. FMP takes priority; Yahoo fills gaps.
-
-    Deduplicated by URL (case-insensitive). Yahoo articles are only kept for
-    tickers that got zero FMP coverage.
-    """
-    seen_urls   = set()
-    fmp_tickers = set(a["symbol"].upper() for a in fmp_articles if a.get("symbol"))
-
-    merged = []
-    for art in fmp_articles:
-        key = (art.get("url") or "").lower().strip()
-        if key and key not in seen_urls:
-            seen_urls.add(key)
-            merged.append(art)
-
-    # Yahoo fallback: only for tickers with no FMP coverage, or if FMP returned nothing.
-    for art in yahoo_articles:
-        sym = (art.get("symbol") or "").upper()
-        if sym in fmp_tickers:
-            continue   # FMP already covered this ticker
-        key = (art.get("url") or "").lower().strip()
-        if key and key not in seen_urls:
-            seen_urls.add(key)
-            merged.append(art)
+    for articles in [
+        fetch_google_news_rss(ticker),
+        fetch_seeking_alpha_rss(ticker),
+        fetch_yahoo_rss(ticker),
+    ]:
+        for art in articles:
+            key = (art.get("url") or "").lower().strip()
+            if key and key not in seen_urls:
+                seen_urls.add(key)
+                merged.append(art)
 
     return merged
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def run():
     tickers = discover_tickers()
@@ -206,52 +198,85 @@ def run():
         log.warning("No tickers found in static/reports/. Generate at least one report first.")
         return
 
-    log.info("Tickers (%d): %s", len(tickers), ", ".join(tickers))
+    log.info("Fetching news for %d tickers: %s", len(tickers), ", ".join(tickers))
 
-    # 1. FMP batch fetch (all tickers in one call)
-    fmp_articles = fetch_fmp_news(tickers)
+    all_articles = []
+    stats = {"google": 0, "seeking_alpha": 0, "yahoo": 0, "total": 0}
 
-    # 2. Yahoo fallback for any ticker that got nothing from FMP
-    fmp_covered  = set(a["symbol"].upper() for a in fmp_articles)
-    missing      = [t for t in tickers if t not in fmp_covered]
-    yahoo_articles = []
-    if missing:
-        log.info("Yahoo fallback for %d tickers: %s", len(missing), ", ".join(missing))
-        for ticker in missing:
-            arts = fetch_yahoo_rss(ticker)
-            log.info("  %s: %d Yahoo articles", ticker, len(arts))
-            yahoo_articles.extend(arts)
+    for i, ticker in enumerate(tickers):
+        articles = fetch_all_for_ticker(ticker)
+        for art in articles:
+            stats[art.get("source_type", "other")] = stats.get(art.get("source_type", "other"), 0) + 1
+        all_articles.extend(articles)
+        log.info("  %s: %d articles", ticker, len(articles))
+        if i < len(tickers) - 1:
+            time.sleep(0.5)   # polite delay between tickers
 
-    # 3. Merge + deduplicate
-    all_articles = merge_and_dedup(fmp_articles, yahoo_articles)
+    # Sort newest first
+    all_articles.sort(key=lambda a: a.get("publishedDate") or "", reverse=True)
 
-    # 4. Sort newest first
-    def _sort_key(a):
-        try:
-            return a.get("publishedDate") or ""
-        except Exception:
-            return ""
-    all_articles.sort(key=_sort_key, reverse=True)
+    stats["total"] = len(all_articles)
+    log.info(
+        "Total: %d articles  (Google: %d, SeekingAlpha: %d, Yahoo: %d)",
+        stats["total"], stats.get("google", 0),
+        stats.get("seeking_alpha", 0), stats.get("yahoo", 0),
+    )
 
-    # 5. Stats summary
-    n_fmp   = sum(1 for a in all_articles if a.get("source_type") == "fmp")
-    n_yahoo = sum(1 for a in all_articles if a.get("source_type") == "yahoo")
-    log.info("Total: %d articles  (FMP: %d, Yahoo: %d)", len(all_articles), n_fmp, n_yahoo)
-
-    # 6. Write cache
     cache = {
-        "fetched":   datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
-        "tickers":   tickers,
-        "articles":  all_articles,
-        "stats":     {"fmp": n_fmp, "yahoo": n_yahoo, "total": len(all_articles)},
+        "fetched":  datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+        "tickers":  tickers,
+        "articles": all_articles,
+        "stats":    stats,
     }
 
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False)
 
-    print(f"Saved {len(all_articles)} articles "
-          f"(FMP: {n_fmp}, Yahoo fallback: {n_yahoo}) -> {CACHE_PATH}")
+    print(
+        f"Saved {stats['total']} articles "
+        f"(Google: {stats.get('google',0)}, "
+        f"SeekingAlpha: {stats.get('seeking_alpha',0)}, "
+        f"Yahoo: {stats.get('yahoo',0)}) -> {CACHE_PATH}"
+    )
+
+    _push_to_github(CACHE_PATH, "static/data/news_cache.json",
+                    f"news: refresh {len(tickers)} tickers ({stats['total']} articles)")
+
+
+def _push_to_github(local_path: str, repo_path: str, commit_msg: str) -> None:
+    """Push a local file to GitHub so it survives Render redeploys."""
+    import base64
+    token  = os.environ.get("GITHUB_TOKEN", "")
+    repo   = os.environ.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
+    branch = os.environ.get("GITHUB_BRANCH", "main")
+
+    if not token:
+        log.info("GITHUB_TOKEN not set — skipping GitHub push for %s", repo_path)
+        return
+
+    try:
+        with open(local_path, "rb") as f:
+            content_b64 = base64.b64encode(f.read()).decode()
+
+        gh_api = f"https://api.github.com/repos/{repo}/contents/{repo_path}"
+        gh_hdr = {
+            "Authorization": f"token {token}",
+            "Accept":        "application/vnd.github.v3+json",
+        }
+
+        r = requests.get(gh_api, headers=gh_hdr, params={"ref": branch}, timeout=8)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+
+        payload = {"message": commit_msg, "branch": branch, "content": content_b64}
+        if sha:
+            payload["sha"] = sha
+
+        requests.put(gh_api, headers=gh_hdr, json=payload, timeout=15)
+        log.info("GitHub push OK — %s", repo_path)
+
+    except Exception as e:
+        log.warning("GitHub push failed for %s: %s", repo_path, e)
 
 
 if __name__ == "__main__":

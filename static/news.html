@@ -217,7 +217,8 @@
       border-radius: var(--r-xs);
       font-weight: var(--weight-semi);
     }
-    .src-badge.fmp { color: var(--status-info); background: color-mix(in oklab, var(--status-info) 10%, var(--surface)); border: 1px solid color-mix(in oklab, var(--status-info) 20%, transparent); }
+    .src-badge.google { color: #1a73e8; background: color-mix(in oklab, #1a73e8 10%, var(--surface)); border: 1px solid color-mix(in oklab, #1a73e8 20%, transparent); }
+    .src-badge.seeking_alpha { color: #e05c00; background: color-mix(in oklab, #e05c00 10%, var(--surface)); border: 1px solid color-mix(in oklab, #e05c00 20%, transparent); }
     .src-badge.yahoo { color: var(--muted); background: var(--surface-3); border: 1px solid var(--line); }
     .art-title {
       font-family: var(--font-serif);
@@ -310,7 +311,7 @@
         </ul>
         <div class="nav-aside">
           <span class="nav-time" id="navTime">—</span>
-          <span class="live-badge"><span class="dot"></span>Live · FMP</span>
+          <span class="live-badge"><span class="dot"></span>Live · Daily</span>
           <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
             <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
             <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
@@ -323,10 +324,10 @@
         <div>
           <div class="eyebrow">▲ Market Pulse</div>
           <h1 class="page-title">News Feed</h1>
-          <p class="page-lede">Market headlines and press releases from FMP newswire + Yahoo Finance, filtered to your covered tickers.</p>
+          <p class="page-lede">Market headlines from Google News, Seeking Alpha, and Yahoo Finance, filtered to your covered tickers.</p>
         </div>
         <div class="page-head-actions" style="align-items: flex-start; flex-direction: column; gap: var(--s-1); text-align: right;">
-          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink);" id="sourceStats">FMP + Yahoo Finance</span>
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink);" id="sourceStats">Google · SA · Yahoo</span>
           <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted);" id="lastUpdated">Loading…</span>
         </div>
       </header>
@@ -382,10 +383,10 @@
       <footer class="footer">
         <div>
           <a class="brand" href="/"><span class="brand-mk"></span>Equity<span style="color: var(--accent);">.</span>Research</a>
-          <p style="margin: var(--s-3) 0 0; max-width: 380px; line-height: 1.6;">News sourced via FMP API and Yahoo Finance. Cached daily. For informational purposes only.</p>
+          <p style="margin: var(--s-3) 0 0; max-width: 380px; line-height: 1.6;">News sourced via Google News, Seeking Alpha, and Yahoo Finance RSS. Cached daily. For informational purposes only.</p>
         </div>
         <div><h4>Workbench</h4><a href="/">Generate</a><a href="/dashboard.html">Dashboard</a><a href="/dcf">DCF Calculator</a><a href="/heatmap">Heatmap</a></div>
-        <div><h4>Data</h4><a href="#">FMP API · v3.2</a><a href="#">10-K parser</a><a href="#">Methodology</a><a href="#">Changelog</a></div>
+        <div><h4>Data</h4><a href="#">FMP API</a><a href="#">10-K parser</a><a href="#">Methodology</a><a href="#">Changelog</a></div>
         <div><h4>Account</h4><a href="#">Settings</a><a href="#">Saved scenarios</a><a href="#">Export</a><a href="#">Sign out</a></div>
         <div class="legal"><span>© 2026 Equity.Research · WIP build · v0.4.2</span><span>Not investment advice</span></div>
       </footer>
@@ -496,7 +497,8 @@
 
     function srcBadge(a) {
       const type = (a.source_type || "yahoo").toLowerCase();
-      if (type === "fmp") return `<span class="src-badge fmp">FMP</span>`;
+      if (type === "google")        return `<span class="src-badge google">Google</span>`;
+      if (type === "seeking_alpha") return `<span class="src-badge seeking_alpha">SA</span>`;
       return `<span class="src-badge yahoo">Yahoo</span>`;
     }
 
@@ -568,14 +570,19 @@
 
       const statsEl = document.getElementById("sourceStats");
       if (statsEl && data.stats) {
-        const { fmp = 0, yahoo = 0, total = 0 } = data.stats;
-        statsEl.innerHTML = `<span>${total} articles</span> · <span style="color:var(--status-info)">FMP ${fmp}</span>${yahoo ? ` · <span style="color:var(--muted)">Yahoo ${yahoo}</span>` : ""}`;
+        const { google = 0, seeking_alpha = 0, yahoo = 0, total = 0 } = data.stats;
+        statsEl.innerHTML = `<span>${total} articles</span>` +
+          (google        ? ` · <span style="color:#1a73e8">Google ${google}</span>` : "") +
+          (seeking_alpha ? ` · <span style="color:#e05c00">SA ${seeking_alpha}</span>` : "") +
+          (yahoo         ? ` · <span style="color:var(--muted)">Yahoo ${yahoo}</span>` : "");
       } else if (statsEl) {
-        const nFmp   = allArticles.filter(a => a.source_type === "fmp").length;
-        const nYahoo = allArticles.filter(a => a.source_type === "yahoo").length;
+        const nGoogle = allArticles.filter(a => a.source_type === "google").length;
+        const nSA     = allArticles.filter(a => a.source_type === "seeking_alpha").length;
+        const nYahoo  = allArticles.filter(a => a.source_type === "yahoo").length;
         statsEl.innerHTML = `<span>${allArticles.length} articles</span>` +
-          (nFmp ? ` · <span style="color:var(--status-info)">FMP ${nFmp}</span>` : "") +
-          (nYahoo ? ` · <span style="color:var(--muted)">Yahoo ${nYahoo}</span>` : "");
+          (nGoogle ? ` · <span style="color:#1a73e8">Google ${nGoogle}</span>` : "") +
+          (nSA     ? ` · <span style="color:#e05c00">SA ${nSA}</span>`         : "") +
+          (nYahoo  ? ` · <span style="color:var(--muted)">Yahoo ${nYahoo}</span>` : "");
       }
 
       if (data.stale) document.getElementById("staleBanner").style.display = "block";
