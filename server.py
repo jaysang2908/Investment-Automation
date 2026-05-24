@@ -1381,7 +1381,7 @@ def api_earnings_upcoming():
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     results = []
 
-    for days_ahead in range(8):
+    for days_ahead in range(45):
         date = (_dt.date.today() + _dt.timedelta(days=days_ahead)).isoformat()
         try:
             r = _req.get(
