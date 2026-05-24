@@ -157,6 +157,11 @@
     section.discovery .row-card .ticker .b { width: 36px; height: 36px; flex-basis: 36px; font-size: 8px; }
     /* In-place score update */
     .score-wrap { display: contents; }
+    /* Re-run button states */
+    .btn-rerun { cursor:pointer; border:none; font-family:inherit; }
+    .btn-rerun.loading { opacity:.55; pointer-events:none; }
+    .btn-rerun.ok  { background:color-mix(in oklab,#22c55e 18%,var(--surface)); color:#16a34a; border-color:#22c55e55; }
+    .btn-rerun.err { background:color-mix(in oklab,#ef4444 18%,var(--surface)); color:#dc2626; border-color:#ef444455; }
     @media (max-width: 900px) {
       section.discovery .row-card { grid-template-columns: 1fr; }
       section.discovery .row-card .metrics { grid-template-columns: repeat(3, 1fr); }
@@ -522,7 +527,7 @@ function actionsHTML(c) {
   if (c.pending) return `<a class="btn btn-sm" style="pointer-events:none;opacity:0.4">Pending</a>`;
   const report = c.url ? `<a class="btn btn-sm" href="${c.url}" target="_blank">Report</a>` : '';
   const model  = EXCEL_TICKERS.has(c.t) ? `<a class="btn btn-sm" href="/download/model/${c.t}">Model</a>` : '';
-  return `${report}${model}<a class="btn btn-sm btn-primary" href="/?ticker=${c.t}">Re-run →</a>`;
+  return `${report}${model}<button class="btn btn-sm btn-primary btn-rerun" onclick="rerunTicker('${c.t}',this)">↺ Re-run</button>`;
 }
 
 // Build a row-card article element
@@ -996,6 +1001,82 @@ async function init() {
   loadDiscovery();
   loadLive();
   loadScoreAlerts();
+}
+
+// ── Inline re-run ─────────────────────────────────────────────────────────────
+let _pw = '';
+let _pwNeeded = false;
+
+// Probe on load to know if a password is required
+fetch('/generate', { method:'POST', headers:{'Content-Type':'application/json'},
+                     body: JSON.stringify({ticker:'__probe__', password:''}) })
+  .then(r => { if (r.status === 401) _pwNeeded = true; })
+  .catch(() => {});
+
+async function rerunTicker(ticker, btn) {
+  if (_pwNeeded && !_pw) {
+    const entered = window.prompt('Password required to re-run:');
+    if (entered === null) return;   // user cancelled
+    _pw = entered;
+  }
+
+  btn.textContent = '…';
+  btn.classList.add('loading');
+  btn.classList.remove('ok', 'err');
+
+  try {
+    const r = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, password: _pw }),
+    });
+
+    if (r.status === 401) {
+      _pw = '';   // wrong password — clear and let user retry
+      btn.textContent = '↺ Re-run';
+      btn.classList.remove('loading');
+      const entered = window.prompt('Incorrect password. Try again:');
+      if (entered === null) return;
+      _pw = entered;
+      return rerunTicker(ticker, btn);
+    }
+
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${r.status}`);
+    }
+
+    const data = await r.json();
+    const score = data.auto_score ?? data.adj_score;
+
+    // Update score badge in the card without a full page reload
+    const card = document.querySelector(`article[data-ticker="${ticker}"]`);
+    if (card && score != null) {
+      const sc = card.querySelector(`#sc-${ticker}`);
+      if (sc) {
+        const d = D.find(x => x.t === ticker);
+        if (d) { d.score = score; sc.innerHTML = scoreHTML(d); }
+      }
+      // Update last-run date to today
+      const dateEl = card.querySelector('.ex');
+      if (dateEl) {
+        const today = new Date().toISOString().slice(0,10);
+        dateEl.innerHTML = dateEl.innerHTML.replace(/\d{1,2} \w{3} \d{4}/, _fmtDate(today));
+      }
+    }
+
+    btn.textContent = '✓ Done';
+    btn.classList.remove('loading');
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = '↺ Re-run'; btn.classList.remove('ok'); }, 3000);
+
+  } catch(e) {
+    btn.textContent = '✗ Failed';
+    btn.classList.remove('loading');
+    btn.classList.add('err');
+    setTimeout(() => { btn.textContent = '↺ Re-run'; btn.classList.remove('err'); }, 4000);
+    console.warn('Re-run failed:', e.message);
+  }
 }
 
 async function loadScoreAlerts() {
