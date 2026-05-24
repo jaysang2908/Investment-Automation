@@ -185,25 +185,28 @@ function render() {
   const values   = [];
   const colors   = [];
   const custom   = [];
+  const texts    = [];
 
   // Root — value=0, branchvalues:'remainder' means root owns zero area
-  labels.push('Coverage');  parents.push('');  values.push(0);  colors.push(null);  custom.push(null);
+  labels.push('Coverage');  parents.push('');  values.push(0);  colors.push(null);  custom.push(null);  texts.push('');
 
   // Sector nodes — value=0 each; with branchvalues:'remainder' they own no area
   // themselves but group all children correctly
   sectors.forEach(sec => {
     labels.push(sec);  parents.push('Coverage');  values.push(0);
-    colors.push(null);  custom.push(null);
+    colors.push(null);  custom.push(null);  texts.push('');
   });
 
   // Ticker leaf nodes
   rows.forEach(d => {
-    const sz = d[curSize] || d.mktcap_b || d.revenue_b || 5;
+    const sz  = d[curSize] || d.mktcap_b || d.revenue_b || 5;
+    const val = d[curMetric];
     labels.push(d.ticker);
     parents.push(d.sector);
     values.push(Math.max(sz, 0.5));
-    colors.push(d[curMetric]);
+    colors.push(val);
     custom.push(d);
+    texts.push(val !== null && val !== undefined ? cfg.fmt(val) : '');
   });
 
   // Color scale: invert for P/E, D/EBITDA etc
@@ -233,10 +236,11 @@ function render() {
       showscale: false,
       line: { width: 1.5, color: lineC },
     },
-    texttemplate: '<b>%{label}</b>',
+    text: texts,
+    texttemplate: '<b>%{label}</b><br>%{text}',
     hovertemplate: buildHover(cfg),
     customdata: custom,
-    textfont: { family: 'JetBrains Mono, monospace', size: 13, color: txtC },
+    textfont: { family: 'JetBrains Mono, monospace', size: 12, color: txtC },
     pathbar: { visible: false },
     tiling: { packing: 'squarify', pad: 2 },
     root: { color: 'transparent' },
