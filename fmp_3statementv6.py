@@ -182,6 +182,38 @@ def _fetch_ratios(ticker: str, limit: int = 5) -> list:
             _RATIOS_CACHE[key] = []
     return _RATIOS_CACHE[key]
 
+# ── TTM Net Income cache (quarterly IS, 4 most recent quarters) ──────────────
+_TTM_NI_CACHE: dict = {}
+
+def _fetch_ttm_ni(ticker: str) -> float | None:
+    """Sum last 4 quarterly net incomes → TTM NI in raw USD.
+    Needed for live TTM P/E: current_mktcap / ttm_ni (avoids FMP annual
+    snapshot which uses price-at-FY-end ÷ FY-EPS, not current price).
+    Returns None on any failure — callers degrade gracefully to stale ratio.
+    One FMP call per ticker per process (cached)."""
+    key = ticker.upper()
+    if key not in _TTM_NI_CACHE:
+        try:
+            url = (f"https://financialmodelingprep.com/stable/income-statement"
+                   f"?symbol={ticker}&period=quarter&limit=4&apikey={API_KEY}")
+            r = requests.get(url, timeout=10)
+            if r.status_code != 200:
+                print(f"  [TTM-NI] HTTP {r.status_code} for {ticker}")
+                _TTM_NI_CACHE[key] = None
+            else:
+                data = r.json()
+                if isinstance(data, list) and len(data) >= 2:
+                    qs = data[:4]   # newest-first from FMP
+                    _ttm = sum(q.get("netIncome") or 0 for q in qs)
+                    print(f"  [TTM-NI] {len(qs)} qtrs  ttm_ni=${_ttm/1e9:.2f}B")
+                    _TTM_NI_CACHE[key] = _ttm
+                else:
+                    _TTM_NI_CACHE[key] = None
+        except Exception as _e_ttm:
+            print(f"  [TTM-NI] failed for {ticker}: {_e_ttm}")
+            _TTM_NI_CACHE[key] = None
+    return _TTM_NI_CACHE[key]
+
 def fetch_segment(endpoint, ticker):
     """Fetch segmentation — returns None gracefully if not on plan."""
     try:
@@ -3860,6 +3892,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     forward_pe       = None
     trailing_pfcf    = None
     pe_5yr_avg       = None
+    _ttm_ni_live     = None   # set in ratios block if quarterly IS fetch succeeds
     pfcf_5yr_avg     = None
     ev_ebitda_5yr_avg = None
     sector_pe_med    = None
@@ -3874,11 +3907,33 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                          if r.get("priceToFreeCashFlowRatio") and r["priceToFreeCashFlowRatio"] > 0]
             ev_vals   = [r["enterpriseValueMultiple"]  for r in rat_data
                          if r.get("enterpriseValueMultiple")  and 2 < r["enterpriseValueMultiple"] < 200]
-            trailing_pe   = round(rat_data[0].get("priceToEarningsRatio")    or 0, 1) or None
+            _fmp_trailing_pe = round(rat_data[0].get("priceToEarningsRatio")    or 0, 1) or None
             trailing_pfcf = round(rat_data[0].get("priceToFreeCashFlowRatio") or 0, 1) or None
             pe_5yr_avg    = round(sum(pe_vals)   / len(pe_vals),   1) if len(pe_vals)   > 1 else None
             pfcf_5yr_avg  = round(sum(pfcf_vals) / len(pfcf_vals), 1) if len(pfcf_vals) > 1 else None
             ev_ebitda_5yr_avg = round(sum(ev_vals) / len(ev_vals), 1) if len(ev_vals) > 1 else None
+
+            # ── TTM P/E: live quarterly income statement  (1 FMP call, cached) ──
+            # FMP's annual ratio snapshot uses price-at-FY-end ÷ FY-EPS, which can
+            # diverge materially from current P/E after stock splits or large price
+            # moves. True TTM = current_mktcap / sum(last 4 quarterly net incomes).
+            _ttm_ni_live = _fetch_ttm_ni(ticker)
+            if _ttm_ni_live and _ttm_ni_live > 0:
+                _sc_price_early = float(prof_sc.get("price") or 0) or None
+                _shs_early = (is_data[-1].get("weightedAverageShsOut") or
+                              is_data[-1].get("weightedAverageShsOutDil") or 0)
+                if _sc_price_early and _shs_early > 0:
+                    _mktcap_live = _sc_price_early * _shs_early
+                    _ttm_pe_live = round(_mktcap_live / _ttm_ni_live, 1)
+                    trailing_pe  = _ttm_pe_live
+                    print(f"  TTM P/E (live): price={_sc_price_early:.2f}  "
+                          f"ttm_ni=${_ttm_ni_live/1e9:.2f}B  pe={_ttm_pe_live:.1f}x  "
+                          f"(FMP snapshot was {_fmp_trailing_pe}x)")
+                else:
+                    trailing_pe = _fmp_trailing_pe
+            else:
+                trailing_pe = _fmp_trailing_pe
+
             print(f"  FMP ratios: P/E={trailing_pe}  5yr avg={pe_5yr_avg}  "
                   f"P/FCF={trailing_pfcf}  5yr avg={pfcf_5yr_avg}  "
                   f"EV/EBITDA 5yr avg={ev_ebitda_5yr_avg}")
@@ -4538,7 +4593,14 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         except Exception:
             pass
 
-    pe_current    = forward_pe or trailing_pe
+    # pe_current: best available P/E for tier label + absolute score component.
+    # Priority: (1) analyst FY+1 consensus forward P/E — most actionable for investors
+    #           (2) live TTM P/E (from quarterly IS) — accurate trailing snapshot
+    #           (3) forward_pe from legacy yfinance path (always None, kept for safety)
+    # Note: the 40% forward blend component is computed separately from forward_pe_val
+    # so using forward_pe_val here does NOT double-count — it simply anchors the tier
+    # label and absolute-score lookup to the consensus view rather than a stale snapshot.
+    pe_current    = forward_pe_val or trailing_pe or forward_pe
     # For banks the 5yr P/E average often embeds zero-rate / crisis-era compression
     # (e.g. 2020-2021 when bank P/Es were unusually depressed). Using a compressed
     # benchmark penalises banks that simply re-rated to normal post-rate-normalisation.
@@ -5320,6 +5382,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         # Forward multiples (for display in report)
         "forward_pe_val":          forward_pe_val,
         "forward_pfcf_val":        forward_pfcf_val,
+        # TTM P/E from live quarterly IS (more accurate than FMP snapshot).
+        # pe_current uses forward_pe_val when available (most actionable for investors),
+        # falling back to ttm_pe. Both are surfaced so the report can show the source.
+        "ttm_pe":                  trailing_pe,   # live TTM or FMP snapshot fallback
+        "pe_source":               ("forward" if forward_pe_val else
+                                    "ttm_live" if _ttm_ni_live else
+                                    "fmp_snapshot"),
         # FCF yield vs 10-year treasury spread
         "fcf_yield":               _fcf_yield,
         "fcf_yield_spread":        _fcf_yield_spread,
