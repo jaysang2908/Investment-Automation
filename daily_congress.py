@@ -1,9 +1,9 @@
 """
 daily_congress.py — Fetch congressional stock trade disclosures for covered tickers.
 
-Data sources (free, no API key — STOCK Act disclosure aggregators):
-  House:  house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
-  Senate: senate-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
+Data source: Financial Modeling Prep (FMP) /stable/senate-latest-trading and
+/stable/house-latest-trading endpoints. Uses the same FMP_API_KEY already
+configured for the main engine.
 
 Filters to covered tickers in outputs.csv. Saves last LOOKBACK_DAYS of trades.
 Pushes result to GitHub so it survives Render redeploys.
@@ -26,16 +26,15 @@ SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 OUTPUTS_CSV = os.path.join(SCRIPT_DIR, "outputs.csv")
 OUTPUT_JSON = os.path.join(SCRIPT_DIR, "static", "data", "congress_cache.json")
 
+FMP_API_KEY   = os.environ.get("FMP_API_KEY", "")
 GITHUB_TOKEN  = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO   = os.environ.get("GITHUB_REPO", "jaysang2908/Investment-Automation")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
 
-LOOKBACK_DAYS = 180  # keep 6 months in cache; dashboard shows last 30
+LOOKBACK_DAYS = 180  # keep 6 months; dashboard shows last 30
 
-HOUSE_URL  = "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json"
-SENATE_URL = "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json"
-
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; investment-research-bot/1.0)"}
+FMP_BASE = "https://financialmodelingprep.com"
+HEADERS  = {"User-Agent": "Mozilla/5.0 (compatible; investment-research-bot/1.0)"}
 
 
 # ── GitHub helpers ────────────────────────────────────────────────────────────
@@ -90,70 +89,101 @@ def _norm_type(raw: str) -> str:
     return r
 
 
-def fetch_house(covered: set, cutoff: str) -> list:
-    trades = []
+def _norm_date(raw: str) -> str:
+    """Normalise various date formats to YYYY-MM-DD."""
+    raw = (raw or "").strip()[:10]
+    if not raw:
+        return ""
+    # Already ISO
+    if len(raw) == 10 and raw[4] == "-":
+        return raw
+    # MM/DD/YYYY
     try:
-        r = requests.get(HOUSE_URL, headers=HEADERS, timeout=30)
+        return datetime.datetime.strptime(raw, "%m/%d/%Y").strftime("%Y-%m-%d")
+    except ValueError:
+        pass
+    return raw
+
+
+# ── FMP fetchers ──────────────────────────────────────────────────────────────
+
+def _fmp_fetch(endpoint: str, params: dict) -> list:
+    """GET an FMP endpoint; return parsed JSON list or []."""
+    if not FMP_API_KEY:
+        return []
+    params["apikey"] = FMP_API_KEY
+    try:
+        r = requests.get(f"{FMP_BASE}{endpoint}", params=params,
+                         headers=HEADERS, timeout=30)
+        if r.status_code == 429:
+            log.warning("FMP rate-limited on %s — quota may be exhausted for today", endpoint)
+            return []
+        if r.status_code == 403:
+            log.warning("FMP 403 on %s — endpoint may require a higher plan", endpoint)
+            return []
         r.raise_for_status()
         data = r.json()
-        log.info("House: fetched %d total transactions", len(data))
-        for tx in data:
-            ticker = (tx.get("ticker") or "").strip().upper()
-            # Skip non-stock entries (options, bonds, mutual funds with no ticker)
-            if not ticker or len(ticker) > 5 or ticker.startswith("--"):
-                continue
-            if ticker not in covered:
-                continue
-            tx_date = (tx.get("transaction_date") or "").strip()[:10]
-            if not tx_date or tx_date < cutoff:
-                continue
-            trades.append({
-                "chamber":    "House",
-                "name":       (tx.get("representative") or "").strip(),
-                "party":      "",
-                "ticker":     ticker,
-                "asset":      (tx.get("asset_description") or "").strip(),
-                "tx_type":    _norm_type(tx.get("type") or ""),
-                "amount":     (tx.get("amount") or "").strip(),
-                "tx_date":    tx_date,
-                "disclosure": (tx.get("disclosure_date") or "").strip()[:10],
-            })
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and "data" in data:
+            return data["data"]
+        return []
     except Exception as e:
-        log.warning("House fetch failed: %s", e)
+        log.warning("FMP fetch failed for %s: %s", endpoint, e)
+        return []
+
+
+def _parse_fmp_trade(tx: dict, chamber: str, covered: set, cutoff: str) -> dict | None:
+    """Map an FMP congressional trade record to our internal schema."""
+    # FMP uses 'symbol' for ticker
+    ticker = (tx.get("symbol") or tx.get("ticker") or "").strip().upper()
+    if not ticker or len(ticker) > 5:
+        return None
+    if ticker not in covered:
+        return None
+
+    tx_date = _norm_date(tx.get("transactionDate") or tx.get("transaction_date") or "")
+    if not tx_date or tx_date < cutoff:
+        return None
+
+    # Name: FMP senate uses firstName/lastName; house uses representative
+    first = (tx.get("firstName") or tx.get("first_name") or "").strip()
+    last  = (tx.get("lastName")  or tx.get("last_name")  or "").strip()
+    name  = (tx.get("representative") or tx.get("senator") or
+             f"{first} {last}".strip() or "")
+
+    return {
+        "chamber":    chamber,
+        "name":       name.strip(),
+        "party":      (tx.get("party") or "").strip(),
+        "ticker":     ticker,
+        "asset":      (tx.get("assetDescription") or tx.get("asset_description") or "").strip(),
+        "tx_type":    _norm_type(tx.get("type") or ""),
+        "amount":     (tx.get("amount") or "").strip(),
+        "tx_date":    tx_date,
+        "disclosure": _norm_date(tx.get("disclosureDate") or tx.get("disclosure_date") or ""),
+    }
+
+
+def fetch_senate_fmp(covered: set, cutoff: str) -> list:
+    trades = []
+    data = _fmp_fetch("/stable/senate-latest-trading", {"limit": 3000})
+    log.info("Senate (FMP): fetched %d raw records", len(data))
+    for tx in data:
+        t = _parse_fmp_trade(tx, "Senate", covered, cutoff)
+        if t:
+            trades.append(t)
     return trades
 
 
-def fetch_senate(covered: set, cutoff: str) -> list:
+def fetch_house_fmp(covered: set, cutoff: str) -> list:
     trades = []
-    try:
-        r = requests.get(SENATE_URL, headers=HEADERS, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-        log.info("Senate: fetched %d total transactions", len(data))
-        for tx in data:
-            ticker = (tx.get("ticker") or "").strip().upper()
-            if not ticker or len(ticker) > 5 or ticker.startswith("--"):
-                continue
-            if ticker not in covered:
-                continue
-            tx_date = (tx.get("transaction_date") or "").strip()[:10]
-            if not tx_date or tx_date < cutoff:
-                continue
-            first = (tx.get("first_name") or "").strip()
-            last  = (tx.get("last_name")  or "").strip()
-            trades.append({
-                "chamber":    "Senate",
-                "name":       f"{first} {last}".strip(),
-                "party":      "",
-                "ticker":     ticker,
-                "asset":      (tx.get("asset_description") or "").strip(),
-                "tx_type":    _norm_type(tx.get("type") or ""),
-                "amount":     (tx.get("amount") or "").strip(),
-                "tx_date":    tx_date,
-                "disclosure": (tx.get("disclosure_date") or "").strip()[:10],
-            })
-    except Exception as e:
-        log.warning("Senate fetch failed: %s", e)
+    data = _fmp_fetch("/stable/house-latest-trading", {"limit": 3000})
+    log.info("House (FMP): fetched %d raw records", len(data))
+    for tx in data:
+        t = _parse_fmp_trade(tx, "House", covered, cutoff)
+        if t:
+            trades.append(t)
     return trades
 
 
@@ -180,6 +210,10 @@ def build_ticker_summary(trades: list) -> dict:
 def run():
     log.info("=== Congressional trades fetch  %s ===", datetime.date.today())
 
+    if not FMP_API_KEY:
+        log.error("FMP_API_KEY not set — cannot fetch congressional data")
+        return
+
     covered = load_covered()
     if not covered:
         log.warning("No covered tickers in outputs.csv — nothing to filter against")
@@ -188,15 +222,15 @@ def run():
     cutoff = (datetime.date.today() - datetime.timedelta(days=LOOKBACK_DAYS)).isoformat()
     log.info("Covered tickers: %d  |  Cutoff: %s", len(covered), cutoff)
 
-    house_trades  = fetch_house(covered, cutoff)
-    senate_trades = fetch_senate(covered, cutoff)
-    all_trades    = sorted(house_trades + senate_trades,
+    senate_trades = fetch_senate_fmp(covered, cutoff)
+    house_trades  = fetch_house_fmp(covered, cutoff)
+    all_trades    = sorted(senate_trades + house_trades,
                            key=lambda x: x.get("tx_date") or "", reverse=True)
 
     ticker_summary = build_ticker_summary(all_trades)
 
-    log.info("House: %d  Senate: %d  Total: %d  Tickers: %d",
-             len(house_trades), len(senate_trades),
+    log.info("Senate: %d  House: %d  Total: %d  Tickers: %d",
+             len(senate_trades), len(house_trades),
              len(all_trades), len(ticker_summary))
 
     payload = {
@@ -216,8 +250,8 @@ def run():
     _push_to_github(OUTPUT_JSON, "static/data/congress_cache.json",
                     f"congress: {len(all_trades)} trades across {len(ticker_summary)} tickers")
 
-    print(f"Done: {len(all_trades)} trades ({len(house_trades)} House, "
-          f"{len(senate_trades)} Senate) across {len(ticker_summary)} tickers.")
+    print(f"Done: {len(all_trades)} trades ({len(senate_trades)} Senate, "
+          f"{len(house_trades)} House) across {len(ticker_summary)} tickers.")
 
 
 if __name__ == "__main__":
