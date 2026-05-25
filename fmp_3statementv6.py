@@ -2223,6 +2223,18 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     _rev_trailing_fc_mm  = (is_data[-1].get("revenue") or 1) / 1e6
     _fcf_margin_trailing = round(_fcf_trailing_fc_mm / max(_rev_trailing_fc_mm, 1.0), 4)
 
+    # F-D: Bank detection — needed here for quality-premium and EM-anchoring guards
+    # (full detection block is repeated later in the DCF write-out section)
+    _BANK_DCF_EXCLUDE_EARLY = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "DFS", "TRMK"}
+    _BANK_DCF_KW_EARLY = {"bank", "banking", "financial services", "savings",
+                           "thrift", "mortgage", "credit union", "investment bank",
+                           "diversified financial"}
+    _prof_industry_early = (profile or {}).get("industry") or (profile or {}).get("sector") or ""
+    _is_bank_dcf = (
+        any(kw in _prof_industry_early.lower() for kw in _BANK_DCF_KW_EARLY)
+        and ticker.upper() not in _BANK_DCF_EXCLUDE_EARLY
+    )
+
     _quality_em_premium  = False
     _FC_ROIC_THRESHOLD   = 0.25   # 25% ROIC = structural moat / quality compounder
     _FC_PREMIUM_X        = 5.0    # +5x added to all EM scenario multiples
