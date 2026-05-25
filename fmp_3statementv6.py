@@ -4612,6 +4612,23 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     tier_pe,   score_pe,   note_pe   = _t_val(pe_current,    _pe_5yr_bench,  sector_pe_med,
                                                "P/E",   roic_latest, rev_cagr,
                                                dcf_imp=dcf_implied_pe)
+
+    # ── Relabel note_pe so it's clear which multiple drives scoring ───────────
+    # _t_val writes "Current X×" generically. Rewrite it to show:
+    #   "Fwd P/E X× (scoring basis)  |  TTM P/E Y×  |  5yr avg Z× ..."
+    if forward_pe_val and pe_current == forward_pe_val:
+        note_pe = note_pe.replace(
+            f"Current {forward_pe_val:.1f}x",
+            f"Fwd P/E {forward_pe_val:.1f}x (scoring basis)"
+        )
+        if trailing_pe and abs(trailing_pe - forward_pe_val) > 0.5:
+            note_pe = f"TTM P/E {trailing_pe:.1f}x  |  " + note_pe
+    elif trailing_pe and pe_current == trailing_pe:
+        note_pe = note_pe.replace(
+            f"Current {trailing_pe:.1f}x",
+            f"TTM P/E {trailing_pe:.1f}x (scoring basis — no fwd estimate available)"
+        )
+
     tier_pfcf, score_pfcf, note_pfcf = _t_val(trailing_pfcf, pfcf_5yr_avg, sector_pfcf_med,
                                                "P/FCF", roic_latest, rev_cagr,
                                                dcf_imp=dcf_implied_pfcf)

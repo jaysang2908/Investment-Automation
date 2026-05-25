@@ -299,8 +299,15 @@ def _build_thesis(ticker, metrics, years, is_data, cf_data):
     roic = metrics.get("roic")
     rev_cagr = metrics.get("rev_cagr")
     fcf_ni = metrics.get("fcf_ni")
-    pe_current = metrics.get("pe_current")
+    pe_current = metrics.get("pe_current")   # forward P/E when available (scoring basis)
+    pe_ttm     = metrics.get("pe_ttm")       # live TTM P/E for context
     pe_5yr = metrics.get("pe_5yr")
+    # Build a parenthetical TTM context tag shown alongside forward P/E in commentary.
+    # e.g. "25.0× Fwd P/E (TTM: 27.9×)"
+    _pe_label = (f"{pe_current:.1f}× Fwd P/E (TTM: {pe_ttm:.1f}×)"
+                 if (pe_current and pe_ttm and pe_ttm != pe_current
+                     and abs(pe_ttm - pe_current) > 0.5)
+                 else (f"{pe_current:.1f}× P/E" if pe_current else None))
     dcf_base_px = metrics.get("dcf_base_px")
     current_price = metrics.get("current_price")
     d_ebitda = metrics.get("d_ebitda")
@@ -381,33 +388,34 @@ def _build_thesis(ticker, metrics, years, is_data, cf_data):
         _ratio = pe_current / pe_5yr
         _discount = 1 - _ratio   # positive means discount
         _premium = _ratio - 1    # positive means premium
+        _pl = _pe_label or f"{pe_current:.1f}× P/E"  # "25.0× Fwd P/E (TTM: 27.9×)" or fallback
 
         if _ratio < 0.85 and _has_dcf and _dcf_upside > 0:
             result["valuation"] = (
-                f"Trading at {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x 5-year average "
+                f"Trading at {_pl} vs. {pe_5yr:.1f}x 5-year average "
                 f"({_discount:.0%} discount), with DCF base case implying {_dcf_upside:.0%} upside "
                 f"— potentially undemanding if earnings hold."
             )
         elif _ratio < 0.85:
             result["valuation"] = (
-                f"Trading at {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x 5-year average "
+                f"Trading at {_pl} vs. {pe_5yr:.1f}x 5-year average "
                 f"— a {_discount:.0%} discount to history suggesting the market is pricing in "
                 f"deterioration."
             )
         elif _ratio > 1.15 and _has_dcf and _dcf_upside < 0:
             result["valuation"] = (
-                f"At {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x 5-year average (+{_premium:.0%} "
+                f"At {_pl} vs. {pe_5yr:.1f}x 5-year average (+{_premium:.0%} "
                 f"premium), DCF base case implies {_dcf_upside:.0%} downside — premium only "
                 f"justified if growth reaccelerates."
             )
         elif _ratio > 1.15:
             result["valuation"] = (
-                f"At {pe_current:.1f}x P/E vs. {pe_5yr:.1f}x history, the stock trades at a "
+                f"At {_pl} vs. {pe_5yr:.1f}x history, the stock trades at a "
                 f"{_premium:.0%} premium — growth execution must remain flawless."
             )
         else:
             result["valuation"] = (
-                f"Valuation appears broadly in line with history at {pe_current:.1f}x P/E vs. "
+                f"Valuation broadly in line with history at {_pl} vs. "
                 f"{pe_5yr:.1f}x 5-year average — returns will likely track earnings rather than "
                 f"multiple expansion."
             )
@@ -804,7 +812,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     equity_assets_v = scorecard_metrics.get("equity_assets")
     is_bank_v     = scorecard_metrics.get("is_bank", False)
     auto_score    = scorecard_metrics.get("auto_score")
-    trailing_pe       = scorecard_metrics.get("pe_current")
+    # TTM P/E (live quarterly IS) is the trailing display value.
+    # pe_current = forward_pe_val when available (scoring basis); stored separately.
+    trailing_pe       = scorecard_metrics.get("ttm_pe") or scorecard_metrics.get("pe_current")
     pe_5yr            = scorecard_metrics.get("pe_5yr_avg")
     trailing_pfc      = scorecard_metrics.get("pfcf_current")
     pfcf_5yr          = scorecard_metrics.get("pfcf_5yr_avg")
@@ -864,8 +874,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     ev_ebitda = (ev / ebd0) if ev and ebd0 > 0 else None
     ev_rev    = (ev / rev0) if ev and rev0 > 0 else None
     ev_gp     = (ev / gp0)  if ev and gp0  > 0 else None
-    pe_delta  = _delta(trailing_pe, pe_5yr)
-    pfcf_delta = _delta(trailing_pfc, pfcf_5yr)
+    pe_delta      = _delta(trailing_pe,       pe_5yr)   # TTM vs 5yr avg
+    fwd_pe_delta  = _delta(forward_pe_val_v,  pe_5yr)   # Forward vs 5yr avg (separate)
+    pfcf_delta    = _delta(trailing_pfc,      pfcf_5yr)
 
     # ── DCF prices ────────────────────────────────────────────────────────────
     gg_px  = dcf_prices.get("gg_price")
@@ -2040,10 +2051,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "TRAILING_PE_10YR":     (_x(pe_5yr) + " (5yr avg)") if pe_5yr else "N/A",
         "TRAILING_PE_DELTA":    pe_delta,
         "FORWARD_PE":           _x(forward_pe_val_v) if forward_pe_val_v else "N/A",
-        "FORWARD_PE_EST":       (f"FY+1 consensus: {_x(forward_pe_val_v)}x"
+        "FORWARD_PE_EST":       (f"FY+1 consensus ({_x(forward_pe_val_v)}x scoring basis)"
                                  if forward_pe_val_v else "Awaiting analyst estimates"),
         "FORWARD_PE_10YR":      _x(pe_5yr),
-        "FORWARD_PE_DELTA":     pe_delta,
+        "FORWARD_PE_DELTA":     fwd_pe_delta,   # forward P/E vs 5yr avg (not trailing)
         "TRAILING_PFCF":        _x(trailing_pfc),
         "TRAILING_PFCF_10YR":   (_x(pfcf_5yr) + " (5yr avg)") if pfcf_5yr else "N/A",
         "TRAILING_PFCF_DELTA":  pfcf_delta,
@@ -2460,7 +2471,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "roic": roic_v,
         "rev_cagr": rev_cagr_v,
         "fcf_ni": fcf_ni_v,
-        "pe_current": trailing_pe,
+        # pe_current = forward P/E when available (scoring basis shown in commentary).
+        # pe_ttm = TTM P/E shown as parenthetical context alongside forward.
+        "pe_current": forward_pe_val_v or trailing_pe,
+        "pe_ttm":     trailing_pe,
         "pe_5yr": pe_5yr,
         "dcf_base_px": base_px,
         "current_price": current_price,
