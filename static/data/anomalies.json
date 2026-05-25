@@ -17,7 +17,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2023",
@@ -25,7 +25,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2024",
@@ -33,7 +33,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2025",
@@ -41,7 +41,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "ebitda_below_ebit",
     "year": "2025",
@@ -49,7 +49,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2025",
@@ -57,7 +57,7 @@
   },
   {
     "ticker": "C",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2023",
@@ -65,7 +65,7 @@
   },
   {
     "ticker": "C",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2023",
@@ -73,7 +73,7 @@
   },
   {
     "ticker": "C",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2024",
@@ -81,7 +81,7 @@
   },
   {
     "ticker": "C",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2025",
@@ -89,7 +89,7 @@
   },
   {
     "ticker": "CVX",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2022",
@@ -97,7 +97,7 @@
   },
   {
     "ticker": "DIS",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2021",
@@ -105,7 +105,7 @@
   },
   {
     "ticker": "DIS",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2022",
@@ -113,7 +113,7 @@
   },
   {
     "ticker": "DIS",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2023",
@@ -121,7 +121,7 @@
   },
   {
     "ticker": "DIS",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2024",
@@ -129,7 +129,7 @@
   },
   {
     "ticker": "DIS",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -137,7 +137,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2021",
@@ -145,7 +145,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2022",
@@ -153,7 +153,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2023",
@@ -161,7 +161,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2024",
@@ -169,7 +169,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -177,7 +177,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2021",
@@ -185,7 +185,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2022",
@@ -193,7 +193,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2023",
@@ -201,7 +201,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2024",
@@ -209,7 +209,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2025",
@@ -217,7 +217,7 @@
   },
   {
     "ticker": "INTC",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2022",
@@ -225,7 +225,7 @@
   },
   {
     "ticker": "INTC",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2023",
@@ -233,7 +233,7 @@
   },
   {
     "ticker": "INTC",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2023",
@@ -241,7 +241,7 @@
   },
   {
     "ticker": "INTC",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2024",
@@ -249,7 +249,7 @@
   },
   {
     "ticker": "INTC",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -257,7 +257,7 @@
   },
   {
     "ticker": "JNJ",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "ebitda_below_ebit",
     "year": "2023",
@@ -265,7 +265,7 @@
   },
   {
     "ticker": "JPM",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2023",
@@ -273,7 +273,7 @@
   },
   {
     "ticker": "KO",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -281,7 +281,7 @@
   },
   {
     "ticker": "NVDA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2024",
@@ -289,7 +289,7 @@
   },
   {
     "ticker": "NVDA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2025",
@@ -297,7 +297,7 @@
   },
   {
     "ticker": "NVDA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2026",
@@ -305,7 +305,7 @@
   },
   {
     "ticker": "SOFI",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2022",
@@ -313,7 +313,7 @@
   },
   {
     "ticker": "SOFI",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2023",
@@ -321,7 +321,7 @@
   },
   {
     "ticker": "SOFI",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2024",
@@ -329,7 +329,7 @@
   },
   {
     "ticker": "SOFI",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2025",
@@ -337,7 +337,7 @@
   },
   {
     "ticker": "TSLA",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2022",
@@ -345,7 +345,7 @@
   },
   {
     "ticker": "UAL",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2022",
@@ -353,7 +353,7 @@
   },
   {
     "ticker": "UAL",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2021",
@@ -361,7 +361,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2022",
@@ -369,7 +369,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2023",
@@ -377,7 +377,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2024",
@@ -385,7 +385,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -393,7 +393,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-24",
+    "date": "2026-05-25",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2026",

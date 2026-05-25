@@ -294,3 +294,222 @@ Run `python _rerender_reports.py` to re-render all 32+ HTML reports from cached 
 ### Never re-derive scores in the dashboard
 
 The dashboard reads `Auto_Score` directly from `outputs.csv` via `/api/scores`. It must not recalculate, reweight, or reinterpret scores. If the score on the dashboard differs from the report, fix the write path — do not patch the dashboard JS.
+
+---
+
+## Rule 11: WACC Floor at 8.5% (D-001)
+
+`build_wacc()` floors `wacc_val` at 8.5% before returning. No equity investment should be discounted below the lowest reasonable equity return. 8.5% ≈ Damodaran composite Ke for a market-beta US name (Rf 4.3% + 1.0 × ERP 4.5% with a rounding buffer). FMP's 5-year regression betas systematically understate equity risk for stable compounders (PEP β = 0.41 → 6% Ke; AAPL β = 1.07 was hitting 2.1% WACC due to an upstream `rd_acctg ≈ 0` zero-out for cash-rich majors).
+
+- Both Python (`fmp_3statementv6.py::build_wacc` ~L2077) and the Excel WACC tab (`wacc_formula` at ~L2016) wrap the formula in `MAX(0.085, …)` — Rule 1 requires both stay aligned.
+- `wacc_refs` returns `wacc_val` (floored), `wacc_raw` (unfloored), `wacc_floored` (bool). These flow into `dcf_prices` and the report's WACC note: when floored, the note appends "Floored to 8.5% (raw was X.XX%) — FMP regression beta likely understates equity risk; override interactively at /dcf if needed".
+- The DCF calculator at `/dcf` allows interactive WACC override per user request. This is the escape hatch for analysts who want to model a specific name with a different cost of capital.
+
+## Rule 12: Output Guards — No Nonsense Numbers (F-I, F-B, F-H)
+
+The hero card price target must never be a fabricated, negative, or stale value.
+
+- **F-I — Negative price block:** In `build_dcf()` after computing `_ip_gg_usd` and `_ip_em_usd`, clamp values ≤ 0 to `None`. A negative equity-value-per-share is mathematically possible (positive EBITDA × multiple minus enormous net debt for banks / captive-finance autos) but unpublishable.
+- **F-B — N/A instead of current price fallback:** In `report_bridge.py`, when neither GG nor EM produces a valid number, set `price_target = None` and `_primary_method = "N/A — Insufficient inputs"`. Never fall back to `current_price` (that masks a missing valuation as if it were a model output).
+- **F-H — Honest method label:** "Composite avg" appears only when both methods are valid. Otherwise: `"Gordon Growth (primary — EM unavailable)"` / `"EV/EBITDA Exit (primary — GG unavailable)"` / `"N/A — Insufficient inputs"`.
+
+When `price_target` is None, the rationale text below the hero explains the specific cause (foreign reporter, both methods unavailable, etc.) rather than leaving stale tier-branch wording.
+
+## Rule 13: Engine-Entry Guards (F-P, F-S, F-N)
+
+Inputs are validated before the engine commits to a valuation.
+
+- **F-P — Foreign-reporter guard:** In `build_dcf()`, read `reportedCurrency` from `is_data[-1]` (the **latest** year — previous code read `[0]`, the oldest, which is a known sign-error). If reportedCurrency ≠ USD and the FMP FX endpoint fails (returns `_fx_to_usd = 1.0` fallback), set `_foreign_reporter_unsupported = True`, void all GG/EM prices to `None`, and surface `dcf_prices["foreign_reporter"]` + `dcf_prices["reported_currency"]` for the bridge to explain. TSM (TWD) was producing $22,854 fair value (+5,550%) until this guard landed.
+- **F-S — Stale-data assertion:** At top of `report_bridge.py::build_report_data()`, check that `dcf_prices` has the core keys `{growth_tier, tgr_base, em_base_mult, neg_earnings_regime}`. If missing, render a "Data refresh required — run `python local_rerun.py <ticker>`" banner. Prevents stale JSONs from older engine schemas (TSLA case: data fetched 2026-04-26 with only 2 `dcf_prices` keys) from rendering as if they were complete.
+- **F-N — MktCap ≈ Price × Shares triangulation (defensive):** In `build_report_data()`, if `|marketCap − price × sharesOutstanding| / marketCap > 0.10`, surface a soft amber banner. NOT a publish-block — legitimate stock splits can momentarily produce mismatched FMP snapshots (NFLX was a false alarm — it had done a real split and the data was internally consistent).
+
+These three guards run at the engine boundary so a single bad input never produces a fully self-consistent but completely wrong report.
+
+## Rule 14: Bank-Charter DCF Force-Disable (F-D Phase 1, F-M, F-Q)
+
+Gordon Growth (FCF perpetuity) and EV/EBITDA Exit Multiple do not apply to deposit-funded balance sheet institutions. When `_is_bank_dcf = True`, the engine immediately voids all GG and EM outputs and bypasses EVS regime detection.
+
+**Detection** (in `build_dcf()`)
+```python
+_BANK_DCF_EXCLUDE = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "DFS", "TRMK"}
+_BANK_DCF_KW = {"bank", "banking", "financial services", "savings",
+                "thrift", "mortgage", "credit union", "investment bank",
+                "diversified financial"}
+_is_bank_dcf = (
+    any(kw in _prof_industry_dcf.lower() for kw in _BANK_DCF_KW)
+    and ticker.upper() not in _BANK_DCF_EXCLUDE
+)
+```
+
+Payment networks (V, MA, PYPL, etc.) are explicitly excluded from the bank classifier — they share FMP's `Financial - Credit Services` tag with deposit-taking banks but have completely different economics and DCF applicability. Add new payment-network tickers to `_BANK_DCF_EXCLUDE` as they are reviewed.
+
+**When `_is_bank_dcf = True`:**
+- `_gg_final`, `_em_final`, all scenario prices → `None`.
+- `_neg_earnings_regime = False` and `_evs_regime = False` (F-M: bank FCF is accounting noise from loan/deposit flows — it must never trigger the negative-earnings regime or EVS overlay).
+- `dcf_prices["bank_disabled"] = True` and `dcf_prices["bank_disabled_reason"]` carries a plain-English explanation for the report.
+
+**In `report_bridge.py`:**
+- Primary method label: `"N/A — Bank methodology pending (DDM / Justified P/B)"`.
+- Rationale block explains that DDM (Dividend Discount Model) and Justified P/B (price-to-tangible-book vs ROE − g) are the correct methodologies and are pending Phase 2 implementation.
+- Scorecard quality metrics remain valid and are displayed normally.
+
+**Phase 2** (DDM / Justified P/B pricing) is deferred. Until implemented, bank reports show "N/A" for price target with a clear explanation.
+
+## Rule 15: Scorecard Rescale Suppression for Valuation-Data Gaps (F-G)
+
+The scorecard applies a `× (active_weight / scored_weight)` rescale when some criteria cannot be scored (e.g. EVS regime disables P/E and P/FCF). This correctly inflates the score back to an apples-to-apples 0–10 basis when criteria are *methodologically excluded* (banks, EVS tickers, cyclicals).
+
+However, when **both P/E AND P/FCF tiers are None due to a data-fetch failure** (FMP ratios endpoint returned no data) — not a regime exclusion — the rescale must be suppressed. Inflating a score when the data simply didn't arrive is misleading.
+
+**Detection** (in `build_scorecard()`):
+```python
+_fg_valuation_gap = (
+    tier_pe is None and tier_pfcf is None
+    and not is_bank and not evs_regime
+)
+_low_data_confidence = (
+    _fg_valuation_gap
+    or ((_scored_weight < 0.5 * _active_weight) if _active_weight else True)
+)
+if (_scored_weight > 0 and _scored_weight < _active_weight
+        and not _low_data_confidence):
+    _raw_sum = _raw_sum * (_active_weight / _scored_weight)
+```
+
+When `_fg_valuation_gap` fires: confidence level is set to `"LOW"` with note "P/E and P/FCF data unavailable — FMP ratios fetch failed; valuation criteria excluded, rescale suppressed".
+
+**Always initialise `_fg_valuation_gap = False`** before the `if _scored:` block so the else-branch (no criteria scored at all) doesn't hit a NameError.
+
+## Rule 16: Valuation Concordance Gate + Verdict Text Override (F-F, F-K)
+
+Quality score and verdict are separate concerns. A high-quality business at an expensive price is not a "Buy" — but it shouldn't have its quality score penalised either.
+
+**Concordance detection** (in `report_bridge.py`, after EVS/bank checks):
+```python
+_CONCORDANCE_THR = 0.25
+_valuation_concordance = None
+if (not _evs_regime and not _bank_disabled
+        and _gg_up_con is not None and _em_up_con is not None):
+    if _gg_up_con < -_CONCORDANCE_THR and _em_up_con < -_CONCORDANCE_THR:
+        _valuation_concordance = "expensive"
+    elif _gg_up_con > _CONCORDANCE_THR and _em_up_con > _CONCORDANCE_THR:
+        _valuation_concordance = "cheap"
+```
+
+**Verdict text override** (F-K, immediately after `_conservative_verdict()`):
+- If `_valuation_concordance == "expensive"` and current verdict rank > 2 → force to `"Hold — Premium Quality, Expensive"`.
+- If `_valuation_concordance == "cheap"` and current verdict rank < 3 → force to `"Good Business at Fair Price"`.
+- Quality score (`Auto_Score`) is **never modified** by this gate.
+
+**Concordance banner** (F-F): a red/green HTML callout is injected below the hero card showing exact GG% and EM% upsides when concordance fires. This is the primary signal the reader sees — the verdict text change is the fallback guard, not the explanation.
+
+**Concordance does NOT fire** for EVS-regime tickers (only one price method active) or bank-disabled tickers (no price methods at all).
+
+## Rule 17: Cyclical Revenue Tier Smoothing (F-E)
+
+For companies classified as `cyclical` by `_sector_bucket()`, using a simple 3-year average revenue growth for tier classification produces misleading results — commodity-cycle lows inflate or deflate the average based on which year you happen to land in.
+
+**Smoothing rule** (in `build_dcf()`, after `_rev_3yr_avg_dcf` is computed):
+- Collect all available YoY revenue growth rates from `hist_rev` (up to 5 years).
+- If ≥ 3 valid periods exist, replace `_rev_3yr_avg_dcf` with the **median** of those rates.
+- Median is more robust to a single catastrophic or boom year than the mean.
+- Log: `"F-E: cyclical tier smoothing — using N-period YoY median"`.
+- Falls back silently to 3yr average if fewer than 3 valid periods.
+
+This only affects the growth tier (and therefore TGR/EM multiples) — it does not change any scorecard criteria.
+
+## Rule 18: Widened EVS Regime Trigger (F-L)
+
+The original EVS regime trigger (`neg_earnings_regime AND trailing_EBITDA < 0`) misses companies with technically positive EBITDA that is so thin it makes the Exit Multiple meaningless.
+
+**Extended conditions** (added in `build_dcf()`, both exclude cyclicals to avoid false positives during commodity troughs):
+```python
+_ebitda_near_zero = (
+    _trailing_ebitda_mm < 0.05 * max(_trailing_rev_mm_fl, 1)
+    and not _is_cyclical_dcf
+)
+_fcf_deeply_neg = (
+    _trailing_fcf_raw < -0.10 * max(_trailing_rev_mm_fl / 1e3, 1)
+    and not _is_cyclical_dcf
+)
+_evs_regime = _neg_earnings_regime and (
+    _trailing_ebitda_mm < 0
+    or _ebitda_near_zero
+    or _fcf_deeply_neg
+)
+```
+
+- **EBITDA near-zero**: EBITDA < 5% of revenue (thin-margin turnarounds where the EM terminal value is a tiny number that moves enormously on small margin shifts).
+- **FCF deeply negative**: FCF < −10% of revenue (cash-burn rate signals that a UFCF perpetuity is still meaningless even if accounting EBITDA is modestly positive).
+- Cyclicals are excluded from both extensions because a cyclically depressed EBITDA/FCF is expected to recover — it's not the same structural situation as a secular pre-profit company.
+
+## Rule 19: EV/Sales Subtype Classification (F-O)
+
+`_secular_growth_subtype(ticker)` controls the mature EV/Sales multiple used when a company enters EVS regime. The mapping must reflect the actual business model economics, not generic tech labelling.
+
+**Social media and ad-tech platforms** (SNAP, PINS, RDDT, BMBL, MTCH) are classified as `tech_growth` (4.5× mature EV/Sales) — NOT `secular_growth_deeptech` (4×). These platforms have consumer network effects, advertising-driven monetisation, and addressable markets calibrated to established consumer internet comps. `secular_growth_deeptech` is reserved for hardware/deep-science plays (space, quantum, robotics, novel biotech).
+
+When adding a new pre-profit ticker: first determine the subtype before trusting a sector-label default. The multiplier difference between subtypes is 1–2× — a material impact on the derived price target.
+
+## Rule 20: Valuation Field Audit (`_score_audit.py --full`)
+
+Rule 10 audits `Auto_Score` (CSV) vs hero score (HTML). The extended audit (`python _score_audit.py --full`) additionally checks:
+- `GG_Price` in `outputs.csv` vs `dcf_prices.gg_price` in `static/data/{ticker}_data.json`
+- `EM_Price` in `outputs.csv` vs `dcf_prices.em_price` in the same JSON
+- `price-value price-target` scraped from the HTML vs the above
+
+Any discrepancy >$1 between CSV and JSON is flagged as a valuation field diff and listed at the end of the report. This catches state-management drift where a cached JSON was regenerated but the CSV wasn't synced (or vice versa).
+
+Run `python _score_audit.py` (score check only) after every `_rerender_reports.py` pass. Run `python _score_audit.py --full` after any `local_rerun.py` pass.
+
+## Rule 21: Historical EV/EBITDA Anchoring for Exit Multiple (F-C Phase 2)
+
+Static tier defaults (10×/15×/18×) reflect median names in each growth bucket. Companies that consistently trade at a structural premium or discount have their own precedent — the historical anchor uses that signal.
+
+**Logic** (in `build_dcf()`, runs after quality premium block):
+```python
+_HIST_EM_DISCOUNT = 0.80   # mean-reversion: market normalises somewhat over 5yr horizon
+_HIST_EM_CAP      = 28.0   # prevents bubble-era averages from perpetuating
+# fetch from FMP /stable/ratios?symbol={ticker}&limit=5
+anchored_raw   = hist_5yr_ev_ebitda_avg × 0.80
+anchored_final = max(tier_base, min(28.0, anchored_raw))   # floor + cap
+# scale bear/bull proportionally; bull additionally capped at 32x
+```
+
+**Key design decisions:**
+- **Floor = post-quality-premium base**: ensures the quality premium (+5×) is never erased by a depressed historical average (e.g. V, COST).
+- **Cap = 28×**: NVDA (48.9×) and AMD (40.7×) five-year averages include 2020-2021 ZIRP peak. Using those raw would perpetuate bubble pricing in terminal value.
+- **Cyclicals excluded**: F-E median-smoothing is a better anchor for commodity-cycle names.
+- **Banks excluded**: EM is disabled for banks anyway.
+- **EVS-regime tickers**: anchoring runs but is neutralised in `dcf_prices` output when `_evs_regime` fires.
+- **Only applies if `abs(anchored_final − current_base) > 0.5×`** — avoids rounding noise.
+
+**`dcf_prices` keys added:**
+- `em_anchored` (bool): True when anchoring moved the multiple by >0.5×
+- `em_hist_anchor_raw` (float): raw 5yr historical average before discount/cap
+- `em_hist_anchor_capped` (bool): True when uncapped anchored value exceeded 28×
+
+**Cap banner in `report_bridge.py`:**
+When `em_hist_anchor_capped = True`, an amber callout renders below the hero:
+> ⚠ Exit Multiple Capped at 28× (5yr historical avg: X.X×)
+> The model applies a 28× ceiling... For extraordinary competitive positions, use the DCF Calculator to model it explicitly.
+
+The banner is intentionally transparent: it shows the suppressed historical average so the user can decide whether the cap is appropriate or whether to override at `/dcf`.
+
+**Portfolio impact (2026-05-25 patch):**
+
+| Ticker | Old base | New base | Old EM% | New EM% | Capped? |
+|--------|----------|----------|---------|---------|---------|
+| KO | 10× | 15.4× | −48% | −19% | No |
+| ABBV | 10× | 15.6× | −39% | −5% | No |
+| AAPL | 10× | 18.4× | −56% | −20% | No |
+| NKE | 10× | 19.0× | −13% | +67% | No |
+| PEP | 10× | 13.5× | −32% | −8% | No |
+| DIS | 10× | 16.1× | +5% | +69% | No |
+| AMD | 18× | 28.0× | −40% | −6% | YES |
+| NVDA | 18× | 28.0× | +28% | +99% | YES |
+| ADBE | 15× | 23.3× | +77% | +175% | No |
+
+Tickers unchanged by anchor (floor or within 0.5×): JNJ, WMT, HCA, FDX, TGT (floor), META, NFLX (floor), V (quality-premium floor), COST (quality-premium close), CSCO (minor +1.4×).
+
+**When FMP API is available:** `local_rerun.py` automatically applies anchoring via the engine. Manual JSON patches above are temporary; re-run to confirm via engine when quota resets.

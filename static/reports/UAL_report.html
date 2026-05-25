@@ -629,10 +629,10 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="price-arrow">→</div>
       <div class="price-block">
         <div class="price-label">Price Target</div>
-        <div class="price-value price-target">0.0</div>
+        <div class="price-value price-target">N/A</div>
         <span class="price-upside"></span>
-        <span class="price-upside" style="margin-top:3px">Composite avg</span>
-        <div style="font-size:11px;color:var(--ink-2);margin-top:6px;line-height:1.5;max-width:320px;text-align:left">Medium Growth / Maturing (9.7% 3yr avg rev growth). Gordon Growth prioritised — growth below 10% favours a terminal-value-based approach. TGR 3.0% / WACC 9.0%.</div>
+        <span class="price-upside" style="margin-top:3px">N/A — Insufficient inputs</span>
+        <div style="font-size:11px;color:var(--ink-2);margin-top:6px;line-height:1.5;max-width:320px;text-align:left">Neither Gordon Growth nor EV/EBITDA Exit produced a publishable price target. Most likely causes: capital structure that defeats the DCF framework (banks: deposits in net-debt; captive finance: debt > equity), negative trailing cash flow without EV/Sales fallback, or missing inputs. Review the Scorecard and Valuation tabs for partial signals.</div>
         
       </div>
     </div>
@@ -645,7 +645,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     </div>
   </div>
 
-  
+  <div style="margin:14px 0 8px;padding:12px 18px;background:#fce4e4;border-left:3px solid #c62828;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#7a1414"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">⚠ Data refresh required</strong><br>Cached engine output is missing core DCF keys (likely from an older schema). Run <code>python local_rerun.py UAL</code> to regenerate this report against the current engine before relying on these figures.</div>
   <div style="margin:6px 0 14px;padding:8px 14px;background:#fff8e1;border-left:3px solid #b45309;border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.4;color:#b45309"><strong>~ Score confidence: MEDIUM</strong></div>
 
   <!-- 3-Year Price Chart — moved to top (immediately after hero) -->

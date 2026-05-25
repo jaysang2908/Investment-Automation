@@ -162,6 +162,26 @@ def fetch(endpoint, ticker, extra_params=""):
         raise ValueError(f"No data for '{ticker}' on {endpoint}.")
     return data
 
+# ── Ratios cache (per-process) ────────────────────────────────────────────────
+# build_dcf() and build_scorecard() both need the ratios endpoint.
+# Cache the response so the second caller gets a free hit — saves 1 FMP call
+# per ticker per run (15 tickers × 1 = 15 calls saved on a typical batch).
+_RATIOS_CACHE: dict = {}
+
+def _fetch_ratios(ticker: str, limit: int = 5) -> list:
+    """Return FMP /stable/ratios for ticker, cached for this process lifetime."""
+    key = f"{ticker.upper()}:{limit}"
+    if key not in _RATIOS_CACHE:
+        try:
+            url = (f"https://financialmodelingprep.com/stable/ratios"
+                   f"?symbol={ticker}&limit={limit}&apikey={API_KEY}")
+            resp = requests.get(url, timeout=10).json()
+            _RATIOS_CACHE[key] = resp if isinstance(resp, list) else []
+        except Exception as _e_rat_cache:
+            print(f"  ratios fetch failed for {ticker}: {_e_rat_cache}")
+            _RATIOS_CACHE[key] = []
+    return _RATIOS_CACHE[key]
+
 def fetch_segment(endpoint, ticker):
     """Fetch segmentation — returns None gracefully if not on plan."""
     try:
@@ -2013,13 +2033,14 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None, profile=None):
     # ── WACC output ───────────────────────────────────────────────────────────
     row = shdr(row, "WACC OUTPUT", C_SUMMARY_HD)
     wacc_row = row
-    wacc_formula = (f"=B{ew_row}*B{re_row}"
-                    f"+B{dw_row}*B{rd_row}*(1-B{tax_row})")
+    # D-001: floor WACC at 8.5% (matches Python engine). Override in /dcf calculator.
+    wacc_formula = (f"=MAX(0.085, B{ew_row}*B{re_row}"
+                    f"+B{dw_row}*B{rd_row}*(1-B{tax_row}))")
     wl = ws.cell(row=wacc_row, column=1,
-                 value="WACC  =  (E/V × Re)  +  (D/V × Rd × (1 − t))")
+                 value="WACC  =  MAX(8.5%, (E/V × Re) + (D/V × Rd × (1 − t)))")
     wv = ws.cell(row=wacc_row, column=2, value=wacc_formula)
     wn = ws.cell(row=wacc_row, column=3,
-                 value="Used as discount rate in DCF tab")
+                 value="Floored 8.5% (D-001); raw formula below")
     for c_ in (wl, wv, wn):
         c_.fill = fll(C_SUMMARY_BG); c_.border = brd()
     wl.font = fnt(bold=True, size=11)
@@ -2075,14 +2096,26 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None, profile=None):
         row += 1
 
     sel_re   = rf + sel_beta * sel_erp
-    wacc_val = w_e * sel_re + w_d * sel_rd * (1 - eff_tax)
+    wacc_raw = w_e * sel_re + w_d * sel_rd * (1 - eff_tax)
+
+    # D-001: Global WACC floor at 8.5%.
+    # No equity investment should be discounted below the lowest reasonable equity return.
+    # 8.5% ≈ Damodaran composite Ke for a market-beta US name (Rf 4.3% + 1.0 × ERP 4.5%
+    # with rounding buffer). FMP 5yr regression betas systematically understate equity
+    # risk for stable compounders (e.g. PEP β=0.41 → 6%; AAPL β=1.07 was producing 2.1%
+    # due to an upstream Kd zero-out). Users can override interactively at /dcf.
+    _WACC_FLOOR  = 0.085
+    wacc_floored = wacc_raw < _WACC_FLOOR
+    wacc_val     = max(wacc_raw, _WACC_FLOOR)
 
     return {
-        "wacc_row": wacc_row, "re_row":   re_row,
-        "rf_row":   rf_row,   "beta_row": beta_row,
-        "erp_row":  erp_row,  "rd_row":   rd_row,
-        "tax_row":  tax_row,
-        "wacc_val": round(wacc_val, 4),
+        "wacc_row":     wacc_row, "re_row":   re_row,
+        "rf_row":       rf_row,   "beta_row": beta_row,
+        "erp_row":      erp_row,  "rd_row":   rd_row,
+        "tax_row":      tax_row,
+        "wacc_val":     round(wacc_val, 4),
+        "wacc_raw":     round(wacc_raw, 4),
+        "wacc_floored": wacc_floored,
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2107,14 +2140,37 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     n_hist  = len(years)
     n_term  = 1
 
-    # ── Growth tier: based on 3-year avg annual revenue growth ────────────────
+    # ── Growth tier: based on revenue growth rate ────────────────────────────
     # Drives base-case TGR, exit multiple, and bear/bull ranges throughout.
+    # F-E: Cyclical companies use 5-year MEDIAN YoY growth instead of 3-year
+    # average. A 3-year window at cycle peak overstates the structural trend;
+    # at trough it understates it. Median of all available years is stable.
     _gt_revs = [d.get("revenue") or 0 for d in is_data]
     _gt_yoys = []
     for _k in range(max(1, len(_gt_revs) - 3), len(_gt_revs)):
         if _gt_revs[_k-1] > 0 and _gt_revs[_k] > 0:
             _gt_yoys.append(_gt_revs[_k] / _gt_revs[_k-1] - 1)
     _rev_3yr_avg_dcf = sum(_gt_yoys) / len(_gt_yoys) if _gt_yoys else 0.05
+
+    # F-E / F-C: Sector bucket detection for both cyclical smoothing and quality premium
+    _sector_str_dcf = ((profile or {}).get("industry") or
+                       (profile or {}).get("sector") or "")
+    _sector_bucket_dcf     = _sector_bucket(_sector_str_dcf, ticker)
+    _is_cyclical_dcf       = _sector_bucket_dcf == "cyclical"
+    _is_stable_compounder_dcf = _sector_bucket_dcf == "stable_compounder"
+    if _is_cyclical_dcf:
+        _all_yoys = []
+        for _k in range(1, len(_gt_revs)):
+            if _gt_revs[_k-1] > 0 and _gt_revs[_k] > 0:
+                _all_yoys.append(_gt_revs[_k] / _gt_revs[_k-1] - 1)
+        if len(_all_yoys) >= 3:
+            _sorted = sorted(_all_yoys)
+            _n = len(_sorted)
+            _median = (_sorted[(_n - 1) // 2] + _sorted[_n // 2]) / 2.0
+            _rev_3yr_avg_dcf = _median
+            print(f"  F-E: cyclical tier smoothing — 5yr yoys={[round(y,3) for y in _all_yoys]}"
+                  f"  median={_median:.3f}  (was 3yr avg={sum(_gt_yoys)/len(_gt_yoys):.3f})"
+                  if _gt_yoys else f"  F-E: cyclical median={_median:.3f}")
 
     if _rev_3yr_avg_dcf < 0.05:
         _TIER          = "low"
@@ -2140,6 +2196,97 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         _DCF_TEV_BASE  = 18.0
         _DCF_TEV_BEAR  = round(_DCF_TEV_BASE * 0.75)  # 14x
         _DCF_TEV_BULL  = round(_DCF_TEV_BASE * 1.25)  # 23x
+
+    # ── F-C: ROIC quality premium on EM multiple ─────────────────────────────
+    # Standard tier multiples (10x/15x/18x) reflect sector-average EV/EBITDA for
+    # medium-quality names. Stable compounders with ROIC > 25% sustain structural
+    # advantages (membership moats, network effects, brand pricing power) that
+    # command a premium vs commodity peers — historically 20-30x vs 10-15x average.
+    # +5x is calibrated as the minimum quality increment between sector-average and
+    # quality-tier multiples observed across COST/V/NKE class names.
+    # Only applies to stable_compounder bucket (not banks, not EVS, not cyclicals).
+    _trailing_ebit_fc_mm    = (is_data[-1].get("ebit") or is_data[-1].get("operatingIncome") or 0) / 1e6
+    _trailing_tax_fc        = min(0.50, max(0.0,
+        abs(is_data[-1].get("incomeTaxExpense") or 0) /
+        max(abs(is_data[-1].get("incomeBeforeTax") or 1), 1)
+    ))
+    _trailing_nopat_fc_mm   = _trailing_ebit_fc_mm * (1.0 - _trailing_tax_fc)
+    _trailing_equity_fc_mm  = (bs_data[-1].get("totalStockholdersEquity") or 0) / 1e6
+    _trailing_td_fc_mm      = (bs_data[-1].get("totalDebt") or 0) / 1e6
+    _trailing_cash_fc_mm    = (bs_data[-1].get("cashAndShortTermInvestments") or 0) / 1e6
+    _trailing_ic_fc_mm      = _trailing_equity_fc_mm + (_trailing_td_fc_mm - _trailing_cash_fc_mm)
+    _trailing_roic_fc       = (_trailing_nopat_fc_mm / max(_trailing_ic_fc_mm, 100.0)
+                               if _trailing_ic_fc_mm > 100.0 else 0.0)
+
+    # FCF margin — stored in dcf_prices for thin-margin EM-primary override in report_bridge
+    _fcf_trailing_fc_mm  = (cf_data[-1].get("freeCashFlow") or 0) / 1e6
+    _rev_trailing_fc_mm  = (is_data[-1].get("revenue") or 1) / 1e6
+    _fcf_margin_trailing = round(_fcf_trailing_fc_mm / max(_rev_trailing_fc_mm, 1.0), 4)
+
+    _quality_em_premium  = False
+    _FC_ROIC_THRESHOLD   = 0.25   # 25% ROIC = structural moat / quality compounder
+    _FC_PREMIUM_X        = 5.0    # +5x added to all EM scenario multiples
+    if (_is_stable_compounder_dcf and not _is_bank_dcf
+            and _trailing_roic_fc > _FC_ROIC_THRESHOLD):
+        _DCF_TEV_BASE  += _FC_PREMIUM_X
+        _DCF_TEV_BEAR  += round(_FC_PREMIUM_X * 0.8)   # +4x bear
+        _DCF_TEV_BULL  += round(_FC_PREMIUM_X * 1.0)   # +5x bull
+        _quality_em_premium = True
+        print(f"  F-C quality premium: ROIC {_trailing_roic_fc*100:.1f}% > 25% "
+              f"→ EM {_DCF_TEV_BASE - _FC_PREMIUM_X:.0f}x → {_DCF_TEV_BASE:.0f}x base  "
+              f"(bear {_DCF_TEV_BEAR:.0f}x / bull {_DCF_TEV_BULL:.0f}x)")
+
+    # ── F-C Phase 2: Historical EV/EBITDA anchoring for exit multiple ─────────
+    # Stock-specific anchor: 5yr avg EV/EBITDA × 80% mean-reversion discount.
+    # Floor = current tier+quality base (preserves quality premium gains).
+    # Cap = 28x (prevents bubble-era averages perpetuating into terminal value).
+    # Cyclicals excluded — tier smoothing via F-E is a better anchor for those.
+    # Banks excluded — EM disabled anyway.
+    # Note: _evs_regime is not yet computed here; anchoring is neutralised later
+    #       in dcf_prices if EVS fires (EM prices become None regardless of mult).
+    _HIST_EM_DISCOUNT      = 0.80
+    _HIST_EM_CAP           = 28.0
+    _em_anchored           = False
+    _em_hist_anchor_raw    = None
+    _em_hist_anchor_capped = False
+
+    if not _is_cyclical_dcf and not _is_bank_dcf:
+        _rat_ev_vals = []
+        try:
+            _rat_resp_h = _fetch_ratios(ticker, limit=5)   # cached — no extra FMP call
+            if _rat_resp_h:
+                _rat_ev_vals = [
+                    r["enterpriseValueMultiple"] for r in _rat_resp_h
+                    if r.get("enterpriseValueMultiple")
+                    and 2 < r["enterpriseValueMultiple"] < 200
+                ]
+        except Exception as _e_h:
+            print(f"  F-C hist anchor: ratios parse failed — {_e_h}")
+
+        if len(_rat_ev_vals) >= 2:
+            _hist_ev_avg        = round(sum(_rat_ev_vals) / len(_rat_ev_vals), 1)
+            _em_hist_anchor_raw = _hist_ev_avg
+            _anchored_raw       = _hist_ev_avg * _HIST_EM_DISCOUNT
+            _hist_floor         = _DCF_TEV_BASE   # post-quality-premium floor
+            _em_hist_anchor_capped = _anchored_raw > _HIST_EM_CAP
+            _anchored_final     = max(_hist_floor, min(_HIST_EM_CAP, _anchored_raw))
+
+            if abs(_anchored_final - _DCF_TEV_BASE) > 0.5:
+                _h_scale      = _anchored_final / _DCF_TEV_BASE
+                _DCF_TEV_BEAR = round(_DCF_TEV_BEAR * _h_scale, 1)
+                _DCF_TEV_BULL = min(round(_DCF_TEV_BULL * _h_scale, 1), _HIST_EM_CAP + 4.0)
+                _DCF_TEV_BASE = round(_anchored_final, 1)
+                _em_anchored  = True
+                _h_reason = ("capped" if _em_hist_anchor_capped
+                             else "floored" if _anchored_raw < _hist_floor
+                             else "anchored")
+                print(f"  F-C hist anchor: {len(_rat_ev_vals)}-yr avg {_hist_ev_avg:.1f}x "
+                      f"x {_HIST_EM_DISCOUNT} = {_anchored_raw:.1f}x -> {_h_reason} "
+                      f"{_DCF_TEV_BASE:.1f}x base "
+                      f"(bear {_DCF_TEV_BEAR:.1f}x / bull {_DCF_TEV_BULL:.1f}x)")
+            else:
+                print(f"  F-C hist anchor: {len(_rat_ev_vals)}-yr avg {_hist_ev_avg:.1f}x "
+                      f"-> anchored {_anchored_raw:.1f}x within 0.5x of base -- no change")
 
     # Column layout: A=labels | hist cols | proj cols | terminal | notes
     NC          = 1 + n_hist + n_proj + n_term + 1
@@ -2917,9 +3064,12 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         _tev  = _DCF_TEV_BASE  # tier-calibrated exit EV/EBITDA multiple
         _wacc = (wacc_refs or {}).get("wacc_val")
 
-        # FX: financials in reportedCurrency; implied price must be in USD
-        _ccy_dcf   = is_data[0].get("reportedCurrency", "USD") if is_data else "USD"
+        # FX: financials in reportedCurrency; implied price must be in USD.
+        # Reads latest historical (is_data[-1]) — previous version read [0] which is
+        # the OLDEST year, occasionally misreporting currency for tickers that switched.
+        _ccy_dcf   = is_data[-1].get("reportedCurrency", "USD") if is_data else "USD"
         _fx_to_usd = 1.0
+        _fx_fetched = False
         if _ccy_dcf != "USD":
             try:
                 import requests as _rx
@@ -2927,9 +3077,33 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                     f"https://financialmodelingprep.com/api/v3/fx/{_ccy_dcf}USD"
                     f"?apikey={API_KEY}", timeout=5
                 ).json()
-                _fx_to_usd = float(_fxr[0]["ask"]) if isinstance(_fxr, list) and _fxr else 1.0
+                if isinstance(_fxr, list) and _fxr:
+                    _fx_to_usd = float(_fxr[0]["ask"])
+                    _fx_fetched = True
             except Exception:
                 pass
+
+        # F-P: Foreign-reporter guard. If financials are non-USD AND the FX fetch
+        # failed (or returned the 1.0 fallback), refuse to compute USD prices.
+        # Silent FX failure was producing nonsense (TSM in TWD → +5,550% upside).
+        _foreign_reporter_unsupported = (_ccy_dcf != "USD" and not _fx_fetched)
+
+        # F-D / F-Q: Bank-charter detection for DCF.
+        # Payment networks (V, MA, PYPL, FIS, FISV, GPN, etc.) share "Financial"
+        # industry / sector tags with deposit-funded banks but are NOT balance-
+        # sheet lenders. Exclude them so F-D does not wrongly disable their DCF.
+        _BANK_DCF_EXCLUDE = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU",
+                              "DFS", "TRMK"}
+        _BANK_DCF_KW = {"bank", "banking", "financial services", "savings",
+                        "thrift", "mortgage", "credit union", "investment bank",
+                        "diversified financial"}
+        _prof_industry_dcf = (
+            (profile or {}).get("industry") or (profile or {}).get("sector") or ""
+        )
+        _is_bank_dcf = (
+            any(kw in _prof_industry_dcf.lower() for kw in _BANK_DCF_KW)
+            and ticker.upper() not in _BANK_DCF_EXCLUDE
+        )
 
         # Assumption averages — match Excel "Year 1 = AVERAGE(historicals)" rows
         def _avg(vals): return sum(v for v in vals if v) / max(sum(1 for v in vals if v), 1)
@@ -3007,6 +3181,21 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _ip_gg_usd = _ip_gg * _fx_to_usd
             _ip_em_usd = _ip_em * _fx_to_usd
 
+            # F-I: Block negative price targets. A negative equity value per share is
+            # mathematically possible (positive EBITDA × multiple minus enormous net
+            # debt) but unpublishable. Affects banks (deposit liabilities in net-debt),
+            # captive-finance autos (Ford), and over-levered names. Rule 5 violation
+            # to display these. Clamp to None → downstream "N/A — Insufficient inputs".
+            if _ip_gg_usd is not None and _ip_gg_usd <= 0:
+                _ip_gg_usd = None
+            if _ip_em_usd is not None and _ip_em_usd <= 0:
+                _ip_em_usd = None
+
+            # F-P: If foreign-reporter and FX fetch failed, void the prices entirely.
+            if _foreign_reporter_unsupported:
+                _ip_gg_usd = None
+                _ip_em_usd = None
+
             # GG sensitivity: vary both TGR and WACC (±0.5pp) — bear/bull are
             # more conservative/optimistic on both levers simultaneously.
             _WACC_SHIFT = 0.005   # 0.5 percentage points
@@ -3056,8 +3245,29 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             # In that case even the EM formula is unreliable (negative terminal EBITDA
             # produces a negative or nonsense EM price). Use forward EV/Revenue
             # with a sector-appropriate mature multiple, discounted back at WACC.
+            #
+            # F-L: Extend EVS trigger for marginal/turnaround situations:
+            # (a) EBITDA < 5% of revenue (de minimis — EM exit will produce tiny EV)
+            # (b) FCF worse than −10% of revenue (heavy cash consumption)
+            # Both thresholds are designed to catch INTC-style situations where
+            # EBITDA is technically positive but the multiple is distorted by
+            # the severity of the trough. Cyclicals are excluded — their EBITDA
+            # compression is transient and EM at 10x trough still makes sense.
             _trailing_ebitda_mm = hist_ebitda[-1]  # $mm, already computed above
-            _evs_regime = _neg_earnings_regime and (_trailing_ebitda_mm < 0)
+            _trailing_rev_mm_fl  = hist_rev[-1] if hist_rev else 1.0  # $mm, for F-L ratio
+            _ebitda_near_zero = (
+                _trailing_ebitda_mm < 0.05 * max(_trailing_rev_mm_fl, 1)
+                and not _is_cyclical_dcf   # cyclicals' trough EBITDA is transient
+            )
+            _fcf_deeply_neg = (
+                _trailing_fcf_raw < -0.10 * max(_trailing_rev_mm_fl / 1e3, 1)
+                and not _is_cyclical_dcf
+            )
+            _evs_regime = _neg_earnings_regime and (
+                _trailing_ebitda_mm < 0
+                or _ebitda_near_zero
+                or _fcf_deeply_neg
+            )
 
             _evs_price         = None
             _evs_implied_cagr  = None
@@ -3096,16 +3306,62 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                             (_req_rev_mm / _trailing_rev_mm) ** (1 / 5) - 1, 4
                         )
 
+            # F-I post-clamp: _ip_gg_usd / _ip_em_usd may now be None (negative or
+            # foreign-reporter-unsupported). Helpers below stay None-safe.
+            _gg_final = None if (_neg_earnings_regime or _ip_gg_usd is None) else round(_ip_gg_usd, 2)
+            _em_final = None if _ip_em_usd is None else round(_ip_em_usd, 2)
+            _gg_upside_final = (round(_ip_gg_usd / price - 1, 4)
+                                if (_ip_gg_usd is not None and price and not _neg_earnings_regime) else None)
+            _em_upside_final = (round(_ip_em_usd / price - 1, 4)
+                                if (_ip_em_usd is not None and price) else None)
+
+            # F-P: foreign-reporter flag surfaced to bridge so the hero can explain.
+            if _foreign_reporter_unsupported:
+                _gg_disabled_reason = (
+                    f"Financials reported in {_ccy_dcf}; FX conversion to USD unavailable. "
+                    f"Pricing skipped — see /dcf calculator to enter manually."
+                )
+
+            # F-D Phase 1 + F-M: Force-disable GG and EM for bank-charter institutions.
+            # Neither Gordon Growth (perpetuity on FCF) nor EV/EBITDA Exit Multiple applies
+            # to deposit-funded balance sheets — DDM / Justified P/B is the correct
+            # methodology (pending Phase 2 implementation).
+            # F-M: Also resets neg_earnings_regime / evs_regime to False so that bank
+            # "negative FCF" (loan origination and deposit accounting noise) does not
+            # mistakenly trigger the EVS fallback path — that path is for pre-profit
+            # secular-growth companies, not solvent deposit-funded institutions.
+            _bank_disabled_reason = None
+            if _is_bank_dcf:
+                _bank_disabled_reason = (
+                    "Bank-charter institution — Gordon Growth and EV/EBITDA Exit Multiple "
+                    "do not apply to deposit-funded balance sheets. "
+                    "DDM / Justified P/B methodology pending."
+                )
+                _gg_final           = None
+                _em_final           = None
+                _gg_upside_final    = None
+                _em_upside_final    = None
+                _gg_disabled_reason = _bank_disabled_reason
+                # F-M: bank FCF/EBIT accounting noise must not trigger EVS regime
+                _neg_earnings_regime = False
+                _evs_regime          = False
+                _evs_price           = None
+                _evs_implied_cagr    = None
+                _evs_required_rev    = None
+                _evs_mature_mult     = None
+                _evs_subtype         = None
+                _evs_yr5_rev_b       = None
+
             dcf_prices = {
-                "gg_price":      None if _neg_earnings_regime else round(_ip_gg_usd, 2),
-                "gg_bear_price": None if _neg_earnings_regime else _gg_px_at(_DCF_TGR_BEAR, wacc_s=_wacc_bear),
-                "gg_bull_price": None if _neg_earnings_regime else _gg_px_at(_DCF_TGR_BULL, wacc_s=_wacc_bull),
+                "gg_price":      _gg_final,
+                "gg_bear_price": None if (_neg_earnings_regime or _foreign_reporter_unsupported) else _gg_px_at(_DCF_TGR_BEAR, wacc_s=_wacc_bear),
+                "gg_bull_price": None if (_neg_earnings_regime or _foreign_reporter_unsupported) else _gg_px_at(_DCF_TGR_BULL, wacc_s=_wacc_bull),
                 "gg_disabled_reason": _gg_disabled_reason,
                 "wacc_bear":     _wacc_bear,
                 "wacc_bull":     _wacc_bull,
-                "em_price":      round(_ip_em_usd, 2),
-                "em_bear_price": _em_px_at(_tev_bear),
-                "em_bull_price": _em_px_at(_tev_bull),
+                "em_price":      _em_final,
+                "em_bear_price": None if _foreign_reporter_unsupported else _em_px_at(_tev_bear),
+                "em_bull_price": None if _foreign_reporter_unsupported else _em_px_at(_tev_bull),
                 "em_base_mult":  _tev,
                 "em_bear_mult":  _tev_bear,
                 "em_bull_mult":  _tev_bull,
@@ -3125,9 +3381,25 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 "evs_mature_mult":   _evs_mature_mult,
                 "evs_subtype":       _evs_subtype,
                 "evs_yr5_rev_b":     _evs_yr5_rev_b,
-                "gg_upside":  None if _neg_earnings_regime else (round(_ip_gg_usd / price - 1, 4) if price else None),
-                "em_upside":  round(_ip_em_usd / price - 1, 4) if price else None,
+                "gg_upside":  _gg_upside_final,
+                "em_upside":  _em_upside_final,
                 "evs_upside": round(_evs_price / price - 1, 4) if (_evs_price and price) else None,
+                # D-001 + F-P + F-N transparency fields
+                "wacc_raw":         (wacc_refs or {}).get("wacc_raw"),
+                "wacc_floored":     (wacc_refs or {}).get("wacc_floored", False),
+                "foreign_reporter": _foreign_reporter_unsupported,
+                "reported_currency": _ccy_dcf,
+                # F-D Phase 1: bank-disabled flag — bridges reads this to show
+                # "N/A — Bank methodology pending" instead of "N/A — Insufficient inputs"
+                "bank_disabled":        _is_bank_dcf,
+                "bank_disabled_reason": _bank_disabled_reason,
+                # F-C: quality premium and thin-margin flag for report_bridge
+                "quality_em_premium":   _quality_em_premium,
+                "fcf_margin_trailing":  _fcf_margin_trailing,
+                # F-C Phase 2: historical EV/EBITDA anchor metadata for cap banner
+                "em_anchored":          _em_anchored and not _evs_regime,
+                "em_hist_anchor_raw":   _em_hist_anchor_raw if (_em_anchored and not _evs_regime) else None,
+                "em_hist_anchor_capped": _em_hist_anchor_capped if (_em_anchored and not _evs_regime) else None,
             }
     except Exception:
         pass  # never break model generation
@@ -3199,6 +3471,11 @@ def _secular_growth_subtype(ticker):
         "FSR","PTRA","WKHS","RUN","NOVA",
     }:
         return "secular_growth_resources"
+    # F-O: Social media / ad-tech platforms — revenue-generating but pre-profitability.
+    # SNAP, PINS, RDDT are ad-driven networks, not deep-tech; tech_growth (4.5×) is
+    # more conservative than secular_growth_software (6×) for this stage.
+    if t in {"SNAP", "PINS", "RDDT", "BMBL", "MTCH"}:
+        return "tech_growth"
     # Default for other pre-profit companies
     return "secular_growth_deeptech"
 
@@ -3554,9 +3831,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     sector_pfcf_med  = None
 
     try:
-        rat_url = (f"https://financialmodelingprep.com/stable/ratios"
-                   f"?symbol={ticker}&limit=5&apikey={API_KEY}")
-        rat_data = requests.get(rat_url, timeout=10).json()
+        rat_data = _fetch_ratios(ticker, limit=5)   # cached — shared with build_dcf()
         if isinstance(rat_data, list) and rat_data:
             pe_vals   = [r["priceToEarningsRatio"]    for r in rat_data
                          if r.get("priceToEarningsRatio")    and r["priceToEarningsRatio"]    > 0]
@@ -4879,6 +5154,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _auto_criteria = [c for c in _auto_criteria if c[2] > 0]
     _active_weight = sum(w for _, _, w in _auto_criteria)   # total achievable weight (regime-adjusted)
     _scored = [(t, s, w) for t, s, w in _auto_criteria if t is not None and s is not None]
+    _fg_valuation_gap = False  # initialise so it's always defined (used in conf_note below)
     if _scored:
         # Sum weighted scores. With SCORE_CAP=10, the maximum _raw_sum equals
         # the sum of all active weights (87.5 for a full non-bank scorecard).
@@ -4890,7 +5166,21 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         # Sparse-data guardrail: if fewer than 50% of active criteria scored,
         # don't amplify — the surviving signals aren't representative enough
         # to extrapolate. Flag via low_data_confidence so callers can warn.
-        _low_data_confidence = (_scored_weight < 0.5 * _active_weight) if _active_weight else True
+        #
+        # F-G: Additional guard — when both P/E AND P/FCF tiers are None on a
+        # standard (non-bank, non-EVS) company, suppress the rescale entirely.
+        # This combination represents a data-fetch gap (FMP ratios API failed),
+        # not a structural regime exclusion. Extrapolating 9 surviving criteria
+        # to 100% coverage inflates the score by ~30% with no justification.
+        # Flag LOW confidence so the report shows the data-gap caveat.
+        _fg_valuation_gap = (
+            tier_pe is None and tier_pfcf is None
+            and not is_bank and not evs_regime
+        )
+        _low_data_confidence = (
+            _fg_valuation_gap
+            or ((_scored_weight < 0.5 * _active_weight) if _active_weight else True)
+        )
         if (_scored_weight > 0 and _scored_weight < _active_weight
                 and not _low_data_confidence):
             _raw_sum = _raw_sum * (_active_weight / _scored_weight)
@@ -4914,7 +5204,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     )
     if _low_data_confidence:
         _conf_level = "LOW"
-        _conf_note  = "fewer than 50% of scorecard criteria scored"
+        # F-G: distinguish data-fetch gap from genuine sparse-criteria case
+        if _fg_valuation_gap:
+            _conf_note = ("P/E and P/FCF data unavailable — FMP ratios fetch failed; "
+                          "valuation criteria excluded, rescale suppressed")
+        else:
+            _conf_note = "fewer than 50% of scorecard criteria scored"
     elif _n_fcf_years < 3:
         _conf_level = "LOW"
         _conf_note  = f"only {_n_fcf_years} year(s) of FCF history"

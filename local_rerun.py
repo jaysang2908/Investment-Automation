@@ -129,11 +129,19 @@ def main():
     old_rows  = _read_csv()
     all_tickers = sorted(old_rows.keys()) if old_rows else []
 
-    REMAINING = {"WMT", "TSM", "SOFI", "TGT", "SNAP"}
-    tickers = [t for t in all_tickers if t in REMAINING]
+    # CLI usage: python local_rerun.py [TICKER1 TICKER2 ...]
+    # With no args, runs ALL tickers in outputs.csv.
+    cli_args = [t.strip().upper() for t in sys.argv[1:] if t.strip()]
+    if cli_args:
+        tickers = [t for t in cli_args if t in old_rows]
+        unknown = [t for t in cli_args if t not in old_rows]
+        if unknown:
+            print(f"Warning: tickers not in outputs.csv (skipped): {', '.join(unknown)}")
+    else:
+        tickers = all_tickers
 
     if not tickers:
-        print("outputs.csv is empty or missing — nothing to re-run.")
+        print("No tickers to run — either outputs.csv is empty or no matching tickers found.")
         return
 
     print(f"Re-running {len(tickers)} tickers: {', '.join(tickers)}")

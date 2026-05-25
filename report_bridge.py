@@ -716,6 +716,30 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     today = datetime.date.today().strftime("%B %Y")
     dcf_prices = dcf_prices or {}
 
+    # F-S: Stale-data assertion. If the engine ran on an older schema, dcf_prices
+    # will be missing core keys we now depend on. Mark report as "data refresh needed"
+    # so partial/stale state doesn't render silently as a complete report.
+    _CORE_DCF_KEYS = {"growth_tier", "tgr_base", "em_base_mult", "neg_earnings_regime"}
+    _stale_dcf_data = bool(dcf_prices) and not _CORE_DCF_KEYS.issubset(dcf_prices.keys())
+
+    # F-N: MktCap ≈ Price × Shares triangulation. Defensive guard against FMP
+    # returning mismatched snapshots (e.g. mid-stock-split timing). Soft warning,
+    # not a publish-block — NFLX false-alarm taught us legitimate splits exist.
+    _mktcap_mismatch = False
+    _mktcap_implied_shares = None
+    try:
+        _cp_chk = float(current_price or profile.get("price") or 0)
+        _mc_chk = float(market_cap or profile.get("mktCap") or 0)
+        _sh_chk = float(profile.get("sharesOutstanding") or
+                        (is_data[-1].get("weightedAverageShsOutDil") if is_data else 0) or 0)
+        if _cp_chk > 0 and _mc_chk > 0 and _sh_chk > 0:
+            _implied_mc = _cp_chk * _sh_chk
+            if abs(_implied_mc - _mc_chk) / _mc_chk > 0.10:
+                _mktcap_mismatch = True
+                _mktcap_implied_shares = _mc_chk / _cp_chk
+    except Exception:
+        pass
+
     # ── Company info ──────────────────────────────────────────────────────────
     company_name = profile.get("companyName") or ticker
     exchange     = profile.get("exchangeShortName") or ""
@@ -944,7 +968,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"bear {_rm_bear:.1f}x, base {_rm_base:.1f}x, bull {_rm_bull:.1f}x EV/Revenue. "
             f"Current market-implied EV/Revenue: {_ev_rev_obs:.1f}x."
         )
-        price_target = base_px or current_price
+        # F-B: never fall back to current_price as the target. None signals "N/A".
+        price_target = base_px or None
 
     # ── WACC components (approximate from available data) ──────────────────────
     RF_APPROX  = 0.043   # 10yr Treasury approx
@@ -985,6 +1010,25 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     _evs_req_rev = dcf_prices.get("evs_required_rev")  # $B
     _evs_yr5_rev = dcf_prices.get("evs_yr5_rev_b")     # $B
 
+    # F-D Phase 1: bank_disabled flag. Bank-charter institutions have both GG/EM
+    # forced to None by the engine. Show a bank-specific message instead of the
+    # generic "N/A — Insufficient inputs" so the user understands it's intentional.
+    _bank_disabled = bool(dcf_prices.get("bank_disabled", False))
+
+    # F-F: Valuation concordance check — fires before banners and verdict so both can use it.
+    # When GG and EM both agree on direction with >25% signal, record concordance.
+    # EVS-regime and bank-disabled companies: single method → no concordance possible.
+    _gg_up_con = dcf_prices.get("gg_upside")
+    _em_up_con = dcf_prices.get("em_upside")
+    _CONCORDANCE_THR = 0.25
+    _valuation_concordance = None
+    if (not _evs_regime and not _bank_disabled
+            and _gg_up_con is not None and _em_up_con is not None):
+        if _gg_up_con < -_CONCORDANCE_THR and _em_up_con < -_CONCORDANCE_THR:
+            _valuation_concordance = "expensive"
+        elif _gg_up_con > _CONCORDANCE_THR and _em_up_con > _CONCORDANCE_THR:
+            _valuation_concordance = "cheap"
+
     _gb = _growth_base or 0
     if _evs_regime:
         _primary_pt  = evs_px or em_px   # EV/Sales preferred; EM as last fallback
@@ -1005,17 +1049,67 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _em_base_m   = dcf_prices.get("em_base_mult", _DCF_TEV_BASE if '_DCF_TEV_BASE' in dir() else 15.0)
         _primary_method = f"EV/EBITDA Exit ({dcf_prices.get('em_base_mult', 15):.0f}x)"
 
-    # Fall back to whichever method has data; last resort = composite avg
-    if not _primary_pt:
-        _fallback_pt = gg_px or em_px
-        _primary_pt  = _fallback_pt
-        _primary_method = "Gordon Growth" if gg_px else "EV/EBITDA Exit"
-    if not _primary_pt:
-        pt_vals = [p for p in [gg_px, em_px] if p]
-        _primary_pt = round(sum(pt_vals) / len(pt_vals), 0) if pt_vals else current_price
-        _primary_method = "Composite avg"
+    # F-D Phase 1: Bank override — show a bank-specific label before falling into
+    # the generic "N/A — Insufficient inputs" path. The engine already set all
+    # GG/EM prices to None; this just gives the right explanation.
+    if _bank_disabled:
+        _primary_pt     = None
+        _primary_method = "N/A — Bank methodology pending (DDM / Justified P/B)"
 
-    price_target = round(_primary_pt, 0) if _primary_pt else current_price
+    # F-C: Thin-margin primary override — make EM primary when FCF/Revenue < 5%
+    # AND sector is stable_compounder. Gordon Growth perpetuates structural thin
+    # product margins (warehouse retailers, bulk distributors) as if they were a
+    # sign of low intrinsic value. In these business models the moat is expressed
+    # through membership/brand loyalty and scale economics — not FCF margin. GG
+    # systematically understates fair value; EM on analyst-estimated terminal EBITDA
+    # is the more reliable anchor. GG is preserved and shown as a secondary reference.
+    _fcf_margin_trail = dcf_prices.get("fcf_margin_trailing", None)
+    # Fallback: compute inline from trailing_fcf_b and is_data revenue if not stored
+    if _fcf_margin_trail is None and is_data and dcf_prices.get("trailing_fcf_b") is not None:
+        _trail_rev_b = (is_data[-1].get("revenue") or 0) / 1e9
+        _tfcf_b_cpt  = dcf_prices.get("trailing_fcf_b", 0)
+        if _trail_rev_b > 0.01:
+            _fcf_margin_trail = round(_tfcf_b_cpt / _trail_rev_b, 4)
+
+    _thin_margin_override = (
+        _fcf_margin_trail is not None
+        and _fcf_margin_trail < 0.05
+        and scorecard_metrics.get("sector_bucket") == "stable_compounder"
+        and not _bank_disabled
+        and not _evs_regime
+        and not _neg_earnings_regime
+        and em_px is not None
+    )
+    if _thin_margin_override:
+        _em_base_m_fc = dcf_prices.get("em_base_mult", 15)
+        _primary_pt     = em_px
+        _primary_method = (
+            f"EV/EBITDA Exit ({_em_base_m_fc:.0f}x)  "
+            f"[GG secondary — thin FCF margin {_fcf_margin_trail*100:.1f}%]"
+        )
+
+    # F-H: Honest method label. If the tier-based primary is unavailable but the
+    # other method is, fall through and label that clearly. No more silent
+    # "Composite avg" when only one method computed.
+    if not _primary_pt:
+        if gg_px and em_px:
+            _primary_pt = round((gg_px + em_px) / 2, 0)
+            _primary_method = "Composite (GG + EM avg)"
+        elif gg_px:
+            _primary_pt = gg_px
+            _primary_method = "Gordon Growth (primary — EM unavailable)"
+        elif em_px:
+            _primary_pt = em_px
+            _primary_method = "EV/EBITDA Exit (primary — GG unavailable)"
+        else:
+            _primary_pt = None
+            if not _bank_disabled:
+                _primary_method = "N/A — Insufficient inputs"
+
+    # F-B: Replace silent fallback to current_price with explicit None.
+    # Rule 5: never show a stale or fabricated valuation number. Downstream
+    # template variables must render "N/A" when price_target is None.
+    price_target = round(_primary_pt, 0) if _primary_pt else None
 
     # Three-line rationale shown under the price target at the top of the report
     _gb_pct = f"{_gb*100:.1f}%"
@@ -1066,6 +1160,17 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"Gordon Growth prioritised — terminal value approach suits mature, "
             f"stable-cash-flow businesses. TGR {tgr_base*100:.1f}% / WACC {wacc_b*100:.1f}%."
         )
+    elif _thin_margin_override:
+        _em_base_m_r = dcf_prices.get("em_base_mult", 15)
+        _qprem = "Quality-adjusted (+5x ROIC premium). " if dcf_prices.get("quality_em_premium") else ""
+        _pt_rationale = (
+            f"{_tier_label} ({_gb_pct} 3yr avg rev growth). "
+            f"EV/EBITDA Exit prioritised — trailing FCF/Revenue {_fcf_margin_trail*100:.1f}% is structurally "
+            f"thin (warehouse-retail / logistics model); GG perpetuates thin margins into perpetuity "
+            f"and systematically understates fair value for this business model. "
+            f"{_qprem}Base exit multiple {_em_base_m_r:.0f}x / WACC {wacc_b*100:.1f}%. "
+            f"GG ${gg_px:.0f} shown as secondary reference."
+        )
     elif _tier == "medium" and _gb < 0.10:
         _pt_rationale = (
             f"{_tier_label} ({_gb_pct} 3yr avg rev growth). "
@@ -1086,6 +1191,35 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             f"EV/EBITDA multiples prioritised — high-growth companies are better valued on "
             f"forward earnings power and peer multiples. Base {_em_m:.0f}x exit multiple."
         )
+
+    # F-B: override the rationale when no method produced a valid price.
+    # Surfaces the actual reason (foreign reporter, bank, negative DCF outputs, etc.)
+    # rather than leaving stale tier-branch rationale text.
+    if price_target is None:
+        if _bank_disabled:
+            _pt_rationale = (
+                "Bank-charter institution — Gordon Growth (FCF perpetuity) and "
+                "EV/EBITDA Exit Multiple do not apply to deposit-funded balance sheets. "
+                "The correct methodology is DDM (Dividend Discount Model) or "
+                "Justified P/B (price-to-tangible-book vs ROE − g). "
+                "Pending Phase 2 implementation. Scorecard quality metrics remain valid."
+            )
+        elif dcf_prices.get("foreign_reporter"):
+            _pt_rationale = (
+                f"Financials reported in {dcf_prices.get('reported_currency','non-USD')} "
+                f"but FX conversion to USD was unavailable. Valuation suppressed to avoid "
+                f"unit mismatch. Enter currency and multiples manually at /dcf to compute."
+            )
+        elif gg_px is None and em_px is None:
+            _pt_rationale = (
+                "Neither Gordon Growth nor EV/EBITDA Exit produced a publishable price target. "
+                "Most likely causes: capital structure that defeats the DCF framework "
+                "(banks: deposits in net-debt; captive finance: debt > equity), "
+                "negative trailing cash flow without EV/Sales fallback, or missing inputs. "
+                "Review the Scorecard and Valuation tabs for partial signals."
+            )
+        else:
+            _pt_rationale = "Price target unavailable — see Valuation tab for raw multiples."
 
     # ── Narrative-gap banner ─────────────────────────────────────────────────
     # Flag when the fundamentals-derived target diverges materially (>40%) from
@@ -1148,6 +1282,97 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                 f'{_evs_reverse_line}'
                 f'</div>'
             )
+
+    # F-S: Stale-data banner. Prepended so it sits above any other valuation note.
+    if _stale_dcf_data:
+        _stale_banner = (
+            '<div style="margin:14px 0 8px;padding:12px 18px;'
+            'background:#fce4e4;border-left:3px solid #c62828;'
+            'border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#7a1414">'
+            '<strong style="font-family:var(--font-mono);letter-spacing:0.5px;'
+            'font-size:10px;text-transform:uppercase">⚠ Data refresh required</strong><br>'
+            'Cached engine output is missing core DCF keys (likely from an older schema). '
+            'Run <code>python local_rerun.py ' + ticker + '</code> to regenerate this report '
+            'against the current engine before relying on these figures.'
+            '</div>'
+        )
+        _narrative_banner_html = _stale_banner + _narrative_banner_html
+
+    # F-N: MktCap ≈ Price × Shares triangulation banner (soft warning only).
+    if _mktcap_mismatch and _mktcap_implied_shares:
+        _mc_banner = (
+            '<div style="margin:8px 0 14px;padding:10px 16px;'
+            'background:#fff8e1;border-left:3px solid #b45309;'
+            'border-radius:0 6px 6px 0;font-size:11.5px;line-height:1.5;color:#6b3a06">'
+            '<strong style="font-family:var(--font-mono);letter-spacing:0.5px;'
+            'font-size:10px;text-transform:uppercase">ℹ Capital structure inputs need a check</strong><br>'
+            f'Provider returned MktCap ${market_cap/1e9:.1f}B but Price ${current_price:.2f} × Shares '
+            f'{(profile.get("sharesOutstanding") or 0)/1e9:.2f}B does not reconcile (implied shares would be '
+            f'{_mktcap_implied_shares/1e9:.2f}B). Could be a legitimate stock split with FMP returning '
+            'mismatched snapshots — verify before acting on the valuation.'
+            '</div>'
+        )
+        _narrative_banner_html = _mc_banner + _narrative_banner_html
+
+    # F-F: Valuation concordance banner — shown when both GG and EM agree >25%.
+    # Sits at the top of the valuation section so it's the first thing read.
+    if _valuation_concordance:
+        _gg_pct_str = f"{_gg_up_con*100:+.0f}%" if _gg_up_con is not None else "N/A"
+        _em_pct_str = f"{_em_up_con*100:+.0f}%" if _em_up_con is not None else "N/A"
+        if _valuation_concordance == "expensive":
+            _conc_bg    = "#fce4e4"
+            _conc_bdr   = "#c62828"
+            _conc_txt   = "#7a1414"
+            _conc_head  = "⬇ Method Concordance — Both Models Signal Overvaluation"
+            _conc_body  = (
+                f"Gordon Growth ({_gg_pct_str}) and EV/EBITDA Exit ({_em_pct_str}) both signal "
+                f">25% downside at current price. Quality metrics remain strong — this is a "
+                f"price entry issue, not a business quality issue. "
+                f"Verdict constrained to 'Hold' until price aligns with fundamentals."
+            )
+        else:  # "cheap"
+            _conc_bg    = "#e8f5e9"
+            _conc_bdr   = "#2e7d32"
+            _conc_txt   = "#1b5e20"
+            _conc_head  = "⬆ Method Concordance — Both Models Signal Undervaluation"
+            _conc_body  = (
+                f"Gordon Growth ({_gg_pct_str}) and EV/EBITDA Exit ({_em_pct_str}) both signal "
+                f">25% upside. Entry point looks favourable relative to fundamentals — "
+                f"verdict floors at 'Good Business at Fair Price'."
+            )
+        _conc_banner = (
+            f'<div style="margin:14px 0 8px;padding:12px 18px;'
+            f'background:{_conc_bg};border-left:3px solid {_conc_bdr};'
+            f'border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:{_conc_txt}">'
+            f'<strong style="font-family:var(--font-mono);letter-spacing:0.5px;'
+            f'font-size:10px;text-transform:uppercase">{_conc_head}</strong><br>'
+            f'{_conc_body}'
+            f'</div>'
+        )
+        _narrative_banner_html = _conc_banner + _narrative_banner_html
+
+    # F-C Phase 2: EM cap banner — shown when historical anchor was capped at 28x
+    # Amber/warning tone: the model is being conservative here and the user should
+    # know exactly where that conservatism is applied and how to override it.
+    if dcf_prices.get("em_hist_anchor_capped") and not _evs_regime and not _bank_disabled:
+        _raw_hist_mult = dcf_prices.get("em_hist_anchor_raw") or 0
+        _cap_banner_html = (
+            f'<div style="margin:8px 0 8px;padding:12px 18px;'
+            f'background:#fff8e1;border-left:3px solid #b45309;'
+            f'border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#78350f">'
+            f'<strong style="font-family:var(--font-mono);letter-spacing:0.5px;'
+            f'font-size:10px;text-transform:uppercase">'
+            f'&#9888; Exit Multiple Capped at 28&#215; '
+            f'(5yr historical avg: {_raw_hist_mult:.1f}&#215;)</strong><br>'
+            f'The model applies a 28&#215; ceiling on EV/EBITDA anchored exit multiples '
+            f'to prevent bubble-era reference periods from inflating terminal value. '
+            f'For businesses with a genuinely extraordinary competitive position where '
+            f'a higher terminal multiple is warranted, use the '
+            f'<a href="/dcf" style="color:#92400e;font-weight:600">DCF Calculator</a> '
+            f'to model it explicitly.'
+            f'</div>'
+        )
+        _narrative_banner_html = _cap_banner_html + _narrative_banner_html
 
     # ── Score confidence banner ───────────────────────────────────────────────
     _conf_styles = {
@@ -1634,6 +1859,26 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     _full_score    = round(adj_score, 1) if (adj_score and _qual_entered) else None
     _verdict_text  = _conservative_verdict(_quant_score, _full_score)
 
+    # F-K: Enforce verdict text ceiling/floor based on valuation concordance (D-002 design).
+    # Quality SCORE is unchanged — only the text verdict label is constrained.
+    # "expensive": both methods >25% bearish → max verdict is "Hold — Premium Quality, Expensive"
+    # "cheap":     both methods >25% bullish → min verdict is "Good Business at Fair Price"
+    # This prevents COST-style situations where a quality-8+ score shows "High Conviction Buy"
+    # while both DCF methods are -50%+. The number stays 7.9; the entry-point label is honest.
+    _VERDICT_RANK_FK = {
+        "High Conviction Buy": 4, "Good Business at Fair Price": 3,
+        "Hold — Monitor": 2, "Hold — Premium Quality, Expensive": 2,
+        "Avoid": 1, "Analysis Pending": 0,
+    }
+    if _valuation_concordance == "expensive":
+        _curr_rank = _VERDICT_RANK_FK.get(_verdict_text, 0)
+        if _curr_rank > 2:   # "Good Business at Fair Price" or "High Conviction Buy"
+            _verdict_text = "Hold — Premium Quality, Expensive"
+    elif _valuation_concordance == "cheap":
+        _curr_rank = _VERDICT_RANK_FK.get(_verdict_text, 0)
+        if _curr_rank < 3:   # "Avoid" or "Hold — Monitor"
+            _verdict_text = "Good Business at Fair Price"
+
     # The headline FINAL_SCORE shown in big numbers on the hero stays as the
     # full score when available, else quant — but the verdict is independent
     # and always uses the conservative rule above.
@@ -1755,10 +2000,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "DESCRIPTION_LINE": industry,
         "VERDICT_TEXT":     _verdict_text,
         "CURRENT_PRICE":    current_price,
-        "PRICE_TARGET":     price_target,
+        # F-B: render "N/A" cleanly when no method produced a number, rather than
+        # printing "None" or falling back to current price.
+        "PRICE_TARGET":     (price_target if price_target is not None else "N/A"),
         "PRICE_TARGET_VS_CURRENT": (
             f"{(price_target / current_price - 1) * 100:+.1f}% vs current"
-            if price_target and current_price and current_price > 0 else ""
+            if (price_target is not None and current_price and current_price > 0) else ""
         ),
         "PRICE_TARGET_METHOD": _primary_method,
         "PRICE_TARGET_RATIONALE": _pt_rationale,
@@ -2128,7 +2375,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         "WACC_EW":        f"{ew_v*100:.0f}%",
         "WACC_DW":        f"{dw_v*100:.0f}%",
         "WACC_NOTE":      (f"WACC = {ew_v*100:.0f}% equity × {ke_approx*100:.1f}% Ke + {dw_v*100:.0f}% debt × {max(0,kd_pre)*100:.1f}% Kd × (1 − {eff_tax0*100:.0f}% tax) = {wacc_b*100:.1f}%. "
-                           f"Beta {beta_v:.2f} (FMP 5yr), ERP {ERP_APPROX*100:.1f}% (Damodaran), Rf from FRED DGS10."),
+                           f"Beta {beta_v:.2f} (FMP 5yr), ERP {ERP_APPROX*100:.1f}% (Damodaran), Rf from FRED DGS10."
+                           + (f" Floored to 8.5% (raw was {dcf_prices.get('wacc_raw', wacc_b)*100:.2f}% — FMP regression beta likely understates equity risk; override interactively at /dcf if needed)."
+                              if dcf_prices.get('wacc_floored') else "")),
 
         # EV Bridge
         "DCF_PV_FCFS":   _b(pv_fcfs_approx) if pv_fcfs_approx else "—",
