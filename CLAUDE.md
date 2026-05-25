@@ -513,3 +513,25 @@ The banner is intentionally transparent: it shows the suppressed historical aver
 Tickers unchanged by anchor (floor or within 0.5×): JNJ, WMT, HCA, FDX, TGT (floor), META, NFLX (floor), V (quality-premium floor), COST (quality-premium close), CSCO (minor +1.4×).
 
 **When FMP API is available:** `local_rerun.py` automatically applies anchoring via the engine. Manual JSON patches above are temporary; re-run to confirm via engine when quota resets.
+
+## Rule 22: No Speculative Valuation Claims (S-001)
+
+**Before stating any current stock price, market cap, P/E, P/FCF, EPS, share count, or derived multiple in conversation, live data must be fetched from FMP.** Never use training-data prices, prior-session values, or "I recall/believe" phrasing for specific valuation numbers.
+
+**Why this matters — the NFLX split case (2026-05-25):**  
+NFLX executed a 10:1 forward split. The assistant recalled a pre-split price (~$880), halved it mentally to ~$308, and computed a P/E of 36× against split-adjusted EPS. The actual price was $88.60 and TTM P/E was 28× (Yahoo Finance) / 27.9× (FMP TTM calc). The error: mixing un-adjusted price memory with split-adjusted EPS from FMP — a silent 3× inflation of the multiple.
+
+**Engine-level guard (S-001):**  
+`build_dcf()` in `fmp_3statementv6.py` prints `[S-001 WARNING]` when `|shares_current − shares_prior_year| / shares_prior_year > 25%`. This catches cases where a split has occurred and FMP data may not yet be fully adjusted. Logged to stdout during report generation — does not block the DCF.
+
+**How to verify quickly in conversation:**
+```python
+import requests, os
+r = requests.get(
+    f"https://financialmodelingprep.com/stable/profile"
+    f"?symbol=TICKER&apikey={os.environ['FMP_API_KEY']}", timeout=8
+).json()
+print(r[0]["price"], r[0]["mktCap"], r[0]["sharesOutstanding"])
+```
+
+**Applies to:** every inline conversation claim about a specific ticker's current price or multiple. Does not apply to ranges or directional statements ("NFLX trades at a premium to the market" is fine; "NFLX P/E is 36×" requires live verification).

@@ -3009,6 +3009,29 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 
     shares = (bs0.get("commonStockSharesOutstanding") or
               is_data[-1].get("weightedAverageShsOutDil") or 0) / 1e6
+
+    # ── S-001: YoY share-count split detector ────────────────────────────────
+    # Catches stock splits/reverse-splits before they silently corrupt per-share
+    # multiples (P/E, P/FCF, EPS).  >25% YoY move is far outside normal buyback
+    # or issuance ranges — almost always signals a split adjustment issue.
+    _s001_prev = 0.0
+    if len(bs_data) >= 2:
+        _s001_prev = (bs_data[-2].get("commonStockSharesOutstanding") or 0) / 1e6
+    if _s001_prev == 0 and len(is_data) >= 2:
+        _s001_prev = (is_data[-2].get("weightedAverageShsOutDil") or 0) / 1e6
+    if shares > 0 and _s001_prev > 0:
+        _s001_chg = (shares - _s001_prev) / _s001_prev
+        if abs(_s001_chg) > 0.25:
+            _s001_dir = "increase" if _s001_chg > 0 else "decrease"
+            print(
+                f"[S-001 WARNING] {ticker}: shares changed {_s001_chg:+.1%} YoY "
+                f"({_s001_prev:.1f}mm → {shares:.1f}mm). "
+                f"Large {_s001_dir} — likely stock split/reverse-split. "
+                f"Verify FMP price & EPS split-adjustment before trusting any "
+                f"per-share multiples (P/E, P/FCF, EPS)."
+            )
+    # ─────────────────────────────────────────────────────────────────────────
+
     wcell(row, 1, "  Shares Outstanding — Diluted  (mm)", halign="left", indent=2)
     wcell(row, 2, round(shares, 1), color=C_GREEN, fmt=NUM)
     ws.cell(row=row, column=2).fill = fll(C_WHITE); ws.cell(row=row, column=2).border = brd()
