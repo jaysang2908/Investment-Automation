@@ -31,18 +31,6 @@ services:
         sync: false
 
   - type: cron
-    name: daily-congress
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    schedule: "0 4 * * *"
-    startCommand: python daily_congress.py
-    envVars:
-      - key: GITHUB_TOKEN
-        sync: false
-      - key: GITHUB_REPO
-        sync: false
-
-  - type: cron
     name: daily-long-term-bets
     runtime: python
     buildCommand: pip install -r requirements.txt

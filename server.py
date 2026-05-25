@@ -1417,57 +1417,6 @@ def api_earnings_upcoming():
     return jsonify(payload)
 
 
-@app.route("/api/congress")
-def api_congress():
-    """
-    Return congressional trade disclosures for covered tickers.
-    Optional query params:
-      ?ticker=AAPL   filter to one ticker
-      ?days=30       only trades within this many days (default 30, max 180)
-    """
-    ticker = request.args.get("ticker", "").upper().strip()
-    try:
-        days = min(int(request.args.get("days", 30)), 180)
-    except (ValueError, TypeError):
-        days = 30
-
-    path = os.path.join(os.path.dirname(__file__), "static", "data", "congress_cache.json")
-    if not os.path.exists(path):
-        return jsonify({"trades": [], "ticker_summary": {}, "generated": None})
-
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        return jsonify({"trades": [], "ticker_summary": {}, "generated": None})
-
-    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
-    trades = [t for t in (data.get("trades") or []) if (t.get("tx_date") or "") >= cutoff]
-
-    if ticker:
-        trades = [t for t in trades if t.get("ticker") == ticker]
-
-    # Recompute summary for the requested window
-    summary = {}
-    for t in trades:
-        sym = t["ticker"]
-        if sym not in summary:
-            summary[sym] = {"purchases": 0, "sales": 0, "last_date": ""}
-        if t["tx_type"] == "purchase":
-            summary[sym]["purchases"] += 1
-        elif t["tx_type"] == "sale":
-            summary[sym]["sales"] += 1
-        if t["tx_date"] > summary[sym]["last_date"]:
-            summary[sym]["last_date"] = t["tx_date"]
-
-    return jsonify({
-        "trades":         trades,
-        "ticker_summary": summary,
-        "generated":      data.get("generated"),
-        "days":           days,
-    })
-
-
 @app.route("/api/score-alerts")
 def api_score_alerts():
     path = os.path.join(os.path.dirname(__file__), "static", "data", "score_alerts.json")

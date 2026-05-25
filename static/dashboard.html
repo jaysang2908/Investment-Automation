@@ -157,14 +157,6 @@
     section.discovery .row-card .ticker .b { width: 36px; height: 36px; flex-basis: 36px; font-size: 8px; }
     /* In-place score update */
     .score-wrap { display: contents; }
-    /* Congressional activity badge */
-    .congress-badge {
-      display:inline-block; margin-left:6px;
-      background:color-mix(in oklab,#6366f1 14%,var(--surface));
-      color:#4f46e5; border:1px solid #6366f144; border-radius:4px;
-      font-size:10px; font-family:var(--font-mono); font-weight:600;
-      padding:1px 5px; letter-spacing:.4px; white-space:nowrap;
-    }
     /* Earnings badge */
     .earns-badge {
       display:inline-block; margin-left:6px;
@@ -317,16 +309,6 @@
           <span class="meta">vs. previous run · ≥0.5 pt move</span>
         </div>
         <div id="alerts-list" style="display:flex; flex-wrap:wrap; gap:8px; padding: 4px 0 16px;"></div>
-      </section>
-
-      <!-- CONGRESSIONAL ACTIVITY (hidden until data loads) -->
-      <section id="congress-section" style="display:none">
-        <div class="section-head">
-          <h3>Congressional Activity</h3>
-          <span class="ct" style="background:color-mix(in oklab,#6366f1 12%,var(--surface));color:#4f46e5;" id="congress-ct">—</span>
-          <span class="meta">Last 30 days · House &amp; Senate · STOCK Act disclosures</span>
-        </div>
-        <div id="congress-list" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 16px;"></div>
       </section>
 
       <!-- DISCOVERY SECTION (shown when data available) -->
@@ -570,7 +552,7 @@ function buildCard(c) {
       <div class="b">${c.t.slice(0,4)}</div>
       <div>
         <div class="n">${c.n}</div>
-        <div class="ex">${c.ex} : ${c.t}${c.date ? ' &nbsp;·&nbsp; <span title="Last run" style="color:var(--ink-4,var(--muted));font-style:normal">' + _fmtDate(c.date) + '</span>' : ''}${earnsBadge(c.t)}${congressBadge(c.t)}</div>
+        <div class="ex">${c.ex} : ${c.t}${c.date ? ' &nbsp;·&nbsp; <span title="Last run" style="color:var(--ink-4,var(--muted));font-style:normal">' + _fmtDate(c.date) + '</span>' : ''}${earnsBadge(c.t)}</div>
         ${c.price != null ? `<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3,var(--muted));margin-top:2px">$${c.price.toFixed(2)}${c.pt != null && c.pt > 0 ? ' &nbsp;·&nbsp; PT $' + c.pt.toFixed(0) : ''}</div>` : ''}
       </div>
     </div>
@@ -975,19 +957,14 @@ async function loadLive() {
 
 async function init() {
   try {
-    const [scoresResp, earningsResp, congressResp] = await Promise.all([
+    const [scoresResp, earningsResp] = await Promise.all([
       fetch('/api/scores'),
       fetch('/api/earnings-upcoming').catch(() => null),
-      fetch('/api/congress?days=30').catch(() => null),
     ]);
     const rows = await scoresResp.json();
     if (earningsResp) {
       const earningsData = await earningsResp.json().catch(() => ({}));
       (earningsData.earnings || []).forEach(e => { _earnings[e.ticker] = e; });
-    }
-    if (congressResp) {
-      const congressData = await congressResp.json().catch(() => ({}));
-      Object.entries(congressData.ticker_summary || {}).forEach(([t, s]) => { _congress[t] = s; });
     }
     D = rows.map(r => {
       const meta   = META_MAP[r.t] || {};
@@ -1040,27 +1017,10 @@ async function init() {
   loadDiscovery();
   loadLive();
   loadScoreAlerts();
-  loadCongressSection();
 }
 
 // ── Earnings map (ticker → {date, timing, eps_est, quarter}) ─────────────────
 let _earnings = {};   // populated in init() before first render
-
-// ── Congressional activity map (ticker → {purchases, sales, last_date}) ──────
-let _congress = {};   // populated in init() before first render
-
-function congressBadge(ticker) {
-  const c = _congress[ticker];
-  if (!c) return '';
-  const hasBuy  = c.purchases > 0;
-  const hasSell = c.sales > 0;
-  if (!hasBuy && !hasSell) return '';
-  const label = hasBuy && hasSell ? 'CONGRESS ↕'
-              : hasBuy            ? 'CONGRESS ↑'
-              :                     'CONGRESS ↓';
-  const tip = `Congressional activity (last 30 days): ${c.purchases} purchase${c.purchases !== 1 ? 's' : ''}, ${c.sales} sale${c.sales !== 1 ? 's' : ''}. Last: ${c.last_date}`;
-  return `<span class="congress-badge" title="${tip}">${label}</span>`;
-}
 
 function earnsBadge(ticker) {
   const e = _earnings[ticker];
@@ -1145,40 +1105,6 @@ async function rerunTicker(ticker, btn) {
     setTimeout(() => { btn.textContent = '↺ Re-run'; btn.classList.remove('err'); }, 4000);
     console.warn('Re-run failed:', e.message);
   }
-}
-
-async function loadCongressSection() {
-  try {
-    const data = await (await fetch('/api/congress?days=30')).json();
-    const trades = data.trades || [];
-    if (!trades.length) return;
-
-    document.getElementById('congress-section').style.display = '';
-    document.getElementById('congress-ct').textContent = trades.length;
-
-    const list = document.getElementById('congress-list');
-    list.innerHTML = trades.map(t => {
-      const buy  = t.tx_type === 'purchase';
-      const col  = buy ? '#16a34a' : '#dc2626';
-      const bg   = buy ? 'color-mix(in oklab,#22c55e 12%,var(--surface))'
-                       : 'color-mix(in oklab,#ef4444 12%,var(--surface))';
-      const arrow = buy ? '↑' : '↓';
-      const name  = t.name ? t.name.split(' ').pop() : t.chamber;  // surname only for space
-      const amt   = t.amount ? t.amount.replace('$', '$').replace(' - ', '–') : '';
-      return `<a href="/reports/${t.ticker}_report.html"
-                 style="display:inline-flex;align-items:center;gap:5px;
-                        padding:5px 10px;border-radius:6px;
-                        background:${bg};border:1px solid ${col}33;
-                        text-decoration:none;color:var(--ink);font-size:12px;"
-                 title="${t.name} · ${t.chamber} · ${t.tx_type} · ${t.amount} · ${t.tx_date}">
-               <strong style="font-family:var(--font-mono)">${t.ticker}</strong>
-               <span style="color:${col};font-weight:600">${arrow}</span>
-               <span style="color:var(--muted);font-size:11px">${name}</span>
-               ${amt ? `<span style="color:var(--muted);font-size:10px">${amt}</span>` : ''}
-               <span style="color:var(--muted);font-size:10px">${t.tx_date.slice(5)}</span>
-             </a>`;
-    }).join('');
-  } catch(e) {}
 }
 
 async function loadScoreAlerts() {
