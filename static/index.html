@@ -237,6 +237,34 @@
     .heatmap-modal p { font-size: var(--t-sm); color: var(--muted); line-height: 1.6; margin-bottom: var(--s-6); }
 
     /* Responsive */
+    /* Sydney clock — sits between Generate card and "How it works" */
+    .sydney-clock {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: var(--s-2);
+      margin: var(--s-4) 0 var(--s-2);
+      padding-right: var(--s-1);
+      font-family: var(--font-mono);
+      color: var(--muted);
+    }
+    .sydney-clock-label {
+      font-size: var(--t-micro);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-soft);
+    }
+    .sydney-clock-time {
+      font-size: var(--t-sm);
+      font-weight: var(--weight-semi);
+      color: var(--ink);
+      letter-spacing: 0.06em;
+    }
+    .sydney-clock-zone {
+      font-size: var(--t-micro);
+      color: var(--muted-soft);
+    }
+
     @media (max-width: 900px) {
       .gen-hero { grid-template-columns: 1fr; gap: var(--s-6); padding: var(--s-8) 0; }
       .gen-hero .display-title { font-size: 36px; }
@@ -375,6 +403,13 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- SYDNEY CLOCK -->
+        <div class="sydney-clock" aria-label="Current time in Sydney">
+          <span class="sydney-clock-label">Sydney</span>
+          <span class="sydney-clock-time" id="sydneyClock">--:--</span>
+          <span class="sydney-clock-zone" id="sydneyClockZone">AEST</span>
         </div>
 
         <!-- HOW IT WORKS -->

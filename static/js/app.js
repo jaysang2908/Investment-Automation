@@ -16,13 +16,23 @@
       });
     }
 
-    /* Live UTC clock */
+    /* Live Sydney clock — renders into #sydneyClock if present. */
+    const _sydTimeFmt = new Intl.DateTimeFormat('en-AU', {
+      timeZone: 'Australia/Sydney',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    });
+    const _sydZoneFmt = new Intl.DateTimeFormat('en-AU', {
+      timeZone: 'Australia/Sydney', timeZoneName: 'short'
+    });
     function tick() {
       const d = new Date();
-      const h = String(d.getUTCHours()).padStart(2, '0');
-      const m = String(d.getUTCMinutes()).padStart(2, '0');
-      const el = document.getElementById('navTime');
-      if (el) el.textContent = h + ':' + m + ' UTC';
+      const t = _sydTimeFmt.format(d);
+      const zoneParts = _sydZoneFmt.formatToParts(d);
+      const zone = (zoneParts.find(p => p.type === 'timeZoneName') || {}).value || 'AEST';
+      const tEl = document.getElementById('sydneyClock');
+      const zEl = document.getElementById('sydneyClockZone');
+      if (tEl) tEl.textContent = t;
+      if (zEl) zEl.textContent = zone;
     }
     tick();
     setInterval(tick, 30000);

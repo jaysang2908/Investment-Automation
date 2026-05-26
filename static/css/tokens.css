@@ -4,8 +4,8 @@
    ============================================================ */
 
 :root {
-  --maxw: 1280px;
-  --gutter: 32px;
+  --maxw: 1600px;
+  --gutter: 12px;
 
   /* Page background */
   --bg: #ece7df;
