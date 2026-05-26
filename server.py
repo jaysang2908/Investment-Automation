@@ -13,9 +13,11 @@ Endpoints:
 import io
 import json
 import os
+import sys
 import uuid
 import builtins
 import datetime
+import threading
 import traceback
 
 from flask import Flask, request, jsonify, Response, send_file, render_template
@@ -43,25 +45,63 @@ GITHUB_REPO    = os.environ.get("GITHUB_REPO", "jaysang2908/Investment-Automatio
 GITHUB_BRANCH  = os.environ.get("GITHUB_BRANCH", "main")
 
 
-def _push_file_to_github(local_path: str, repo_path: str, commit_msg: str) -> None:
-    """Push any local file to GitHub so it survives Render redeploys."""
+def _github_put_sync(repo_path: str, content_bytes: bytes, commit_msg: str) -> None:
+    """Blocking GitHub push with strict (connect, read) timeouts. Swallows all errors.
+
+    Designed to run inside a daemon thread so a slow GitHub API never holds up
+    the HTTP response. timeout=(5,10) means: 5s to establish a TCP connection,
+    10s of inactivity on a single recv()/send() before raising.
+    """
     if not GITHUB_TOKEN:
         return
     try:
         import base64 as _b64
-        with open(local_path, "rb") as _f:
-            content_b64 = _b64.b64encode(_f.read()).decode()
         gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_path}"
         gh_hdr = {"Authorization": f"token {GITHUB_TOKEN}",
                   "Accept": "application/vnd.github.v3+json"}
-        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
+        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=(5, 10))
         sha = r.json().get("sha") if r.status_code == 200 else None
-        payload = {"message": commit_msg, "branch": GITHUB_BRANCH, "content": content_b64}
+        payload = {"message": commit_msg, "branch": GITHUB_BRANCH,
+                   "content": _b64.b64encode(content_bytes).decode()}
         if sha:
             payload["sha"] = sha
-        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=15)
+        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=(5, 10))
     except Exception as _e:
         print(f"[github] push failed for {repo_path}: {_e}", file=sys.stderr)
+
+
+def _github_put_async(repo_path: str, content_bytes: bytes, commit_msg: str) -> None:
+    """Fire-and-forget GitHub push — returns immediately.
+
+    The /generate response must NEVER be held up by a slow or unreachable
+    GitHub API. The report is already on disk; the GitHub push only matters
+    for surviving Render redeploys, which can wait.
+    """
+    if not GITHUB_TOKEN:
+        return
+    threading.Thread(
+        target=_github_put_sync,
+        args=(repo_path, content_bytes, commit_msg),
+        daemon=True,
+        name=f"gh-push-{repo_path}",
+    ).start()
+
+
+def _push_file_to_github(local_path: str, repo_path: str, commit_msg: str) -> None:
+    """Push any local file to GitHub so it survives Render redeploys.
+
+    Non-blocking: spawns a daemon thread for the HTTP call so /generate
+    can return immediately after the report is built.
+    """
+    if not GITHUB_TOKEN:
+        return
+    try:
+        with open(local_path, "rb") as _f:
+            content_bytes = _f.read()
+    except Exception as _e:
+        print(f"[github] push failed for {repo_path}: {_e}", file=sys.stderr)
+        return
+    _github_put_async(repo_path, content_bytes, commit_msg)
 
 
 # ── Initialise scenario database ─────────────────────────────────────────────
@@ -175,30 +215,9 @@ def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
         print(f"[outputs.csv] local write error: {e}", file=sys.stderr)
         return
 
-    # ── Optional GitHub push (persists across Render redeploys) ──────────────
-    if not GITHUB_TOKEN:
-        return
-    try:
-        import base64 as _b64
-        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/outputs.csv"
-        gh_hdr = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept":        "application/vnd.github.v3+json",
-        }
-        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
-        sha = r.json().get("sha") if r.status_code == 200 else None
-
-        payload = {
-            "message": f"scorecard: update {ticker}",
-            "branch":  GITHUB_BRANCH,
-            "content": _b64.b64encode(updated_csv.encode()).decode(),
-        }
-        if sha:
-            payload["sha"] = sha
-        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=12)
-    except Exception as e:
-        import sys
-        print(f"[outputs.csv] GitHub push error: {e}", file=sys.stderr)
+    # ── Non-blocking GitHub push (persists across Render redeploys) ──────────
+    _github_put_async("outputs.csv", updated_csv.encode(),
+                      f"scorecard: update {ticker}")
 
 def _verdict_label(total_score):
     try:
@@ -240,30 +259,15 @@ def _append_score_history(ticker, auto_score_raw, adj_score_raw):
         print(f"[score_history] local write error: {e}", file=sys.stderr)
         return
 
-    # ── GitHub push (persists across Render redeploys) ────────────────────────
-    if not GITHUB_TOKEN:
-        return
+    # ── Non-blocking GitHub push (persists across Render redeploys) ──────────
     try:
         with open(_HISTORY_PATH, "r", encoding="utf-8") as f:
             content = f.read()
-        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/score_history.csv"
-        gh_hdr = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept":        "application/vnd.github.v3+json",
-        }
-        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
-        sha = r.json().get("sha") if r.status_code == 200 else None
-        payload = {
-            "message": f"history: {ticker} score snapshot",
-            "branch":  GITHUB_BRANCH,
-            "content": _b64.b64encode(content.encode()).decode(),
-        }
-        if sha:
-            payload["sha"] = sha
-        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=12)
     except Exception as e:
-        import sys
-        print(f"[score_history] GitHub push error: {e}", file=sys.stderr)
+        print(f"[score_history] local read error: {e}", file=sys.stderr)
+        return
+    _github_put_async("score_history.csv", content.encode(),
+                      f"history: {ticker} score snapshot")
 
 
 def _append_price_history(ticker, price, gg_price, em_price):
@@ -303,29 +307,14 @@ def _append_price_history(ticker, price, gg_price, em_price):
         print(f"[price_history] local write error: {e}", file=sys.stderr)
         return
 
-    if not GITHUB_TOKEN:
-        return
     try:
         with open(_PRICE_HIST_PATH, "r", encoding="utf-8") as f:
             content = f.read()
-        gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/price_history.csv"
-        gh_hdr = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept":        "application/vnd.github.v3+json",
-        }
-        r = _req.get(gh_api, headers=gh_hdr, params={"ref": GITHUB_BRANCH}, timeout=8)
-        sha = r.json().get("sha") if r.status_code == 200 else None
-        payload = {
-            "message": f"history: {ticker} price/FV snapshot",
-            "branch":  GITHUB_BRANCH,
-            "content": _b64.b64encode(content.encode()).decode(),
-        }
-        if sha:
-            payload["sha"] = sha
-        _req.put(gh_api, headers=gh_hdr, json=payload, timeout=12)
     except Exception as e:
-        import sys
-        print(f"[price_history] GitHub push error: {e}", file=sys.stderr)
+        print(f"[price_history] local read error: {e}", file=sys.stderr)
+        return
+    _github_put_async("price_history.csv", content.encode(),
+                      f"history: {ticker} price/FV snapshot")
 
 
 def _prune():
@@ -1376,17 +1365,24 @@ def api_earnings_upcoming():
     if not covered:
         return jsonify({"earnings": [], "fetched": None})
 
-    # ── Fetch next 7 days from Nasdaq ─────────────────────────────────────────
+    # ── Fetch next 45 days from Nasdaq, with a hard 15s wall-clock cap ───────
+    # The NASDAQ calendar API occasionally hangs slow responses through; under
+    # gunicorn's worker timeout that would kill the worker. Cap total elapsed
+    # time so the worker is never blocked on this endpoint.
     import datetime as _dt
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     results = []
+    _MAX_WALL_SEC = 15.0
+    _t0 = _time.time()
 
     for days_ahead in range(45):
+        if (_time.time() - _t0) > _MAX_WALL_SEC:
+            break
         date = (_dt.date.today() + _dt.timedelta(days=days_ahead)).isoformat()
         try:
             r = _req.get(
                 f"https://api.nasdaq.com/api/calendar/earnings?date={date}",
-                headers=headers, timeout=8,
+                headers=headers, timeout=(3, 5),
             )
             if r.status_code != 200:
                 continue
