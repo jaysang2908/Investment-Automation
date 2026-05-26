@@ -26,6 +26,23 @@ XLS_DIR   = os.path.join(_ROOT, "static", "excel")
 os.makedirs(RPT_DIR, exist_ok=True)
 os.makedirs(XLS_DIR, exist_ok=True)
 
+# ── Credit ratings auto-feed ───────────────────────────────────────────────────
+import json as _json
+_RATINGS_PATH = os.path.join(_ROOT, "static", "data", "credit_ratings.json")
+_CREDIT_RATINGS: dict = {}
+try:
+    if os.path.exists(_RATINGS_PATH):
+        with open(_RATINGS_PATH, "r", encoding="utf-8") as _f:
+            _CREDIT_RATINGS = _json.load(_f)
+        print(f"[ratings] Loaded credit_ratings.json — {len(_CREDIT_RATINGS) - 1} tickers")
+except Exception as _e:
+    print(f"[ratings] Warning: could not load credit_ratings.json: {_e}")
+
+def _auto_rating(ticker: str) -> str | None:
+    """Return wacc_rating from credit_ratings.json for this ticker, or None."""
+    entry = _CREDIT_RATINGS.get(ticker.upper(), {})
+    return entry.get("wacc_rating") or None
+
 # Discrete tier pts used only for BC/LTP manual add-on
 TIER_PTS = {"HIGH": 10, "MOD-HIGH": 7, "MOD": 7, "MOD-LOW": 3, "LOW": 0}
 
@@ -215,7 +232,8 @@ def main():
             mdl.build_ratios(wb, is_data, bs_data, cf_data, years, ticker, pl_refs, bs_refs, cf_refs,
                              bank_credit=_bank_credit)
             mdl.build_segments(wb, ticker, years)
-            wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, None,
+            _wacc_rating = _auto_rating(ticker)
+            wacc_refs = mdl.build_wacc(wb, ticker, is_data, bs_data, _wacc_rating,
                                        profile=profile)
             dcf_refs  = mdl.build_dcf(
                 wb, ticker, is_data, bs_data, cf_data, years,
@@ -254,7 +272,7 @@ def main():
                 wacc_val=wacc_refs.get("wacc_val"),
                 dcf_prices=dcf_prices,
                 scorecard_metrics=scorecard_metrics,
-                manual_rating=None,
+                manual_rating=_wacc_rating,
                 current_price=current_price, market_cap=market_cap,
                 biz_clarity=bc_manual or None, ltp=ltp_manual or None,
                 adj_score=adj_score, analyst_ests=analyst_ests,

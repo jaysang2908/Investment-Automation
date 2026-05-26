@@ -27,6 +27,30 @@ import fmp_3statementv6 as mdl
 import report_bridge as _rb
 from report_bridge import build_report_data, render_html_report
 from data_store import save_ticker_data, load_ticker_data
+
+# ── Credit ratings JSON (auto-feeds WACC cost-of-debt when user omits rating) ─
+_CREDIT_RATINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "static", "data", "credit_ratings.json")
+_credit_ratings_cache: dict = {}
+
+def _load_credit_ratings() -> dict:
+    """Load static/data/credit_ratings.json; cache in-process. Returns {} on error."""
+    global _credit_ratings_cache
+    if _credit_ratings_cache:
+        return _credit_ratings_cache
+    try:
+        if os.path.exists(_CREDIT_RATINGS_PATH):
+            with open(_CREDIT_RATINGS_PATH, "r", encoding="utf-8") as f:
+                _credit_ratings_cache = json.load(f)
+    except Exception:
+        pass
+    return _credit_ratings_cache
+
+def _auto_rating(ticker: str) -> str | None:
+    """Return the wacc_rating for ticker from credit_ratings.json, or None."""
+    data = _load_credit_ratings()
+    entry = data.get(ticker.upper(), {})
+    return entry.get("wacc_rating") or None
 from scenarios_db import init_db, save_scenario, list_scenarios, delete_scenario, get_scenario
 import csv_schema as _schema
 import speculative_engine as _spec
@@ -435,12 +459,15 @@ def generate():
         return jsonify({"error": "Ticker required."}), 400
 
     # Normalise credit rating (same logic as app.py)
+    # Priority: form input → credit_ratings.json → synthetic ICR fallback in build_wacc()
     manual_rating = None
     if rating_raw:
         tok = rating_raw.strip().split()[0].strip(".,;:()")
         manual_rating = mdl.MOODY_TO_SP.get(tok) or (
             tok.upper() if tok.upper() in mdl.VALID_SP_RATINGS else None
         )
+    if manual_rating is None:
+        manual_rating = _auto_rating(ticker)  # falls back to None if ticker not in JSON
 
     # Capture print() output for live log
     logs = []
@@ -1715,6 +1742,26 @@ def download_excel_model(ticker):
 @app.route("/heatmap")
 def heatmap_page():
     return app.send_static_file("heatmap.html")
+
+
+@app.route("/ratings")
+def ratings_page():
+    return app.send_static_file("ratings.html")
+
+
+@app.route("/api/ratings")
+def api_ratings():
+    """Serve static/data/credit_ratings.json with cache-control headers."""
+    if not os.path.exists(_CREDIT_RATINGS_PATH):
+        return jsonify({"error": "ratings data not found"}), 404
+    try:
+        with open(_CREDIT_RATINGS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        resp = jsonify(data)
+        resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/heatmap-data")

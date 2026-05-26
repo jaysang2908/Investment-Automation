@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Credit Ratings — Equity.Research</title>
+  <script>(function(){var s=localStorage.getItem('eq.theme');if(s==='dark'||s==='light')document.documentElement.setAttribute('data-theme',s);})()</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    /* ── Rating badges ───────────────────────────────────────────────────────── */
+    .rbadge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 9px;
+      border-radius: 4px;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    /* AAA / AA+ */
+    .rb-aaa  { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    /* AA / AA- */
+    .rb-aa   { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    /* A+ / A / A- */
+    .rb-a    { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    /* BBB+ / BBB / BBB- */
+    .rb-bbb  { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+    /* BB+ / BB / BB- */
+    .rb-bb   { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+    /* B+ and below */
+    .rb-b    { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+    /* NR */
+    .rb-nr   { background: var(--surface-3); color: var(--muted); border: 1px solid var(--line-strong); }
+
+    [data-theme="dark"] .rb-aaa  { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
+    [data-theme="dark"] .rb-aa   { background: #14532d; color: #86efac; border-color: #166534; }
+    [data-theme="dark"] .rb-a    { background: #052e16; color: #bbf7d0; border-color: #15803d; }
+    [data-theme="dark"] .rb-bbb  { background: #451a03; color: #fcd34d; border-color: #92400e; }
+    [data-theme="dark"] .rb-bb   { background: #431407; color: #fdba74; border-color: #c2410c; }
+    [data-theme="dark"] .rb-b    { background: #450a0a; color: #fca5a5; border-color: #991b1b; }
+
+    /* ── Split-rated tag ─────────────────────────────────────────────────────── */
+    .split-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: color-mix(in oklab, #f59e0b 14%, var(--surface));
+      color: #d97706;
+      border: 1px solid #fcd34d77;
+      white-space: nowrap;
+      cursor: default;
+    }
+    [data-theme="dark"] .split-tag { background: #451a03; color: #fcd34d; border-color: #92400e; }
+
+    /* ── Outlook badges ──────────────────────────────────────────────────────── */
+    .out-stable   { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+    .out-positive { color: #15803d;      font-size: 12px; font-family: var(--font-mono); font-weight: 600; }
+    .out-negative { color: #c2410c;      font-size: 12px; font-family: var(--font-mono); font-weight: 600; }
+    .out-watch    { color: #92400e;      font-size: 12px; font-family: var(--font-mono); font-weight: 600; }
+    .out-nr       { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+
+    /* ── Table ───────────────────────────────────────────────────────────────── */
+    .ratings-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--r-card);
+      border: 1px solid var(--line);
+      margin-bottom: var(--s-6);
+    }
+    table.rt {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--t-sm);
+    }
+    table.rt thead th {
+      background: var(--surface-3);
+      border-bottom: 1px solid var(--line-strong);
+      padding: 10px 14px;
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    table.rt thead th:hover { color: var(--ink); }
+    table.rt thead th.sorted-asc::after  { content: " ↑"; opacity: 0.8; }
+    table.rt thead th.sorted-desc::after { content: " ↓"; opacity: 0.8; }
+    table.rt tbody tr {
+      border-bottom: 1px solid var(--line);
+      transition: background var(--dur) var(--ease);
+    }
+    table.rt tbody tr:last-child { border-bottom: none; }
+    table.rt tbody tr:hover { background: var(--surface-3); }
+    table.rt tbody tr.hy-row { opacity: 0.9; }
+    table.rt td {
+      padding: 11px 14px;
+      vertical-align: middle;
+    }
+    .tk-cell {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: var(--t-sm);
+      color: var(--ink);
+    }
+    .co-cell {
+      color: var(--ink-2);
+      font-size: var(--t-sm);
+      min-width: 180px;
+    }
+    .wacc-cell {
+      min-width: 110px;
+    }
+    .notes-cell {
+      color: var(--muted);
+      font-size: var(--t-xs);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+    .ig-divider td {
+      background: var(--surface-3) !important;
+      padding: 5px 14px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .ig-divider:hover { background: var(--surface-3) !important; }
+
+    /* ── Filter chips ────────────────────────────────────────────────────────── */
+    .chip {
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      padding: 5px 11px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+      white-space: nowrap;
+      font-weight: var(--weight-medium);
+    }
+    .chip:hover { color: var(--ink); background: var(--surface-3); }
+    .chip.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+    [data-theme="dark"] .chip.on { color: var(--bg); }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+      flex-wrap: wrap;
+      padding: var(--s-3) 0 var(--s-4);
+    }
+    .filter-label {
+      font-family: var(--font-mono);
+      font-size: var(--t-tiny);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-right: var(--s-2);
+    }
+
+    /* ── Methodology note ────────────────────────────────────────────────────── */
+    .method-note {
+      background: var(--surface-3);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--r-card);
+      padding: var(--s-4) var(--s-5);
+      margin-bottom: var(--s-5);
+      font-size: var(--t-sm);
+      line-height: 1.65;
+      color: var(--ink-2);
+    }
+    .method-note strong { color: var(--ink); }
+
+    /* ── Summary stats ────────────────────────────────────────────────────────── */
+    .stats-row {
+      display: flex;
+      gap: var(--s-4);
+      flex-wrap: wrap;
+      margin-bottom: var(--s-5);
+    }
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      padding: var(--s-2) var(--s-4);
+      font-size: var(--t-xs);
+    }
+    .stat-chip .stat-n {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--ink);
+    }
+    .stat-chip .stat-lbl { color: var(--muted); }
+
+    /* ── Spread reference panel ───────────────────────────────────────────────── */
+    .spread-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      padding: var(--s-4) var(--s-5);
+      margin-bottom: var(--s-6);
+    }
+    .spread-panel h3 {
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 var(--s-3) 0;
+    }
+    .spread-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: var(--s-2);
+    }
+    .spread-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--line);
+      gap: var(--s-3);
+    }
+    .spread-row:last-child { border-bottom: none; }
+    .spread-lbl { font-family: var(--font-mono); font-size: var(--t-xs); }
+    .spread-bp  { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="shell page">
+    <div class="shell-card">
+
+      <!-- NAV -->
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="brand">
+          <span class="brand-mk" aria-hidden="true"></span>
+          <span>Equity<span style="color: var(--accent);">.</span>Research</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/">Long Term Bets</a></li>
+          <li><a href="/muff" style="color:#c94a12">MUFF</a></li>
+          <li><a href="/dashboard.html">Dashboard</a></li>
+          <li><a href="/dcf">DCF</a></li>
+          <li><a href="/ratings" aria-current="page">Ratings</a></li>
+          <li><a href="/heatmap">Heatmap</a></li>
+          <li><a href="/news">News</a></li>
+        </ul>
+        <div class="nav-aside">
+          <span class="nav-time" id="navTime">—</span>
+          <span class="live-badge"><span class="dot"></span>Quarterly</span>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+            <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- PAGE HEADER -->
+      <header class="page-head">
+        <div>
+          <div class="eyebrow">▲ Credit Quality</div>
+          <h1 class="page-title">Credit Ratings</h1>
+          <p class="page-lede">Senior unsecured ratings from S&amp;P and Moody's for all covered tickers. The more conservative rating auto-feeds into each ticker's WACC cost-of-debt assumption.</p>
+        </div>
+        <div class="page-head-actions" style="align-items: flex-end; flex-direction: column; gap: var(--s-1); text-align: right;">
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink);">S&amp;P · Moody's</span>
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted);" id="lastUpdatedLbl">Loading…</span>
+        </div>
+      </header>
+
+      <!-- METHODOLOGY NOTE -->
+      <div class="method-note">
+        <strong>Methodology:</strong> When S&amp;P and Moody's diverge, the <strong>lower (more conservative) rating</strong> is used as the <em>WACC Input</em> — the pre-tax cost of debt spread applied to each ticker's WACC calculation. Moody's ratings are converted to S&amp;P-equivalent scale before comparison (Aaa→AAA, Aa1→AA+, A1→A+, Baa1→BBB+, Ba1→BB+, etc.). Tickers flagged <span class="split-tag">Split-Rated</span> have a divergence of ≥ 2 notches or cross the investment-grade / high-yield boundary. Spreads follow the Damodaran Jan 2025 US default spread table. <strong>Source:</strong> S&amp;P Global Ratings and Moody's Investors Service public announcements. Refreshed quarterly.
+      </div>
+
+      <!-- SUMMARY STATS (populated by JS) -->
+      <div class="stats-row" id="statsRow"></div>
+
+      <!-- FILTER CHIPS -->
+      <div class="filter-bar">
+        <span class="filter-label">Filter</span>
+        <button class="chip on" data-grade="all">All</button>
+        <button class="chip" data-grade="aaa-aa">AAA–AA</button>
+        <button class="chip" data-grade="a">A</button>
+        <button class="chip" data-grade="bbb">BBB</button>
+        <button class="chip" data-grade="hy">Below IG</button>
+        <button class="chip" data-grade="split">Split-Rated</button>
+        <button class="chip" data-grade="neg">Negative Outlook</button>
+      </div>
+
+      <!-- RATINGS TABLE -->
+      <div class="ratings-table-wrap">
+        <table class="rt" id="ratingsTable">
+          <thead>
+            <tr>
+              <th data-col="ticker">Ticker</th>
+              <th data-col="company">Company</th>
+              <th data-col="sp">S&amp;P Rating</th>
+              <th data-col="moodys">Moody's Rating</th>
+              <th data-col="wacc">WACC Input</th>
+              <th data-col="spread">Spread (bp)</th>
+              <th data-col="outlook">Outlook</th>
+              <th data-col="notes">Notes</th>
+            </tr>
+          </thead>
+          <tbody id="ratingsBody">
+            <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted);font-family:var(--font-mono)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- DAMODARAN SPREAD REFERENCE -->
+      <div class="spread-panel">
+        <h3>Damodaran Default Spread Reference — Jan 2025 US</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--s-1)">
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-aaa">AAA</span></span><span class="spread-bp">54 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-aaa">AA+ / AA / AA−</span></span><span class="spread-bp">72 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-a">A+</span></span><span class="spread-bp">96 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-a">A</span></span><span class="spread-bp">108 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-a">A−</span></span><span class="spread-bp">132 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-bbb">BBB+</span></span><span class="spread-bp">156 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-bbb">BBB</span></span><span class="spread-bp">180 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-bbb">BBB−</span></span><span class="spread-bp">240 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-bb">BB+</span></span><span class="spread-bp">288 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-bb">BB</span></span><span class="spread-bp">360 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-b">B+</span></span><span class="spread-bp">432 bp</span></div>
+          <div class="spread-row"><span class="spread-lbl"><span class="rbadge rb-b">B</span></span><span class="spread-bp">540 bp</span></div>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <footer class="footer">
+        <div>
+          <a class="brand" href="/"><span class="brand-mk"></span>Equity<span style="color: var(--accent);">.</span>Research</a>
+          <p style="margin: var(--s-3) 0 0; max-width: 380px; line-height: 1.6;">Credit ratings sourced from S&amp;P Global Ratings and Moody's Investors Service public agency announcements. Refreshed quarterly. For informational purposes only.</p>
+        </div>
+        <div><h4>Workbench</h4><a href="/">Generate</a><a href="/dashboard.html">Dashboard</a><a href="/dcf">DCF Calculator</a><a href="/ratings">Ratings</a><a href="/heatmap">Heatmap</a></div>
+        <div><h4>Data</h4><a href="#">FMP API</a><a href="#">10-K parser</a><a href="#">Methodology</a><a href="#">Changelog</a></div>
+        <div><h4>Account</h4><a href="#">Settings</a><a href="#">Saved scenarios</a><a href="#">Export</a><a href="#">Sign out</a></div>
+        <div class="legal"><span>© 2026 Equity.Research · WIP build · v0.4.2</span><span>Not investment advice</span></div>
+      </footer>
+
+    </div>
+  </main>
+
+<script>
+(function () {
+  // ── Damodaran spreads (Jan 2025 US) ─────────────────────────────────────────
+  const SPREADS = {
+    "AAA":  54,  "AA+": 72,  "AA": 72,  "AA-": 72,
+    "A+":   96,  "A":  108,  "A-": 132,
+    "BBB+": 156, "BBB": 180, "BBB-": 240,
+    "BB+":  288, "BB":  360, "BB-": 432,
+    "B+":   432, "B":   540, "B-":  648,
+    "CCC+": 900, "CCC": 900, "CCC-": 900, "CC": 1200,
+  };
+
+  // Notch scale (higher = better)
+  const NOTCH = {
+    "AAA":21,"AA+":20,"AA":19,"AA-":18,
+    "A+":17,"A":16,"A-":15,
+    "BBB+":14,"BBB":13,"BBB-":12,
+    "BB+":11,"BB":10,"BB-":9,
+    "B+":8,"B":7,"B-":6,
+    "CCC+":5,"CCC":4,"CCC-":3,"CC":2,"C":1,"D":0
+  };
+
+  function ratingClass(r) {
+    if (!r || r === "NR") return "rb-nr";
+    const n = NOTCH[r] ?? 0;
+    if (n >= 20) return "rb-aaa";
+    if (n >= 18) return "rb-aa";
+    if (n >= 15) return "rb-a";
+    if (n >= 12) return "rb-bbb";
+    if (n >= 9)  return "rb-bb";
+    return "rb-b";
+  }
+
+  function outlookClass(o) {
+    if (!o || o === "NR") return "out-nr";
+    const lo = o.toLowerCase();
+    if (lo === "positive") return "out-positive";
+    if (lo === "negative") return "out-negative";
+    if (lo.includes("watch")) return "out-watch";
+    return "out-stable";
+  }
+
+  function combinedOutlook(spO, moodysO) {
+    if (spO === moodysO) return spO;
+    if (spO === "NR" && moodysO === "NR") return "NR";
+    // Show both if divergent
+    const sp = spO && spO !== "NR" ? spO : null;
+    const mo = moodysO && moodysO !== "NR" ? moodysO : null;
+    if (sp && mo && sp !== mo) return `${sp} / ${mo}`;
+    return sp || mo || "NR";
+  }
+
+  function spreadForRating(r) {
+    if (!r) return null;
+    return SPREADS[r] ?? null;
+  }
+
+  let allData = {};
+  let sortCol = "ticker";
+  let sortAsc = true;
+  let activeGrade = "all";
+
+  function gradeCategory(wacc) {
+    if (!wacc) return "nr";
+    const n = NOTCH[wacc] ?? -1;
+    if (n >= 18) return "aaa-aa";
+    if (n >= 15) return "a";
+    if (n >= 12) return "bbb";
+    if (n >= 6)  return "hy";
+    return "hy";
+  }
+
+  function buildRows() {
+    const tbody = document.getElementById("ratingsBody");
+    const tickers = Object.keys(allData).filter(t => t !== "_meta");
+
+    // Apply filter
+    let filtered = tickers.filter(t => {
+      const d = allData[t];
+      if (activeGrade === "all") return true;
+      if (activeGrade === "split") return d.split_rated;
+      if (activeGrade === "neg") {
+        const outlook = combinedOutlook(d.sp_outlook, d.moodys_outlook).toLowerCase();
+        return outlook.includes("negative");
+      }
+      return gradeCategory(d.wacc_rating) === activeGrade;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      const da = allData[a], db = allData[b];
+      let va, vb;
+      switch (sortCol) {
+        case "ticker":   va = a; vb = b; break;
+        case "company":  va = da.company; vb = db.company; break;
+        case "sp":       va = NOTCH[da.sp_rating] ?? -1; vb = NOTCH[db.sp_rating] ?? -1; break;
+        case "moodys":   va = NOTCH[da.moodys_sp_equiv] ?? -1; vb = NOTCH[db.moodys_sp_equiv] ?? -1; break;
+        case "wacc":     va = NOTCH[da.wacc_rating] ?? -1; vb = NOTCH[db.wacc_rating] ?? -1; break;
+        case "spread":   va = spreadForRating(da.wacc_rating) ?? 9999; vb = spreadForRating(db.wacc_rating) ?? 9999; break;
+        case "outlook":  va = combinedOutlook(da.sp_outlook, da.moodys_outlook); vb = combinedOutlook(db.sp_outlook, db.moodys_outlook); break;
+        default:         va = a; vb = b;
+      }
+      if (typeof va === "number" && typeof vb === "number") {
+        return sortAsc ? vb - va : va - vb; // higher notch = better = first by default
+      }
+      return sortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted);font-family:var(--font-mono)">No tickers match this filter.</td></tr>`;
+      return;
+    }
+
+    // Insert dividers between IG and HY
+    let rows = "";
+    let inIG = null;
+    filtered.forEach(tk => {
+      const d = allData[tk];
+      const cat = gradeCategory(d.wacc_rating);
+      const isIG = cat !== "hy" && cat !== "nr";
+
+      if (activeGrade === "all" && inIG !== null && inIG === true && !isIG) {
+        rows += `<tr class="ig-divider"><td colspan="8">── Below Investment Grade ──────────────────────────────────────</td></tr>`;
+      }
+      inIG = isIG;
+
+      const spBadge     = `<span class="rbadge ${ratingClass(d.sp_rating)}">${d.sp_rating || "NR"}</span>`;
+      const spOut       = d.sp_outlook !== "NR" ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-left:5px">${d.sp_outlook}</span>` : "";
+      const moodysLabel = d.moodys_rating || "NR";
+      const moodysEquiv = d.moodys_sp_equiv && d.moodys_sp_equiv !== "NR" ? ` <span style="color:var(--muted);font-size:10px">(${d.moodys_sp_equiv})</span>` : "";
+      const moodysOut   = d.moodys_outlook !== "NR" ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-left:5px">${d.moodys_outlook}</span>` : "";
+      const waccBadge   = d.wacc_rating
+        ? `<span class="rbadge ${ratingClass(d.wacc_rating)}">${d.wacc_rating}</span>`
+        : `<span class="rbadge rb-nr">Synthetic</span>`;
+      const spread      = spreadForRating(d.wacc_rating);
+      const spreadStr   = spread != null ? `${spread} bp` : `<span style="color:var(--muted)">—</span>`;
+      const outlookStr  = combinedOutlook(d.sp_outlook, d.moodys_outlook);
+      const outCls      = outlookClass(outlookStr);
+      const splitBadge  = d.split_rated ? `&nbsp;<span class="split-tag">Split</span>` : "";
+
+      rows += `<tr class="${isIG ? '' : 'hy-row'}">
+        <td class="tk-cell">${tk}${splitBadge}</td>
+        <td class="co-cell">${d.company}</td>
+        <td>${spBadge}${spOut}</td>
+        <td><span style="font-family:var(--font-mono);font-size:12px;font-weight:700">${moodysLabel}</span>${moodysEquiv}${moodysOut}</td>
+        <td class="wacc-cell">${waccBadge}</td>
+        <td><span style="font-family:var(--font-mono);font-size:12px">${spreadStr}</span></td>
+        <td><span class="${outCls}">${outlookStr}</span></td>
+        <td class="notes-cell">${d.notes || ""}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = rows;
+  }
+
+  function buildStats() {
+    const tickers = Object.keys(allData).filter(t => t !== "_meta");
+    let aaa_aa = 0, a = 0, bbb = 0, hy = 0, split = 0, neg = 0;
+    tickers.forEach(t => {
+      const d = allData[t];
+      const cat = gradeCategory(d.wacc_rating);
+      if (cat === "aaa-aa") aaa_aa++;
+      else if (cat === "a") a++;
+      else if (cat === "bbb") bbb++;
+      else if (cat === "hy") hy++;
+      if (d.split_rated) split++;
+      const out = combinedOutlook(d.sp_outlook, d.moodys_outlook).toLowerCase();
+      if (out.includes("negative")) neg++;
+    });
+    document.getElementById("statsRow").innerHTML = `
+      <div class="stat-chip"><span class="stat-n">${aaa_aa}</span><span class="stat-lbl">AAA–AA</span></div>
+      <div class="stat-chip"><span class="stat-n">${a}</span><span class="stat-lbl">A-range</span></div>
+      <div class="stat-chip"><span class="stat-n">${bbb}</span><span class="stat-lbl">BBB</span></div>
+      <div class="stat-chip"><span class="stat-n">${hy}</span><span class="stat-lbl">Below IG</span></div>
+      <div class="stat-chip"><span class="stat-n">${split}</span><span class="stat-lbl">Split-Rated</span></div>
+      <div class="stat-chip"><span class="stat-n">${neg}</span><span class="stat-lbl">Neg. Outlook</span></div>
+    `;
+  }
+
+  function init() {
+    fetch("/api/ratings")
+      .then(r => r.json())
+      .then(data => {
+        allData = data;
+        const meta = data._meta || {};
+        const updated = meta.last_updated || "Unknown";
+        document.getElementById("lastUpdatedLbl").textContent = `Updated ${updated}`;
+        buildStats();
+        buildRows();
+      })
+      .catch(err => {
+        document.getElementById("ratingsBody").innerHTML =
+          `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted);font-family:var(--font-mono)">Failed to load ratings data.</td></tr>`;
+        console.error(err);
+      });
+
+    // Sort headers
+    document.querySelectorAll("table.rt thead th[data-col]").forEach(th => {
+      th.addEventListener("click", () => {
+        const col = th.dataset.col;
+        if (sortCol === col) {
+          sortAsc = !sortAsc;
+        } else {
+          sortCol = col;
+          // For notch-based columns, default sort descending (best first)
+          sortAsc = ["spread"].includes(col); // spread: low = best = ascending
+        }
+        document.querySelectorAll("table.rt thead th").forEach(t => {
+          t.classList.remove("sorted-asc", "sorted-desc");
+        });
+        th.classList.add(sortAsc ? "sorted-asc" : "sorted-desc");
+        buildRows();
+      });
+    });
+
+    // Filter chips
+    document.querySelectorAll(".chip[data-grade]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".chip[data-grade]").forEach(b => b.classList.remove("on"));
+        btn.classList.add("on");
+        activeGrade = btn.dataset.grade;
+        buildRows();
+      });
+    });
+
+    // Clock
+    function tick() {
+      const now = new Date();
+      const h = now.getHours().toString().padStart(2, "0");
+      const m = now.getMinutes().toString().padStart(2, "0");
+      const s = now.getSeconds().toString().padStart(2, "0");
+      document.getElementById("navTime").textContent = `${h}:${m}:${s}`;
+    }
+    tick(); setInterval(tick, 1000);
+
+    // Theme toggle
+    const toggle = document.getElementById("themeToggle");
+    if (toggle) {
+      toggle.addEventListener("click", () => {
+        const cur = document.documentElement.getAttribute("data-theme") || "light";
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("eq.theme", next);
+      });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
