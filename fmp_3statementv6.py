@@ -4515,15 +4515,38 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                                 f"(earnings/FCF below zero, multiple meaningless)")
         premium_ok = (roic_v is not None and roic_v > 0.25 and
                       cagr_v is not None and cagr_v > 0.15)
-        # Benchmark = min of historical 5yr average and sector peer median.
+        # Benchmark = company's own 5-year average (capped) when available;
+        # sector peer median as fallback only when own history is absent.
+        #
+        # Rationale for preferring own history:
+        #   A quality compounder like MSFT that has consistently commanded a
+        #   structural premium to its sector peers (e.g. Software: ORCL, CRM)
+        #   should be judged against its own precedent (5yr avg = 33.9×), not
+        #   against a sector median that may include value-oriented names at 15-20×.
+        #   Using min(hist_avg, sect_med) caused MSFT forward P/E 24.8× to score
+        #   LOW (28% over a 19× peer median) despite being -27% below its own
+        #   history — a clear false negative.
+        #
+        # 50× cap on historical average:
+        #   ZIRP-era or hype-cycle peaks inflate 5yr averages (AMD 123×, DIS 66×).
+        #   Using the raw historical avg as benchmark would make a 65× P/E stock
+        #   look "cheap" vs its bubble history. Capping at 50× preserves the
+        #   company-specific signal while excluding anomalous period distortion.
+        #   For names where hist_avg < 50×, the cap has no effect.
+        #
         # DCF-implied multiple is shown for context only — it is NOT used as a
         # benchmark here. Including the DCF in the benchmark created a circular
         # penalty: when GG says a stock is overvalued, the DCF-implied multiple
         # becomes the binding floor, which *further* penalises the valuation score
         # and double-counts the DCF's scepticism. P/E and P/FCF scoring must be
         # independent of the DCF to avoid this self-reinforcing feedback loop.
-        _bench_candidates = [b for b in (hist_avg, sect_med) if b and b > 0]
-        benchmark = min(_bench_candidates) if _bench_candidates else None
+        _PE_HIST_CAP = 50.0
+        if hist_avg and hist_avg > 0:
+            benchmark = min(hist_avg, _PE_HIST_CAP)   # own precedent, bubble-capped
+        elif sect_med and sect_med > 0:
+            benchmark = sect_med                       # fallback when no history
+        else:
+            benchmark = None
         parts_v   = [f"Current {current:.1f}x"]
         if hist_avg:    parts_v.append(f"5yr avg {hist_avg:.1f}x")
         if sect_med:    parts_v.append(f"Sector median {sect_med:.1f}x")
@@ -5354,6 +5377,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "active_weight":       round(_active_weight, 1),
         "pe_current":    pe_current,
         "pe_5yr_avg":         pe_5yr_avg,
+        "sector_pe_med":      sector_pe_med,
         "pfcf_current":       trailing_pfcf,
         "pfcf_5yr_avg":       pfcf_5yr_avg,
         # SBC display metrics (Option B: no scoring impact, shown in report)
