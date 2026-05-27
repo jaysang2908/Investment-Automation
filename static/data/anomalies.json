@@ -16,198 +16,6 @@
     "message": "FY2023 FCF/NI ratio 16.8x (FCF $3.2B, NI $0.2B) -- large divergence may indicate working capital swings or non-cash items"
   },
   {
-    "ticker": "C",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2023",
-    "message": "FY2023 revenue $155.4B vs FY2022 $100.2B (+55.0%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "C",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2023",
-    "message": "FY2023 FCF/NI ratio -8.7x (FCF $-80.0B, NI $9.2B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
-    "ticker": "C",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2024",
-    "message": "FY2024 FCF/NI ratio -2.1x (FCF $-26.2B, NI $12.7B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
-    "ticker": "C",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2025",
-    "message": "FY2025 FCF/NI ratio -5.2x (FCF $-74.2B, NI $14.3B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
-    "ticker": "CVX",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2022",
-    "message": "FY2022 revenue $235.7B vs FY2021 $155.6B (+51.5%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "DIS",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2021",
-    "message": "FY2021 balance sheet identity gap: Assets $203.6B - Liabilities $101.4B - Equity $88.6B = $13671M residual (6.7% of assets)"
-  },
-  {
-    "ticker": "DIS",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2022",
-    "message": "FY2022 balance sheet identity gap: Assets $203.6B - Liabilities $95.3B - Equity $95.0B = $13370M residual (6.6% of assets)"
-  },
-  {
-    "ticker": "DIS",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2023",
-    "message": "FY2023 balance sheet identity gap: Assets $205.6B - Liabilities $92.6B - Equity $99.3B = $13735M residual (6.7% of assets)"
-  },
-  {
-    "ticker": "DIS",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2024",
-    "message": "FY2024 balance sheet identity gap: Assets $196.2B - Liabilities $90.7B - Equity $100.7B = $4826M residual (2.5% of assets)"
-  },
-  {
-    "ticker": "DIS",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2025",
-    "message": "FY2025 balance sheet identity gap: Assets $197.5B - Liabilities $82.9B - Equity $109.9B = $4743M residual (2.4% of assets)"
-  },
-  {
-    "ticker": "INTC",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2022",
-    "message": "FY2022 FCF/NI ratio -1.2x (FCF $-9.6B, NI $8.0B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
-    "ticker": "INTC",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2023",
-    "message": "FY2023 FCF/NI ratio -8.5x (FCF $-14.3B, NI $1.7B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
-    "ticker": "INTC",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2023",
-    "message": "FY2023 balance sheet identity gap: Assets $191.6B - Liabilities $81.6B - Equity $105.6B = $4375M residual (2.3% of assets)"
-  },
-  {
-    "ticker": "INTC",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2024",
-    "message": "FY2024 balance sheet identity gap: Assets $196.5B - Liabilities $91.5B - Equity $99.3B = $5762M residual (2.9% of assets)"
-  },
-  {
-    "ticker": "INTC",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "balance_sheet_identity",
-    "year": "2025",
-    "message": "FY2025 balance sheet identity gap: Assets $211.4B - Liabilities $85.1B - Equity $114.3B = $12079M residual (5.7% of assets)"
-  },
-  {
-    "ticker": "JNJ",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "ebitda_below_ebit",
-    "year": "2023",
-    "message": "FY2023 EBITDA $23.3B < EBIT $23.4B -- EBITDA should be >= EBIT (D&A is additive); possible data error"
-  },
-  {
-    "ticker": "JPM",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2023",
-    "message": "FY2023 revenue $236.3B vs FY2022 $153.8B (+53.6%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "NVDA",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2024",
-    "message": "FY2024 revenue $60.9B vs FY2023 $27.0B (+125.9%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "NVDA",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2025",
-    "message": "FY2025 revenue $130.5B vs FY2024 $60.9B (+114.2%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "NVDA",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2026",
-    "message": "FY2026 revenue $215.9B vs FY2025 $130.5B (+65.5%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "SOFI",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2022",
-    "message": "FY2022 revenue $1.8B vs FY2021 $1.1B (+62.1%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "SOFI",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "revenue_discontinuity",
-    "year": "2023",
-    "message": "FY2023 revenue $2.9B vs FY2022 $1.8B (+64.4%) -- verify for M&A or restatement"
-  },
-  {
-    "ticker": "SOFI",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2024",
-    "message": "FY2024 FCF/NI ratio -2.6x (FCF $-1.3B, NI $0.5B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
-    "ticker": "SOFI",
-    "date": "2026-05-25",
-    "severity": "WARNING",
-    "check": "fcf_ni_divergence",
-    "year": "2025",
-    "message": "FY2025 FCF/NI ratio -8.3x (FCF $-4.0B, NI $0.5B) -- large divergence may indicate working capital swings or non-cash items"
-  },
-  {
     "ticker": "UAL",
     "date": "2026-05-25",
     "severity": "WARNING",
@@ -224,8 +32,80 @@
     "message": "FY2021 stockholders' equity is negative ($-10.0B) -- may affect ROIC and leverage ratios; common for buyback-heavy companies"
   },
   {
+    "ticker": "DIS",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2021",
+    "message": "FY2021 balance sheet identity gap: Assets $203.6B - Liabilities $101.4B - Equity $88.6B = $13671M residual (6.7% of assets)"
+  },
+  {
+    "ticker": "DIS",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2022",
+    "message": "FY2022 balance sheet identity gap: Assets $203.6B - Liabilities $95.3B - Equity $95.0B = $13370M residual (6.6% of assets)"
+  },
+  {
+    "ticker": "DIS",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2023",
+    "message": "FY2023 balance sheet identity gap: Assets $205.6B - Liabilities $92.6B - Equity $99.3B = $13735M residual (6.7% of assets)"
+  },
+  {
+    "ticker": "DIS",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2024",
+    "message": "FY2024 balance sheet identity gap: Assets $196.2B - Liabilities $90.7B - Equity $100.7B = $4826M residual (2.5% of assets)"
+  },
+  {
+    "ticker": "DIS",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2025",
+    "message": "FY2025 balance sheet identity gap: Assets $197.5B - Liabilities $82.9B - Equity $109.9B = $4743M residual (2.4% of assets)"
+  },
+  {
+    "ticker": "JNJ",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "ebitda_below_ebit",
+    "year": "2023",
+    "message": "FY2023 EBITDA $23.3B < EBIT $23.4B -- EBITDA should be >= EBIT (D&A is additive); possible data error"
+  },
+  {
+    "ticker": "NVDA",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2024",
+    "message": "FY2024 revenue $60.9B vs FY2023 $27.0B (+125.9%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "NVDA",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2025",
+    "message": "FY2025 revenue $130.5B vs FY2024 $60.9B (+114.2%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "NVDA",
+    "date": "2026-05-26",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2026",
+    "message": "FY2026 revenue $215.9B vs FY2025 $130.5B (+65.5%) -- verify for M&A or restatement"
+  },
+  {
     "ticker": "WMT",
-    "date": "2026-05-25",
+    "date": "2026-05-26",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2022",
@@ -233,7 +113,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-25",
+    "date": "2026-05-26",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2023",
@@ -241,7 +121,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-25",
+    "date": "2026-05-26",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2024",
@@ -249,7 +129,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-25",
+    "date": "2026-05-26",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -257,7 +137,7 @@
   },
   {
     "ticker": "WMT",
-    "date": "2026-05-25",
+    "date": "2026-05-26",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2026",
@@ -265,7 +145,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2021",
@@ -273,7 +153,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2022",
@@ -281,7 +161,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2023",
@@ -289,7 +169,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2024",
@@ -297,7 +177,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
@@ -305,7 +185,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2021",
@@ -313,7 +193,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2022",
@@ -321,7 +201,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2023",
@@ -329,7 +209,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2024",
@@ -337,7 +217,7 @@
   },
   {
     "ticker": "HCA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2025",
@@ -345,7 +225,7 @@
   },
   {
     "ticker": "TSLA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "revenue_discontinuity",
     "year": "2022",
@@ -353,7 +233,7 @@
   },
   {
     "ticker": "TSLA",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2021",
@@ -361,7 +241,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2023",
@@ -369,7 +249,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2024",
@@ -377,7 +257,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "fcf_ni_divergence",
     "year": "2025",
@@ -385,7 +265,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "ebitda_below_ebit",
     "year": "2025",
@@ -393,7 +273,7 @@
   },
   {
     "ticker": "ABBV",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "INFO",
     "check": "negative_equity",
     "year": "2025",
@@ -401,10 +281,130 @@
   },
   {
     "ticker": "KO",
-    "date": "2026-05-25",
+    "date": "2026-05-27",
     "severity": "WARNING",
     "check": "balance_sheet_identity",
     "year": "2025",
     "message": "FY2025 balance sheet identity gap: Assets $104.8B - Liabilities $70.5B - Equity $32.2B = $2106M residual (2.0% of assets)"
+  },
+  {
+    "ticker": "C",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2023",
+    "message": "FY2023 revenue $155.4B vs FY2022 $100.2B (+55.0%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "C",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2023",
+    "message": "FY2023 FCF/NI ratio -8.7x (FCF $-80.0B, NI $9.2B) -- large divergence may indicate working capital swings or non-cash items"
+  },
+  {
+    "ticker": "C",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2024",
+    "message": "FY2024 FCF/NI ratio -2.1x (FCF $-26.2B, NI $12.7B) -- large divergence may indicate working capital swings or non-cash items"
+  },
+  {
+    "ticker": "C",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2025",
+    "message": "FY2025 FCF/NI ratio -5.2x (FCF $-74.2B, NI $14.3B) -- large divergence may indicate working capital swings or non-cash items"
+  },
+  {
+    "ticker": "CVX",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2022",
+    "message": "FY2022 revenue $235.7B vs FY2021 $155.6B (+51.5%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "INTC",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2022",
+    "message": "FY2022 FCF/NI ratio -1.2x (FCF $-9.6B, NI $8.0B) -- large divergence may indicate working capital swings or non-cash items"
+  },
+  {
+    "ticker": "INTC",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2023",
+    "message": "FY2023 FCF/NI ratio -8.5x (FCF $-14.3B, NI $1.7B) -- large divergence may indicate working capital swings or non-cash items"
+  },
+  {
+    "ticker": "INTC",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2023",
+    "message": "FY2023 balance sheet identity gap: Assets $191.6B - Liabilities $81.6B - Equity $105.6B = $4375M residual (2.3% of assets)"
+  },
+  {
+    "ticker": "INTC",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2024",
+    "message": "FY2024 balance sheet identity gap: Assets $196.5B - Liabilities $91.5B - Equity $99.3B = $5762M residual (2.9% of assets)"
+  },
+  {
+    "ticker": "INTC",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "balance_sheet_identity",
+    "year": "2025",
+    "message": "FY2025 balance sheet identity gap: Assets $211.4B - Liabilities $85.1B - Equity $114.3B = $12079M residual (5.7% of assets)"
+  },
+  {
+    "ticker": "JPM",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2023",
+    "message": "FY2023 revenue $236.3B vs FY2022 $153.8B (+53.6%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "SOFI",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2022",
+    "message": "FY2022 revenue $1.8B vs FY2021 $1.1B (+62.1%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "SOFI",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "revenue_discontinuity",
+    "year": "2023",
+    "message": "FY2023 revenue $2.9B vs FY2022 $1.8B (+64.4%) -- verify for M&A or restatement"
+  },
+  {
+    "ticker": "SOFI",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2024",
+    "message": "FY2024 FCF/NI ratio -2.6x (FCF $-1.3B, NI $0.5B) -- large divergence may indicate working capital swings or non-cash items"
+  },
+  {
+    "ticker": "SOFI",
+    "date": "2026-05-27",
+    "severity": "WARNING",
+    "check": "fcf_ni_divergence",
+    "year": "2025",
+    "message": "FY2025 FCF/NI ratio -8.3x (FCF $-4.0B, NI $0.5B) -- large divergence may indicate working capital swings or non-cash items"
   }
 ]
