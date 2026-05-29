@@ -4051,6 +4051,15 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     # original behavioural intent without re-introducing cliff edges.
     _TREND_PENALTY = 3.5
 
+    # Critique #3 — FCF/NI upper sanity bound. A ratio well above ~1.5× does NOT
+    # mean superior cash conversion; it means net income is depressed/distorted
+    # (large amortisation of acquired intangibles, near-zero or collapsed earnings,
+    # one-off non-cash charges). The ratio then overstates earnings quality, so we
+    # withhold the HIGH tier (ceiling drops to MOD-HIGH = 7.0) and decay the score
+    # by _FCFNI_DISTORT_SLOPE points for every 1.0× beyond the threshold.
+    _FCFNI_DISTORT_HI    = 1.5
+    _FCFNI_DISTORT_SLOPE = 1.5
+
     def _t_rev(v):
         if v is None:
             return None, 0.0, "N/A — insufficient data"
@@ -4065,6 +4074,17 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         t  = _tier(v2, _thresholds["fcf_ni"])
         s  = _score(v2, _thresholds["fcf_ni"])
         note = f"{v:.0%}"
+        # Distorted-NI guard (critique #3): refuse to reward an inflated ratio as
+        # if it were cash-quality excellence — withhold HIGH and decay with excess.
+        if v2 > _FCFNI_DISTORT_HI:
+            _qoe_excess = v2 - _FCFNI_DISTORT_HI
+            s = max(0.0, 7.0 - _qoe_excess * _FCFNI_DISTORT_SLOPE)
+            t = ("MOD-HIGH" if s >= 5.5 else
+                 "MOD-LOW"  if s >= 2.5 else "LOW")
+            note += (f"  [QoE flag: FCF/NI {v2:.1f}× exceeds {_FCFNI_DISTORT_HI:.1f}× — "
+                     f"net income likely depressed/distorted (intangible amortisation, "
+                     f"near-zero/collapsed earnings); cash-conversion read unreliable, "
+                     f"HIGH withheld]")
         if pen:
             t = down_tier(t)
             s = max(0.0, s - _TREND_PENALTY)

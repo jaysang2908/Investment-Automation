@@ -1908,28 +1908,53 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         + _score_note + "</div>"
     )
 
-    # Pre-formatted dual-score HTML block for the hero card.
-    if _full_score is not None:
-        _dual_score_html = (
-            f'<div class="verdict-score-row">'
-            f'<span class="verdict-score-num">{round(_full_score,1)}</span>'
-            f'<span class="verdict-score-den">/10</span>'
-            f'</div>'
-            f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">'
-            f'Quant: <strong>{round(_quant_score,1)}/10</strong> &nbsp;·&nbsp; '
-            f'Full: <strong>{round(_full_score,1)}/10</strong>'
-            f'</div>'
-        )
+    # ── Margin of Safety (critique #1) ────────────────────────────────────────
+    # The headline must show TWO co-equal figures, never one number that implies
+    # "buy". The Quality Score answers "is this a good business?"; the Margin of
+    # Safety answers "is this a good price?" — derived from the primary price
+    # target vs the current price. A high-quality, expensive name (COST, PEP)
+    # then reads honestly: strong Quality Score, negative Margin of Safety.
+    _mos_val = None
+    if price_target is not None and current_price and current_price > 0:
+        try:
+            _mos_val = float(price_target) / float(current_price) - 1.0
+        except (TypeError, ValueError):
+            _mos_val = None
+    if _mos_val is None:
+        _mos_pct_str, _mos_label, _mos_color = "N/A", "No valuation available", "var(--muted-2)"
+    elif _mos_val >= 0.15:
+        _mos_pct_str, _mos_label, _mos_color = f"{_mos_val*100:+.0f}%", "Cheap vs fundamentals", "#5BD89A"
+    elif _mos_val <= -0.15:
+        _mos_pct_str, _mos_label, _mos_color = f"{_mos_val*100:+.0f}%", "Expensive vs fundamentals", "#E8896F"
     else:
-        _dual_score_html = (
-            f'<div class="verdict-score-row">'
-            f'<span class="verdict-score-num">{round(_quant_score,1)}</span>'
-            f'<span class="verdict-score-den">/10</span>'
-            f'</div>'
-            f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">'
-            f'Quant only — qualitative inputs pending'
-            f'</div>'
-        )
+        _mos_pct_str, _mos_label, _mos_color = f"{_mos_val*100:+.0f}%", "Fairly valued", "#C9C8C2"
+
+    # Pre-formatted dual-headline HTML block for the hero card.
+    _headline_score = round(_full_score, 1) if _full_score is not None else round(_quant_score, 1)
+    _quality_sub = (
+        f'Quant: <strong>{round(_quant_score,1)}/10</strong> &nbsp;·&nbsp; '
+        f'Full: <strong>{round(_full_score,1)}/10</strong>'
+        if _full_score is not None else
+        'Quant only — qualitative inputs pending'
+    )
+    _mos_block = (
+        f'<div class="verdict-score-row" style="margin-top:18px">'
+        f'<span class="verdict-score-num" style="font-size:30px;color:{_mos_color}">{_mos_pct_str}</span>'
+        f'</div>'
+        f'<div class="verdict-score-sub" style="font-size:11px;margin-top:2px;color:{_mos_color}">'
+        f'Margin of Safety — {_mos_label}'
+        f'</div>'
+    )
+    _dual_score_html = (
+        f'<div class="verdict-score-sub" style="font-size:10px;letter-spacing:0.5px;'
+        f'text-transform:uppercase;margin-bottom:-2px">Quality Score</div>'
+        f'<div class="verdict-score-row" style="margin-top:4px">'
+        f'<span class="verdict-score-num">{_headline_score}</span>'
+        f'<span class="verdict-score-den">/10</span>'
+        f'</div>'
+        f'<div class="verdict-score-sub" style="font-size:11px;margin-top:4px">{_quality_sub}</div>'
+        f'{_mos_block}'
+    )
 
     # ── N/A rescaling disclosure ──────────────────────────────────────────────
     # When criteria return tier=None (no valid benchmark / regime exclusion), the
@@ -2020,6 +2045,10 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         ),
         "PRICE_TARGET_METHOD": _primary_method,
         "PRICE_TARGET_RATIONALE": _pt_rationale,
+        # Critique #1: Margin of Safety as a first-class headline figure alongside
+        # the Quality Score (also embedded in DUAL_SCORE_HTML for the hero card).
+        "MARGIN_OF_SAFETY":       _mos_pct_str,
+        "MARGIN_OF_SAFETY_LABEL": _mos_label,
         "NARRATIVE_GAP_BANNER":   _narrative_banner_html,
         "CONFIDENCE_BANNER":      _confidence_banner_html,
         "REPORT_DATE":      today,
