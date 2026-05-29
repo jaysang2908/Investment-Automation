@@ -4428,15 +4428,18 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         _om_5yr_delta   = ((_om_latest_moat - _om_first_moat)
                            if _om_first_moat is not None and _om_latest_moat is not None
                            else None)
-        ok_op_lev = (
-            (_om_5yr_delta is not None and _om_5yr_delta > 0.05)
-            or (_om_latest_moat is not None and _om_latest_moat > 0.20)
-        )
+        # Change #2 — LEVEL-ONLY. Margin DIRECTION (5yr Δ / trend) is already owned
+        # by Management's op-margin-trend indicator AND Execution Risk's trajectory
+        # score; including a "+5pp 5yr" condition here re-introduced the same
+        # triple-count we removed for revenue. The moat criterion owns margin LEVEL:
+        # does the pricing power convert into a durable high operating margin?
+        # 5yr delta retained in the note for context but excluded from the test.
+        ok_op_lev = (_om_latest_moat is not None and _om_latest_moat > 0.20)
         if _om_latest_moat is not None:
             _op_lev_note = (
                 f"Op leverage: OM {_om_latest_moat:.1%}"
                 + (f" ({_om_5yr_delta:+.1%} 5yr)" if _om_5yr_delta is not None else "")
-                + f" {'✓' if ok_op_lev else '✗'} (>20% OR +5pp 5yr)"
+                + f" {'✓' if ok_op_lev else '✗'} (>20% level)"
             )
             if ok_op_lev: moat_ind.append(True)
             moat_total += 1
@@ -4667,26 +4670,28 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         note_v += "]"
         score_v = _val_score(delta, premium_ok=premium_ok)
 
-        # Change #3 — peak-earnings guard.
+        # Change #3 — peak-earnings guard (median reference).
         # Benchmarking current P/E against own 5yr history is correct in
         # ordinary conditions. But when trailing operating margin is materially
-        # above its own 5yr average, the denominator (earnings) is cycle-peak
+        # above its through-cycle norm, the denominator (earnings) is cycle-peak
         # inflated — so a compressed P/E vs history reads as "cheap" when the
-        # earnings are the anomaly, not the price. Classic semiconductor / AI
-        # supercycle case: NVDA P/E 24× vs 5yr avg 60× → scored HIGH, but the
-        # 60× average embeds a period where earnings were a fraction of today's.
-        # Guard: if trailing op margin > 5yr avg × 1.25 (25% above its own
-        # history), treat the benchmark as inflated and down-score by up to 2
-        # points, capped so a genuinely cheap name can still reach MOD-HIGH.
+        # earnings are the anomaly, not the price.
+        # Reference = 5yr MEDIAN op margin, not the mean. A simple mean is
+        # dragged down by a single trough year (NVDA FY23 gaming bust: 16% vs a
+        # 54-62% norm) which would deflate the reference and make a normal
+        # recovered margin look like a "peak". The median is robust to one
+        # outlier year — it fires on genuine peaks, not recoveries.
         # Uses om_series from the enclosing build_scorecard scope (always set).
-        _PE_PEAK_MARGIN_FACTOR = 1.25   # trailing margin > 25% above 5yr avg
+        _PE_PEAK_MARGIN_FACTOR = 1.25   # trailing margin > 25% above median norm
         _PE_PEAK_SCORE_PENALTY = 2.0
         _om_valid_pe = [o for o in om_series if o is not None]
         if len(_om_valid_pe) >= 3 and _om_valid_pe[-1] and _om_valid_pe[-1] > 0:
-            _om_5yr_avg_pe = sum(_om_valid_pe) / len(_om_valid_pe)
-            if (_om_5yr_avg_pe > 0
-                    and _om_valid_pe[-1] > _om_5yr_avg_pe * _PE_PEAK_MARGIN_FACTOR):
-                _peak_excess = _om_valid_pe[-1] / _om_5yr_avg_pe - 1.0
+            _srt_pe = sorted(_om_valid_pe)
+            _n_pe   = len(_srt_pe)
+            _om_ref_pe = (_srt_pe[(_n_pe - 1) // 2] + _srt_pe[_n_pe // 2]) / 2.0  # median
+            if (_om_ref_pe > 0
+                    and _om_valid_pe[-1] > _om_ref_pe * _PE_PEAK_MARGIN_FACTOR):
+                _peak_excess = _om_valid_pe[-1] / _om_ref_pe - 1.0
                 _peak_penalty = min(_PE_PEAK_SCORE_PENALTY,
                                     _peak_excess / _PE_PEAK_MARGIN_FACTOR
                                     * _PE_PEAK_SCORE_PENALTY)
@@ -4696,7 +4701,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     tier_v = "MOD-HIGH"
                 note_v += (f"  [peak-margin flag: trailing op margin "
                            f"{_om_valid_pe[-1]:.1%} is {_peak_excess:.0%} above "
-                           f"5yr avg {_om_5yr_avg_pe:.1%} — earnings may be "
+                           f"5yr median {_om_ref_pe:.1%} — earnings may be "
                            f"cycle-peak inflated; valuation score penalised "
                            f"{_peak_penalty:.1f}pt]")
 
@@ -4919,10 +4924,40 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
 
     # P/E blend
     if score_pe is not None and pe_current and pe_current > 0:
-        _abs_pe  = _abs_pe_score(pe_current, peg=_peg_val)
+        # Change #1 — GAAP/basis consistency for the trailing + absolute legs.
+        # The 5yr benchmark (pe_5yr_avg) is trailing GAAP. score_pe (the "trailing
+        # relative" leg) and the absolute leg were both computed on pe_current =
+        # forward_pe_val — built from analyst epsAvg, which is forward-dated and,
+        # for heavy-SBC names, effectively NON-GAAP (much higher EPS → lower P/E).
+        # Comparing that against a trailing GAAP history systematically overstated
+        # cheapness (ADBE true GAAP P/E 14.5× vs FMP-reported 10.3×; NVDA 43.7× vs
+        # 24.2×). Neither FMP's ratio field nor pe_current can be trusted as GAAP,
+        # so we compute trailing GAAP P/E directly from fundamentals:
+        #   GAAP P/E = price / (TTM net income / diluted shares)
+        # and use it for the trailing + absolute legs. The forward leg
+        # (_fwd_pe_score) keeps forward_pe_val as the intended forward-outlook view.
+        _gaap_pe = None
+        try:
+            _ni_ttm   = is_data[-1].get("netIncome") or 0
+            _shs_gaap = (is_data[-1].get("weightedAverageShsOutDil") or
+                         is_data[-1].get("weightedAverageShsOut") or 0)
+            _px_gaap  = _sc_price or float(prof_sc.get("price") or 0)
+            if _ni_ttm > 0 and _shs_gaap > 0 and _px_gaap > 0:
+                _gaap_pe = round(_px_gaap / (_ni_ttm / _shs_gaap), 1)
+        except Exception:
+            _gaap_pe = None
+        _pe_basis = _gaap_pe if (_gaap_pe and _gaap_pe > 0) else pe_current
+        if _gaap_pe and _gaap_pe > 0 and abs(_gaap_pe - pe_current) > 0.05:
+            _, _rel_pe_gaap, _ = _t_val(_pe_basis, _pe_5yr_bench, sector_pe_med,
+                                        "P/E trailing GAAP", roic_latest, rev_cagr)
+            _rel_pe = _rel_pe_gaap if _rel_pe_gaap is not None else score_pe
+            note_pe += (f"  [GAAP-consistency: trailing+abs legs scored on TTM GAAP "
+                        f"{_gaap_pe:.1f}x vs GAAP 5yr (not forward {pe_current:.1f}x)]")
+        else:
+            _rel_pe = score_pe
+        _abs_pe  = _abs_pe_score(_pe_basis, peg=_peg_val)
         if is_bank:
             _abs_pe = min(_abs_pe, _ABS_BANK_CAP)
-        _rel_pe  = score_pe
         _fpe     = _fwd_pe_score if _fwd_pe_score is not None else _rel_pe
         _blended_pe = round(_TRAIL_W * _rel_pe + _FWD_W * _fpe + _ABS_W * _abs_pe, 4)
         _fwd_note  = f"fwd_pe={forward_pe_val:.1f}x→{_fpe:.2f}" if _fwd_pe_score is not None else "no_fwd_data(fallback)"
