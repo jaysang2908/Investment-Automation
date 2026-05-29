@@ -2204,6 +2204,36 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                   f"  median={_median:.3f}  (was 3yr avg={sum(_gt_yoys)/len(_gt_yoys):.3f})"
                   if _gt_yoys else f"  F-E: cyclical median={_median:.3f}")
 
+    # Change #6 — Outlier-CAGR smoothing for non-cyclical tech names.
+    # Rule 17 already applies median smoothing to cyclicals. The same problem
+    # exists at the opposite end: a semiconductor or AI name whose trailing
+    # 3yr average CAGR exceeds 40% is almost certainly sitting at a demand
+    # supercycle or product-cycle peak. Extrapolating that CAGR sets a Year-5
+    # EBITDA target that no analyst consensus actually expects, and drives an
+    # EM price target that is arithmetically correct but economically heroic.
+    # Fix: for non-cyclical names with 3yr avg CAGR > 40%, replace it with the
+    # median of all available YoY periods (same F-E logic). This typically
+    # fades a 100% CAGR (NVDA FY22-24) toward a 30-50% median that still
+    # captures genuine hypergrowth while removing single-year distortion.
+    # Cyclicals are already handled by F-E above; banks are DCF-disabled.
+    _OUTLIER_CAGR_THRESHOLD = 0.40
+    if (not _is_cyclical_dcf
+            and _rev_3yr_avg_dcf > _OUTLIER_CAGR_THRESHOLD):
+        _all_yoys_oc = []
+        for _k in range(1, len(_gt_revs)):
+            if _gt_revs[_k-1] > 0 and _gt_revs[_k] > 0:
+                _all_yoys_oc.append(_gt_revs[_k] / _gt_revs[_k-1] - 1)
+        if len(_all_yoys_oc) >= 3:
+            _sorted_oc = sorted(_all_yoys_oc)
+            _n_oc      = len(_sorted_oc)
+            _median_oc = (_sorted_oc[(_n_oc - 1) // 2] + _sorted_oc[_n_oc // 2]) / 2.0
+            _was       = _rev_3yr_avg_dcf
+            _rev_3yr_avg_dcf = _median_oc
+            print(f"  Change#6: outlier-CAGR smoothing (non-cyclical) — "
+                  f"3yr avg {_was:.1%} > {_OUTLIER_CAGR_THRESHOLD:.0%} threshold. "
+                  f"All yoys={[round(y,3) for y in _all_yoys_oc]}  "
+                  f"median={_median_oc:.3f} used for growth tier.")
+
     if _rev_3yr_avg_dcf < 0.05:
         _TIER          = "low"
         _DCF_TGR_BASE  = 0.025
@@ -4592,6 +4622,40 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             tier_v = "HIGH"
         note_v += "]"
         score_v = _val_score(delta, premium_ok=premium_ok)
+
+        # Change #3 — peak-earnings guard.
+        # Benchmarking current P/E against own 5yr history is correct in
+        # ordinary conditions. But when trailing operating margin is materially
+        # above its own 5yr average, the denominator (earnings) is cycle-peak
+        # inflated — so a compressed P/E vs history reads as "cheap" when the
+        # earnings are the anomaly, not the price. Classic semiconductor / AI
+        # supercycle case: NVDA P/E 24× vs 5yr avg 60× → scored HIGH, but the
+        # 60× average embeds a period where earnings were a fraction of today's.
+        # Guard: if trailing op margin > 5yr avg × 1.25 (25% above its own
+        # history), treat the benchmark as inflated and down-score by up to 2
+        # points, capped so a genuinely cheap name can still reach MOD-HIGH.
+        # Uses om_series from the enclosing build_scorecard scope (always set).
+        _PE_PEAK_MARGIN_FACTOR = 1.25   # trailing margin > 25% above 5yr avg
+        _PE_PEAK_SCORE_PENALTY = 2.0
+        _om_valid_pe = [o for o in om_series if o is not None]
+        if len(_om_valid_pe) >= 3 and _om_valid_pe[-1] and _om_valid_pe[-1] > 0:
+            _om_5yr_avg_pe = sum(_om_valid_pe) / len(_om_valid_pe)
+            if (_om_5yr_avg_pe > 0
+                    and _om_valid_pe[-1] > _om_5yr_avg_pe * _PE_PEAK_MARGIN_FACTOR):
+                _peak_excess = _om_valid_pe[-1] / _om_5yr_avg_pe - 1.0
+                _peak_penalty = min(_PE_PEAK_SCORE_PENALTY,
+                                    _peak_excess / _PE_PEAK_MARGIN_FACTOR
+                                    * _PE_PEAK_SCORE_PENALTY)
+                score_v = max(0.0, score_v - _peak_penalty)
+                # Clamp tier down one level when score has been meaningfully penalised
+                if _peak_penalty >= 1.0 and tier_v == "HIGH":
+                    tier_v = "MOD-HIGH"
+                note_v += (f"  [peak-margin flag: trailing op margin "
+                           f"{_om_valid_pe[-1]:.1%} is {_peak_excess:.0%} above "
+                           f"5yr avg {_om_5yr_avg_pe:.1%} — earnings may be "
+                           f"cycle-peak inflated; valuation score penalised "
+                           f"{_peak_penalty:.1f}pt]")
+
         return tier_v, score_v, note_v
 
     # ── Forward P/E and forward P/FCF derivation ──────────────────────────────
