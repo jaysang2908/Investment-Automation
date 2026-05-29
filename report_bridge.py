@@ -1395,6 +1395,63 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         )
         _narrative_banner_html = _disp_banner + _narrative_banner_html
 
+    # Change #8 — Credit-sensitive regime banner.
+    # Fires when D/EBITDA exceeds the sector threshold and the regime has been
+    # activated. Shows the three numbers a credit analyst reaches for first:
+    # leverage ratio, interest cover, and years-to-deleverage at current FCF.
+    _is_credit_sensitive = scorecard_metrics.get("credit_sensitive", False)
+    if _is_credit_sensitive:
+        _cr_d_ebitda = scorecard_metrics.get("d_ebitda") or d_ebitda_v or 0
+        _cr_thresh   = scorecard_metrics.get("credit_regime_thresh", 2.5)
+        _cr_bucket   = scorecard_metrics.get("sector_bucket", "")
+        try:
+            _cr_ebit_int = (abs(is_data[-1].get("operatingIncome") or 0) /
+                            abs(is_data[-1].get("interestExpense") or 1))
+        except Exception:
+            _cr_ebit_int = 0
+        try:
+            _cr_bs       = bs_data[-1]
+            _cr_net_debt_b = ((_cr_bs.get("shortTermDebt") or 0) +
+                               (_cr_bs.get("longTermDebt")  or 0) -
+                               (_cr_bs.get("cashAndCashEquivalents") or 0)) / 1e9
+        except Exception:
+            _cr_net_debt_b = None
+        _cr_fcf_b = dcf_prices.get("trailing_fcf_b")
+        _cr_ytd = (
+            f"{_cr_net_debt_b / _cr_fcf_b:.1f} yrs at current FCF"
+            if (_cr_net_debt_b is not None and _cr_fcf_b and _cr_fcf_b > 0
+                and _cr_net_debt_b > 0)
+            else "N/A"
+        )
+        _cr_ebit_int_str = f"{_cr_ebit_int:.1f}&#215;" if _cr_ebit_int else "N/A"
+        _cr_nd_str = (f"${_cr_net_debt_b:,.1f}B net debt"
+                      if _cr_net_debt_b is not None else "net debt N/A")
+        _credit_banner = (
+            f'<div style="margin:14px 0 8px;padding:12px 18px;'
+            f'background:#fce4e4;border-left:3px solid #c62828;'
+            f'border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#7a1414">'
+            f'<strong style="font-family:var(--font-mono);letter-spacing:0.5px;'
+            f'font-size:10px;text-transform:uppercase">'
+            f'&#9888; Credit-Sensitive Regime Active '
+            f'(D/EBITDA {_cr_d_ebitda:.1f}&#215; &gt; {_cr_thresh:.1f}&#215; '
+            f'{_cr_bucket} threshold)</strong><br>'
+            f'<strong>D/EBITDA {_cr_d_ebitda:.1f}&#215;</strong>'
+            f' &nbsp;&#183;&nbsp; '
+            f'<strong>Interest cover {_cr_ebit_int_str}</strong>'
+            f' &nbsp;&#183;&nbsp; '
+            f'<strong>{_cr_nd_str}</strong>'
+            f' &nbsp;&#183;&nbsp; '
+            f'<strong>Deleverage: {_cr_ytd}</strong><br>'
+            f'<span style="font-size:11px">Scorecard weights rebalanced: '
+            f'Leverage 5&#8594;12.5pts &middot; Interest Cover 7.5&#8594;10pts '
+            f'(offset from PE, PFCF, RevCAGR, CapRet). '
+            f'High leverage amplifies both upside and downside — '
+            f'refinancing risk and covenant headroom are not captured here; '
+            f'review the debt maturity schedule before relying on this score.</span>'
+            f'</div>'
+        )
+        _narrative_banner_html = _credit_banner + _narrative_banner_html
+
     # F-C Phase 2: EM cap banner — shown when historical anchor was capped at 28x
     # Amber/warning tone: the model is being conservative here and the user should
     # know exactly where that conservatism is applied and how to override it.

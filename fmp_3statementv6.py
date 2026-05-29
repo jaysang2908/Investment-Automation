@@ -5055,6 +5055,52 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         W["BC"]      = 7.5    # +5  — segment economics matter more
         W["Mgmt"]    = 12.5   # +5  — capital stewardship critical pre-profit
         # Lev (5) + Exec (5) unchanged → total = 25+20+25+7.5+12.5+5+5 = 100 ✓
+
+    # Change #8 — Credit-sensitive weight regime.
+    # When D/EBITDA exceeds a sector-calibrated threshold and the company is not
+    # a bank or EVS-regime name, the debt burden is material to the investment
+    # thesis and deserves more scorecard weight than the default 5pts.
+    # A structured-credit reviewer looking at HCA (D/EBITDA 3.1×, was scoring 8.5)
+    # would immediately note that leverage carries less weight than P/FCF — wrong
+    # priority for a levered operator.
+    #
+    # Thresholds are sector-aware: cyclicals naturally carry more leverage, so the
+    # bar is higher before the regime fires; tech and stable compounders have less
+    # justification for structural leverage.
+    #
+    # Weight shifts (+10 total to debt criteria, −10 from growth/valuation):
+    #   Lev    5.0 → 12.5  (+7.5)  primary credit criterion
+    #   EBITInt 7.5 → 10.0 (+2.5)  interest coverage — debt service ability
+    #   PE    10.0 →  7.5  (−2.5)  equity multiple less informative at high leverage
+    #   PFCF  10.0 →  7.5  (−2.5)  same rationale
+    #   RevCAGR 10.0→ 7.5  (−2.5)  growth story secondary when solvency is in play
+    #   CapRet  5.0 →  2.5 (−2.5)  buybacks/dividends at high leverage are a red flag
+    #                               anyway (already penalised in cap_ret scoring)
+    _CREDIT_REGIME_THRESHOLDS = {
+        "tech_growth":       2.5,
+        "stable_compounder": 2.5,
+        "cyclical":          3.5,   # higher tolerance — cyclicals deleverage naturally
+        "bank":              999,   # banks have their own regime; never trigger this
+    }
+    _credit_thresh  = _CREDIT_REGIME_THRESHOLDS.get(_bucket, 2.5)
+    _is_credit_sensitive = (
+        not is_bank
+        and not evs_regime
+        and d_ebitda is not None
+        and d_ebitda > _credit_thresh
+    )
+    if _is_credit_sensitive:
+        W["Lev"]     = 12.5
+        W["EBITInt"] = 10.0
+        W["PE"]      =  7.5
+        W["PFCF"]    =  7.5
+        W["RevCAGR"] =  7.5
+        W["CapRet"]  =  2.5
+        # BC(2.5)+Moat(10)+LTP(10)+Mgmt(7.5)+Rev(7.5)+FCFNI(10)+CapRet(2.5)
+        # +ROIC(7.5)+Lev(12.5)+EBITInt(10)+Exec(5)+PE(7.5)+PFCF(7.5) = 100 ✓
+        print(f"  Credit-sensitive regime: D/EBITDA={d_ebitda:.1f}x > {_credit_thresh:.1f}x "
+              f"threshold for '{_bucket}' — leverage weight 5→12.5, interest cover 7.5→10")
+
     _wsum = sum(W.values())
     if _wsum and abs(_wsum - 100.0) > 0.01:
         print(f"  ⚠ Regime weights sum to {_wsum} (expected 100)")
@@ -5547,7 +5593,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         # p1/p2/p3/p4 totals so the HTML weighted scores match the Excel sheet
         # under bank or EVS regime adjustments.
         "weights":         dict(W),
-        "evs_regime":      evs_regime,
+        "evs_regime":           evs_regime,
+        "credit_sensitive":     _is_credit_sensitive,
+        "credit_regime_thresh": _credit_thresh,
         # Forward multiples (for display in report)
         "forward_pe_val":          forward_pe_val,
         "forward_pfcf_val":        forward_pfcf_val,
