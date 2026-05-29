@@ -4377,26 +4377,70 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             moat_total += 1
             moat_parts.append(f"NCO 3yr avg {_nco_rate:.2%} {'pass' if ok else 'fail'} (<1.0%)")
     else:
+        # Changes #4 and #5 — all four moat indicators now measure competitive
+        # positioning (gross margin + operating leverage) exclusively:
+        #
+        # OLD indicators 3 & 4:
+        #   3. ROIC−WACC spread > 5pp   ← double-counts standalone ROIC criterion
+        #   4. Rev consistency σ < 8%   ← double-counts Execution Risk criterion
+        #
+        # NEW indicators 3 & 4:
+        #   3. GM stability  CV < 10%   — pricing power is DURABLE (independent of
+        #      level and trend; captures whether the moat erodes in competitive cycles)
+        #   4. Op leverage   5yr Δ op margin > +5pp OR trailing op margin > 20%
+        #      — pricing power CONVERTS TO PROFIT (independent of all GM metrics)
+        #
+        # Indicator 1 — Gross margin level: pricing power exists
         if gm_latest is not None:
             ok = gm_latest > 0.40
             if ok: moat_ind.append(True)
             moat_total += 1
             moat_parts.append(f"GM {gm_latest:.1%} {'✓' if ok else '✗'} (>40%)")
+        # Indicator 2 — Gross margin trend: pricing power is expanding
         if gm_3yr_delta is not None:
             ok = gm_3yr_delta > 0.01
             if ok: moat_ind.append(True)
             moat_total += 1
             moat_parts.append(f"GM trend {gm_3yr_delta:+.1%} {'✓' if ok else '✗'} (>+1pp)")
-        if roic_latest is not None:
-            spread = roic_latest - rough_wacc
-            ok = spread > 0.05
-            if ok: moat_ind.append(True)
+        # Indicator 3 — Gross margin stability (CV): pricing power is durable
+        # CV = σ/μ of all available gross margin observations.
+        # Low CV means the margin holds through product cycles and competitive
+        # pressure — the hallmark of a genuine pricing-power moat.
+        # Replaces ROIC-WACC spread (which double-counted the ROIC criterion).
+        _gm_valid_moat = [g for g in gm_series if g is not None]
+        if len(_gm_valid_moat) >= 3:
+            _gm_mu  = sum(_gm_valid_moat) / len(_gm_valid_moat)
+            _gm_std = (sum((g - _gm_mu) ** 2 for g in _gm_valid_moat)
+                       / len(_gm_valid_moat)) ** 0.5
+            _gm_cv  = _gm_std / _gm_mu if _gm_mu > 0 else 1.0
+            ok_gm_cv = _gm_cv < 0.10
+            if ok_gm_cv: moat_ind.append(True)
             moat_total += 1
-            moat_parts.append(f"ROIC-WACC {spread:+.1%} {'✓' if ok else '✗'} (>+5pp)")
-        ok_std = rev_std < 0.08
-        if ok_std: moat_ind.append(True)
-        moat_total += 1
-        moat_parts.append(f"Rev consistency σ={rev_std:.1%} {'✓' if ok_std else '✗'} (<8%)")
+            moat_parts.append(f"GM stability CV={_gm_cv:.1%} {'✓' if ok_gm_cv else '✗'} (<10%)")
+        # Indicator 4 — Operating leverage: pricing power converts to profit
+        # Passes if op margin expanded >5pp over 5yr history OR trailing margin >20%.
+        # The OR condition catches mature compounders (stable at high OM) and
+        # improvers (structurally expanding OM) without penalising either for not
+        # fitting the other archetype.
+        # Replaces rev consistency σ (which double-counted Execution Risk criterion).
+        _om_first_moat  = om_series[0]  if om_series and om_series[0]  is not None else None
+        _om_latest_moat = om_series[-1] if om_series and om_series[-1] is not None else None
+        _om_5yr_delta   = ((_om_latest_moat - _om_first_moat)
+                           if _om_first_moat is not None and _om_latest_moat is not None
+                           else None)
+        ok_op_lev = (
+            (_om_5yr_delta is not None and _om_5yr_delta > 0.05)
+            or (_om_latest_moat is not None and _om_latest_moat > 0.20)
+        )
+        if _om_latest_moat is not None:
+            _op_lev_note = (
+                f"Op leverage: OM {_om_latest_moat:.1%}"
+                + (f" ({_om_5yr_delta:+.1%} 5yr)" if _om_5yr_delta is not None else "")
+                + f" {'✓' if ok_op_lev else '✗'} (>20% OR +5pp 5yr)"
+            )
+            if ok_op_lev: moat_ind.append(True)
+            moat_total += 1
+            moat_parts.append(_op_lev_note)
     n_moat = len(moat_ind)
     tier_moat = ("HIGH" if n_moat >= 4 else "MOD-HIGH" if n_moat == 3
                  else "MOD-LOW" if n_moat == 2 else "LOW")

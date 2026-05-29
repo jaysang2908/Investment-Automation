@@ -1362,6 +1362,39 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         )
         _narrative_banner_html = _conc_banner + _narrative_banner_html
 
+    # Change #7 — GG/EM method-dispersion banner.
+    # When the two primary valuation methods agree directionally (concordance),
+    # that's captured above. But they can also *diverge* dramatically — one
+    # bullish, one bearish — which is a different and equally important signal:
+    # the price target is entirely a function of which growth assumption you
+    # believe, not a triangulated fundamental view. Surface this explicitly.
+    # Fires when |EM_upside − GG_upside| > 50pp and neither method is disabled.
+    _gg_up_disp = dcf_prices.get("gg_upside")
+    _em_up_disp = dcf_prices.get("em_upside")
+    if (not _evs_regime and not _bank_disabled
+            and _gg_up_disp is not None and _em_up_disp is not None
+            and abs(_em_up_disp - _gg_up_disp) > 0.50):
+        _disp_gg  = f"{_gg_up_disp*100:+.0f}%"
+        _disp_em  = f"{_em_up_disp*100:+.0f}%"
+        _disp_gap = abs(_em_up_disp - _gg_up_disp) * 100
+        _disp_banner = (
+            f'<div style="margin:14px 0 8px;padding:12px 18px;'
+            f'background:#fff8e1;border-left:3px solid #b45309;'
+            f'border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#78350f">'
+            f'<strong style="font-family:var(--font-mono);letter-spacing:0.5px;'
+            f'font-size:10px;text-transform:uppercase">'
+            f'&#9888; High Valuation Method Dispersion '
+            f'({_disp_gap:.0f}pp spread)</strong><br>'
+            f'Gordon Growth implies <strong>{_disp_gg}</strong> vs current; '
+            f'EV/EBITDA Exit implies <strong>{_disp_em}</strong>. '
+            f'A {_disp_gap:.0f}pp spread means the price target is highly sensitive to '
+            f'the long-run growth assumption — small changes in projected EBITDA produce '
+            f'large swings in fair value. Treat the primary target as a scenario midpoint, '
+            f'not a precise estimate. The bear/base/bull scenario table below bounds the range.'
+            f'</div>'
+        )
+        _narrative_banner_html = _disp_banner + _narrative_banner_html
+
     # F-C Phase 2: EM cap banner — shown when historical anchor was capped at 28x
     # Amber/warning tone: the model is being conservative here and the user should
     # know exactly where that conservatism is applied and how to override it.
