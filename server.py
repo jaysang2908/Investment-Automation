@@ -571,8 +571,12 @@ def generate():
         _W             = scorecard_metrics.get("weights") or {}
         _w_bc          = float(_W.get("BC",  2.5))
         _w_ltp         = float(_W.get("LTP", 10.0))
-        bc_pts         = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
-        ltp_pts        = TIER_PTS.get(ltp,         0) * _w_ltp / 10
+        bc_pts         = TIER_PTS.get(biz_clarity, 0) * _w_bc / 10
+        # Use user-supplied LTP if provided; fall back to engine-provisional tier.
+        # Provisional LTP activates the LTP weight even without user input — it is
+        # labelled "provisional" in the report so the user knows to verify.
+        _ltp_for_score = ltp or scorecard_metrics.get("ltp_provisional_tier")
+        ltp_pts        = TIER_PTS.get(_ltp_for_score, 0) * _w_ltp / 10
         adj_score      = round((auto_score_raw + bc_pts + ltp_pts) / 10, 1)  # normalize to 0-10
         floor_cap      = scorecard_metrics.get("floor_cap")  # already normalized 0-10
         if floor_cap is not None:
@@ -654,7 +658,10 @@ def generate():
         # Store the hero display score (adj when quals present, quant otherwise)
         # so Auto_Score in the CSV always matches what the report shows.
         try:
-            _display_score = adj_score if (biz_clarity or ltp) else auto_score
+            # Use adj_score when any qualitative factor is active: user-supplied OR
+            # engine-provisional LTP (always present after the provisional LTP feature).
+            _has_qual = bool(biz_clarity or ltp or scorecard_metrics.get("ltp_provisional_tier"))
+            _display_score = adj_score if _has_qual else auto_score
             _update_outputs_csv(
                 ticker            = ticker,
                 scorecard_metrics = scorecard_metrics,
@@ -1624,13 +1631,14 @@ def api_update_qualitative(ticker):
         auto_score     = float(body.get("auto_score") or 0)
         auto_score_raw = auto_score * 87.5 / 10.0  # reverse-normalize for adj computation
 
-    TIER_PTS  = {"HIGH": 10, "MOD": 7, "LOW": 0}
+    TIER_PTS  = {"HIGH": 10, "MOD-HIGH": 7, "MOD": 7, "MOD-LOW": 3, "LOW": 0}
     # Regime-aware BC/LTP weights (banks/EVS) — see comment in /generate handler
     _W        = scorecard_metrics.get("weights") or {}
     _w_bc     = float(_W.get("BC",  2.5))
     _w_ltp    = float(_W.get("LTP", 10.0))
-    bc_pts    = TIER_PTS.get(biz_clarity, 0) * _w_bc  / 10
-    ltp_pts   = TIER_PTS.get(ltp,         0) * _w_ltp / 10
+    bc_pts    = TIER_PTS.get(biz_clarity, 0) * _w_bc / 10
+    _ltp_for_score = ltp or scorecard_metrics.get("ltp_provisional_tier")
+    ltp_pts   = TIER_PTS.get(_ltp_for_score, 0) * _w_ltp / 10
     adj_score = round((auto_score_raw + bc_pts + ltp_pts) / 10, 1)  # normalize to 0-10
     floor_cap = scorecard_metrics.get("floor_cap")  # already normalized 0-10
     if floor_cap is not None:

@@ -613,7 +613,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <div style="font-size:10px;color:var(--ink-2);margin-top:4px;letter-spacing:0.3px">Conservative of Quant + Full scores</div>
       </div>
       <div>
-        <div class="verdict-score-row"><span class="verdict-score-num">4.5</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant only — qualitative inputs pending</div>
+        <div class="verdict-score-sub" style="font-size:10px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:-2px">Quality Score</div><div class="verdict-score-row" style="margin-top:4px"><span class="verdict-score-num">4.5</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant only — qualitative inputs pending</div><div class="verdict-score-row" style="margin-top:18px"><span class="verdict-score-num" style="font-size:30px;color:#5BD89A">+28%</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:2px;color:#5BD89A">Margin of Safety — Cheap vs fundamentals</div>
         <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · May 2026</div>
       </div>
     </div>
@@ -623,8 +623,8 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="price-block">
         <div class="price-label">Current Price</div>
         <div class="price-value">15.62</div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);margin-top:6px;letter-spacing:0.02em">3yr +165%</div>
-        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:0.02em">3yr range $6–$32</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);margin-top:6px;letter-spacing:0.02em">3yr +200%</div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:0.02em">3yr range $5–$32</div>
       </div>
       <div class="price-arrow">→</div>
       <div class="price-block">
@@ -1080,7 +1080,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <span>Weighted total across 13 criteria</span>
     <span class="score-final score-final-red">4.5 / 10 — Avoid</span>
   </div>
-  <div style="font-family:var(--font-mono);font-size:10px;color:var(--warn);letter-spacing:0.5px;margin:8px 0 0;padding:8px 14px;background:var(--warn-bg);border-left:2px solid var(--warn);border-radius:0 4px 4px 0">Qualitative inputs (Business Clarity, Long-Term Potential) not provided. Quant score shown out of 10 — verdict applies %-bands to that scale. Completing these inputs unlocks the full 0-10 scorecard.</div>
+  
   <table class="scorecard-table">
     <thead>
       <tr>
@@ -1092,7 +1092,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
     </thead>
     <tbody>
-      <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 9.2</td></tr>
+      <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 34.2</td></tr>
       <tr>
         <td class="col-metric">Business Clarity</td>
         <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
@@ -1107,9 +1107,9 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
       <tr>
         <td class="col-metric">Long-Term Potential</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">—</td>
-        <td class="col-commentary">Moderate runway; well-positioned within addressable market. 4yr revenue CAGR: 39.3%, ROIC 6.5%, FCF -$4.0B in FY2025. Not manually rated.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH ★</span></span></td>
+        <td class="score-num">10</td><td class="score-num">25.0</td>
+        <td class="col-commentary">Rated HIGH (provisional — model-inferred; override after TAM review): strong secular growth with high-return reinvestment opportunities. 4yr revenue CAGR 39.3%, ROIC 6.5%.</td>
       </tr>
       <tr>
         <td class="col-metric">Management<br><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">CEO <br>Tenure: </span></td>
@@ -1191,7 +1191,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       
       <tr class="weighted-row">
         <td colspan="3" style="text-align:right;padding-right:14px;font-family:var(--font-mono);font-size:12px;color:var(--muted)">Total Weighted Score</td>
-        <td class="score-num" style="color:var(--up)">39.2<span style="font-size:10px;color:var(--muted);font-weight:400"> / 87.5</span></td>
+        <td class="score-num" style="color:var(--up)">64.2<span style="font-size:10px;color:var(--muted);font-weight:400"> / 87.5</span></td>
         <td style="color:var(--up);font-size:13px">= 4.5 / 10</td>
       </tr>
     </tbody>
@@ -1548,8 +1548,8 @@ const tooltipDefaults = {
 };
 const tickFont = { family: 'JetBrains Mono', size: 10 };
 
-const priceLabels = ["2023-05-30", "2023-06-07", "2023-06-15", "2023-06-26", "2023-07-05", "2023-07-13", "2023-07-21", "2023-07-31", "2023-08-08", "2023-08-16", "2023-08-24", "2023-09-01", "2023-09-12", "2023-09-20", "2023-09-28", "2023-10-06", "2023-10-16", "2023-10-24", "2023-11-01", "2023-11-09", "2023-11-17", "2023-11-28", "2023-12-06", "2023-12-14", "2023-12-22", "2024-01-03", "2024-01-11", "2024-01-22", "2024-01-30", "2024-02-07", "2024-02-15", "2024-02-26", "2024-03-05", "2024-03-13", "2024-03-21", "2024-04-01", "2024-04-09", "2024-04-17", "2024-04-25", "2024-05-03", "2024-05-13", "2024-05-21", "2024-05-30", "2024-06-07", "2024-06-17", "2024-06-26", "2024-07-05", "2024-07-15", "2024-07-23", "2024-07-31", "2024-08-08", "2024-08-16", "2024-08-26", "2024-09-04", "2024-09-12", "2024-09-20", "2024-09-30", "2024-10-08", "2024-10-16", "2024-10-24", "2024-11-01", "2024-11-11", "2024-11-19", "2024-11-27", "2024-12-06", "2024-12-16", "2024-12-24", "2025-01-03", "2025-01-14", "2025-01-23", "2025-01-31", "2025-02-10", "2025-02-19", "2025-02-27", "2025-03-07", "2025-03-17", "2025-03-25", "2025-04-02", "2025-04-10", "2025-04-21", "2025-04-29", "2025-05-07", "2025-05-15", "2025-05-23", "2025-06-03", "2025-06-11", "2025-06-20", "2025-06-30", "2025-07-09", "2025-07-17", "2025-07-25", "2025-08-04", "2025-08-12", "2025-08-20", "2025-08-28", "2025-09-08", "2025-09-16", "2025-09-24", "2025-10-02", "2025-10-10", "2025-10-20", "2025-10-28", "2025-11-05", "2025-11-13", "2025-11-21", "2025-12-02", "2025-12-10", "2025-12-18", "2025-12-29", "2026-01-07", "2026-01-15", "2026-01-26", "2026-02-03", "2026-02-11", "2026-02-20", "2026-03-02", "2026-03-10", "2026-03-18", "2026-03-26", "2026-04-06", "2026-04-14", "2026-04-22", "2026-04-30", "2026-05-08", "2026-05-18", "2026-05-26"];
-const priceData   = [6.03, 7.74, 9.55, 8.2, 8.38, 9.16, 9.43, 11.45, 9.31, 8.26, 8.12, 8.79, 9.0, 8.32, 7.77, 7.99, 8.25, 7.38, 7.58, 6.85, 6.83, 7.34, 7.89, 9.47, 9.71, 8.31, 8.17, 7.92, 8.4, 7.66, 8.53, 8.54, 7.27, 7.38, 7.44, 7.22, 7.89, 7.16, 7.59, 6.96, 7.11, 7.08, 6.91, 6.99, 6.46, 6.46, 6.47, 7.33, 7.43, 7.54, 6.64, 7.0, 7.67, 7.48, 7.46, 8.05, 7.86, 8.41, 10.04, 10.93, 11.04, 14.11, 14.42, 16.12, 16.02, 16.88, 16.02, 14.84, 14.5, 18.03, 15.78, 15.13, 16.18, 14.07, 12.59, 12.32, 13.54, 12.31, 10.52, 10.69, 13.27, 13.01, 13.57, 13.09, 13.66, 15.06, 15.2, 18.21, 20.22, 22.09, 21.2, 21.81, 23.65, 22.52, 26.04, 25.96, 27.42, 28.44, 25.97, 26.19, 28.68, 31.66, 30.07, 28.39, 25.19, 29.51, 27.09, 26.29, 26.82, 27.0, 26.44, 25.8, 21.76, 20.55, 19.02, 18.39, 18.29, 17.18, 15.87, 16.27, 17.91, 19.06, 16.1, 15.75, 15.71, 15.98];
+const priceLabels = ["2023-05-25", "2023-06-05", "2023-06-13", "2023-06-22", "2023-06-30", "2023-07-11", "2023-07-19", "2023-07-27", "2023-08-04", "2023-08-14", "2023-08-22", "2023-08-30", "2023-09-08", "2023-09-18", "2023-09-26", "2023-10-04", "2023-10-12", "2023-10-20", "2023-10-30", "2023-11-07", "2023-11-15", "2023-11-24", "2023-12-04", "2023-12-12", "2023-12-20", "2023-12-29", "2024-01-09", "2024-01-18", "2024-01-26", "2024-02-05", "2024-02-13", "2024-02-22", "2024-03-01", "2024-03-11", "2024-03-19", "2024-03-27", "2024-04-05", "2024-04-15", "2024-04-23", "2024-05-01", "2024-05-09", "2024-05-17", "2024-05-28", "2024-06-05", "2024-06-13", "2024-06-24", "2024-07-02", "2024-07-11", "2024-07-19", "2024-07-29", "2024-08-06", "2024-08-14", "2024-08-22", "2024-08-30", "2024-09-10", "2024-09-18", "2024-09-26", "2024-10-04", "2024-10-14", "2024-10-22", "2024-10-30", "2024-11-07", "2024-11-15", "2024-11-25", "2024-12-04", "2024-12-12", "2024-12-20", "2024-12-31", "2025-01-10", "2025-01-21", "2025-01-29", "2025-02-06", "2025-02-14", "2025-02-25", "2025-03-05", "2025-03-13", "2025-03-21", "2025-03-31", "2025-04-08", "2025-04-16", "2025-04-25", "2025-05-05", "2025-05-13", "2025-05-21", "2025-05-30", "2025-06-09", "2025-06-17", "2025-06-26", "2025-07-07", "2025-07-15", "2025-07-23", "2025-07-31", "2025-08-08", "2025-08-18", "2025-08-26", "2025-09-04", "2025-09-12", "2025-09-22", "2025-09-30", "2025-10-08", "2025-10-16", "2025-10-24", "2025-11-03", "2025-11-11", "2025-11-19", "2025-11-28", "2025-12-08", "2025-12-16", "2025-12-24", "2026-01-05", "2026-01-13", "2026-01-22", "2026-01-30", "2026-02-09", "2026-02-18", "2026-02-26", "2026-03-06", "2026-03-16", "2026-03-24", "2026-04-01", "2026-04-10", "2026-04-20", "2026-04-28", "2026-05-06", "2026-05-14", "2026-05-22"];
+const priceData   = [5.21, 7.25, 9.54, 8.49, 8.34, 9.07, 9.85, 9.09, 9.5, 8.68, 8.15, 8.74, 8.55, 8.67, 7.4, 7.47, 8.39, 7.37, 6.94, 7.42, 7.37, 6.86, 7.96, 7.95, 9.31, 9.95, 8.32, 7.41, 7.62, 7.58, 8.02, 8.16, 8.99, 7.68, 6.92, 7.36, 7.4, 7.12, 7.58, 6.92, 7.06, 7.28, 6.89, 6.91, 6.8, 6.54, 6.45, 6.77, 7.47, 7.33, 6.43, 6.61, 7.19, 7.99, 7.05, 8.11, 7.76, 8.39, 10.04, 10.58, 11.22, 11.9, 13.63, 15.7, 16.32, 15.9, 15.35, 15.4, 14.15, 17.9, 15.99, 14.8, 16.21, 13.92, 13.43, 11.39, 12.87, 11.63, 9.5, 10.66, 12.88, 12.86, 14.29, 12.8, 13.3, 14.1, 14.43, 16.77, 19.24, 20.96, 21.56, 22.58, 22.1, 24.23, 25.62, 25.38, 26.55, 29.81, 26.42, 28.02, 26.6, 29.01, 30.63, 30.95, 26.72, 29.72, 27.61, 26.58, 27.48, 29.28, 27.14, 26.09, 22.81, 21.35, 19.54, 19.1, 18.9, 17.63, 16.7, 15.63, 16.22, 19.5, 18.36, 16.3, 16.02, 15.62];
 const currencySymbol = '$';
 
 const priceCtx = document.getElementById('priceChart').getContext('2d');

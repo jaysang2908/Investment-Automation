@@ -1060,12 +1060,23 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         _em_base_m   = dcf_prices.get("em_base_mult", _DCF_TEV_BASE if '_DCF_TEV_BASE' in dir() else 15.0)
         _primary_method = f"EV/EBITDA Exit ({dcf_prices.get('em_base_mult', 15):.0f}x)"
 
-    # F-D Phase 1: Bank override — show a bank-specific label before falling into
-    # the generic "N/A — Insufficient inputs" path. The engine already set all
-    # GG/EM prices to None; this just gives the right explanation.
+    # F-D Phase 2: Bank override — use Justified P/TBV + DDM composite when available.
+    # Phase 1 fallback: "N/A — methodology pending" when Phase 2 data is absent.
+    _bank_composite_px = dcf_prices.get("bank_composite")
     if _bank_disabled:
-        _primary_pt     = None
-        _primary_method = "N/A — Bank methodology pending (DDM / Justified P/B)"
+        if _bank_composite_px:
+            _primary_pt     = _bank_composite_px
+            _bank_ptbv_px   = dcf_prices.get("bank_ptbv_price")
+            _bank_ddm_px    = dcf_prices.get("bank_ddm_price")
+            _parts = []
+            if _bank_ptbv_px:  _parts.append(f"P/TBV ${_bank_ptbv_px:.0f}")
+            if _bank_ddm_px:   _parts.append(f"DDM ${_bank_ddm_px:.0f}")
+            _primary_method = "Justified P/TBV + DDM (composite avg)"
+            if len(_parts) == 1:
+                _primary_method = ("Justified P/TBV" if _bank_ptbv_px else "Two-Stage DDM")
+        else:
+            _primary_pt     = None
+            _primary_method = "N/A — Bank methodology pending (DDM / Justified P/B)"
 
     # F-C: Thin-margin primary override — make EM primary when FCF/Revenue < 5%
     # AND sector is stable_compounder. Gordon Growth perpetuates structural thin
@@ -1206,14 +1217,51 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     # F-B: override the rationale when no method produced a valid price.
     # Surfaces the actual reason (foreign reporter, bank, negative DCF outputs, etc.)
     # rather than leaving stale tier-branch rationale text.
+    # F-D Phase 2: Build bank rationale now that price_target may be non-None.
+    if _bank_disabled:
+        _b_roe   = dcf_prices.get("bank_roe")
+        _b_ke    = dcf_prices.get("bank_ke")
+        _b_g     = dcf_prices.get("bank_g")
+        _b_ptbv  = dcf_prices.get("bank_ptbv_target")
+        _b_tbvps = dcf_prices.get("bank_tbvps")
+        _b_dps   = dcf_prices.get("bank_dps_trailing")
+        _b_ptbv_px = dcf_prices.get("bank_ptbv_price")
+        _b_ddm_px  = dcf_prices.get("bank_ddm_price")
+        _b_up      = dcf_prices.get("bank_upside")
+        if _bank_composite_px:
+            _roe_str  = f"{_b_roe*100:.1f}%" if _b_roe  else "N/A"
+            _ke_str   = f"{_b_ke*100:.1f}%"  if _b_ke   else "N/A"
+            _g_str    = f"{_b_g*100:.1f}%"   if _b_g    else "N/A"
+            _ptbv_str = f"{_b_ptbv:.2f}x"    if _b_ptbv else "N/A"
+            _tbv_str  = f"${_b_tbvps:.2f}"   if _b_tbvps else "N/A"
+            _dps_str  = f"${_b_dps:.2f}"     if _b_dps  else "N/A"
+            _ptbv_line = (f"Justified P/TBV = (ROE {_roe_str} − g {_g_str}) / "
+                          f"(Ke {_ke_str} − g {_g_str}) = {_ptbv_str}. "
+                          f"TBVPS {_tbv_str} → P/TBV target ${_b_ptbv_px:.0f}. ") if _b_ptbv_px else ""
+            _ddm_line  = (f"DDM: trailing DPS {_dps_str}, Ke {_ke_str}, "
+                          f"terminal g {_g_str} → DDM ${_b_ddm_px:.0f}. ") if _b_ddm_px else ""
+            _pt_rationale = (
+                f"Bank-charter institution — GG/EM replaced by Justified P/TBV and DDM. "
+                f"{_ptbv_line}{_ddm_line}"
+                f"Composite price target = simple average. "
+                f"Ke floored at 9.5% for bank equity risk premium. "
+                f"Scorecard quality metrics remain fully valid."
+            )
+        else:
+            _pt_rationale = (
+                "Bank-charter institution — Gordon Growth and EV/EBITDA Exit Multiple "
+                "do not apply to deposit-funded balance sheets. "
+                "P/TBV and DDM methodology active but data insufficient for a price target. "
+                "Scorecard quality metrics remain valid."
+            )
+
     if price_target is None:
         if _bank_disabled:
             _pt_rationale = (
                 "Bank-charter institution — Gordon Growth (FCF perpetuity) and "
                 "EV/EBITDA Exit Multiple do not apply to deposit-funded balance sheets. "
-                "The correct methodology is DDM (Dividend Discount Model) or "
-                "Justified P/B (price-to-tangible-book vs ROE − g). "
-                "Pending Phase 2 implementation. Scorecard quality metrics remain valid."
+                "DDM and Justified P/TBV methodology is active — insufficient data to "
+                "compute a price target for this ticker. Scorecard quality metrics remain valid."
             )
         elif dcf_prices.get("foreign_reporter"):
             _pt_rationale = (
@@ -1658,6 +1706,41 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     t_bc  = _norm_qual(biz_clarity)
     t_ltp = _norm_qual(ltp)
 
+    # Provisional LTP: when no user-supplied LTP, use the engine-derived provisional tier.
+    # The scorecard engine always computes this from CAGR/sector/GM signals.
+    # It participates in scoring and p1 calculation; labelled "(provisional)" in the report.
+    _ltp_provisional      = scorecard_metrics.get("ltp_provisional", False)
+    _ltp_provisional_tier = scorecard_metrics.get("ltp_provisional_tier")
+    if t_ltp is None and _ltp_provisional_tier:
+        t_ltp = _norm_qual(_ltp_provisional_tier)
+
+    # Legacy fallback: cached scorecard_metrics predating the provisional LTP feature
+    # won't have ltp_provisional_tier. Derive it inline from cached signals so that
+    # _rerender_reports.py and stale JSONs still benefit from the provisional tier.
+    if t_ltp is None and not _ltp_provisional_tier:
+        _fb_bucket = scorecard_metrics.get("sector_bucket", "")
+        _fb_cagr   = scorecard_metrics.get("rev_cagr") or 0.0
+        _fb_evs    = bool(scorecard_metrics.get("evs_regime"))
+        # GM: compute from is_data if available; otherwise use a sector-level proxy
+        _fb_gm = None
+        if is_data:
+            _is_last = is_data[-1]
+            _rev_l   = _is_last.get("revenue") or 0
+            _gp_l    = _is_last.get("grossProfit") or 0
+            _fb_gm   = _gp_l / _rev_l if _rev_l > 0 else None
+        _fb_gm = _fb_gm or 0.0
+        if _fb_evs:
+            _fb_tier = "HIGH"
+        elif _fb_bucket == "tech_growth":
+            _fb_tier = "HIGH" if (_fb_cagr > 0.25 and _fb_gm > 0.60) else "MOD-HIGH"
+        elif _fb_bucket == "stable_compounder":
+            _fb_tier = "MOD-HIGH" if (_fb_gm > 0.50 and _fb_cagr > 0.07) or (_fb_gm > 0.38) else "MOD-LOW"
+        else:
+            _fb_tier = "MOD-LOW"
+        _ltp_provisional      = True
+        _ltp_provisional_tier = _fb_tier
+        t_ltp = _norm_qual(_fb_tier)
+
     # ── Continuous engine scores (preferred) — fall back to discrete tier map ──
     # build_scorecard now ships a continuous score (0..12) for each auto criterion.
     # We use these directly so HTML weighted totals exactly match the Excel literal
@@ -1704,12 +1787,14 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
                   "PE": 10.0, "PFCF": 10.0}
     W = scorecard_metrics.get("weights") or _DEFAULT_W
 
-    # Determine whether qualitative inputs (BC, LTP) were manually rated.
-    # When not rated, exclude them from p1 so the displayed raw total matches
-    # the quant-only auto_score from the engine (no phantom MOD defaults counted).
-    _qual_entered = bool(t_bc or t_ltp)
-    _bc_raw  = _cap(s_bc) * W["BC"]  if _qual_entered else 0.0
-    _ltp_raw = _cap(s_ltp) * W["LTP"] if _qual_entered else 0.0
+    # Determine whether qualitative inputs (BC, LTP) are contributing to the score.
+    # Provisional LTP always counts — it's a real engine-derived signal, just flagged
+    # as provisional. BC only counts when user-supplied (no provisional BC).
+    _ltp_active = bool(t_ltp)  # True for both user-supplied and provisional
+    _bc_active  = bool(t_bc)   # True only for user-supplied BC
+    _qual_entered = bool(_bc_active or _ltp_active)
+    _bc_raw  = _cap(s_bc)  * W["BC"]  if _bc_active  else 0.0
+    _ltp_raw = _cap(s_ltp) * W["LTP"] if _ltp_active else 0.0
 
     p1 = round((_bc_raw + s_moat*W["Moat"] + _ltp_raw + s_mgmt*W["Mgmt"]) / 10, 1)
     p2 = round((s_rev*W["RevCAGR"] + s_fcf_ni*W["FCFNI"] + s_cap_ret*W["CapRet"] + s_roic*W["ROIC"]) / 10, 1)
@@ -1887,8 +1972,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
 
     # Long-term positioning commentary
     if t_ltp:
+        _prov_tag = " (provisional — model-inferred; override after TAM review)" if _ltp_provisional else ""
         _ltp_commentary = (
-            f"Rated {t_ltp}: "
+            f"Rated {t_ltp}{_prov_tag}: "
             + ("strong secular growth with high-return reinvestment opportunities."
                if t_ltp == "HIGH" else
                "solid runway; addressable market supports continued expansion."
@@ -2309,12 +2395,12 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
         # Scorecard — totals use adj_score from Excel engine for consistency
         "P1_WEIGHTED":          str(p1),
         "P1_BC_SCORE_TEXT":     t_bc or "MOD",
-        "P1_BC_WTD":            str(round(_cap(s_bc)*W["BC"]/10, 2)) if _qual_entered else "—",
+        "P1_BC_WTD":            str(round(_cap(s_bc)*W["BC"]/10, 2)) if _bc_active else "—",
         "P1_BC_COMMENTARY":     _bc_commentary,
         "P1_MOAT_SCORE_TEXT":   t_moat, "P1_MOAT_WTD": str(round(s_moat*W["Moat"]/10, 2)),
         "P1_MOAT_COMMENTARY":   _moat_commentary,
-        "P1_LTP_SCORE_TEXT":    t_ltp or "MOD",
-        "P1_LTP_WTD":           str(round(_cap(s_ltp)*W["LTP"]/10, 2)) if _qual_entered else "—",
+        "P1_LTP_SCORE_TEXT":    (f"{t_ltp} ★" if _ltp_provisional else t_ltp) or "MOD",
+        "P1_LTP_WTD":           str(round(_cap(s_ltp)*W["LTP"]/10, 2)) if _ltp_active else "—",
         "P1_LTP_COMMENTARY":    _ltp_commentary,
         "P1_MGT_SCORE_TEXT":    t_mgmt, "P1_MGT_WTD": str(round(s_mgmt*W["Mgmt"]/10, 2)),
         "P1_MGT_COMMENTARY":    _mgt_commentary,

@@ -3428,11 +3428,21 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             # mistakenly trigger the EVS fallback path — that path is for pre-profit
             # secular-growth companies, not solvent deposit-funded institutions.
             _bank_disabled_reason = None
+            # F-D Phase 2 bank price-target variables (initialised here; filled below)
+            _bank_ptbv_price   = None   # Justified P/TBV price target
+            _bank_ddm_price    = None   # Two-stage DDM price target
+            _bank_composite    = None   # simple average of PTBV and DDM (when both valid)
+            _bank_roe          = None   # trailing ROE used
+            _bank_ke           = None   # cost of equity used
+            _bank_ptbv_target  = None   # the justified P/TBV ratio
+            _bank_tbvps        = None   # tangible book value per share
+            _bank_dps_trailing = None   # trailing DPS used for DDM
+            _bank_g            = None   # terminal growth rate used
             if _is_bank_dcf:
                 _bank_disabled_reason = (
-                    "Bank-charter institution — Gordon Growth and EV/EBITDA Exit Multiple "
-                    "do not apply to deposit-funded balance sheets. "
-                    "DDM / Justified P/B methodology pending."
+                    "Bank-charter institution — standard GG/EM DCF does not apply to "
+                    "deposit-funded balance sheets. Price target from Justified P/TBV "
+                    "and two-stage DDM."
                 )
                 _gg_final           = None
                 _em_final           = None
@@ -3448,6 +3458,83 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 _evs_mature_mult     = None
                 _evs_subtype         = None
                 _evs_yr5_rev_b       = None
+
+                # F-D Phase 2: Justified P/TBV + Two-Stage DDM for banks
+                # Cost of equity: WACC ≈ Ke for deposit-funded institutions (nearly
+                # all-equity from an economic risk standpoint). Floor at 9.5% for banks
+                # (slightly above corporate floor — bank equity demands a higher return
+                # given leverage, opacity, and regulatory tail risk).
+                _bank_ke  = max(0.095, _wacc or 0.095)
+                _bank_g   = _DCF_TGR_BASE  # tier-calibrated (typically 2.5% for banks)
+
+                # Tangible book value per share
+                _bs0_b = bs_data[-1] if bs_data else {}
+                _is0_b = is_data[-1] if is_data else {}
+                _equity_b      = (_bs0_b.get("totalStockholdersEquity") or
+                                  _bs0_b.get("totalEquity") or 0)
+                _gw_b          = (_bs0_b.get("goodwillAndIntangibleAssets") or
+                                  _bs0_b.get("goodwill") or 0)
+                _tbv_b         = max(0, _equity_b - _gw_b)
+                _shs_b         = ((_bs0_b.get("commonStockSharesOutstanding") or 0) or
+                                  (_is0_b.get("weightedAverageShsOutDil") or 0) or
+                                  (_is0_b.get("weightedAverageShsOut") or 0))
+                _bank_tbvps    = (_tbv_b / _shs_b) if _shs_b > 0 else None
+
+                # ROE: trailing NI / average equity (last 2 years)
+                _ni_b          = _is0_b.get("netIncome") or 0
+                _eq_prev_b     = (bs_data[-2].get("totalStockholdersEquity") or
+                                  bs_data[-2].get("totalEquity") or 0) if len(bs_data) >= 2 else _equity_b
+                _avg_equity_b  = (_equity_b + _eq_prev_b) / 2 if _eq_prev_b else _equity_b
+                _bank_roe      = _ni_b / _avg_equity_b if _avg_equity_b > 0 else None
+
+                # Justified P/TBV = (ROE - g) / (Ke - g)
+                # Only valid when ROE > 0 and Ke > g (to prevent division by zero or negative)
+                if (_bank_roe and _bank_roe > 0 and _bank_ke > _bank_g
+                        and _bank_tbvps and _bank_tbvps > 0):
+                    _ptbv_ratio   = (_bank_roe - _bank_g) / (_bank_ke - _bank_g)
+                    _ptbv_ratio   = max(0.3, _ptbv_ratio)  # floor: a functioning bank doesn't trade below 0.3x TBV
+                    _bank_ptbv_target = round(_ptbv_ratio, 2)
+                    _ptbv_price_raw   = _ptbv_ratio * _bank_tbvps / _shs_b * _shs_b  # = ratio × TBVPS
+                    # Convert to per-share USD price (tbvps is already per-share if shs is in raw count)
+                    # tbvps in $$ if equity is in $$ and shs is raw count
+                    # Check units: FMP equity is in $$ (not MM), shs is raw count
+                    _bank_ptbv_price  = round(_ptbv_ratio * _bank_tbvps, 2)
+                    print(f"  Bank P/TBV: ROE={_bank_roe:.1%} Ke={_bank_ke:.1%} g={_bank_g:.1%} "
+                          f"→ P/TBV={_ptbv_ratio:.2f}x  TBVPS=${_bank_tbvps:.2f}  "
+                          f"price target=${_bank_ptbv_price:.2f}")
+
+                # Two-stage DDM
+                # Stage 1 (5yr): DPS grown at near-term rate (min of rev CAGR, 10%)
+                # Stage 2: perpetuity at terminal g
+                _cf0_b  = cf_data[-1] if cf_data else {}
+                # FMP uses "dividendsPaid" for most companies but banks often report
+                # "commonDividendsPaid" or "netDividendsPaid" separately.
+                _div_paid_b   = abs(_cf0_b.get("dividendsPaid") or
+                                    _cf0_b.get("commonDividendsPaid") or
+                                    _cf0_b.get("netDividendsPaid") or 0)
+                _bank_dps_trailing = (_div_paid_b / _shs_b) if (_shs_b > 0 and _div_paid_b > 0) else None
+                if _bank_dps_trailing and _bank_dps_trailing > 0 and _bank_ke > _bank_g:
+                    _dps_g_st = max(0.02, min(0.08, _rev_3yr_avg_dcf or 0.03))
+                    _pv_divs  = 0.0
+                    _dps_t    = _bank_dps_trailing
+                    for _t in range(1, 6):
+                        _dps_t  *= (1 + _dps_g_st)
+                        _pv_divs += _dps_t / (1 + _bank_ke) ** _t
+                    # Terminal value: stage-2 DPS grows forever at _bank_g
+                    _dps_term     = _dps_t * (1 + _bank_g)
+                    _tv_ddm       = _dps_term / (_bank_ke - _bank_g)
+                    _pv_tv_ddm    = _tv_ddm   / (1 + _bank_ke) ** 5
+                    _bank_ddm_price = round(_pv_divs + _pv_tv_ddm, 2)
+                    print(f"  Bank DDM: DPS=${_bank_dps_trailing:.2f} g_st={_dps_g_st:.1%} "
+                          f"Ke={_bank_ke:.1%} → DDM=${_bank_ddm_price:.2f}")
+
+                # Composite: average of PTBV and DDM when both are valid
+                if _bank_ptbv_price and _bank_ddm_price:
+                    _bank_composite = round((_bank_ptbv_price + _bank_ddm_price) / 2, 2)
+                elif _bank_ptbv_price:
+                    _bank_composite = _bank_ptbv_price
+                elif _bank_ddm_price:
+                    _bank_composite = _bank_ddm_price
 
             dcf_prices = {
                 "gg_price":      _gg_final,
@@ -3486,10 +3573,19 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 "wacc_floored":     (wacc_refs or {}).get("wacc_floored", False),
                 "foreign_reporter": _foreign_reporter_unsupported,
                 "reported_currency": _ccy_dcf,
-                # F-D Phase 1: bank-disabled flag — bridges reads this to show
-                # "N/A — Bank methodology pending" instead of "N/A — Insufficient inputs"
+                # F-D Phase 2: bank price target fields (Justified P/TBV + DDM)
                 "bank_disabled":        _is_bank_dcf,
                 "bank_disabled_reason": _bank_disabled_reason,
+                "bank_ptbv_price":    _bank_ptbv_price,
+                "bank_ddm_price":     _bank_ddm_price,
+                "bank_composite":     _bank_composite,
+                "bank_roe":           _bank_roe,
+                "bank_ke":            _bank_ke,
+                "bank_ptbv_target":   _bank_ptbv_target,
+                "bank_tbvps":         _bank_tbvps,
+                "bank_dps_trailing":  _bank_dps_trailing,
+                "bank_g":             _bank_g,
+                "bank_upside":        round(_bank_composite / price - 1, 4) if (_bank_composite and price) else None,
                 # F-C: quality premium and thin-margin flag for report_bridge
                 "quality_em_premium":   _quality_em_premium,
                 "fcf_margin_trailing":  _fcf_margin_trailing,
@@ -5053,6 +5149,45 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _bc_tier  = _norm_qual(biz_clarity)
     _ltp_tier = _norm_qual(ltp)
 
+    # ── Provisional LTP auto-derivation ──────────────────────────────────────
+    # When no user-supplied LTP, derive a provisional tier from quantitative
+    # signals already computed: sector bucket, 3yr revenue CAGR, gross-margin
+    # level, and whether the company is in the EV/Sales (pre-profit) regime.
+    # Clearly labelled "provisional" — the user should override after TAM review.
+    # Rationale for each bucket:
+    #   evs_regime:     capital markets are funding a pre-profit company → TAM enormous
+    #   tech_growth:    secular software/semiconductor tailwinds; CAGR/GM calibrate HIGH vs MOD-HIGH
+    #   stable_compounder: high-GM growing compounder has runway; low-GM or no-growth → MOD-LOW
+    #   cyclical:       commodity-linked demand, limited structural TAM expansion
+    #   bank:           regulated, GDP-correlated, no product-TAM narrative
+    _ltp_provisional = False
+    if _ltp_tier is None:
+        _gm_p = gm_latest or 0.0
+        _rc_p = rev_cagr  or 0.0
+        if evs_regime:
+            _ltp_provisional_tier = "HIGH"
+        elif _bucket == "tech_growth":
+            if _rc_p > 0.25 and _gm_p > 0.60:
+                _ltp_provisional_tier = "HIGH"
+            else:
+                _ltp_provisional_tier = "MOD-HIGH"
+        elif _bucket == "stable_compounder":
+            if _gm_p > 0.50 and _rc_p > 0.07:
+                _ltp_provisional_tier = "MOD-HIGH"
+            elif _gm_p > 0.38:
+                _ltp_provisional_tier = "MOD-HIGH"
+            else:
+                _ltp_provisional_tier = "MOD-LOW"
+        else:
+            # cyclical, bank, unknown
+            _ltp_provisional_tier = "MOD-LOW"
+        _ltp_tier    = _ltp_provisional_tier
+        _ltp_provisional = True
+        print(f"  Provisional LTP: {_ltp_tier}  "
+              f"(bucket={_bucket}, CAGR={_rc_p:.1%}, GM={_gm_p:.1%})")
+    else:
+        _ltp_provisional_tier = None   # user supplied; no provisional flag
+
     # ── Regime-aware weight schema (#9) ───────────────────────────────────────
     # Default weights (sum = 100). Regime modifiers redistribute weight when
     # specific criteria become structurally meaningless:
@@ -5156,7 +5291,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
          _bc_tier is not None),
         ("P1", "Moat Profile",                       W["Moat"], tier_moat,     score_moat,     note_moat,      True),
         ("P1", "Long-Term Potential",                W["LTP"],  _ltp_tier,     None,
-         ("User-supplied via web form" if _ltp_tier else
+         ("User-supplied via web form" if (not _ltp_provisional and _ltp_tier) else
+          "Provisional — model-inferred from CAGR/sector/GM; override after TAM review"
+          if _ltp_provisional else
           "Structural/TAM outlook — assign manually (genuinely qualitative)"),
          _ltp_tier is not None),
         ("P1", "Management",                          W["Mgmt"], tier_mgmt,     score_mgmt,     note_mgmt,      True),
@@ -5654,6 +5791,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         # Score confidence
         "confidence_level":        _conf_level,
         "confidence_note":         _conf_note,
+        # Provisional LTP: set when no user-supplied LTP was provided.
+        # Callers use this to activate the LTP weight in adj_score without
+        # treating it as a user-confirmed qualitative input.
+        "ltp_provisional":       _ltp_provisional,
+        "ltp_provisional_tier":  _ltp_provisional_tier if _ltp_provisional else None,
+        "ltp_effective_tier":    _ltp_tier,   # whichever source (user or provisional)
     }
 
     print("  Scorecard tab built.")

@@ -613,7 +613,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <div style="font-size:10px;color:var(--ink-2);margin-top:4px;letter-spacing:0.3px">Conservative of Quant + Full scores</div>
       </div>
       <div>
-        <div class="verdict-score-row"><span class="verdict-score-num">8.5</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant: <strong>8.7/10</strong> &nbsp;·&nbsp; Full: <strong>8.5/10</strong></div>
+        <div class="verdict-score-sub" style="font-size:10px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:-2px">Quality Score</div><div class="verdict-score-row" style="margin-top:4px"><span class="verdict-score-num">8.5</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant: <strong>8.5/10</strong> &nbsp;·&nbsp; Full: <strong>8.5/10</strong></div><div class="verdict-score-row" style="margin-top:18px"><span class="verdict-score-num" style="font-size:30px;color:#5BD89A">+30%</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:2px;color:#5BD89A">Margin of Safety — Cheap vs fundamentals</div>
         <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · May 2026</div>
       </div>
     </div>
@@ -645,7 +645,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     </div>
   </div>
 
-  <div style="margin:14px 0 8px;padding:12px 18px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#1b5e20"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">⬆ Method Concordance — Both Models Signal Undervaluation</strong><br>Gordon Growth (+30%) and EV/EBITDA Exit (+117%) both signal >25% upside. Entry point looks favourable relative to fundamentals — verdict floors at 'Good Business at Fair Price'.</div>
+  <div style="margin:14px 0 8px;padding:12px 18px;background:#fff8e1;border-left:3px solid #b45309;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#78350f"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">&#9888; High Valuation Method Dispersion (87pp spread)</strong><br>Gordon Growth implies <strong>+30%</strong> vs current; EV/EBITDA Exit implies <strong>+117%</strong>. A 87pp spread means the price target is highly sensitive to the long-run growth assumption — small changes in projected EBITDA produce large swings in fair value. Treat the primary target as a scenario midpoint, not a precise estimate. The bear/base/bull scenario table below bounds the range.</div><div style="margin:14px 0 8px;padding:12px 18px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#1b5e20"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">⬆ Method Concordance — Both Models Signal Undervaluation</strong><br>Gordon Growth (+30%) and EV/EBITDA Exit (+117%) both signal >25% upside. Entry point looks favourable relative to fundamentals — verdict floors at 'Good Business at Fair Price'.</div>
   <div style="margin:6px 0 14px;padding:8px 14px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.4;color:#2e7d32"><strong>✓ Score confidence: HIGH</strong> — 5 yr FCF history; 16 analyst(s) covering</div>
 
   <!-- 3-Year Price Chart — moved to top (immediately after hero) -->
@@ -807,13 +807,13 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <div class="credit-chips">
     <div class="credit-chip">
       <div class="agency">S&amp;P Global</div>
-      <div class="rating-val rating-red">BB+</div>
+      <div class="rating-val rating-muted">NR</div>
       <div class="outlook">N/A</div>
       <div class="tier">Tier: 10</div>
     </div>
     <div class="credit-chip">
       <div class="agency">Moody's</div>
-      <div class="rating-val rating-red">Ba1</div>
+      <div class="rating-val rating-muted">NR</div>
       <div class="outlook">N/A</div>
       <div class="tier">Tier: 10</div>
     </div>
@@ -1512,7 +1512,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 <div class="footnotes">
   <div class="footnotes-title">Sources &amp; Footnotes</div>
   <ol>
-    <li id="fn1">Credit ratings: S&P BB+ — manual input or Damodaran ICR model.</li>
+    <li id="fn1">Credit ratings: S&P NR — manual input or Damodaran ICR model.</li>
     <li id="fn2">Historical financials via FMP API. Fiscal year 2025.</li>
     <li id="fn3">Revenue 3yr CAGR: 7.9% from FY2022–2025.</li>
     <li id="fn4">Share price history: sourced from FMP API where available.</li>
@@ -1549,8 +1549,8 @@ const tooltipDefaults = {
 };
 const tickFont = { family: 'JetBrains Mono', size: 10 };
 
-const priceLabels = ["2023-05-30", "2023-06-07", "2023-06-15", "2023-06-26", "2023-07-05", "2023-07-13", "2023-07-21", "2023-07-31", "2023-08-08", "2023-08-16", "2023-08-24", "2023-09-01", "2023-09-12", "2023-09-20", "2023-09-28", "2023-10-06", "2023-10-16", "2023-10-24", "2023-11-01", "2023-11-09", "2023-11-17", "2023-11-28", "2023-12-06", "2023-12-14", "2023-12-22", "2024-01-03", "2024-01-11", "2024-01-22", "2024-01-30", "2024-02-07", "2024-02-15", "2024-02-26", "2024-03-05", "2024-03-13", "2024-03-21", "2024-04-01", "2024-04-09", "2024-04-17", "2024-04-25", "2024-05-03", "2024-05-13", "2024-05-21", "2024-05-30", "2024-06-07", "2024-06-17", "2024-06-26", "2024-07-05", "2024-07-15", "2024-07-23", "2024-07-31", "2024-08-08", "2024-08-16", "2024-08-26", "2024-09-04", "2024-09-12", "2024-09-20", "2024-09-30", "2024-10-08", "2024-10-16", "2024-10-24", "2024-11-01", "2024-11-11", "2024-11-19", "2024-11-27", "2024-12-06", "2024-12-16", "2024-12-24", "2025-01-03", "2025-01-14", "2025-01-23", "2025-01-31", "2025-02-10", "2025-02-19", "2025-02-27", "2025-03-07", "2025-03-17", "2025-03-25", "2025-04-02", "2025-04-10", "2025-04-21", "2025-04-29", "2025-05-07", "2025-05-15", "2025-05-23", "2025-06-03", "2025-06-11", "2025-06-20", "2025-06-30", "2025-07-09", "2025-07-17", "2025-07-25", "2025-08-04", "2025-08-12", "2025-08-20", "2025-08-28", "2025-09-08", "2025-09-16", "2025-09-24", "2025-10-02", "2025-10-10", "2025-10-20", "2025-10-28", "2025-11-05", "2025-11-13", "2025-11-21", "2025-12-02", "2025-12-10", "2025-12-18", "2025-12-29", "2026-01-07", "2026-01-15", "2026-01-26", "2026-02-03", "2026-02-11", "2026-02-20", "2026-03-02", "2026-03-10", "2026-03-18", "2026-03-26", "2026-04-06", "2026-04-14", "2026-04-22", "2026-04-30", "2026-05-08", "2026-05-18", "2026-05-26"];
-const priceData   = [264.18, 273.53, 285.89, 294.87, 298.35, 295.98, 285.14, 272.81, 267.61, 267.05, 272.59, 280.81, 260.87, 254.21, 250.65, 245.38, 239.42, 230.12, 225.36, 227.56, 246.38, 246.65, 252.39, 275.85, 269.99, 272.08, 282.53, 288.31, 301.59, 307.28, 307.66, 313.2, 315.54, 321.9, 328.85, 330.11, 328.89, 311.03, 314.12, 307.76, 317.18, 321.12, 335.1, 337.44, 335.47, 340.48, 320.3, 316.98, 340.17, 363.05, 360.67, 373.77, 388.5, 394.3, 391.67, 404.66, 406.43, 378.58, 409.23, 398.9, 357.19, 357.99, 335.11, 325.47, 319.75, 309.6, 304.62, 296.7, 305.79, 325.36, 329.91, 318.26, 320.56, 320.94, 330.15, 328.46, 336.46, 347.03, 334.99, 317.61, 340.58, 360.98, 385.5, 376.59, 383.06, 367.59, 377.5, 383.1, 378.44, 362.6, 334.32, 363.2, 390.31, 410.18, 407.28, 418.1, 399.75, 416.62, 426.69, 415.14, 433.15, 466.46, 473.2, 473.28, 491.0, 500.31, 468.73, 466.56, 474.02, 470.65, 483.8, 472.38, 499.21, 531.47, 532.3, 532.92, 537.64, 502.05, 480.32, 483.92, 498.66, 471.34, 434.45, 435.19, 422.79, 392.42];
+const priceLabels = ["2023-05-26", "2023-06-06", "2023-06-14", "2023-06-23", "2023-07-03", "2023-07-12", "2023-07-20", "2023-07-28", "2023-08-07", "2023-08-15", "2023-08-23", "2023-08-31", "2023-09-11", "2023-09-19", "2023-09-27", "2023-10-05", "2023-10-13", "2023-10-23", "2023-10-31", "2023-11-08", "2023-11-16", "2023-11-27", "2023-12-05", "2023-12-13", "2023-12-21", "2024-01-02", "2024-01-10", "2024-01-19", "2024-01-29", "2024-02-06", "2024-02-14", "2024-02-23", "2024-03-04", "2024-03-12", "2024-03-20", "2024-03-28", "2024-04-08", "2024-04-16", "2024-04-24", "2024-05-02", "2024-05-10", "2024-05-20", "2024-05-29", "2024-06-06", "2024-06-14", "2024-06-25", "2024-07-03", "2024-07-12", "2024-07-22", "2024-07-30", "2024-08-07", "2024-08-15", "2024-08-23", "2024-09-03", "2024-09-11", "2024-09-19", "2024-09-27", "2024-10-07", "2024-10-15", "2024-10-23", "2024-10-31", "2024-11-08", "2024-11-18", "2024-11-26", "2024-12-05", "2024-12-13", "2024-12-23", "2025-01-02", "2025-01-13", "2025-01-22", "2025-01-30", "2025-02-07", "2025-02-18", "2025-02-26", "2025-03-06", "2025-03-14", "2025-03-24", "2025-04-01", "2025-04-09", "2025-04-17", "2025-04-28", "2025-05-06", "2025-05-14", "2025-05-22", "2025-06-02", "2025-06-10", "2025-06-18", "2025-06-27", "2025-07-08", "2025-07-16", "2025-07-24", "2025-08-01", "2025-08-11", "2025-08-19", "2025-08-27", "2025-09-05", "2025-09-15", "2025-09-23", "2025-10-01", "2025-10-09", "2025-10-17", "2025-10-27", "2025-11-04", "2025-11-12", "2025-11-20", "2025-12-01", "2025-12-09", "2025-12-17", "2025-12-26", "2026-01-06", "2026-01-14", "2026-01-23", "2026-02-02", "2026-02-10", "2026-02-19", "2026-02-27", "2026-03-09", "2026-03-17", "2026-03-25", "2026-04-02", "2026-04-13", "2026-04-21", "2026-04-29", "2026-05-07", "2026-05-15", "2026-05-22"];
+const priceData   = [264.41, 271.19, 284.2, 295.4, 297.58, 295.24, 286.91, 273.25, 272.58, 268.77, 277.17, 277.3, 272.48, 254.29, 247.26, 245.43, 237.42, 240.94, 226.14, 231.55, 240.42, 251.37, 252.51, 268.27, 268.75, 275.32, 282.5, 287.77, 286.73, 306.82, 305.43, 315.36, 314.08, 323.55, 328.86, 333.53, 328.02, 313.89, 319.02, 308.84, 326.65, 325.05, 325.13, 336.82, 337.47, 340.45, 326.55, 324.32, 325.38, 361.35, 352.27, 371.89, 388.78, 395.83, 388.65, 403.52, 403.28, 382.53, 401.26, 410.03, 358.74, 354.16, 335.85, 328.95, 320.05, 313.93, 303.52, 297.75, 308.18, 319.51, 334.61, 322.05, 316.71, 319.91, 321.75, 319.39, 333.84, 345.73, 338.53, 335.01, 332.02, 356.7, 367.5, 376.64, 382.16, 364.92, 376.86, 379.3, 377.6, 362.58, 341.48, 356.97, 382.91, 402.69, 405.05, 420.77, 403.17, 409.45, 426.07, 418.87, 426.16, 467.86, 471.68, 473.61, 476.28, 503.0, 488.5, 471.85, 477.13, 483.6, 478.84, 470.88, 496.85, 501.91, 528.66, 529.7, 545.13, 509.87, 484.02, 471.84, 497.42, 471.18, 434.78, 429.02, 423.0, 394.07];
 const currencySymbol = '$';
 
 const priceCtx = document.getElementById('priceChart').getContext('2d');

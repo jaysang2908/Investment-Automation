@@ -613,7 +613,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <div style="font-size:10px;color:var(--ink-2);margin-top:4px;letter-spacing:0.3px">Conservative of Quant + Full scores</div>
       </div>
       <div>
-        <div class="verdict-score-row"><span class="verdict-score-num">9.2</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant only — qualitative inputs pending</div>
+        <div class="verdict-score-sub" style="font-size:10px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:-2px">Quality Score</div><div class="verdict-score-row" style="margin-top:4px"><span class="verdict-score-num">9.2</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant only — qualitative inputs pending</div><div class="verdict-score-row" style="margin-top:18px"><span class="verdict-score-num" style="font-size:30px;color:#5BD89A">+115%</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:2px;color:#5BD89A">Margin of Safety — Cheap vs fundamentals</div>
         <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · May 2026</div>
       </div>
     </div>
@@ -645,7 +645,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     </div>
   </div>
 
-  <div style="margin:8px 0 8px;padding:12px 18px;background:#fff8e1;border-left:3px solid #b45309;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#78350f"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">&#9888; Exit Multiple Capped at 28&#215; (5yr historical avg: 48.9&#215;)</strong><br>The model applies a 28&#215; ceiling on EV/EBITDA anchored exit multiples to prevent bubble-era reference periods from inflating terminal value. For businesses with a genuinely extraordinary competitive position where a higher terminal multiple is warranted, use the <a href="/dcf" style="color:#92400e;font-weight:600">DCF Calculator</a> to model it explicitly.</div><div style="margin:14px 0 18px;padding:12px 18px;background:var(--warn-bg);border-left:3px solid var(--warn);border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:var(--ink-1)"><strong style="color:var(--warn);font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">⚠ Material Valuation Gap</strong><br>Fundamentals-derived target is <strong>115% above</strong> current market price. Market is discounting the stock below what the fundamentals justify. Possible drivers (sector-typical): regulatory/competitive overhang, disruption risk, multiple compression on growth deceleration. User judgment required: consider qualitatively whether the gap is justified.</div>
+  <div style="margin:8px 0 8px;padding:12px 18px;background:#fff8e1;border-left:3px solid #b45309;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#78350f"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">&#9888; Exit Multiple Capped at 28&#215; (5yr historical avg: 48.9&#215;)</strong><br>The model applies a 28&#215; ceiling on EV/EBITDA anchored exit multiples to prevent bubble-era reference periods from inflating terminal value. For businesses with a genuinely extraordinary competitive position where a higher terminal multiple is warranted, use the <a href="/dcf" style="color:#92400e;font-weight:600">DCF Calculator</a> to model it explicitly.</div><div style="margin:14px 0 8px;padding:12px 18px;background:#fff8e1;border-left:3px solid #b45309;border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:#78350f"><strong style="font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">&#9888; High Valuation Method Dispersion (119pp spread)</strong><br>Gordon Growth implies <strong>-4%</strong> vs current; EV/EBITDA Exit implies <strong>+115%</strong>. A 119pp spread means the price target is highly sensitive to the long-run growth assumption — small changes in projected EBITDA produce large swings in fair value. Treat the primary target as a scenario midpoint, not a precise estimate. The bear/base/bull scenario table below bounds the range.</div><div style="margin:14px 0 18px;padding:12px 18px;background:var(--warn-bg);border-left:3px solid var(--warn);border-radius:0 6px 6px 0;font-size:12px;line-height:1.55;color:var(--ink-1)"><strong style="color:var(--warn);font-family:var(--font-mono);letter-spacing:0.5px;font-size:10px;text-transform:uppercase">⚠ Material Valuation Gap</strong><br>Fundamentals-derived target is <strong>115% above</strong> current market price. Market is discounting the stock below what the fundamentals justify. Possible drivers (sector-typical): regulatory/competitive overhang, disruption risk, multiple compression on growth deceleration. User judgment required: consider qualitatively whether the gap is justified.</div>
   <div style="margin:6px 0 14px;padding:8px 14px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.4;color:#2e7d32"><strong>✓ Score confidence: HIGH</strong> — 5 yr FCF history; 31 analyst(s) covering</div>
 
   <!-- 3-Year Price Chart — moved to top (immediately after hero) -->
@@ -805,15 +805,15 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
   <div class="credit-chips">
     <div class="credit-chip">
       <div class="agency">S&amp;P Global</div>
-      <div class="rating-val rating-green">AA</div>
+      <div class="rating-val rating-muted">NR</div>
       <div class="outlook">N/A</div>
-      <div class="tier">Tier: 2</div>
+      <div class="tier">Tier: 10</div>
     </div>
     <div class="credit-chip">
       <div class="agency">Moody's</div>
-      <div class="rating-val rating-green">Aa2</div>
+      <div class="rating-val rating-muted">NR</div>
       <div class="outlook">N/A</div>
-      <div class="tier">Tier: 2</div>
+      <div class="tier">Tier: 10</div>
     </div>
     <div class="credit-chip">
       <div class="agency">Fitch</div>
@@ -823,7 +823,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     </div>
   </div>
   <div class="credit-note">
-    AA/Aa2 ratings reflect exceptional credit quality — fortress balance sheet. Leverage at 0.1x D/EBITDA; interest coverage 503.4x provides substantial cushion. Net cash $2.1B enhances financial flexibility.<sup><a href="#fn1">[1]</a></sup>
+    Credit metrics: 0.1x D/EBITDA, 503.4x interest coverage. Net cash $2.1B.<sup><a href="#fn1">[1]</a></sup>
   </div>
 </section>
 
@@ -1079,7 +1079,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <span>Weighted total across 13 criteria</span>
     <span class="score-final score-final-green">9.2 / 10 — High Conviction Buy</span>
   </div>
-  <div style="font-family:var(--font-mono);font-size:10px;color:var(--warn);letter-spacing:0.5px;margin:8px 0 0;padding:8px 14px;background:var(--warn-bg);border-left:2px solid var(--warn);border-radius:0 4px 4px 0">Qualitative inputs (Business Clarity, Long-Term Potential) not provided. Quant score shown out of 10 — verdict applies %-bands to that scale. Completing these inputs unlocks the full 0-10 scorecard.</div>
+  
   <table class="scorecard-table">
     <thead>
       <tr>
@@ -1091,7 +1091,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
     </thead>
     <tbody>
-      <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 15.0</td></tr>
+      <tr class="part-header"><td colspan="5">Part 1 — Moat and Narrative &nbsp;|&nbsp; Weighted: 25.0</td></tr>
       <tr>
         <td class="col-metric">Business Clarity</td>
         <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
@@ -1106,9 +1106,9 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </tr>
       <tr>
         <td class="col-metric">Long-Term Potential</td>
-        <td class="score-num"><span class="score-pill score-mid"><span style="color: #f59e0b; font-weight: bold;">MOD</span></span></td>
-        <td class="score-num">10</td><td class="score-num">—</td>
-        <td class="col-commentary">Strong secular growth with high-return reinvestment. 4yr revenue CAGR: 100.0%, ROIC 71.3%, FCF $96.7B in FY2026. Not manually rated.</td>
+        <td class="score-num"><span class="score-pill score-high"><span style="color: #10b981; font-weight: bold;">HIGH ★</span></span></td>
+        <td class="score-num">10</td><td class="score-num">10.0</td>
+        <td class="col-commentary">Rated HIGH (provisional — model-inferred; override after TAM review): strong secular growth with high-return reinvestment opportunities. 4yr revenue CAGR 100.0%, ROIC 71.3%.</td>
       </tr>
       <tr>
         <td class="col-metric">Management<br><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">CEO <br>Tenure: </span></td>
@@ -1190,7 +1190,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       
       <tr class="weighted-row">
         <td colspan="3" style="text-align:right;padding-right:14px;font-family:var(--font-mono);font-size:12px;color:var(--muted)">Total Weighted Score</td>
-        <td class="score-num" style="color:var(--up)">80.4<span style="font-size:10px;color:var(--muted);font-weight:400"> / 87.5</span></td>
+        <td class="score-num" style="color:var(--up)">90.4<span style="font-size:10px;color:var(--muted);font-weight:400"> / 87.5</span></td>
         <td style="color:var(--up);font-size:13px">= 9.2 / 10</td>
       </tr>
     </tbody>
@@ -1510,7 +1510,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
 <div class="footnotes">
   <div class="footnotes-title">Sources &amp; Footnotes</div>
   <ol>
-    <li id="fn1">Credit ratings: S&P AA — manual input or Damodaran ICR model.</li>
+    <li id="fn1">Credit ratings: S&P NR — manual input or Damodaran ICR model.</li>
     <li id="fn2">Historical financials via FMP API. Fiscal year 2026.</li>
     <li id="fn3">Revenue 3yr CAGR: 100.0% from FY2023–2026.</li>
     <li id="fn4">Share price history: sourced from FMP API where available.</li>
