@@ -5164,7 +5164,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     if _ltp_tier is None:
         _gm_p = gm_latest or 0.0
         _rc_p = rev_cagr  or 0.0
-        if evs_regime:
+        # Banks always get MOD-LOW regardless of EVS regime — bank FCF/EBIT
+        # accounting noise (loan origination, deposit flows) can spuriously trigger
+        # EVS regime, but that does not imply large secular TAM.
+        if is_bank:
+            _ltp_provisional_tier = "MOD-LOW"
+        elif evs_regime:
             _ltp_provisional_tier = "HIGH"
         elif _bucket == "tech_growth":
             if _rc_p > 0.25 and _gm_p > 0.60:

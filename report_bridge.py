@@ -1729,7 +1729,9 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
             _gp_l    = _is_last.get("grossProfit") or 0
             _fb_gm   = _gp_l / _rev_l if _rev_l > 0 else None
         _fb_gm = _fb_gm or 0.0
-        if _fb_evs:
+        if _fb_bucket == "bank":
+            _fb_tier = "MOD-LOW"
+        elif _fb_evs:
             _fb_tier = "HIGH"
         elif _fb_bucket == "tech_growth":
             _fb_tier = "HIGH" if (_fb_cagr > 0.25 and _fb_gm > 0.60) else "MOD-HIGH"
