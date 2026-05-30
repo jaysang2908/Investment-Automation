@@ -108,7 +108,10 @@ def _write_row(ticker, scorecard_metrics, dcf_prices,
         "ROIC":           _f(sm.get("roic")),
         "Rev_CAGR":       _f(sm.get("rev_cagr")),
         "FCF_NI":         _f(sm.get("fcf_ni")),
-        "D_EBITDA":       _f(sm.get("d_ebitda"), 2),
+        # Banks: D/EBITDA is structurally meaningless (deposit-funded leverage
+        # is not comparable to corporate leverage) and inflates heatmap cells.
+        "D_EBITDA":       ("" if sm.get("sector_bucket") == "bank"
+                           else _f(sm.get("d_ebitda"), 2)),
         "Revenue_B":      _f(rev_b,  2),
         "OCF_B":          _f(ocf_b,  2),
         "FCF_B":          _f(fcf_b,  2),

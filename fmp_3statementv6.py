@@ -3608,29 +3608,38 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _sector_bucket(sector_str, ticker):
-    """Map company to one of 4 scoring buckets based on sector/industry string and ticker."""
+    """Map company to one of 4 scoring buckets based on sector/industry string and ticker.
+
+    Explicit ticker overrides are checked FIRST so they take precedence over
+    FMP sector strings. This prevents keyword matches from silently overriding
+    deliberate per-ticker classifications (e.g. INTC→cyclical despite
+    'semiconductor' keyword; SOFI→bank not tech_growth).
+    No ticker should appear in more than one override set.
+    """
     s = (sector_str or "").lower()
     t = (ticker or "").upper()
 
-    # Banks/financials get special treatment (already have is_bank flag)
+    # ── Explicit ticker overrides — highest precedence ─────────────────────
+    # SOFI: neobank with a banking charter — bank thresholds apply.
+    # INTC: fab-heavy legacy semi tracking PC/server cycles — cyclical thresholds.
+    # TSM: ADR for a foundry; tech_growth thresholds correct for fab economics.
+    _BANK_TICKERS = {"JPM","BAC","WFC","C","GS","MS","SOFI","BLK","SCHW","AXP","COF","USB","PNC"}
+    _TECH_TICKERS = {"NVDA","MSFT","AAPL","ADBE","AMD","META","NFLX","TSLA","GOOGL","AMZN",
+                     "ORCL","CRM","NOW","SNOW","PANW","CRWD","INTU","AMAT","KLAC","LRCX","MU","AVGO",
+                     "QCOM","TSM","DDOG","TEAM","NET","MDB"}
+    _CYCL_TICKERS = {"F","UAL","INTC","BA","GE","CAT","DE","XOM","CVX","COP","SLB","OXY","RCL","CCL"}
+
+    if t in _BANK_TICKERS: return "bank"
+    if t in _TECH_TICKERS: return "tech_growth"
+    if t in _CYCL_TICKERS: return "cyclical"
+
+    # ── Keyword fallback for tickers not explicitly listed ─────────────────
     if any(x in s for x in ["bank", "financial service", "insurance", "capital market"]):
         return "bank"
-    if t in {"JPM","BAC","WFC","C","GS","MS","SOFI","BLK","SCHW","AXP","COF","USB","PNC"}:
-        return "bank"
-
-    # Tech/growth: high ROIC acceptable at higher threshold, high rev growth expected
     if any(x in s for x in ["software", "semiconductor", "technology", "internet", "media"]):
         return "tech_growth"
-    if t in {"NVDA","MSFT","AAPL","ADBE","AMD","META","NFLX","TSLA","SOFI","GOOGL","AMZN",
-             "ORCL","CRM","NOW","SNOW","PANW","CRWD","INTU","AMAT","KLAC","LRCX","MU","AVGO",
-             "QCOM","TSM","DDOG","TEAM","NET","MDB"}:
-        return "tech_growth"
-
-    # Cyclical: lower thresholds, higher leverage tolerance
     if any(x in s for x in ["auto", "airline", "aerospace", "industrial", "steel", "mining",
                               "oil", "energy", "chemical"]):
-        return "cyclical"
-    if t in {"F","UAL","INTC","BA","GE","CAT","DE","XOM","CVX","COP","SLB","OXY","RCL","CCL"}:
         return "cyclical"
 
     # Default: stable compounder (consumer staples, healthcare, retail, utilities, etc.)
@@ -5018,6 +5027,22 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
               f"  pct={f'{_eps_revision_pct:.0%}' if _eps_revision_pct is not None else 'N/A'}"
               f"  modifier={_rev_momentum_modifier:+.2f}  n_analysts={_n_analysts_eps}")
 
+    # F-P (scorecard): foreign reporter guard.
+    # When financials are in a non-USD currency, the reconstructed GAAP P/E
+    # (USD ADR price ÷ local-currency EPS) and P/FCF are cross-currency noise —
+    # TSM produced P/E = 0.8 because USD $180 ADR price was divided by TWD-
+    # denominated EPS. Null both valuation criteria; the F-G rescale-suppression
+    # guard will then fire (both None, not an EVS/bank regime) and the score
+    # will NOT be inflated by the missing weight.
+    _ccy_sc = (is_data[-1].get("reportedCurrency") or "USD") if is_data else "USD"
+    if _ccy_sc.upper() != "USD":
+        tier_pe = tier_pfcf = None
+        score_pe = score_pfcf = None
+        note_pe   = (f"N/A — foreign reporter ({_ccy_sc}): USD ADR price vs local-currency "
+                     f"EPS produces a cross-currency ratio, not a P/E. Re-run after FX conversion.")
+        note_pfcf = (f"N/A — foreign reporter ({_ccy_sc}): same FX mismatch as P/E.")
+        print(f"  F-P scorecard: {ticker} reports in {_ccy_sc} — P/E and P/FCF nulled (cross-currency)")
+
     # P/E blend
     if score_pe is not None and pe_current and pe_current > 0:
         # Change #1 — GAAP/basis consistency for the trailing + absolute legs.
@@ -5033,15 +5058,19 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         # and use it for the trailing + absolute legs. The forward leg
         # (_fwd_pe_score) keeps forward_pe_val as the intended forward-outlook view.
         _gaap_pe = None
-        try:
-            _ni_ttm   = is_data[-1].get("netIncome") or 0
-            _shs_gaap = (is_data[-1].get("weightedAverageShsOutDil") or
-                         is_data[-1].get("weightedAverageShsOut") or 0)
-            _px_gaap  = _sc_price or float(prof_sc.get("price") or 0)
-            if _ni_ttm > 0 and _shs_gaap > 0 and _px_gaap > 0:
-                _gaap_pe = round(_px_gaap / (_ni_ttm / _shs_gaap), 1)
-        except Exception:
-            _gaap_pe = None
+        # Only reconstruct GAAP P/E when financials are USD-denominated.
+        # Non-USD reporters: USD ADR price / local-currency EPS = nonsense ratio
+        # (same reason we nulled score_pe above for foreign reporters).
+        if _ccy_sc.upper() == "USD":
+            try:
+                _ni_ttm   = is_data[-1].get("netIncome") or 0
+                _shs_gaap = (is_data[-1].get("weightedAverageShsOutDil") or
+                             is_data[-1].get("weightedAverageShsOut") or 0)
+                _px_gaap  = _sc_price or float(prof_sc.get("price") or 0)
+                if _ni_ttm > 0 and _shs_gaap > 0 and _px_gaap > 0:
+                    _gaap_pe = round(_px_gaap / (_ni_ttm / _shs_gaap), 1)
+            except Exception:
+                _gaap_pe = None
         _pe_basis = _gaap_pe if (_gaap_pe and _gaap_pe > 0) else pe_current
         if _gaap_pe and _gaap_pe > 0 and abs(_gaap_pe - pe_current) > 0.05:
             _, _rel_pe_gaap, _ = _t_val(_pe_basis, _pe_5yr_bench, sector_pe_med,
