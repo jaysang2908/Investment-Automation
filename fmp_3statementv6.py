@@ -4854,6 +4854,48 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         except Exception:
             pass
 
+    # F-P (scorecard Phase 1): FX correction for foreign reporters.
+    # FMP P/E and P/FCF ratios are denominated in local currency — for ADR-listed
+    # tickers (e.g. TSM reporting in TWD) this produces a cross-currency ratio:
+    #   USD ADR price / TWD EPS = ~0.8×  (garbage, not a real P/E)
+    # Correct formula: USD market cap / (local NI × spot FX rate to USD).
+    # This is equivalent to a USD-normalised P/E using the same market price
+    # the investor actually paid.
+    _ccy_sc = (is_data[-1].get("reportedCurrency") or "USD") if is_data else "USD"
+    _fx_sc_to_usd = 1.0; _fx_sc_fetched = False
+    if _ccy_sc.upper() != "USD":
+        try:
+            import requests as _rx_sc
+            _fxr_sc = _rx_sc.get(
+                f"https://financialmodelingprep.com/api/v3/fx/{_ccy_sc}USD?apikey={API_KEY}",
+                timeout=5
+            ).json()
+            if isinstance(_fxr_sc, list) and _fxr_sc and _fxr_sc[0].get("ask"):
+                _fx_sc_to_usd = float(_fxr_sc[0]["ask"])
+                _fx_sc_fetched = True
+        except Exception:
+            pass
+        if _fx_sc_fetched:
+            _mktcap_usd_sc = float((prof_sc or {}).get("mktCap") or 0)
+            _ni_local_sc   = (is_data[-1].get("netIncome") or 0) if is_data else 0
+            _fcf_local_sc  = _fcf(cf_data[-1]) if cf_data else None
+            if _mktcap_usd_sc > 0 and _ni_local_sc > 0:
+                _ni_usd_sc  = _ni_local_sc * _fx_sc_to_usd
+                trailing_pe = round(_mktcap_usd_sc / _ni_usd_sc, 1)
+            if _mktcap_usd_sc > 0 and _fcf_local_sc and _fcf_local_sc > 0:
+                _fcf_usd_sc   = _fcf_local_sc * _fx_sc_to_usd
+                trailing_pfcf = round(_mktcap_usd_sc / _fcf_usd_sc, 1)
+            # Null analyst forward P/E and P/FCF — epsAvg from FMP estimates is in
+            # local currency; dividing USD price by local EPS is the same ADR ratio
+            # problem. The mktCap-based trailing values above are more reliable.
+            forward_pe_val = forward_pfcf_val = None
+            print(f"  F-P scorecard: {ticker} reports in {_ccy_sc} — "
+                  f"FX={_fx_sc_to_usd:.5f}  "
+                  f"trailing_pe={trailing_pe}  trailing_pfcf={trailing_pfcf} (mktCap/FX-NI)")
+        else:
+            print(f"  F-P scorecard: {ticker} reports in {_ccy_sc} — "
+                  f"FX fetch failed; will null P/E and P/FCF after scoring")
+
     # pe_current: best available P/E for tier label + absolute score component.
     # Priority: (1) analyst FY+1 consensus forward P/E — most actionable for investors
     #           (2) live TTM P/E (from quarterly IS) — accurate trailing snapshot
@@ -5027,21 +5069,21 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
               f"  pct={f'{_eps_revision_pct:.0%}' if _eps_revision_pct is not None else 'N/A'}"
               f"  modifier={_rev_momentum_modifier:+.2f}  n_analysts={_n_analysts_eps}")
 
-    # F-P (scorecard): foreign reporter guard.
-    # When financials are in a non-USD currency, the reconstructed GAAP P/E
-    # (USD ADR price ÷ local-currency EPS) and P/FCF are cross-currency noise —
-    # TSM produced P/E = 0.8 because USD $180 ADR price was divided by TWD-
-    # denominated EPS. Null both valuation criteria; the F-G rescale-suppression
-    # guard will then fire (both None, not an EVS/bank regime) and the score
-    # will NOT be inflated by the missing weight.
-    _ccy_sc = (is_data[-1].get("reportedCurrency") or "USD") if is_data else "USD"
-    if _ccy_sc.upper() != "USD":
+    # F-P (scorecard Phase 2): null P/E and P/FCF when FX correction failed.
+    # When _fx_sc_fetched=True the values were already recomputed above using
+    # USD mktCap / FX-converted earnings — tiers are valid, no nulling needed.
+    if _ccy_sc.upper() != "USD" and not _fx_sc_fetched:
         tier_pe = tier_pfcf = None
         score_pe = score_pfcf = None
-        note_pe   = (f"N/A — foreign reporter ({_ccy_sc}): USD ADR price vs local-currency "
-                     f"EPS produces a cross-currency ratio, not a P/E. Re-run after FX conversion.")
-        note_pfcf = (f"N/A — foreign reporter ({_ccy_sc}): same FX mismatch as P/E.")
-        print(f"  F-P scorecard: {ticker} reports in {_ccy_sc} — P/E and P/FCF nulled (cross-currency)")
+        note_pe   = (f"N/A — foreign reporter ({_ccy_sc}): FX spot fetch failed; "
+                     f"scored once fresh data with live rate is available.")
+        note_pfcf = (f"N/A — foreign reporter ({_ccy_sc}): FX spot fetch failed.")
+        print(f"  F-P scorecard: {ticker} — P/E and P/FCF nulled (FX fetch failed)")
+    elif _ccy_sc.upper() != "USD" and _fx_sc_fetched:
+        if note_pe and "N/A" not in note_pe:
+            note_pe += f"  [FX {_ccy_sc}→USD @{_fx_sc_to_usd:.5f}; P/E = USD mktCap / FX-adj NI]"
+        if note_pfcf and "N/A" not in note_pfcf:
+            note_pfcf += f"  [FX {_ccy_sc}→USD @{_fx_sc_to_usd:.5f}; P/FCF = USD mktCap / FX-adj FCF]"
 
     # P/E blend
     if score_pe is not None and pe_current and pe_current > 0:
