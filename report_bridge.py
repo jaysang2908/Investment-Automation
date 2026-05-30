@@ -2044,8 +2044,8 @@ def build_report_data(ticker, profile, is_data, bs_data, cf_data, years,
     # only needs to subtract qual contribution when quals ARE rated.
     _qual_contrib   = (_bc_raw + _ltp_raw) / 10  # 0 when not rated
     _quant_fallback = round(min(10.0, (p1 + p2 + p3 + p4 - _qual_contrib) / 87.5 * 10), 1)
-    _quant_score   = round(auto_score, 1) if auto_score else _quant_fallback
-    _full_score    = round(adj_score, 1) if (adj_score and _qual_entered) else None
+    _quant_score   = round(auto_score, 1) if auto_score is not None else _quant_fallback
+    _full_score    = round(adj_score, 1) if (adj_score is not None and adj_score and _qual_entered) else None
     _verdict_text  = _conservative_verdict(_quant_score, _full_score)
 
     # F-K: Enforce verdict text ceiling/floor based on valuation concordance (D-002 design).

@@ -177,15 +177,28 @@ def main():
         sm_raw  = cached.get("scorecard_metrics") or {}
         is_data = cached.get("is_data") or []
 
-        # Recompute adj_score from raw values + provisional LTP.
-        # This ensures the hero score includes the provisional LTP contribution
-        # even for cached reports that predate the feature.
-        adj_score, ltp_used, prov = _compute_adj_score(sm_raw, is_data, bc_manual, ltp_manual)
-
-        sm = _normalise_sm(sm_raw, adj_score, csv_cap)
-
-        # Write updated score back to outputs.csv so dashboard stays in sync
-        _write_csv_score(ticker, adj_score, csv_rows)
+        # Detect tickers with stale/empty scorecard caches (e.g. pre-engine
+        # placeholder JSONs). Applying provisional LTP to an empty scorecard
+        # produces a meaningless 0.3 score — skip adj_score and leave these
+        # tickers out of outputs.csv entirely (they show as pending on the
+        # dashboard and will carry the F-S "Data refresh required" banner).
+        _has_scorecard = bool(sm_raw.get("auto_score_raw") or sm_raw.get("auto_score"))
+        if not _has_scorecard:
+            adj_score = None
+            ltp_used  = None
+            prov      = False
+            # Explicitly zero auto_score so report_bridge uses 0 (not the
+            # p-sum fallback from all-MOD defaults) when scorecard is absent.
+            sm        = _normalise_sm(sm_raw, None, csv_cap)
+            sm["auto_score"] = 0
+        else:
+            # Recompute adj_score from raw values + provisional LTP.
+            # This ensures the hero score includes the provisional LTP contribution
+            # even for cached reports that predate the feature.
+            adj_score, ltp_used, prov = _compute_adj_score(sm_raw, is_data, bc_manual, ltp_manual)
+            sm = _normalise_sm(sm_raw, adj_score, csv_cap)
+            # Write updated score back to outputs.csv so dashboard stays in sync
+            _write_csv_score(ticker, adj_score, csv_rows)
 
         try:
             profile      = cached.get("profile") or {}
@@ -216,7 +229,8 @@ def main():
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write(html)
             prov_tag = f"  LTP={ltp_used}{'★' if prov else ''}" if prov else ""
-            print(f"  {ticker:<6}  OK   display={adj_score}{prov_tag}  ({len(html):,} bytes)")
+            score_str = f"display={adj_score}" if adj_score is not None else "STALE (no scorecard)"
+            print(f"  {ticker:<6}  OK   {score_str}{prov_tag}  ({len(html):,} bytes)")
             ok += 1
         except Exception as e:
             import traceback
