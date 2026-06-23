@@ -224,6 +224,11 @@
         </div>
       </header>
 
+      <!-- PENDING RE-RUN BANNER (deferred, FMP-blocked work — never silently stuck) -->
+      <div id="pendingRerunBanner" style="display:none;margin:0 0 18px;padding:14px 18px;
+           border:1px solid #b4791f;border-left:4px solid #e0a23a;border-radius:8px;
+           background:rgba(224,162,58,0.10);font-size:13px;line-height:1.5;color:#e8c98a;"></div>
+
       <!-- KPI HERO TILES -->
       <div class="kpi-grid">
         <div class="kpi a">
@@ -955,7 +960,27 @@ async function loadLive() {
   } catch(e) { document.getElementById('sLive').textContent = '0'; }
 }
 
+async function renderPendingReruns() {
+  try {
+    const p = await (await fetch('/api/pending-reruns')).json();
+    const el = document.getElementById('pendingRerunBanner');
+    if (!el) return;
+    if (!p || !p.total_tickers) { el.style.display = 'none'; return; }
+    const rows = (p.items || []).map(it => {
+      const tks = (it.tickers || []).join(', ');
+      return `<div style="margin-top:6px;"><strong style="color:#f0d9a8;">${tks}</strong>
+              — ${(it.reason || '').replace(/</g,'&lt;')}
+              <span style="opacity:.7;">(deferred ${it.deferred || '?'}; blocker: ${(it.blocker||'').replace(/</g,'&lt;')})</span></div>`;
+    }).join('');
+    el.innerHTML =
+      `<strong style="color:#f3c969;">⚠ ${p.total_tickers} ticker(s) pending a live re-run</strong>
+       — an engine change was made but its outputs could not be regenerated (FMP-blocked). Scores/prices for these names may predate the latest fix. Cleared automatically when the ticker is next run live.${rows}`;
+    el.style.display = 'block';
+  } catch (e) { /* banner is best-effort */ }
+}
+
 async function init() {
+  renderPendingReruns();
   try {
     const [scoresResp, earningsResp] = await Promise.all([
       fetch('/api/scores'),

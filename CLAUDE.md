@@ -553,3 +553,21 @@ print(r[0]["price"], r[0]["mktCap"], r[0]["sharesOutstanding"])
 - Stage only the files relevant to the change. Never sweep in unrelated `M`/`??` files (other in-progress work, scratch scripts, unrelated data refreshes).
 - If `git push` is rejected (remote ahead — a scheduled cloud run added tickers), rebase onto `origin/main`, resolve any `outputs.csv` conflict by keeping both the remote's new tickers and our updated rows, then push.
 - After engine/scorecard changes, re-score affected tickers (`python _rescore_offline.py <tickers>` — zero FMP calls) and run `python _score_audit.py` (expect 0 mismatches) **before** pushing, so the deployed CSV/reports match the engine.
+
+## Rule 24: Deferred Re-Runs Must Be Logged — No Silent Limbo (FMP-Blocked Work)
+
+Some engine/scorecard changes only take visible effect after the affected tickers are re-run through FMP (the cached JSONs/reports/CSV predate the fix). When that re-run can't be completed in the same session — FMP daily quota exhausted, no API key in the run environment, etc. — the work is **deferred**. Historically these deferrals were noted vaguely ("re-run pending") and then forgotten, leaving fixes in limbo where the code shipped but the user never saw the effect.
+
+**This is now structurally prevented. When a re-run is deferred, you MUST:**
+
+1. **Add an entry to `pending_reruns.json`** (repo root) — `{id, tickers[], reason, fix_commit, deferred (date), blocker, action, status:"pending"}`. This is the single source of truth.
+2. **Surface it in the turn summary** — state plainly which tickers are affected, what fix is waiting, and why it couldn't run. Never end a turn leaving deferred work implicit.
+3. **Commit + push the ledger** with the change (Rule 23) so the dashboard banner updates.
+
+**The ledger is self-surfacing and self-clearing:**
+- `/api/pending-reruns` serves it; `static/dashboard.html` renders an amber banner listing the pending tickers whenever any exist — so the deferral is visible on the live URL the user actually looks at, not buried in a file.
+- `server.py::_clear_pending_rerun()` runs after every successful live `/generate` and removes that ticker from the ledger automatically. So the moment the blocked re-run actually happens (user runs the ticker, or a cron does), the entry disappears on its own. No manual cleanup, no stale banner.
+
+**Do NOT** use `pending_reruns.json` as a generic TODO list. It is specifically for "fix is committed, outputs are stale until an FMP re-run." Un-made fixes, feature ideas, and design debates belong in the project memory or a normal discussion — not here.
+
+When you DO complete a deferred re-run yourself (e.g. quota reset, key available), remove the entry (or let the server clear it) and confirm the affected scores/prices in the summary.

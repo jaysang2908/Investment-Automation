@@ -230,6 +230,52 @@ _PRICE_HIST_PATH = os.path.join(os.path.dirname(__file__), "price_history.csv")
 _PRICE_HIST_COLS = ["Ticker", "Date", "Price", "GG_Price", "EM_Price", "Composite_FV"]
 _PRICE_HIST_HDR  = ",".join(_PRICE_HIST_COLS) + "\n"
 
+# ── pending_reruns.json — ledger of deferred (FMP-blocked) re-runs ────────────
+# Makes "engine changed but outputs not regenerated yet" EXPLICIT instead of
+# silently stuck in limbo. Surfaced as a dashboard banner via /api/pending-reruns.
+# Entries are added by whoever defers a re-run (CLAUDE.md Rule 24) and are
+# auto-cleared here when the affected ticker is successfully re-run.
+_PENDING_PATH = os.path.join(os.path.dirname(__file__), "pending_reruns.json")
+
+
+def _clear_pending_rerun(ticker: str) -> None:
+    """Remove a freshly re-run ticker from the pending-rerun ledger.
+
+    Called after a successful live /generate. Drops the ticker from every item's
+    `tickers` list; an item whose list becomes empty is removed entirely. Pushes
+    the updated ledger to GitHub so the dashboard banner reflects reality. This is
+    what closes the loop — a deferred re-run clears itself the moment it actually
+    runs, so nothing lingers in limbo once the work is genuinely done.
+    """
+    try:
+        if not os.path.exists(_PENDING_PATH):
+            return
+        with open(_PENDING_PATH, "r", encoding="utf-8") as f:
+            ledger = json.load(f)
+        tkey = ticker.strip().upper()
+        items = ledger.get("items", [])
+        changed = False
+        new_items = []
+        for it in items:
+            tks = [t for t in it.get("tickers", []) if t.strip().upper() != tkey]
+            if len(tks) != len(it.get("tickers", [])):
+                changed = True
+            if tks:
+                it["tickers"] = tks
+                new_items.append(it)
+            # else: all tickers cleared → drop the item
+        if not changed:
+            return
+        ledger["items"] = new_items
+        ledger["generated"] = datetime.date.today().isoformat()
+        body = json.dumps(ledger, indent=2)
+        with open(_PENDING_PATH, "w", encoding="utf-8") as f:
+            f.write(body + "\n")
+        _github_put_async("pending_reruns.json", (body + "\n").encode(),
+                          f"pending: clear {tkey} after live re-run")
+    except Exception as e:
+        print(f"[pending_reruns] clear error: {e}", file=sys.stderr)
+
 
 def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
                         current_price, market_cap, is_data, cf_data,
@@ -769,6 +815,14 @@ def generate():
                 gg_price  = _dp.get("gg_price"),
                 em_price  = _dp.get("em_price"),
             )
+        except Exception:
+            pass
+
+        # ── Clear this ticker from the deferred-rerun ledger ────────────────
+        # A live /generate is exactly the FMP re-run that pending entries were
+        # waiting on — so remove it from the ledger (and dashboard banner).
+        try:
+            _clear_pending_rerun(ticker)
         except Exception:
             pass
 
@@ -1529,6 +1583,30 @@ def api_score_alerts():
             return jsonify(json.load(f))
     except Exception:
         return jsonify({"generated": None, "alerts": [], "threshold": 0.5})
+
+
+@app.route("/api/pending-reruns")
+def api_pending_reruns():
+    """Serve the deferred-rerun ledger so the dashboard can banner it.
+
+    Returns {generated, items:[...], total_tickers:N}. Empty when nothing is
+    pending — the banner stays hidden in that case.
+    """
+    if not os.path.exists(_PENDING_PATH):
+        return jsonify({"generated": None, "items": [], "total_tickers": 0})
+    try:
+        with open(_PENDING_PATH, encoding="utf-8") as f:
+            ledger = json.load(f)
+        items = [it for it in ledger.get("items", []) if it.get("tickers")]
+        total = sorted({t for it in items for t in it.get("tickers", [])})
+        return jsonify({
+            "generated": ledger.get("generated"),
+            "items": items,
+            "total_tickers": len(total),
+            "tickers": total,
+        })
+    except Exception:
+        return jsonify({"generated": None, "items": [], "total_tickers": 0})
 
 
 @app.route("/api/news")
