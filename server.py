@@ -111,6 +111,91 @@ def _github_put_async(repo_path: str, content_bytes: bytes, commit_msg: str) -> 
     ).start()
 
 
+def _github_merge_csv_sync(repo_path: str, new_line: str, ticker: str,
+                           commit_msg: str, append_only: bool = False,
+                           migrate: bool = False) -> None:
+    """Push a single CSV row change by MERGING into the latest REMOTE file.
+
+    Why this exists (data-integrity fix): the previous path read the Render
+    container's LOCAL outputs.csv, upserted one ticker, and pushed the whole
+    blob. The container's local copy lags GitHub (it only resyncs on redeploy),
+    so a single-ticker run would push a stale snapshot and silently REVERT every
+    other ticker's row — including hand-corrected scores pushed directly to the
+    repo. Observed 2026-06-23: a GOOGL run reverted BAC/TSM/TSLA scorecard fixes.
+
+    This fetches the current remote file, applies ONLY this ticker's row change
+    to it, and pushes with the fetched SHA. A 409 (concurrent writer touched the
+    file between our GET and PUT) triggers a re-fetch-and-retry, so two tickers
+    finishing at once can't clobber each other. `append_only` appends without
+    removing a prior row (history logs); `migrate` runs the schema migration on
+    the remote content first (outputs.csv).
+    """
+    if not GITHUB_TOKEN:
+        return
+    import base64 as _b64
+    gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_path}"
+    gh_hdr = {"Authorization": f"token {GITHUB_TOKEN}",
+              "Accept": "application/vnd.github.v3+json"}
+    tkey = ticker.strip().upper()
+    for _attempt in range(3):
+        try:
+            r = _req.get(gh_api, headers=gh_hdr,
+                         params={"ref": GITHUB_BRANCH}, timeout=(5, 10))
+            if r.status_code == 200:
+                j = r.json()
+                sha = j.get("sha")
+                remote = _b64.b64decode(j.get("content", "")).decode("utf-8")
+            else:
+                sha = None
+                remote = ""
+            if migrate:
+                try:
+                    remote = _schema.migrate(remote)
+                except Exception:
+                    pass
+            lines = [l for l in remote.splitlines() if l.strip()]
+            if lines:
+                header_line, data_lines = lines[0], lines[1:]
+            else:
+                header_line, data_lines = new_line.split("\n")[0], []
+                # No remote yet: fall back to whatever header the caller's row implies
+                header_line = remote.splitlines()[0] if remote.splitlines() else header_line
+            if not append_only:
+                data_lines = [l for l in data_lines
+                              if l.split(",")[0].strip().upper() != tkey]
+            data_lines.append(new_line)
+            if not append_only:
+                data_lines.sort(key=lambda l: l.split(",")[0].strip())
+            merged = header_line + "\n" + "\n".join(data_lines) + "\n"
+            payload = {"message": commit_msg, "branch": GITHUB_BRANCH,
+                       "content": _b64.b64encode(merged.encode()).decode()}
+            if sha:
+                payload["sha"] = sha
+            pr = _req.put(gh_api, headers=gh_hdr, json=payload, timeout=(5, 10))
+            if pr.status_code in (200, 201):
+                return
+            if pr.status_code == 409:   # SHA race — another writer won; retry
+                continue
+            return
+        except Exception as _e:
+            print(f"[github] merge push failed for {repo_path}: {_e}", file=sys.stderr)
+            return
+
+
+def _github_merge_csv_async(repo_path: str, new_line: str, ticker: str,
+                            commit_msg: str, append_only: bool = False,
+                            migrate: bool = False) -> None:
+    """Fire-and-forget wrapper around _github_merge_csv_sync."""
+    if not GITHUB_TOKEN:
+        return
+    threading.Thread(
+        target=_github_merge_csv_sync,
+        args=(repo_path, new_line, ticker, commit_msg, append_only, migrate),
+        daemon=True,
+        name=f"gh-merge-{repo_path}",
+    ).start()
+
+
 def _push_file_to_github(local_path: str, repo_path: str, commit_msg: str) -> None:
     """Push any local file to GitHub so it survives Render redeploys.
 
@@ -240,8 +325,11 @@ def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
         return
 
     # ── Non-blocking GitHub push (persists across Render redeploys) ──────────
-    _github_put_async("outputs.csv", updated_csv.encode(),
-                      f"scorecard: update {ticker}")
+    # Merge into the LATEST REMOTE outputs.csv (not this container's stale local
+    # copy) so updating one ticker can never revert another's row. See
+    # _github_merge_csv_sync docstring for the clobber bug this prevents.
+    _github_merge_csv_async("outputs.csv", new_line, ticker,
+                            f"scorecard: update {ticker}", migrate=True)
 
 def _verdict_label(total_score):
     try:
@@ -284,14 +372,10 @@ def _append_score_history(ticker, auto_score_raw, adj_score_raw):
         return
 
     # ── Non-blocking GitHub push (persists across Render redeploys) ──────────
-    try:
-        with open(_HISTORY_PATH, "r", encoding="utf-8") as f:
-            content = f.read()
-    except Exception as e:
-        print(f"[score_history] local read error: {e}", file=sys.stderr)
-        return
-    _github_put_async("score_history.csv", content.encode(),
-                      f"history: {ticker} score snapshot")
+    # Append-merge into the latest remote so concurrent ticker runs don't drop
+    # each other's appended snapshots (same clobber class as outputs.csv).
+    _github_merge_csv_async("score_history.csv", row.rstrip("\n"), ticker,
+                            f"history: {ticker} score snapshot", append_only=True)
 
 
 def _append_price_history(ticker, price, gg_price, em_price):
@@ -331,14 +415,9 @@ def _append_price_history(ticker, price, gg_price, em_price):
         print(f"[price_history] local write error: {e}", file=sys.stderr)
         return
 
-    try:
-        with open(_PRICE_HIST_PATH, "r", encoding="utf-8") as f:
-            content = f.read()
-    except Exception as e:
-        print(f"[price_history] local read error: {e}", file=sys.stderr)
-        return
-    _github_put_async("price_history.csv", content.encode(),
-                      f"history: {ticker} price/FV snapshot")
+    # Append-merge into the latest remote (see _github_merge_csv_sync).
+    _github_merge_csv_async("price_history.csv", row.rstrip("\n"), ticker,
+                            f"history: {ticker} price/FV snapshot", append_only=True)
 
 
 def _prune():
