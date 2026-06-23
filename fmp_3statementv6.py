@@ -3258,6 +3258,23 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             if _ip_em_usd is not None and _ip_em_usd <= 0:
                 _ip_em_usd = None
 
+            # F-I (extension): clamp degenerate near-zero prices. A GG/EM fair
+            # value below 5% of the current market price is not a fundamental
+            # target — it signals a collapsed perpetuity (WACC ≈ TGR denominator)
+            # or near-zero trailing FCF, not a genuine −95%+ downside call. TSLA
+            # produced a $2.80 GG price (−99.3%) on a $426 stock this way. A
+            # legitimately "very expensive" name (e.g. −70%) survives; only the
+            # mathematically collapsed output is voided to N/A.
+            _DEGEN_FRAC = 0.05
+            if price and _ip_gg_usd is not None and _ip_gg_usd < _DEGEN_FRAC * price:
+                print(f"  F-I: GG price ${_ip_gg_usd:.2f} < {_DEGEN_FRAC:.0%} of "
+                      f"${price:.2f} — degenerate perpetuity, voiding to N/A")
+                _ip_gg_usd = None
+            if price and _ip_em_usd is not None and _ip_em_usd < _DEGEN_FRAC * price:
+                print(f"  F-I: EM price ${_ip_em_usd:.2f} < {_DEGEN_FRAC:.0%} of "
+                      f"${price:.2f} — degenerate exit value, voiding to N/A")
+                _ip_em_usd = None
+
             # F-P: If foreign-reporter and FX fetch failed, void the prices entirely.
             if _foreign_reporter_unsupported:
                 _ip_gg_usd = None
@@ -3485,6 +3502,16 @@ def _sector_bucket(sector_str, ticker):
     """Map company to one of 4 scoring buckets based on sector/industry string and ticker."""
     s = (sector_str or "").lower()
     t = (ticker or "").upper()
+
+    # Payment networks (V, MA, PYPL, FIS, GPN, WU, DFS, …) carry FMP's
+    # "Financial Services" tag but are capital-light, high-ROIC, software-economics
+    # businesses — NOT deposit-funded banks. Bank thresholds (low ROIC bar, high
+    # leverage tolerance) mis-measure them. Mirror Rule 14's _BANK_DCF_EXCLUDE so the
+    # scorecard bucket and the DCF bank classifier agree, and route them to
+    # tech_growth (the conservative fit for network/software economics).
+    _PAYMENT_NETWORKS = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "DFS", "TRMK"}
+    if t in _PAYMENT_NETWORKS:
+        return "tech_growth"
 
     # Banks/financials get special treatment (already have is_bank flag)
     if any(x in s for x in ["bank", "financial service", "insurance", "capital market"]):
@@ -3820,6 +3847,19 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     roic_trend  = (roic_latest is not None and roic_3ya is not None
                    and (roic_3ya - roic_latest) > 0.05)
 
+    # ROIC distortion flag — display transparency only (no scoring impact).
+    # The invested-capital base (equity + net debt) collapses toward zero for
+    # buyback-heavy names with negative or de-minimis book equity — AAPL (~82%),
+    # SBUX (~44%), V — so the ROIC reading is a denominator artifact, not a real
+    # return on capital. _score() already saturates at SCORE_CAP for any ROIC
+    # above the sector HIGH threshold (a 40% and an 82% reading score identically),
+    # so flagging it does not change the score — it just lets the report caveat
+    # an implausibly high number instead of presenting it as fact.
+    _roic_eq_latest = (bs_data[-1].get("totalStockholdersEquity") or 0) if bs_data else 0
+    roic_distorted = bool(
+        roic_latest is not None and (roic_latest > 0.40 or _roic_eq_latest <= 0)
+    )
+
     # 4. D/EBITDA and EBIT/Interest
     bs0 = bs_data[-1]; is0 = is_data[-1]; cf0 = cf_data[-1]
     total_debt  = (bs0.get("shortTermDebt") or 0) + (bs0.get("longTermDebt") or 0)
@@ -4050,6 +4090,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     # ≈ 1 tier drop in the discrete system (4-pt average gap), preserves the
     # original behavioural intent without re-introducing cliff edges.
     _TREND_PENALTY = 3.5
+    # FCF/NI ratios above this are treated as NI-distorted (non-cash charges),
+    # not superior cash conversion — credit is capped at MOD-HIGH (see _t_fcf).
+    _FCF_NI_DISTORT_HI = 2.0
 
     def _t_rev(v):
         if v is None:
@@ -4061,10 +4104,27 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     def _t_fcf(v, pen):
         if v is None:
             return None, 0.0, "N/A — insufficient data"
-        v2 = abs(v)
-        t  = _tier(v2, _thresholds["fcf_ni"])
-        s  = _score(v2, _thresholds["fcf_ni"])
+        # FCF/NI is a 'cash quality' signal only when both FCF and NI are positive
+        # and the ratio sits in a sane band. The previous abs(v) scoring gave full
+        # credit to (a) names whose NI is depressed by non-cash charges, inflating
+        # the ratio (INTC ~18x, ABBV ~4x), and (b) NEGATIVE ratios where NI or FCF
+        # is negative (Citi ~-5x). Neither reflects superior cash conversion.
+        if v <= 0:
+            # NI and FCF have opposite signs — the ratio is not interpretable.
+            # Exclude the criterion (N/A → weight rescaled to the scored pool)
+            # rather than award or penalise it spuriously.
+            return None, 0.0, f"{v:.0%}  [N/A — FCF/NI ≤ 0; FCF and NI opposite signs, ratio not meaningful]"
+        t  = _tier(v, _thresholds["fcf_ni"])
+        s  = _score(v, _thresholds["fcf_ni"])
         note = f"{v:.0%}"
+        if v > _FCF_NI_DISTORT_HI:
+            # A ratio far above 1 signals depressed/charge-distorted NI, not better
+            # cash conversion — cap credit at MOD-HIGH and flag for verification.
+            if t == "HIGH":
+                t = "MOD-HIGH"
+            s = min(s, 7.0)
+            note += (f"  [ratio >{_FCF_NI_DISTORT_HI:.0f}x — NI likely depressed by "
+                     f"non-cash charges; cash-quality credit capped]")
         if pen:
             t = down_tier(t)
             s = max(0.0, s - _TREND_PENALTY)
@@ -4890,6 +4950,25 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     _bc_tier  = _norm_qual(biz_clarity)
     _ltp_tier = _norm_qual(ltp)
 
+    # ── F-P (scorecard): Foreign-reporter valuation suppression ───────────────
+    # The DCF engine already voids GG/EM price targets for non-USD filers
+    # (Rule 13/F-P) because mixing a USD market price with local-currency
+    # financials produces nonsense. The scorecard had no equivalent guard, so a
+    # foreign reporter's P/E and P/FCF (e.g. TSM showing a P/E of 0.8 — USD price
+    # vs TWD earnings) were scored as genuine deep-value, inflating the quant
+    # score. Suppress both valuation criteria here; with tier_pe and tier_pfcf
+    # nulled, the existing _fg_valuation_gap path suppresses the rescale and
+    # forces LOW confidence — the honest treatment when multiples are unusable.
+    _rep_ccy_sc = (
+        (is_data[-1].get("reportedCurrency") or "USD").upper() if is_data else "USD"
+    )
+    _foreign_reporter_sc = _rep_ccy_sc not in ("USD", "")
+    if _foreign_reporter_sc:
+        tier_pe = tier_pfcf = None
+        score_pe = score_pfcf = None
+        print(f"  F-P scorecard: foreign reporter ({_rep_ccy_sc}) — P/E & P/FCF "
+              f"suppressed (USD price vs local-currency financials)")
+
     # ── Regime-aware weight schema (#9) ───────────────────────────────────────
     # Default weights (sum = 100). Regime modifiers redistribute weight when
     # specific criteria become structurally meaningless:
@@ -4912,6 +4991,16 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         W["PFCF"]    = 0.0    # meaningless for deposit-funded institutions
         W["EBITInt"] = 0.0    # traditional interest cover nonsensical for banks (interest IS their raw-material cost)
         W["Lev"]     = 12.5   # absorbs the freed 7.5 — capital adequacy is the bank risk metric
+        # FCF/NI is accounting noise for banks: "free cash flow" is dominated by
+        # period swings in loan and deposit balances, not owner earnings. It can
+        # read deeply negative (C: −5.2, GS: −2.7 — trading/loan growth) or
+        # spuriously positive (BAC: 0.41, JPM: 1.77 — deposit inflows), scoring
+        # the same names inconsistently. Zero the weight and redistribute to the
+        # two signals that DO differentiate banks: ROE (the ROIC row uses bank ROE
+        # thresholds) and capital return.
+        W["FCFNI"]   = 0.0
+        W["ROIC"]    = 12.5   # +5  — ROE is the core bank profitability signal
+        W["CapRet"]  = 10.0   # +5  — capital return is central to the bank equity story
     if evs_regime:
         # zero distorted criteria
         W["ROIC"]    = 0.0
@@ -5323,7 +5412,11 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             _raw_sum = _raw_sum * (_active_weight / _scored_weight)
         _auto_score_raw = round(_raw_sum, 1)
         if floor_cap is not None:
-            _auto_score_raw = min(_auto_score_raw, floor_cap)
+            # soft_cap / floor_cap is a 0-100 (% of full scorecard) value, but
+            # _auto_score_raw is on the 0-87.5 quant scale. Convert the cap onto the
+            # raw scale before applying so it binds at the intended percentage
+            # (previously min(raw_0-87.5, cap_0-100) under-bound the cap by 100/87.5).
+            _auto_score_raw = min(_auto_score_raw, floor_cap / 100.0 * 87.5)
         # Normalize to 0-10 scale. Fixed 87.5 denominator regardless of regime so
         # scores are comparable across bank/standard/EVS weight regimes.
         # With SCORE_CAP=10, raw_sum is bounded at 87.5 by construction.
@@ -5342,7 +5435,11 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     if _low_data_confidence:
         _conf_level = "LOW"
         # F-G: distinguish data-fetch gap from genuine sparse-criteria case
-        if _fg_valuation_gap:
+        if _foreign_reporter_sc:
+            _conf_note = (f"Foreign reporter ({_rep_ccy_sc}) — P/E & P/FCF unreliable "
+                          f"(USD price vs local-currency financials); valuation "
+                          f"criteria excluded, rescale suppressed")
+        elif _fg_valuation_gap:
             _conf_note = ("P/E and P/FCF data unavailable — FMP ratios fetch failed; "
                           "valuation criteria excluded, rescale suppressed")
         else:
@@ -5363,15 +5460,20 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
 
     metrics = {
         "roic":          roic_latest,
+        "roic_distorted": roic_distorted,
         "rev_cagr":      rev_cagr,
         "fcf_ni":        fcf_ni_latest,
         "d_ebitda":      d_ebitda,        # None for banks (meaningless)
         "equity_assets": equity_assets,   # CET1 proxy; only set for banks
         "is_bank":       is_bank,
         "sector_bucket": _bucket,
+        "foreign_reporter":  _foreign_reporter_sc,
+        "reported_currency": _rep_ccy_sc,
         "auto_score":     _auto_score,        # normalized 0-10 for display
         "auto_score_raw": _auto_score_raw,    # raw 0-87.5 for adj_score computation in callers
-        "floor_cap":     round(floor_cap / 87.5 * 10, 1) if floor_cap is not None else None,
+        # floor_cap (soft_cap) is on a 0-100 scale → normalise to 0-10 by /10.
+        # (Previously /87.5*10 produced impossible >10 cap values, e.g. 11.3.)
+        "floor_cap":     round(floor_cap / 10.0, 1) if floor_cap is not None else None,
         "low_data_confidence": _low_data_confidence,
         "scored_weight":       round(_scored_weight, 1) if _scored else 0.0,
         "active_weight":       round(_active_weight, 1),

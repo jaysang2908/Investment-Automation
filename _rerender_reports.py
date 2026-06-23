@@ -60,7 +60,11 @@ def _normalise_sm(sm_orig, csv_auto, csv_cap):
     # ── floor_cap ─────────────────────────────────────────────────────────────
     cached_cap = sm.get("floor_cap")
     if cached_cap is not None and cached_cap > 10:
-        sm["floor_cap"] = round(cached_cap / 87.5 * 10, 1)
+        # Old caches stored floor_cap on the 0-100 (% of full scorecard) scale.
+        # Normalise to 0-10 by /10 — NOT /87.5*10, which over-stated the cap by
+        # 14% and produced impossible >10 values (PEP 11.3, UNH 11.2) that could
+        # never bind a 0-10 adj_score. Matches the engine's current convention.
+        sm["floor_cap"] = round(cached_cap / 10.0, 1)
     if csv_cap is not None:
         sm["floor_cap"] = csv_cap
 
