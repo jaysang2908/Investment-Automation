@@ -535,3 +535,21 @@ print(r[0]["price"], r[0]["mktCap"], r[0]["sharesOutstanding"])
 ```
 
 **Applies to:** every inline conversation claim about a specific ticker's current price or multiple. Does not apply to ranges or directional statements ("NFLX trades at a premium to the market" is fine; "NFLX P/E is 36×" requires live verification).
+
+## Rule 23: Auto-Push Policy — Ship Every Improvement to Render by Default
+
+**The user only ever views the live Render URL** (auto-deployed from `origin/main` of [jaysang2908/Investment-Automation](https://github.com/jaysang2908/Investment-Automation)). They never run the site locally. An edit that is coded but not pushed does not exist from their point of view — and historically this has wasted significant time going in circles ("nothing changed" → debugging cache → discovering the commit was never pushed).
+
+**Default behaviour — push, don't ask:**
+- Any change to a file under this repo that improves the model, engine, report, or site is committed **and pushed** to `origin/main` in the same turn it is made. This **overrides** the generic "commit/push only when asked" default — asking for the change *is* the authorization to ship it.
+- This applies to work we initiate as well as work the user requests. If we identify and implement an improvement (a scoring fix, a bug fix, a refactor), we push it. We do **not** leave it staged or local "pending review".
+- Do **not** ask "want me to push?" / "should I deploy?". Bundle the push with the change and state the commit SHA + "Render redeploys in ~2-4 min" in the summary.
+
+**The only exceptions (do not push):**
+1. The user explicitly says "don't push", "wait", "just stage it", "I'll push", or similar.
+2. The change is genuinely incomplete or unverified (syntax error, failing smoke test, half-finished edit). Finish or revert it — never push known-broken code. If blocked (e.g. an FMP-quota'd re-run can't regenerate outputs), **say so explicitly in the summary** and record it in the project memory as pending, rather than silently leaving it unpushed.
+
+**Hygiene when pushing:**
+- Stage only the files relevant to the change. Never sweep in unrelated `M`/`??` files (other in-progress work, scratch scripts, unrelated data refreshes).
+- If `git push` is rejected (remote ahead — a scheduled cloud run added tickers), rebase onto `origin/main`, resolve any `outputs.csv` conflict by keeping both the remote's new tickers and our updated rows, then push.
+- After engine/scorecard changes, re-score affected tickers (`python _rescore_offline.py <tickers>` — zero FMP calls) and run `python _score_audit.py` (expect 0 mismatches) **before** pushing, so the deployed CSV/reports match the engine.
