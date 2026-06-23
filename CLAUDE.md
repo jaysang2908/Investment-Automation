@@ -549,6 +549,9 @@ print(r[0]["price"], r[0]["mktCap"], r[0]["sharesOutstanding"])
 1. The user explicitly says "don't push", "wait", "just stage it", "I'll push", or similar.
 2. The change is genuinely incomplete or unverified (syntax error, failing smoke test, half-finished edit). Finish or revert it — never push known-broken code. If blocked (e.g. an FMP-quota'd re-run can't regenerate outputs), **say so explicitly in the summary** and record it in the project memory as pending, rather than silently leaving it unpushed.
 
+**Explicit "not pushed" call-out (required when an exception applies):**
+Whenever something is NOT pushed — for any reason — the turn summary must include a plain statement of: (a) what wasn't pushed, (b) why, and (c) what needs to happen for it to be pushed. Use a dedicated "⚠ Not pushed:" line so it is impossible to miss. Never end a turn leaving un-pushed work implicit. For FMP-blocked re-runs specifically, the `pending_reruns.json` ledger + dashboard amber banner is the primary self-surfacing mechanism (see Rule 24) — the "not pushed" call-out here covers code-level deferrals (incomplete edits, explicit holds).
+
 **Hygiene when pushing:**
 - Stage only the files relevant to the change. Never sweep in unrelated `M`/`??` files (other in-progress work, scratch scripts, unrelated data refreshes).
 - If `git push` is rejected (remote ahead — a scheduled cloud run added tickers), rebase onto `origin/main`, resolve any `outputs.csv` conflict by keeping both the remote's new tickers and our updated rows, then push.
