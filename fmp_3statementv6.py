@@ -3928,6 +3928,9 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
 
     # ── FMP ratios: P/E, P/FCF — current + 5yr historical average ───────────
     yf_info          = {}   # kept for beta fallback in moat section
+    prof_sc          = {}   # Fix: initialise here so ratios block can safely reference it
+                            # (defined again below in the sector block; this prevents
+                            # UnboundLocalError when _fetch_ttm_ni() path runs first)
     trailing_pe      = None
     forward_pe       = None
     trailing_pfcf    = None
@@ -3937,6 +3940,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     ev_ebitda_5yr_avg = None
     sector_pe_med    = None
     sector_pfcf_med  = None
+
+    # Detect foreign reporter early so forward P/E block can skip currency-mixed estimates.
+    # (Trailing P/E suppression at line ~4965 already uses this flag; forward P/E must too.)
+    _rep_ccy_sc_early = (
+        (is_data[-1].get("reportedCurrency") or "USD").upper() if is_data else "USD"
+    )
+    _foreign_reporter_sc = _rep_ccy_sc_early not in ("USD", "")
 
     try:
         rat_data = _fetch_ratios(ticker, limit=5)   # cached — shared with build_dcf()
@@ -4643,8 +4653,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     forward_pe_val   = None
     forward_pfcf_val = None
 
-    if analyst_ests and _sc_price:
+    if analyst_ests and _sc_price and not _foreign_reporter_sc:
         # Forward P/E
+        # Skipped for foreign reporters: analyst EPS estimates from FMP are in local
+        # currency (CNY, TWD, EUR …) but _sc_price is the USD ADR price — mixing them
+        # produces nonsense (BIDU showed 2.1x fwd P/E, TSMC showed <1x). The trailing
+        # P/E suppression at line ~4975 already handles this; forward must match.
         try:
             _fwd_eps = float((analyst_ests[0] or {}).get("epsAvg") or 0) or None
             if _fwd_eps and _fwd_eps > 0:
@@ -4959,10 +4973,7 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
     # score. Suppress both valuation criteria here; with tier_pe and tier_pfcf
     # nulled, the existing _fg_valuation_gap path suppresses the rescale and
     # forces LOW confidence — the honest treatment when multiples are unusable.
-    _rep_ccy_sc = (
-        (is_data[-1].get("reportedCurrency") or "USD").upper() if is_data else "USD"
-    )
-    _foreign_reporter_sc = _rep_ccy_sc not in ("USD", "")
+    _rep_ccy_sc = _rep_ccy_sc_early  # already computed above; reuse to avoid re-read
     if _foreign_reporter_sc:
         tier_pe = tier_pfcf = None
         score_pe = score_pfcf = None
