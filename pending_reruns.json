@@ -1,6 +1,6 @@
 {
   "_doc": "Ledger of changes whose outputs are NOT yet regenerated because a live FMP re-run was blocked (quota exhausted, no API key in the run environment, etc). Surfaced on the dashboard as an amber banner so deferred work is never silently lost. An entry is added by whoever defers the re-run (see CLAUDE.md Rule 24); it is auto-cleared by server.py when the affected ticker is successfully re-run through /generate. Manually editable.",
-  "generated": "2026-07-04",
+  "generated": "2026-07-05",
   "items": [
     {
       "id": "ggem-offline-approx-2026-06-24",
@@ -16,18 +16,6 @@
       "deferred": "2026-06-24",
       "blocker": "No FMP API key in local run environment; key lives on Render only.",
       "action": "Re-run these tickers live on Render to refresh GG/EM price targets with real peer-beta WACC.",
-      "status": "pending"
-    },
-    {
-      "id": "amd-broken-row-2026-07-05",
-      "tickers": [
-        "AMD"
-      ],
-      "reason": "AMD row has been missing Price/MktCap/PE since 2026-05-27 (FMP profile fetch failed on that run), and its stored GG/EM fair values ($79.71/$81.50) are inconsistent with the live market price (~$518) - likely stale share basis. Price now refreshed from Yahoo EOD; GG/EM prices and upsides blanked rather than publish an unverifiable -85%.",
-      "fix_commit": "display-hygiene batch 2026-07-05",
-      "deferred": "2026-07-05",
-      "blocker": "No FMP API key in local environment; key lives on Render only.",
-      "action": "Re-run AMD live through /generate to rebuild price, market cap and DCF fair values.",
       "status": "pending"
     }
   ]
