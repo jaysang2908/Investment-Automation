@@ -3770,7 +3770,7 @@ def _val_score(delta, premium_ok=False):
 def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
                     biz_clarity=None, ltp=None, dcf_gg_price=None,
                     evs_regime=False, bank_credit=None, analyst_ests=None,
-                    profile=None):
+                    profile=None, fx_to_usd=None):
     """
     JS Scorecard tab — auto-scores 11 of 13 criteria.
     Quantitative: Revenue CAGR, FCF/NI, Capital Returns, ROIC, D/EBITDA, EBIT/Int
@@ -3817,10 +3817,15 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         cap = abs(cf.get("capitalExpenditure") or 0)
         return ocf - cap
 
+    # FCF/NI is only interpretable when NI > 0. With NI < 0 the ratio's sign
+    # information is destroyed at construction: FCF −3.8B / NI −2.7B = +1.42,
+    # which downstream scoring read as excellent cash conversion for a company
+    # burning cash (LCID). Store None for NI ≤ 0; _t_fcf's v ≤ 0 guard still
+    # covers the remaining opposite-sign case (NI > 0, FCF < 0).
     fcf_ni_series = []
     for i in range(min(len(is_data), len(cf_data))):
         ni = is_data[i].get("netIncome") or 0
-        fcf_ni_series.append(_fcf(cf_data[i]) / ni if ni else None)
+        fcf_ni_series.append(_fcf(cf_data[i]) / ni if ni > 0 else None)
 
     fcf_ni_latest = fcf_ni_series[-1] if fcf_ni_series else None
     fcf_ni_3ya    = fcf_ni_series[-4] if len(fcf_ni_series) >= 4 else None
@@ -3835,7 +3840,12 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
 
     # 3. ROIC series
     def _roic(is_, bs_):
-        ebit    = abs(is_.get("operatingIncome") or 0)
+        # Sign matters: the previous abs(operatingIncome) turned a deeply
+        # negative EBIT into a large positive NOPAT (LCID printed ROIC 603%).
+        # Negative EBIT → return on capital is not meaningful — return None.
+        ebit    = is_.get("operatingIncome") or 0
+        if ebit <= 0:
+            return None
         tax_e   = abs(is_.get("incomeTaxExpense") or 0)
         pretax  = abs(is_.get("incomeBeforeTax") or 1e-9)
         nopat   = ebit * (1 - min(tax_e / pretax, 0.50))
@@ -3843,7 +3853,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         debt    = (bs_.get("shortTermDebt") or 0) + (bs_.get("longTermDebt") or 0)
         cash    = bs_.get("cashAndCashEquivalents") or 0
         ic      = equity + debt - cash
-        return (nopat / ic) if ic > 1 else None
+        # De-minimis invested capital (buyback-shrunken equity) makes the ratio
+        # a denominator artifact, not a return measure. Require IC > 2% of
+        # revenue (the old guard was literally "> $1").
+        rev     = is_.get("revenue") or 0
+        if ic <= max(0.02 * rev, 1.0):
+            return None
+        return nopat / ic
 
     roic_series = [_roic(is_data[i], bs_data[i])
                    for i in range(min(len(is_data), len(bs_data)))]
@@ -3992,6 +4008,39 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             print(f"  FMP ratios: P/E={trailing_pe}  5yr avg={pe_5yr_avg}  "
                   f"P/FCF={trailing_pfcf}  5yr avg={pfcf_5yr_avg}  "
                   f"EV/EBITDA 5yr avg={ev_ebitda_5yr_avg}")
+
+            # ── F-P permanent fix: FX-corrected multiples for foreign filers ──
+            # FMP's snapshot/TTM paths mix a USD ADR price with local-currency
+            # earnings (TSM printed P/E 0.8× = USD price ÷ TWD EPS). Recompute
+            # on a consistent basis: USD market cap ÷ (local NI or FCF × fx).
+            # These corrected values are for DISPLAY and context — the tier
+            # scoring stays suppressed (LOW confidence) because the 5yr
+            # historical benchmark basis cannot be verified on the free tier.
+            if _foreign_reporter_sc:
+                _mc_fx  = float((profile or {}).get("mktCap") or
+                                (profile or {}).get("marketCap") or 0)
+                _fx_sc  = fx_to_usd or 0
+                _ni_fx  = (is_data[-1].get("netIncome") or 0) if is_data else 0
+                _fcf_fx = 0
+                if cf_data:
+                    _fcf_fx = (cf_data[-1].get("freeCashFlow") or
+                               ((cf_data[-1].get("operatingCashFlow") or 0) -
+                                abs(cf_data[-1].get("capitalExpenditure") or 0)))
+                if _mc_fx > 0 and _fx_sc > 0 and _fx_sc != 1.0:
+                    trailing_pe   = (round(_mc_fx / (_ni_fx * _fx_sc), 1)
+                                     if _ni_fx > 0 else None)
+                    trailing_pfcf = (round(_mc_fx / (_fcf_fx * _fx_sc), 1)
+                                     if _fcf_fx > 0 else None)
+                    print(f"  F-P fx-corrected multiples ({_rep_ccy_sc_early}): "
+                          f"P/E={trailing_pe}  P/FCF={trailing_pfcf}  "
+                          f"(mktcap ${_mc_fx/1e9:.1f}B, fx={_fx_sc:.5f})")
+                else:
+                    # No usable FX rate — cannot correct; suppress rather than
+                    # publish a currency-corrupted figure.
+                    trailing_pe   = None
+                    trailing_pfcf = None
+                    print(f"  F-P: foreign reporter with no FX rate — "
+                          f"multiples suppressed")
     except Exception as e_rat:
         print(f"  FMP ratios fetch failed: {e_rat}")
 
@@ -4695,14 +4744,18 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         except Exception:
             pass
 
-    # pe_current: best available P/E for tier label + absolute score component.
-    # Priority: (1) analyst FY+1 consensus forward P/E — most actionable for investors
-    #           (2) live TTM P/E (from quarterly IS) — accurate trailing snapshot
+    # pe_current: scoring/display basis for the P/E criterion.
+    # Priority: (1) TTM P/E — SAME BASIS as the 5yr historical benchmark
+    #           (2) analyst FY+1 consensus forward P/E — fallback when TTM missing
     #           (3) forward_pe from legacy yfinance path (always None, kept for safety)
-    # Note: the 40% forward blend component is computed separately from forward_pe_val
-    # so using forward_pe_val here does NOT double-count — it simply anchors the tier
-    # label and absolute-score lookup to the consensus view rather than a stale snapshot.
-    pe_current    = forward_pe_val or trailing_pe or forward_pe
+    # Basis rationale (2026-07 fix): the old forward-first ordering scored a
+    # forward, largely NON-GAAP consensus multiple against a trailing GAAP
+    # 5yr average. Forward EPS > trailing EPS for any grower AND non-GAAP >
+    # GAAP, so the spread read structurally "cheap" (DOCU fwd 9.6× vs 74.1×
+    # trailing avg = −87%). TTM-vs-TTM-history is apples-to-apples; the
+    # forward view still feeds the PEG boost, the EPS-revision modifier and
+    # the note as context.
+    pe_current    = trailing_pe or forward_pe_val or forward_pe
     # For banks the 5yr P/E average often embeds zero-rate / crisis-era compression
     # (e.g. 2020-2021 when bank P/Es were unusually depressed). Using a compressed
     # benchmark penalises banks that simply re-rated to normal post-rate-normalisation.
@@ -4717,18 +4770,20 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
 
     # ── Relabel note_pe so it's clear which multiple drives scoring ───────────
     # _t_val writes "Current X×" generically. Rewrite it to show:
-    #   "Fwd P/E X× (scoring basis)  |  TTM P/E Y×  |  5yr avg Z× ..."
-    if forward_pe_val and pe_current == forward_pe_val:
-        note_pe = note_pe.replace(
-            f"Current {forward_pe_val:.1f}x",
-            f"Fwd P/E {forward_pe_val:.1f}x (scoring basis)"
-        )
-        if trailing_pe and abs(trailing_pe - forward_pe_val) > 0.5:
-            note_pe = f"TTM P/E {trailing_pe:.1f}x  |  " + note_pe
-    elif trailing_pe and pe_current == trailing_pe:
+    #   "TTM P/E X× (scoring basis)  |  Fwd P/E Y× (context)  |  5yr avg Z× ..."
+    if trailing_pe and pe_current == trailing_pe:
         note_pe = note_pe.replace(
             f"Current {trailing_pe:.1f}x",
-            f"TTM P/E {trailing_pe:.1f}x (scoring basis — no fwd estimate available)"
+            f"TTM P/E {trailing_pe:.1f}x (scoring basis)"
+        )
+        if forward_pe_val and abs(trailing_pe - forward_pe_val) > 0.5:
+            note_pe = (f"Fwd P/E {forward_pe_val:.1f}x (context — consensus EPS, "
+                       f"not scored vs trailing history)  |  " + note_pe)
+    elif forward_pe_val and pe_current == forward_pe_val:
+        note_pe = note_pe.replace(
+            f"Current {forward_pe_val:.1f}x",
+            f"Fwd P/E {forward_pe_val:.1f}x (scoring basis — TTM unavailable; "
+            f"note basis mismatch vs trailing benchmark)"
         )
 
     tier_pfcf, score_pfcf, note_pfcf = _t_val(trailing_pfcf, pfcf_5yr_avg, sector_pfcf_med,
@@ -4790,17 +4845,23 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         if pfcf <= 55: return  1.5
         return 0.0
 
-    # Forward relative scores — use same _t_val vs same benchmarks as trailing
+    # Forward relative scores — ONLY as a fallback when the trailing multiple is
+    # missing. Scoring a forward (largely non-GAAP) consensus multiple against
+    # the TRAILING GAAP 5yr benchmark is a basis mismatch that reads
+    # structurally cheap for growers; combined with the old forward-first
+    # pe_current it made 80% of the blend forward-vs-trailing (2026-07 fix).
+    # Forward signal still reaches the score via the PEG boost and the
+    # EPS-revision-momentum modifier, both of which are basis-consistent.
     _fwd_pe_score   = None
     _fwd_pfcf_score = None
-    if forward_pe_val and forward_pe_val > 0:
+    if forward_pe_val and forward_pe_val > 0 and not trailing_pe:
         _, _fwd_pe_score, _ = _t_val(forward_pe_val, _pe_5yr_bench, sector_pe_med,
                                       "Fwd P/E", roic_latest, rev_cagr)
-        print(f"  Fwd P/E relative score: {_fwd_pe_score:.2f}")
-    if forward_pfcf_val and forward_pfcf_val > 0 and not is_bank:
+        print(f"  Fwd P/E relative score (fallback — no TTM): {_fwd_pe_score:.2f}")
+    if forward_pfcf_val and forward_pfcf_val > 0 and not is_bank and not trailing_pfcf:
         _, _fwd_pfcf_score, _ = _t_val(forward_pfcf_val, pfcf_5yr_avg, sector_pfcf_med,
                                          "Fwd P/FCF", roic_latest, rev_cagr)
-        print(f"  Fwd P/FCF relative score: {_fwd_pfcf_score:.2f}")
+        print(f"  Fwd P/FCF relative score (fallback — no TTM): {_fwd_pfcf_score:.2f}")
 
     # ── PEG ratio — modifier for absolute P/E penalty ─────────────────────────
     # Forward PEG = forward P/E ÷ forward EPS growth (vs trailing TTM EPS).
@@ -5493,14 +5554,13 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "low_data_confidence": _low_data_confidence,
         "scored_weight":       round(_scored_weight, 1) if _scored else 0.0,
         "active_weight":       round(_active_weight, 1),
-        # F-P display guard: for foreign reporters the current multiples mix a
-        # USD ADR price with local-currency earnings/FCF (TSM showed P/E 0.8×).
-        # Scoring is already suppressed; null the display values too so the
-        # dashboard/report can never publish a currency-corrupted multiple.
-        "pe_current":    None if _foreign_reporter_sc else pe_current,
+        # Foreign reporters: pe_current/pfcf_current are FX-corrected upstream
+        # (USD mktcap ÷ local NI/FCF × fx) — real, displayable multiples now.
+        # Their tier SCORING remains suppressed (benchmark basis unverifiable).
+        "pe_current":    pe_current,
         "pe_5yr_avg":         pe_5yr_avg,
         "sector_pe_med":      sector_pe_med,
-        "pfcf_current":       None if _foreign_reporter_sc else trailing_pfcf,
+        "pfcf_current":       trailing_pfcf,
         "pfcf_5yr_avg":       pfcf_5yr_avg,
         # SBC display metrics (Option B: no scoring impact, shown in report)
         "sbc_trailing_b":  (_sbc_raw / 1e9) if _sbc_raw else None,

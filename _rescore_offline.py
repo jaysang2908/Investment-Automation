@@ -68,7 +68,10 @@ def _inject_ratios_cache(ticker: str, sm: dict) -> None:
     pe_avg    = sm.get("pe_5yr_avg")
     pfcf_avg  = sm.get("pfcf_5yr_avg")
     ev_avg    = sm.get("ev_ebitda_5yr_avg")
-    pe_cur    = sm.get("pe_current")
+    # Prefer the stored TTM snapshot: pe_current was forward-based under the old
+    # basis (pre-2026-07 fix), and injecting a forward value as the "trailing"
+    # snapshot would defeat the TTM-first scoring basis on offline re-scores.
+    pe_cur    = sm.get("ttm_pe") or sm.get("pe_current")
     pfcf_cur  = sm.get("pfcf_current")
 
     # Build 5 entries: index-0 uses the "current" values so trailing_pe/trailing_pfcf
@@ -243,6 +246,8 @@ def run_ticker(ticker: str, old_row: dict) -> dict:
             bank_credit=_bank_credit,
             analyst_ests=analyst_ests,
             profile=profile,
+            fx_to_usd=(dcf_prices.get("fx_to_usd")
+                       or (cached.get("dcf_prices") or {}).get("fx_to_usd")),
         )
 
         auto_score     = scorecard_metrics.get("auto_score") or 0

@@ -559,7 +559,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <span class="ticker-sep">/</span>
       <span class="ticker-price">81.39</span>
     </div>
-    <div class="topbar-date">May 2026</div>
+    <div class="topbar-date">July 2026</div>
   </div>
 </nav>
 
@@ -582,7 +582,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       </div>
       <div>
         <div class="verdict-score-row"><span class="verdict-score-num">5.4</span><span class="verdict-score-den">/10</span></div><div class="verdict-score-sub" style="font-size:11px;margin-top:4px">Quant only — qualitative inputs pending</div>
-        <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · May 2026</div>
+        <div class="verdict-score-sub" style="margin-top:6px">JS Proprietary Score · July 2026</div>
       </div>
     </div>
 
@@ -591,8 +591,8 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
       <div class="price-block">
         <div class="price-label">Current Price</div>
         <div class="price-value">81.39</div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);margin-top:6px;letter-spacing:0.02em"></div>
-        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:0.02em"></div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);margin-top:6px;letter-spacing:0.02em">3yr +99%</div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:0.02em">3yr range $39–$96</div>
       </div>
       <div class="price-arrow">→</div>
       <div class="price-block">
@@ -601,7 +601,7 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
         <span class="price-upside">-84.0% vs current</span>
         <span class="price-upside" style="margin-top:3px">EV/EBITDA Exit (15x)</span>
         <div style="font-size:11px;color:var(--ink-2);margin-top:6px;line-height:1.5;max-width:320px;text-align:left">High Growth (15.2% 3yr avg rev growth). EV/EBITDA multiples prioritised — high-growth companies are better valued on forward earnings power and peer multiples. Base 18x exit multiple.</div>
-        
+        <div style="margin-top:8px;padding:5px 10px;background:var(--bg-elev);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:11px;color:var(--ink-2);font-family:var(--font-mono)">Street consensus&nbsp; <strong style="color:var(--ink)">$99.11</strong>&nbsp;<span style="color:var(--up)">+22%</span></div>
       </div>
     </div>
 
@@ -1460,10 +1460,10 @@ sup a { color: var(--accent); font-size: 9px; text-decoration: none; font-family
     <span class="section-num">12</span>
     <div>
       <div class="section-title">Street Consensus &amp; Insider Signal</div>
-      <div class="section-sub">WFC · May 2026</div>
+      <div class="section-sub">WFC · July 2026</div>
     </div>
   </div>
-  <div style="padding:10px 14px;background:var(--bg-elev);border:1px solid var(--line);border-radius:var(--radius);font-size:12px;color:var(--muted);margin-bottom:16px">Street consensus price target not available.</div>
+  <div style="padding:12px 16px;background:var(--bg-elev);border:1px solid var(--line);border-radius:var(--radius);font-size:13px;color:var(--ink-2);margin-bottom:16px"><strong style="color:var(--ink)">Street Consensus PT</strong>&nbsp;&nbsp;<span style="font-family:var(--font-mono);color:var(--accent);font-size:15px">$99.11</span>&nbsp;&nbsp;<span style="color:var(--up);font-family:var(--font-mono)">+22%</span> · Range $74.00 – $113.00<span style="font-size:11px;color:var(--muted);margin-left:12px">Source: FMP · covers sell-side mean across all contributing brokers</span></div>
   <div style="padding:10px 14px;background:var(--bg-page);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:12px"><div><strong style="color:var(--ink)">Insider Activity (6-month trailing):</strong> <span style="color:#78909c;font-weight:600">No data</span> &nbsp;·&nbsp; <span style="color:var(--ink-2)">No open-market insider transactions in the past 6 months.</span></div></div>
 </section>
 
@@ -1508,8 +1508,8 @@ const tooltipDefaults = {
 };
 const tickFont = { family: 'JetBrains Mono', size: 10 };
 
-const priceLabels = [];
-const priceData   = [0];
+const priceLabels = ["2023-07-06", "2023-07-14", "2023-07-24", "2023-08-01", "2023-08-09", "2023-08-17", "2023-08-25", "2023-09-05", "2023-09-13", "2023-09-21", "2023-09-29", "2023-10-09", "2023-10-17", "2023-10-25", "2023-11-02", "2023-11-10", "2023-11-20", "2023-11-29", "2023-12-07", "2023-12-15", "2023-12-26", "2024-01-04", "2024-01-12", "2024-01-23", "2024-01-31", "2024-02-08", "2024-02-16", "2024-02-27", "2024-03-06", "2024-03-14", "2024-03-22", "2024-04-02", "2024-04-10", "2024-04-18", "2024-04-26", "2024-05-06", "2024-05-14", "2024-05-22", "2024-05-31", "2024-06-10", "2024-06-18", "2024-06-27", "2024-07-08", "2024-07-16", "2024-07-24", "2024-08-01", "2024-08-09", "2024-08-19", "2024-08-27", "2024-09-05", "2024-09-13", "2024-09-23", "2024-10-01", "2024-10-09", "2024-10-17", "2024-10-25", "2024-11-04", "2024-11-12", "2024-11-20", "2024-11-29", "2024-12-09", "2024-12-17", "2024-12-26", "2025-01-06", "2025-01-15", "2025-01-24", "2025-02-03", "2025-02-11", "2025-02-20", "2025-02-28", "2025-03-10", "2025-03-18", "2025-03-26", "2025-04-03", "2025-04-11", "2025-04-22", "2025-04-30", "2025-05-08", "2025-05-16", "2025-05-27", "2025-06-04", "2025-06-12", "2025-06-23", "2025-07-01", "2025-07-10", "2025-07-18", "2025-07-28", "2025-08-05", "2025-08-13", "2025-08-21", "2025-08-29", "2025-09-09", "2025-09-17", "2025-09-25", "2025-10-03", "2025-10-13", "2025-10-21", "2025-10-29", "2025-11-06", "2025-11-14", "2025-11-24", "2025-12-03", "2025-12-11", "2025-12-19", "2025-12-30", "2026-01-08", "2026-01-16", "2026-01-27", "2026-02-04", "2026-02-12", "2026-02-23", "2026-03-03", "2026-03-11", "2026-03-19", "2026-03-27", "2026-04-07", "2026-04-15", "2026-04-23", "2026-05-01", "2026-05-11", "2026-05-19", "2026-05-28", "2026-06-05", "2026-06-15", "2026-06-24", "2026-07-02"];
+const priceData   = [42.89, 43.56, 46.42, 45.71, 43.72, 42.47, 41.23, 41.54, 42.25, 42.32, 40.86, 39.7, 41.98, 39.03, 40.51, 40.89, 42.79, 43.78, 45.4, 50.31, 49.64, 49.28, 47.4, 49.12, 50.18, 48.35, 51.91, 54.81, 57.11, 57.37, 57.13, 57.35, 56.94, 58.74, 59.91, 60.19, 61.89, 60.93, 59.92, 57.93, 59.05, 57.42, 59.01, 60.24, 59.44, 56.88, 52.76, 56.45, 56.26, 56.86, 52.78, 55.11, 55.39, 57.54, 64.38, 64.53, 63.7, 72.6, 73.58, 76.17, 72.62, 70.81, 71.76, 72.03, 75.95, 77.32, 78.14, 79.64, 78.63, 78.32, 66.78, 71.11, 73.47, 65.67, 62.51, 66.23, 71.01, 73.31, 76.18, 73.99, 75.38, 74.01, 77.01, 81.49, 82.36, 80.64, 83.07, 77.96, 77.89, 77.83, 82.18, 80.76, 82.48, 84.32, 80.67, 78.92, 84.76, 86.0, 86.04, 85.05, 84.66, 89.35, 92.59, 93.01, 94.31, 95.6, 88.38, 88.71, 93.14, 86.29, 85.15, 82.53, 76.88, 76.39, 77.19, 81.75, 80.29, 80.51, 80.81, 73.58, 74.55, 76.65, 81.94, 83.14, 84.3, 85.51];
 const currencySymbol = '$';
 
 const priceCtx = document.getElementById('priceChart').getContext('2d');

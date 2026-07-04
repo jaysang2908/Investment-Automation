@@ -684,6 +684,7 @@ def generate():
             bank_credit=_bank_credit,
             analyst_ests=analyst_ests,
             profile=profile,
+            fx_to_usd=(dcf_refs.get("dcf_prices") or {}).get("fx_to_usd"),
         )
 
         buf = io.BytesIO()
@@ -1765,6 +1766,8 @@ def api_update_qualitative(ticker):
                 stored.get("years") or [],
                 biz_clarity=biz_clarity or None, ltp=ltp or None,
                 analyst_ests=stored.get("analyst_ests") or [],
+                profile=stored.get("profile") or {},
+                fx_to_usd=(stored.get("dcf_prices") or {}).get("fx_to_usd"),
             )
             auto_score     = float(recomputed.get("auto_score") or 0)
             auto_score_raw = float(recomputed.get("auto_score_raw") or 0)

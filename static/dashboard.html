@@ -468,13 +468,22 @@ function cagrMetric(v) {
   return metricDiv('Rev CAGR', p(v, 1), h);
 }
 // NM guard: a negative multiple (negative earnings) or an extreme one (>100x,
-// near-zero EPS — AAL printed 1457x) is not meaningful for valuation. Render
-// "NM" instead of the raw figure; raw value kept in the tooltip for audit.
+// near-zero EPS — AAL printed 1457x) is not meaningful for valuation. The raw
+// figure is still shown next to the NM tag, with the reason in the tooltip —
+// the number is real arithmetic, it just carries no valuation signal.
 function peNM(v) { return v != null && (v <= 0 || v > 100); }
+function peNMReason(v) {
+  return v <= 0
+    ? 'Earnings/FCF are negative — a negative multiple signals distress, not value'
+    : 'Denominator is near zero (multiple >100x) — the ratio is arithmetic noise, not a valuation signal';
+}
+function nmVal(v) {
+  return `<span title="${peNMReason(v)}">NM <span style="font-size:var(--t-xs);color:var(--muted);font-weight:400">${v.toFixed(1)}x</span></span>`;
+}
 function peMetric(cur, avg) {
   if (cur == null || avg == null) return metricDiv('P/E · Δ', '—', 'heat-n');
   if (peNM(cur) || avg <= 0)
-    return `<div class="metric" title="Raw P/E ${cur.toFixed(1)}x — not meaningful (negative or >100x)"><div class="ml">P/E · Δ</div><div class="mv heat-n">NM</div></div>`;
+    return metricDiv('P/E · Δ', nmVal(cur), 'heat-n');
   const d = (cur - avg) / avg;
   const h = d <= -0.25 ? 'heat-gg' : d <= -0.10 ? 'heat-g' : d <= 0.10 ? 'heat-n' : d <= 0.25 ? 'heat-r' : 'heat-rr';
   const ds = (d >= 0 ? '+' : '') + (d*100).toFixed(0) + '%';
@@ -575,7 +584,7 @@ function buildCard(c) {
       ${roicMetric(c.roic)}
       ${cagrMetric(c.cagr)}
       ${peMetric(c.pe, c.pe5)}
-      ${(c.pf != null && peNM(c.pf)) ? `<div class="metric" title="Raw P/FCF ${c.pf.toFixed(1)}x — not meaningful (negative or >100x)"><div class="ml">P/FCF · Δ</div><div class="mv heat-n">NM</div></div>` : metricDiv('P/FCF · Δ', c.pf != null && c.pf5 != null && c.pf5 > 0 ? ((c.pf-c.pf5)/c.pf5 >= 0 ? '+' : '') + (((c.pf-c.pf5)/c.pf5)*100).toFixed(0) + '%' : '—', c.pf != null && c.pf5 != null && c.pf5 > 0 ? (((c.pf-c.pf5)/c.pf5) <= -0.25 ? 'heat-gg' : ((c.pf-c.pf5)/c.pf5) <= -0.10 ? 'heat-g' : ((c.pf-c.pf5)/c.pf5) <= 0.10 ? 'heat-n' : ((c.pf-c.pf5)/c.pf5) <= 0.25 ? 'heat-r' : 'heat-rr') : 'heat-n')}
+      ${(c.pf != null && peNM(c.pf)) ? metricDiv('P/FCF · Δ', nmVal(c.pf), 'heat-n') : metricDiv('P/FCF · Δ', c.pf != null && c.pf5 != null && c.pf5 > 0 ? ((c.pf-c.pf5)/c.pf5 >= 0 ? '+' : '') + (((c.pf-c.pf5)/c.pf5)*100).toFixed(0) + '%' : '—', c.pf != null && c.pf5 != null && c.pf5 > 0 ? (((c.pf-c.pf5)/c.pf5) <= -0.25 ? 'heat-gg' : ((c.pf-c.pf5)/c.pf5) <= -0.10 ? 'heat-g' : ((c.pf-c.pf5)/c.pf5) <= 0.10 ? 'heat-n' : ((c.pf-c.pf5)/c.pf5) <= 0.25 ? 'heat-r' : 'heat-rr') : 'heat-n')}
       ${c.de != null ? metricDiv('D/EBITDA', c.de.toFixed(1)+'x', c.de < 1.5 ? 'heat-gg' : c.de < 4 ? 'heat-g' : c.de < 8 ? 'heat-r' : 'heat-rr') : metricDiv('D/EBITDA','—','heat-n')}
     </div>
     <div class="acts">${actionsHTML(c)}</div>
@@ -586,8 +595,8 @@ function buildCard(c) {
       <div class="detail-block">
         <h5>Valuation history (5yr)</h5>
         <dl class="kv">
-          <dt>P/E</dt><dd>${c.pe != null ? (peNM(c.pe) ? `<span title="Raw ${x(c.pe)} — not meaningful">NM</span>` : x(c.pe)) : '—'}${c.pe5 != null && c.pe5 > 0 ? ` <span style="color:var(--muted)">/ ${x(c.pe5)} avg</span>` : ''}</dd>
-          <dt>P/FCF</dt><dd>${c.pf != null ? (peNM(c.pf) ? `<span title="Raw ${x(c.pf)} — not meaningful">NM</span>` : x(c.pf)) : '—'}${c.pf5 != null && c.pf5 > 0 ? ` <span style="color:var(--muted)">/ ${x(c.pf5)} avg</span>` : ''}</dd>
+          <dt>P/E</dt><dd>${c.pe != null ? (peNM(c.pe) ? `${x(c.pe)} <span style="color:var(--muted)" title="${peNMReason(c.pe)}">(NM — ${c.pe <= 0 ? 'negative earnings' : 'near-zero EPS'})</span>` : x(c.pe)) : '—'}${c.pe5 != null && c.pe5 > 0 ? ` <span style="color:var(--muted)">/ ${x(c.pe5)} avg</span>` : ''}</dd>
+          <dt>P/FCF</dt><dd>${c.pf != null ? (peNM(c.pf) ? `${x(c.pf)} <span style="color:var(--muted)" title="${peNMReason(c.pf)}">(NM — ${c.pf <= 0 ? 'negative FCF' : 'near-zero FCF'})</span>` : x(c.pf)) : '—'}${c.pf5 != null && c.pf5 > 0 ? ` <span style="color:var(--muted)">/ ${x(c.pf5)} avg</span>` : ''}</dd>
           <dt>D / EBITDA</dt><dd>${c.de != null ? x(c.de) : '—'}</dd>
           <dt>FCF / NI</dt><dd>${c.fcfni != null ? (c.fcfni > 1.5 ? '>100%' : p(c.fcfni, 0)) : '—'}</dd>
         </dl>

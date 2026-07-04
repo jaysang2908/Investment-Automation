@@ -251,6 +251,7 @@ def main():
                 bank_credit=_bank_credit,
                 analyst_ests=analyst_ests,
                 profile=profile,
+                fx_to_usd=(dcf_refs.get("dcf_prices") or {}).get("fx_to_usd"),
             )
 
             # Adj score

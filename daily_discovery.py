@@ -169,6 +169,8 @@ def try_generate(ticker):
             wb, ticker, is_data, bs_data, cf_data, years,
             dcf_gg_price=(dcf_refs.get("dcf_prices") or {}).get("gg_price"),
             evs_regime=bool((dcf_refs.get("dcf_prices") or {}).get("evs_regime")),
+            profile=profile,
+            fx_to_usd=(dcf_refs.get("dcf_prices") or {}).get("fx_to_usd"),
         )
 
         auto  = scorecard_metrics.get("auto_score") or 0
