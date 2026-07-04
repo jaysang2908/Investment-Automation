@@ -210,7 +210,7 @@
         <div>
           <div class="eyebrow">▲ Active Coverage</div>
           <h1 class="page-title">Coverage Dashboard</h1>
-          <p class="page-lede">All analysed companies — DCF upside, valuation versus history, and quality metrics. Auto-scored by the FMP engine unless flagged as including qualitative inputs.</p>
+          <p class="page-lede">All analysed companies — DCF upside, valuation versus history, and quality metrics. Auto-scored by the FMP engine unless flagged as including qualitative inputs.<span id="priceAsOf" style="display:none;margin-left:8px;color:var(--muted);font-size:var(--t-xs)"></span></p>
         </div>
         <div class="page-head-actions">
           <button class="btn">
@@ -401,7 +401,7 @@ const META_MAP = {
   "MSFT": {n:"Microsoft Corporation",     ex:"NASDAQ", sn:"auto-score",  note:"EM primary (cagr ≥10%). Re-run 2026-05-16 on updated engine."},
   "CSCO": {n:"Cisco Systems Inc.",        ex:"NASDAQ", sn:"auto-score"},
   "ABBV": {n:"AbbVie Inc.",               ex:"NYSE",   sn:"auto-score",  note:"FCF/NI >100% reflects amortisation of Allergan intangibles. Soft cap 10.9 applied (non-binding at 0–10 scale)."},
-  "TSM":  {n:"Taiwan Semiconductor",      ex:"NYSE",   sn:"auto-score*", note:"*Pending re-run (2026-04-19 data). DCF prices in TWD — FX conversion not applied.", _dcf_null:true},
+  "TSM":  {n:"Taiwan Semiconductor",      ex:"NYSE",   sn:"auto-score*", note:"Foreign filer (TWD): current P/E & P/FCF suppressed (USD price vs TWD earnings — F-P guard); financials shown in USD.", _dcf_null:true},
   "FDX":  {n:"FedEx Corporation",         ex:"NYSE",   sn:"auto-score"},
   "KO":   {n:"The Coca-Cola Company",     ex:"NYSE",   sn:"auto-score"},
   "AMD":  {n:"Advanced Micro Devices",    ex:"NASDAQ", sn:"auto-score"},
@@ -467,8 +467,14 @@ function cagrMetric(v) {
   const h = v >= 0.12 ? 'heat-gg' : v >= 0.05 ? 'heat-g' : v >= 0 ? 'heat-n' : 'heat-r';
   return metricDiv('Rev CAGR', p(v, 1), h);
 }
+// NM guard: a negative multiple (negative earnings) or an extreme one (>100x,
+// near-zero EPS — AAL printed 1457x) is not meaningful for valuation. Render
+// "NM" instead of the raw figure; raw value kept in the tooltip for audit.
+function peNM(v) { return v != null && (v <= 0 || v > 100); }
 function peMetric(cur, avg) {
   if (cur == null || avg == null) return metricDiv('P/E · Δ', '—', 'heat-n');
+  if (peNM(cur) || avg <= 0)
+    return `<div class="metric" title="Raw P/E ${cur.toFixed(1)}x — not meaningful (negative or >100x)"><div class="ml">P/E · Δ</div><div class="mv heat-n">NM</div></div>`;
   const d = (cur - avg) / avg;
   const h = d <= -0.25 ? 'heat-gg' : d <= -0.10 ? 'heat-g' : d <= 0.10 ? 'heat-n' : d <= 0.25 ? 'heat-r' : 'heat-rr';
   const ds = (d >= 0 ? '+' : '') + (d*100).toFixed(0) + '%';
@@ -569,7 +575,7 @@ function buildCard(c) {
       ${roicMetric(c.roic)}
       ${cagrMetric(c.cagr)}
       ${peMetric(c.pe, c.pe5)}
-      ${metricDiv('P/FCF · Δ', c.pf != null && c.pf5 != null ? ((c.pf-c.pf5)/c.pf5 >= 0 ? '+' : '') + (((c.pf-c.pf5)/c.pf5)*100).toFixed(0) + '%' : '—', c.pf != null && c.pf5 != null ? (((c.pf-c.pf5)/c.pf5) <= -0.25 ? 'heat-gg' : ((c.pf-c.pf5)/c.pf5) <= -0.10 ? 'heat-g' : ((c.pf-c.pf5)/c.pf5) <= 0.10 ? 'heat-n' : ((c.pf-c.pf5)/c.pf5) <= 0.25 ? 'heat-r' : 'heat-rr') : 'heat-n')}
+      ${(c.pf != null && peNM(c.pf)) ? `<div class="metric" title="Raw P/FCF ${c.pf.toFixed(1)}x — not meaningful (negative or >100x)"><div class="ml">P/FCF · Δ</div><div class="mv heat-n">NM</div></div>` : metricDiv('P/FCF · Δ', c.pf != null && c.pf5 != null && c.pf5 > 0 ? ((c.pf-c.pf5)/c.pf5 >= 0 ? '+' : '') + (((c.pf-c.pf5)/c.pf5)*100).toFixed(0) + '%' : '—', c.pf != null && c.pf5 != null && c.pf5 > 0 ? (((c.pf-c.pf5)/c.pf5) <= -0.25 ? 'heat-gg' : ((c.pf-c.pf5)/c.pf5) <= -0.10 ? 'heat-g' : ((c.pf-c.pf5)/c.pf5) <= 0.10 ? 'heat-n' : ((c.pf-c.pf5)/c.pf5) <= 0.25 ? 'heat-r' : 'heat-rr') : 'heat-n')}
       ${c.de != null ? metricDiv('D/EBITDA', c.de.toFixed(1)+'x', c.de < 1.5 ? 'heat-gg' : c.de < 4 ? 'heat-g' : c.de < 8 ? 'heat-r' : 'heat-rr') : metricDiv('D/EBITDA','—','heat-n')}
     </div>
     <div class="acts">${actionsHTML(c)}</div>
@@ -580,8 +586,8 @@ function buildCard(c) {
       <div class="detail-block">
         <h5>Valuation history (5yr)</h5>
         <dl class="kv">
-          <dt>P/E</dt><dd>${c.pe != null ? x(c.pe) : '—'}${c.pe5 != null ? ` <span style="color:var(--muted)">/ ${x(c.pe5)} avg</span>` : ''}</dd>
-          <dt>P/FCF</dt><dd>${c.pf != null ? x(c.pf) : '—'}${c.pf5 != null ? ` <span style="color:var(--muted)">/ ${x(c.pf5)} avg</span>` : ''}</dd>
+          <dt>P/E</dt><dd>${c.pe != null ? (peNM(c.pe) ? `<span title="Raw ${x(c.pe)} — not meaningful">NM</span>` : x(c.pe)) : '—'}${c.pe5 != null && c.pe5 > 0 ? ` <span style="color:var(--muted)">/ ${x(c.pe5)} avg</span>` : ''}</dd>
+          <dt>P/FCF</dt><dd>${c.pf != null ? (peNM(c.pf) ? `<span title="Raw ${x(c.pf)} — not meaningful">NM</span>` : x(c.pf)) : '—'}${c.pf5 != null && c.pf5 > 0 ? ` <span style="color:var(--muted)">/ ${x(c.pf5)} avg</span>` : ''}</dd>
           <dt>D / EBITDA</dt><dd>${c.de != null ? x(c.de) : '—'}</dd>
           <dt>FCF / NI</dt><dd>${c.fcfni != null ? (c.fcfni > 1.5 ? '>100%' : p(c.fcfni, 0)) : '—'}</dd>
         </dl>
@@ -982,10 +988,23 @@ async function renderPendingReruns() {
 async function init() {
   renderPendingReruns();
   try {
-    const [scoresResp, earningsResp] = await Promise.all([
+    const [scoresResp, earningsResp, pxResp] = await Promise.all([
       fetch('/api/scores'),
       fetch('/api/earnings-upcoming').catch(() => null),
+      fetch('/data/price_refresh.json').catch(() => null),
     ]);
+    // Price-refresh marker: the daily EOD cron stamps this sidecar so the
+    // dashboard can state how current the displayed prices actually are.
+    if (pxResp && pxResp.ok) {
+      try {
+        const px = await pxResp.json();
+        if (px && px.asof) {
+          const el = document.getElementById('priceAsOf');
+          el.textContent = `Prices as of ${_fmtDate(px.asof)} close (${px.source || 'EOD'}).`;
+          el.style.display = 'inline';
+        }
+      } catch (e) { /* sidecar optional */ }
+    }
     const rows = await scoresResp.json();
     if (earningsResp) {
       const earningsData = await earningsResp.json().catch(() => ({}));

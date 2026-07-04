@@ -31,6 +31,21 @@ services:
         sync: false
 
   - type: cron
+    name: daily-price-refresh
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    # 21:30 UTC = after US market close (20:00/21:00 UTC depending on DST),
+    # weekdays only. Pushes refreshed outputs.csv to GitHub, which triggers
+    # the Render redeploy that delivers it to the web container.
+    schedule: "30 21 * * 1-5"
+    startCommand: python daily_prices.py
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+
+  - type: cron
     name: daily-long-term-bets
     runtime: python
     buildCommand: pip install -r requirements.txt

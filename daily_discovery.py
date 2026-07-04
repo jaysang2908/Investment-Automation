@@ -197,17 +197,18 @@ def try_generate(ticker):
             wacc_refs.get("wacc_val"), dcf_p, scorecard_metrics, analyst_ests
         )
 
+        _fx = dcf_p.get("fx_to_usd") or 1.0   # reportedCurrency → USD for display
         return True, {
             "score":      score,
             "metrics":    scorecard_metrics,
             "dcf_prices": dcf_p,
             "price":      current_price,
             "mkt_cap":    market_cap,
-            "revenue_b":  (is_data[-1].get("revenue") or 0) / 1e9,
-            "ocf_b":      (cf_data[-1].get("operatingCashFlow") or 0) / 1e9,
-            "fcf_b":      (cf_data[-1].get("freeCashFlow") or
+            "revenue_b":  (is_data[-1].get("revenue") or 0) / 1e9 * _fx,
+            "ocf_b":      (cf_data[-1].get("operatingCashFlow") or 0) / 1e9 * _fx,
+            "fcf_b":      ((cf_data[-1].get("freeCashFlow") or
                            (cf_data[-1].get("operatingCashFlow") or 0) -
-                           abs(cf_data[-1].get("capitalExpenditure") or 0)) / 1e9,
+                           abs(cf_data[-1].get("capitalExpenditure") or 0)) / 1e9) * _fx,
         }
 
     except Exception as e:

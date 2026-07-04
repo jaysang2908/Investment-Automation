@@ -3473,6 +3473,11 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
                 "wacc_floored":     (wacc_refs or {}).get("wacc_floored", False),
                 "foreign_reporter": _foreign_reporter_unsupported,
                 "reported_currency": _ccy_dcf,
+                # FX rate to convert reportedCurrency financials → USD for
+                # display columns (Revenue_B/OCF_B/FCF_B/SBC_B in outputs.csv).
+                # 1.0 for USD reporters or when the FX fetch failed (in which
+                # case foreign_reporter=True already voids the price outputs).
+                "fx_to_usd":        _fx_to_usd,
                 # F-D Phase 1: bank-disabled flag — bridges reads this to show
                 # "N/A — Bank methodology pending" instead of "N/A — Insufficient inputs"
                 "bank_disabled":        _is_bank_dcf,
@@ -5488,10 +5493,14 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
         "low_data_confidence": _low_data_confidence,
         "scored_weight":       round(_scored_weight, 1) if _scored else 0.0,
         "active_weight":       round(_active_weight, 1),
-        "pe_current":    pe_current,
+        # F-P display guard: for foreign reporters the current multiples mix a
+        # USD ADR price with local-currency earnings/FCF (TSM showed P/E 0.8×).
+        # Scoring is already suppressed; null the display values too so the
+        # dashboard/report can never publish a currency-corrupted multiple.
+        "pe_current":    None if _foreign_reporter_sc else pe_current,
         "pe_5yr_avg":         pe_5yr_avg,
         "sector_pe_med":      sector_pe_med,
-        "pfcf_current":       trailing_pfcf,
+        "pfcf_current":       None if _foreign_reporter_sc else trailing_pfcf,
         "pfcf_5yr_avg":       pfcf_5yr_avg,
         # SBC display metrics (Option B: no scoring impact, shown in report)
         "sbc_trailing_b":  (_sbc_raw / 1e9) if _sbc_raw else None,

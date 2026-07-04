@@ -115,13 +115,14 @@ def _write_row(ticker, scorecard_metrics, dcf_prices,
     def _f(v, dp_=4):
         return "" if v is None else f"{v:.{dp_}f}"
 
-    rev_b   = (is_data[-1].get("revenue") or 0) / 1e9 if is_data else None
-    ocf_b   = (cf_data[-1].get("operatingCashFlow") or 0) / 1e9 if cf_data else None
+    _fx = dp.get("fx_to_usd") or 1.0   # reportedCurrency → USD for display cols
+    rev_b   = (is_data[-1].get("revenue") or 0) / 1e9 * _fx if is_data else None
+    ocf_b   = (cf_data[-1].get("operatingCashFlow") or 0) / 1e9 * _fx if cf_data else None
     fcf_raw = cf_data[-1].get("freeCashFlow") if cf_data else None
     if fcf_raw is None and cf_data:
         fcf_raw = ((cf_data[-1].get("operatingCashFlow") or 0) +
                    (cf_data[-1].get("capitalExpenditure") or 0))
-    fcf_b     = (fcf_raw / 1e9) if fcf_raw is not None else None
+    fcf_b     = (fcf_raw / 1e9 * _fx) if fcf_raw is not None else None
     mkt_cap_b = (market_cap / 1e9) if market_cap else None
 
     _auto  = sm.get("auto_score")

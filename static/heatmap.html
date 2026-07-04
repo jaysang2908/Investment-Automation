@@ -130,8 +130,11 @@ const METRICS = {
   em_upside:  { label: 'Exit Multiple Upside', fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 0,    lo: 'Overvalued',  hi: 'Undervalued'  },
   roic:       { label: 'ROIC',                 fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 15,   lo: 'Low ROIC',    hi: 'High ROIC'    },
   rev_cagr:   { label: 'Revenue CAGR',         fmt: v => v.toFixed(1)+'%',   unit: '%',   invert: false, mid: 5,    lo: 'Low Growth',  hi: 'High Growth'  },
-  pe:         { label: 'P/E (Current)',         fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 20,   lo: 'Cheap',       hi: 'Expensive'    },
-  pfcf:       { label: 'P/FCF (Current)',       fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 20,   lo: 'Cheap',       hi: 'Expensive'    },
+  // nm: multiples that are negative (loss-making) or extreme (>100×, near-zero
+  // denominator) are Not Meaningful — excluded from the tile set rather than
+  // rendered as if "−6.5×" were a cheap valuation.
+  pe:         { label: 'P/E (Current)',         fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 20,   lo: 'Cheap',       hi: 'Expensive',   nm: v => v <= 0 || v > 100 },
+  pfcf:       { label: 'P/FCF (Current)',       fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 20,   lo: 'Cheap',       hi: 'Expensive',   nm: v => v <= 0 || v > 100 },
   d_ebitda:   { label: 'Debt / EBITDA',        fmt: v => v.toFixed(1)+'×',   unit: '×',   invert: true,  mid: 2,    lo: 'Low Debt',    hi: 'High Debt'    },
   fcf_ni:     { label: 'FCF / Net Income',     fmt: v => v.toFixed(2),       unit: '',    invert: false, mid: 1,    lo: 'Low Conv.',   hi: 'High Conv.'   },
 };
@@ -163,7 +166,8 @@ async function init() {
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
   const cfg   = METRICS[curMetric];
-  const rows  = DATA.filter(d => d[curMetric] !== null && d[curMetric] !== undefined);
+  const rows  = DATA.filter(d => d[curMetric] !== null && d[curMetric] !== undefined
+                                 && !(cfg.nm && cfg.nm(d[curMetric])));
 
   const loadingEl = document.getElementById('loadingMsg');
   const chartEl   = document.getElementById('heatmap');
