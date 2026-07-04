@@ -1,19 +1,7 @@
 {
   "_doc": "Ledger of changes whose outputs are NOT yet regenerated because a live FMP re-run was blocked (quota exhausted, no API key in the run environment, etc). Surfaced on the dashboard as an amber banner so deferred work is never silently lost. An entry is added by whoever defers the re-run (see CLAUDE.md Rule 24); it is auto-cleared by server.py when the affected ticker is successfully re-run through /generate. Manually editable.",
-  "generated": "2026-06-24",
+  "generated": "2026-07-04",
   "items": [
-    {
-      "id": "bank-fcfni-2026-06-24",
-      "tickers": [
-        "GS"
-      ],
-      "reason": "Bank FCF/NI weight=0 fix (commit 5900f68) could not be applied: GS has no cached JSON for an offline re-score. Its score (4.4) still reflects the old FCF/NI distortion.",
-      "fix_commit": "5900f68",
-      "deferred": "2026-06-24",
-      "blocker": "No FMP API key in local run environment; key lives on Render only.",
-      "action": "Run GS live through /generate (or local_rerun.py GS) on Render to apply the bank FCF/NI fix.",
-      "status": "pending"
-    },
     {
       "id": "ggem-offline-approx-2026-06-24",
       "tickers": [
