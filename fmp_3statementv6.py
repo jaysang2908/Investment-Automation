@@ -2153,6 +2153,48 @@ def build_wacc(wb, ticker, is_data, bs_data, manual_rating=None, profile=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 # DCF TAB
 # ═══════════════════════════════════════════════════════════════════════════════
+# ── F-D bank detection (shared by build_dcf and build_scorecard) ─────────────
+# Industry strings from FMP are a moving target: SOFI (a nationally chartered,
+# deposit-funded bank) is tagged "Financial - Credit Services", which matched
+# no keyword, so its EM fair value was published on bank economics. Detection
+# is now two-tier:
+#   1. Strong keywords → bank.
+#   2. Ambiguous tags ("credit services", "capital markets" — shared by payment
+#      networks and brokers) → bank only if interest income > 50% of revenue.
+#      Reference shares: SOFI 0.71, BAC 0.72, JPM 0.69 vs V 0.00, HOOD 0.34
+#      (broker — correctly stays out), F 0.01.
+# DFS removed from the exclude list — Discover IS deposit-funded; it also
+# clears the quantitative test, so the old keyword miss no longer matters.
+_BANK_EXCLUDE_SHARED = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "TRMK"}
+_BANK_KW_STRONG = {"bank", "banking", "financial services", "savings",
+                   "thrift", "mortgage", "credit union", "investment bank",
+                   "diversified financial"}
+_BANK_KW_AMBIG  = {"credit services", "capital markets"}
+_BANK_INT_INC_SHARE = 0.50
+
+
+def _is_bank_like(ticker, profile, is_data):
+    if (ticker or "").upper() in _BANK_EXCLUDE_SHARED:
+        return False
+    ind = ((profile or {}).get("industry") or
+           (profile or {}).get("sector") or "").lower()
+    if any(kw in ind for kw in _BANK_KW_STRONG):
+        return True
+    _ii_share = 0.0
+    try:
+        is0 = (is_data or [])[-1] or {}
+        _ii  = is0.get("interestIncome") or 0
+        _rev = is0.get("revenue") or 0
+        _ii_share = (_ii / _rev) if _rev > 0 else 0.0
+    except Exception:
+        pass
+    if any(kw in ind for kw in _BANK_KW_AMBIG) and _ii_share > _BANK_INT_INC_SHARE:
+        return True
+    # Tag-independent safety net: interest-dominated revenue is a balance-sheet
+    # lender regardless of what FMP calls the industry this quarter.
+    return _ii_share > _BANK_INT_INC_SHARE
+
+
 def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wacc_refs, current_price=None, cf_refs=None, profile=None):
     """Build DCF sheet — consensus years auto-populated from FMP, remainder user input."""
 
@@ -2255,17 +2297,10 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
     _rev_trailing_fc_mm  = (is_data[-1].get("revenue") or 1) / 1e6
     _fcf_margin_trailing = round(_fcf_trailing_fc_mm / max(_rev_trailing_fc_mm, 1.0), 4)
 
-    # F-D: Bank detection — needed here for quality-premium and EM-anchoring guards
-    # (full detection block is repeated later in the DCF write-out section)
-    _BANK_DCF_EXCLUDE_EARLY = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "DFS", "TRMK"}
-    _BANK_DCF_KW_EARLY = {"bank", "banking", "financial services", "savings",
-                           "thrift", "mortgage", "credit union", "investment bank",
-                           "diversified financial"}
-    _prof_industry_early = (profile or {}).get("industry") or (profile or {}).get("sector") or ""
-    _is_bank_dcf = (
-        any(kw in _prof_industry_early.lower() for kw in _BANK_DCF_KW_EARLY)
-        and ticker.upper() not in _BANK_DCF_EXCLUDE_EARLY
-    )
+    # F-D: Bank detection — needed here for quality-premium and EM-anchoring guards.
+    # Shared two-tier classifier (keywords + interest-income share) — see
+    # _is_bank_like() above build_dcf.
+    _is_bank_dcf = _is_bank_like(ticker, profile, is_data)
 
     _quality_em_premium  = False
     _FC_ROIC_THRESHOLD   = 0.25   # 25% ROIC = structural moat / quality compounder
@@ -2282,19 +2317,30 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
 
     # ── F-C Phase 2: Historical EV/EBITDA anchoring for exit multiple ─────────
     # Stock-specific anchor: 5yr avg EV/EBITDA × 80% mean-reversion discount.
-    # Floor = current tier+quality base (preserves quality premium gains).
     # Cap = 28x (prevents bubble-era averages perpetuating into terminal value).
-    # Cyclicals excluded — tier smoothing via F-E is a better anchor for those.
     # Banks excluded — EM disabled anyway.
+    #
+    # Floor (2026-07 fix): the old floor was the full tier base, which made the
+    # anchor asymmetric — historical evidence could raise a multiple but never
+    # lower it. Airlines whose own history says ~6x were floored back to 10x+
+    # (AAL EM +245%, UAL +212%). Now:
+    #   • quality-premium names keep the full tier+premium floor (the original
+    #     intent — a depressed hist avg must not erase a ROIC>25% premium);
+    #   • everyone else can anchor DOWN to 0.6 × tier base;
+    #   • cyclicals (previously excluded entirely) get DOWNWARD-ONLY anchoring:
+    #     a structurally low-multiple sector must not carry a 10x+ tier default
+    #     into terminal value, but a cyclically-inflated hist avg must never
+    #     RAISE the multiple either (F-E tier smoothing handles the upside).
     # Note: _evs_regime is not yet computed here; anchoring is neutralised later
     #       in dcf_prices if EVS fires (EM prices become None regardless of mult).
     _HIST_EM_DISCOUNT      = 0.80
     _HIST_EM_CAP           = 28.0
+    _HIST_EM_FLOOR_FRAC    = 0.60
     _em_anchored           = False
     _em_hist_anchor_raw    = None
     _em_hist_anchor_capped = False
 
-    if not _is_cyclical_dcf and not _is_bank_dcf:
+    if not _is_bank_dcf:
         _rat_ev_vals = []
         try:
             _rat_resp_h = _fetch_ratios(ticker, limit=5)   # cached — no extra FMP call
@@ -2311,9 +2357,16 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
             _hist_ev_avg        = round(sum(_rat_ev_vals) / len(_rat_ev_vals), 1)
             _em_hist_anchor_raw = _hist_ev_avg
             _anchored_raw       = _hist_ev_avg * _HIST_EM_DISCOUNT
-            _hist_floor         = _DCF_TEV_BASE   # post-quality-premium floor
-            _em_hist_anchor_capped = _anchored_raw > _HIST_EM_CAP
-            _anchored_final     = max(_hist_floor, min(_HIST_EM_CAP, _anchored_raw))
+            if _is_cyclical_dcf:
+                # Downward-only for cyclicals
+                _hist_floor     = _HIST_EM_FLOOR_FRAC * _DCF_TEV_BASE
+                _em_hist_anchor_capped = False
+                _anchored_final = max(_hist_floor, min(_DCF_TEV_BASE, _anchored_raw))
+            else:
+                _hist_floor     = (_DCF_TEV_BASE if _quality_em_premium
+                                   else _HIST_EM_FLOOR_FRAC * _DCF_TEV_BASE)
+                _em_hist_anchor_capped = _anchored_raw > _HIST_EM_CAP
+                _anchored_final = max(_hist_floor, min(_HIST_EM_CAP, _anchored_raw))
 
             if abs(_anchored_final - _DCF_TEV_BASE) > 0.5:
                 _h_scale      = _anchored_final / _DCF_TEV_BASE
@@ -3159,18 +3212,12 @@ def build_dcf(wb, ticker, is_data, bs_data, cf_data, years, pl_refs, bs_refs, wa
         # Payment networks (V, MA, PYPL, FIS, FISV, GPN, etc.) share "Financial"
         # industry / sector tags with deposit-funded banks but are NOT balance-
         # sheet lenders. Exclude them so F-D does not wrongly disable their DCF.
-        _BANK_DCF_EXCLUDE = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU",
-                              "DFS", "TRMK"}
-        _BANK_DCF_KW = {"bank", "banking", "financial services", "savings",
-                        "thrift", "mortgage", "credit union", "investment bank",
-                        "diversified financial"}
         _prof_industry_dcf = (
             (profile or {}).get("industry") or (profile or {}).get("sector") or ""
         )
-        _is_bank_dcf = (
-            any(kw in _prof_industry_dcf.lower() for kw in _BANK_DCF_KW)
-            and ticker.upper() not in _BANK_DCF_EXCLUDE
-        )
+        # Shared two-tier classifier (keywords + interest-income share) — see
+        # _is_bank_like() above build_dcf. Must agree with the early block.
+        _is_bank_dcf = _is_bank_like(ticker, profile, is_data)
 
         # Assumption averages — match Excel "Year 1 = AVERAGE(historicals)" rows
         def _avg(vals): return sum(v for v in vals if v) / max(sum(1 for v in vals if v), 1)
@@ -4064,10 +4111,10 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             except Exception:
                 pass
         sector_str = prof_sc.get("industry") or prof_sc.get("sector") or ""
-        # Bank/financial sector detection — D/EBITDA is meaningless for deposit-funded institutions
-        _BANK_KW = {"bank", "banking", "financial services", "savings", "thrift",
-                    "mortgage", "credit union", "investment bank", "diversified financial"}
-        is_bank = any(kw in sector_str.lower() for kw in _BANK_KW)
+        # Bank/financial sector detection — D/EBITDA is meaningless for
+        # deposit-funded institutions. Shared two-tier classifier (keywords +
+        # interest-income share); must agree with build_dcf's _is_bank_dcf.
+        is_bank = _is_bank_like(ticker, prof_sc, is_data)
         print(f"  Sector: {sector_str!r}  is_bank={is_bank}")
         # Equity/Assets (CET1 proxy) — computed here so is_bank is already confirmed
         if is_bank:
@@ -4988,6 +5035,29 @@ def build_scorecard(wb, ticker, is_data, bs_data, cf_data, years,
             print(f"  FCF yield spread: {_fcf_yield:.1%} - {_rf_rate_sc:.1%}"
                   f" = {_fcf_yield_spread:+.1%}  modifier={_fcf_spread_modifier:+.2f}"
                   f"  → adjusted score_pfcf={score_pfcf:.2f}")
+
+    # ── SBC owner-earnings penalty on P/FCF (2026-07, batch 2) ────────────────
+    # P/FCF treats reported FCF as owner earnings, but SBC is a real economic
+    # cost settled in shares — reported FCF overstates what accrues to current
+    # holders (DOCU: SBC 59% of FCF; PINS: 70%). A graduated deduction is used
+    # rather than scoring on FCF-ex-SBC, because the 5yr P/FCF benchmark is
+    # unadjusted and an adjusted-vs-unadjusted spread would repeat the basis
+    # mismatch fixed for P/E in batch 1. Applied after the blend + yield
+    # modifier so it is a true deduction on the final criterion score. SBC>40%
+    # also drops the displayed tier one notch. Mirrors the GAAP-vs-non-GAAP
+    # principle used in the DCF: SBC is real dilution.
+    _sbc_penalty = 0.0
+    if (score_pfcf is not None and not is_bank
+            and _sbc_pct_fcf is not None and _sbc_pct_fcf > 0.20):
+        _sbc_penalty = (3.0 if _sbc_pct_fcf > 0.60 else
+                        2.0 if _sbc_pct_fcf > 0.40 else 1.0)
+        score_pfcf = round(max(0.0, score_pfcf - _sbc_penalty), 4)
+        if _sbc_pct_fcf > 0.40 and tier_pfcf:
+            tier_pfcf = down_tier(tier_pfcf)
+        note_pfcf += (f"  [SBC {_sbc_pct_fcf:.0%} of FCF — owner-earnings "
+                      f"penalty −{_sbc_penalty:.1f}]")
+        print(f"  SBC penalty: SBC/FCF={_sbc_pct_fcf:.0%} → −{_sbc_penalty:.1f}"
+              f"  adjusted score_pfcf={score_pfcf:.2f}")
 
     # ── Soft credit floor cap (#7) ────────────────────────────────────────────
     # Replaces the binary floor gates (D/EBITDA >4 → cap 64; EBIT/Int <2 → cap 64;

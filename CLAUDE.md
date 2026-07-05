@@ -329,19 +329,18 @@ These three guards run at the engine boundary so a single bad input never produc
 
 Gordon Growth (FCF perpetuity) and EV/EBITDA Exit Multiple do not apply to deposit-funded balance sheet institutions. When `_is_bank_dcf = True`, the engine immediately voids all GG and EM outputs and bypasses EVS regime detection.
 
-**Detection** (in `build_dcf()`)
+**Detection** (shared `_is_bank_like(ticker, profile, is_data)` helper above `build_dcf()`, used by both `build_dcf` and `build_scorecard` — updated 2026-07, batch 2):
 ```python
-_BANK_DCF_EXCLUDE = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "DFS", "TRMK"}
-_BANK_DCF_KW = {"bank", "banking", "financial services", "savings",
-                "thrift", "mortgage", "credit union", "investment bank",
-                "diversified financial"}
-_is_bank_dcf = (
-    any(kw in _prof_industry_dcf.lower() for kw in _BANK_DCF_KW)
-    and ticker.upper() not in _BANK_DCF_EXCLUDE
-)
+_BANK_EXCLUDE_SHARED = {"V", "MA", "PYPL", "FIS", "FISV", "GPN", "WU", "TRMK"}  # DFS removed — Discover IS deposit-funded
+_BANK_KW_STRONG = {"bank", "banking", "financial services", "savings", "thrift",
+                   "mortgage", "credit union", "investment bank", "diversified financial"}
+_BANK_KW_AMBIG  = {"credit services", "capital markets"}   # bank only if interest-dominated
+_BANK_INT_INC_SHARE = 0.50
+# bank = strong keyword, OR ambiguous keyword + interestIncome/revenue > 0.5,
+#        OR interestIncome/revenue > 0.5 regardless of tag (tag-drift safety net)
 ```
 
-Payment networks (V, MA, PYPL, etc.) are explicitly excluded from the bank classifier — they share FMP's `Financial - Credit Services` tag with deposit-taking banks but have completely different economics and DCF applicability. Add new payment-network tickers to `_BANK_DCF_EXCLUDE` as they are reviewed.
+Rationale: FMP industry strings are a moving target — SOFI (a chartered, deposit-funded bank) is tagged `Financial - Credit Services`, which matched no keyword, so its EM fair value was published on bank economics. The interest-income share test separates cleanly: SOFI 0.71 / BAC 0.72 / JPM 0.69 vs V 0.00 / HOOD 0.34 (broker — correctly non-bank) / F 0.01. Payment networks (V, MA, PYPL, etc.) remain in the exclude list as belt-and-braces.
 
 **When `_is_bank_dcf = True`:**
 - `_gg_final`, `_em_final`, all scenario prices → `None`.
@@ -466,20 +465,23 @@ Run `python _score_audit.py` (score check only) after every `_rerender_reports.p
 
 Static tier defaults (10×/15×/18×) reflect median names in each growth bucket. Companies that consistently trade at a structural premium or discount have their own precedent — the historical anchor uses that signal.
 
-**Logic** (in `build_dcf()`, runs after quality premium block):
+**Logic** (in `build_dcf()`, runs after quality premium block — floor updated 2026-07, batch 2):
 ```python
-_HIST_EM_DISCOUNT = 0.80   # mean-reversion: market normalises somewhat over 5yr horizon
-_HIST_EM_CAP      = 28.0   # prevents bubble-era averages from perpetuating
-# fetch from FMP /stable/ratios?symbol={ticker}&limit=5
-anchored_raw   = hist_5yr_ev_ebitda_avg × 0.80
-anchored_final = max(tier_base, min(28.0, anchored_raw))   # floor + cap
+_HIST_EM_DISCOUNT   = 0.80   # mean-reversion: market normalises somewhat over 5yr horizon
+_HIST_EM_CAP        = 28.0   # prevents bubble-era averages from perpetuating
+_HIST_EM_FLOOR_FRAC = 0.60   # downward anchoring allowed to 0.6 × tier base
+anchored_raw = hist_5yr_ev_ebitda_avg × 0.80
+# quality-premium names: floor = full tier+premium base (premium never erased)
+# everyone else:          floor = 0.6 × tier base (downward anchoring allowed)
+# cyclicals:              DOWNWARD-ONLY — max(0.6 × base, min(base, anchored_raw))
 # scale bear/bull proportionally; bull additionally capped at 32x
 ```
 
 **Key design decisions:**
-- **Floor = post-quality-premium base**: ensures the quality premium (+5×) is never erased by a depressed historical average (e.g. V, COST).
+- **Floor asymmetry fixed (2026-07)**: the old floor was the full tier base, so historical evidence could raise a multiple but never lower it — airlines whose own history says ~6× were floored back to 10×+ (AAL EM +245%, UAL +212%). Downward anchoring to 0.6 × tier base is now allowed.
+- **Quality-premium floor preserved**: ROIC>25% compounders (V, COST) keep the full post-premium floor — a depressed historical average must not erase the premium.
 - **Cap = 28×**: NVDA (48.9×) and AMD (40.7×) five-year averages include 2020-2021 ZIRP peak. Using those raw would perpetuate bubble pricing in terminal value.
-- **Cyclicals excluded**: F-E median-smoothing is a better anchor for commodity-cycle names.
+- **Cyclicals now anchor DOWNWARD-ONLY** (previously excluded entirely): a structurally low-multiple sector must not carry a 10×+ tier default into terminal value, but a cyclically-inflated historical average must never raise the multiple (F-E median-smoothing handles tier classification).
 - **Banks excluded**: EM is disabled for banks anyway.
 - **EVS-regime tickers**: anchoring runs but is neutralised in `dcf_prices` output when `_evs_regime` fires.
 - **Only applies if `abs(anchored_final − current_base) > 0.5×`** — avoids rounding noise.
