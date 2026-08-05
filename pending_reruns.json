@@ -5,7 +5,8 @@
     {
       "id": "ggem-offline-approx-2026-06-24",
       "tickers": [
-        "TSM",
+        "C",
+        "JPM",
         "TSLA"
       ],
       "reason": "GG/EM price targets were restored via OFFLINE re-score (peer-beta WACC fallback), so the DCF price columns are approximations. Scorecard SCORES are exact; only the GG/EM prices need a precise live refresh. (e.g. BAC GG live 31.87 -> offline 59.17.)",
