@@ -1,11 +1,10 @@
 {
   "_doc": "Ledger of changes whose outputs are NOT yet regenerated because a live FMP re-run was blocked (quota exhausted, no API key in the run environment, etc). Surfaced on the dashboard as an amber banner so deferred work is never silently lost. An entry is added by whoever defers the re-run (see CLAUDE.md Rule 24); it is auto-cleared by server.py when the affected ticker is successfully re-run through /generate. Manually editable.",
-  "generated": "2026-07-05",
+  "generated": "2026-08-05",
   "items": [
     {
       "id": "ggem-offline-approx-2026-06-24",
       "tickers": [
-        "BAC",
         "C",
         "JPM",
         "TSM",
