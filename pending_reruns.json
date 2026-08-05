@@ -1,20 +1,5 @@
 {
   "_doc": "Ledger of changes whose outputs are NOT yet regenerated because a live FMP re-run was blocked (quota exhausted, no API key in the run environment, etc). Surfaced on the dashboard as an amber banner so deferred work is never silently lost. An entry is added by whoever defers the re-run (see CLAUDE.md Rule 24); it is auto-cleared by server.py when the affected ticker is successfully re-run through /generate. Manually editable.",
-  "generated": "2026-08-05",
-  "items": [
-    {
-      "id": "ggem-offline-approx-2026-06-24",
-      "tickers": [
-        "C",
-        "JPM",
-        "TSLA"
-      ],
-      "reason": "GG/EM price targets were restored via OFFLINE re-score (peer-beta WACC fallback), so the DCF price columns are approximations. Scorecard SCORES are exact; only the GG/EM prices need a precise live refresh. (e.g. BAC GG live 31.87 -> offline 59.17.)",
-      "fix_commit": "a61d9d3",
-      "deferred": "2026-06-24",
-      "blocker": "No FMP API key in local run environment; key lives on Render only.",
-      "action": "Re-run these tickers live on Render to refresh GG/EM price targets with real peer-beta WACC.",
-      "status": "pending"
-    }
-  ]
+  "generated": "2026-08-06",
+  "items": []
 }

@@ -238,43 +238,100 @@ _PRICE_HIST_HDR  = ",".join(_PRICE_HIST_COLS) + "\n"
 _PENDING_PATH = os.path.join(os.path.dirname(__file__), "pending_reruns.json")
 
 
+def _drop_ticker_from_ledger(ledger: dict, tkey: str) -> bool:
+    """Remove tkey from every item's tickers list, dropping emptied items.
+
+    Mutates ledger in place; returns True if anything changed."""
+    changed = False
+    new_items = []
+    for it in ledger.get("items", []):
+        tks = [t for t in it.get("tickers", []) if t.strip().upper() != tkey]
+        if len(tks) != len(it.get("tickers", [])):
+            changed = True
+        if tks:
+            it["tickers"] = tks
+            new_items.append(it)
+        # else: all tickers cleared → drop the item
+    if changed:
+        ledger["items"] = new_items
+        ledger["generated"] = datetime.date.today().isoformat()
+    return changed
+
+
+def _github_merge_pending_sync(tkey: str) -> None:
+    """Clear one ticker from the REMOTE pending_reruns.json by fetch-merge-push.
+
+    Same data-integrity rationale as _github_merge_csv_sync: the old path pushed
+    the container's LOCAL ledger blob, and because a push to main can trigger a
+    Render redeploy mid-batch, sequential re-runs ping-pong between containers
+    whose local copies lag each other — clears get silently reverted (observed
+    2026-08-05: a 5-ticker batch left C/JPM on the container copy and TSLA on
+    the GitHub copy). Fetch the latest remote ledger, drop ONLY this ticker,
+    push with the fetched SHA; a 409/conflict triggers refetch-and-retry.
+    """
+    if not GITHUB_TOKEN:
+        return
+    import base64 as _b64
+    gh_api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/pending_reruns.json"
+    gh_hdr = {"Authorization": f"token {GITHUB_TOKEN}",
+              "Accept": "application/vnd.github.v3+json"}
+    for _attempt in range(3):
+        try:
+            r = _req.get(gh_api, headers=gh_hdr,
+                         params={"ref": GITHUB_BRANCH}, timeout=(5, 10))
+            if r.status_code != 200:
+                return
+            j = r.json()
+            sha = j.get("sha")
+            ledger = json.loads(_b64.b64decode(j.get("content", "")).decode("utf-8"))
+            if not _drop_ticker_from_ledger(ledger, tkey):
+                return
+            body = json.dumps(ledger, indent=2) + "\n"
+            pr = _req.put(gh_api, headers=gh_hdr,
+                          json={"message": f"pending: clear {tkey} after live re-run",
+                                "branch": GITHUB_BRANCH, "sha": sha,
+                                "content": _b64.b64encode(body.encode()).decode()},
+                          timeout=(5, 10))
+            if pr.status_code in (200, 201):
+                return
+            # 409 etc. — another writer touched the file; refetch and retry
+        except Exception as _e:
+            print(f"[pending_reruns] remote clear failed for {tkey}: {_e}",
+                  file=sys.stderr)
+            return
+    print(f"[pending_reruns] remote clear gave up after retries: {tkey}",
+          file=sys.stderr)
+
+
 def _clear_pending_rerun(ticker: str) -> None:
     """Remove a freshly re-run ticker from the pending-rerun ledger.
 
     Called after a successful live /generate. Drops the ticker from every item's
-    `tickers` list; an item whose list becomes empty is removed entirely. Pushes
-    the updated ledger to GitHub so the dashboard banner reflects reality. This is
+    `tickers` list; an item whose list becomes empty is removed entirely. This is
     what closes the loop — a deferred re-run clears itself the moment it actually
     runs, so nothing lingers in limbo once the work is genuinely done.
+
+    Local and remote copies are cleared independently: the local file serves
+    /api/pending-reruns (dashboard banner) immediately, while the remote clear
+    fetch-merges against the LATEST GitHub content — never a blind put of the
+    local blob, which can lag or lead GitHub across redeploy windows.
     """
+    tkey = ticker.strip().upper()
     try:
-        if not os.path.exists(_PENDING_PATH):
-            return
-        with open(_PENDING_PATH, "r", encoding="utf-8") as f:
-            ledger = json.load(f)
-        tkey = ticker.strip().upper()
-        items = ledger.get("items", [])
-        changed = False
-        new_items = []
-        for it in items:
-            tks = [t for t in it.get("tickers", []) if t.strip().upper() != tkey]
-            if len(tks) != len(it.get("tickers", [])):
-                changed = True
-            if tks:
-                it["tickers"] = tks
-                new_items.append(it)
-            # else: all tickers cleared → drop the item
-        if not changed:
-            return
-        ledger["items"] = new_items
-        ledger["generated"] = datetime.date.today().isoformat()
-        body = json.dumps(ledger, indent=2)
-        with open(_PENDING_PATH, "w", encoding="utf-8") as f:
-            f.write(body + "\n")
-        _github_put_async("pending_reruns.json", (body + "\n").encode(),
-                          f"pending: clear {tkey} after live re-run")
+        if os.path.exists(_PENDING_PATH):
+            with open(_PENDING_PATH, "r", encoding="utf-8") as f:
+                ledger = json.load(f)
+            if _drop_ticker_from_ledger(ledger, tkey):
+                with open(_PENDING_PATH, "w", encoding="utf-8") as f:
+                    f.write(json.dumps(ledger, indent=2) + "\n")
     except Exception as e:
         print(f"[pending_reruns] clear error: {e}", file=sys.stderr)
+    threading.Thread(
+        target=_github_merge_pending_sync,
+        args=(tkey,),
+        daemon=True,
+        name=f"gh-pending-{tkey}",
+    ).start()
 
 
 def _update_outputs_csv(ticker, scorecard_metrics, dcf_prices,
