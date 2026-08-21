@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-08-21 09:56 ET",
+  "last_cycle": "no cycle data yet",
+  "paper": true,
+  "all_time": {
+    "as_of": "2026-08-21 09:56 EDT",
+    "first_day": "2026-08-21",
+    "last_day": "2026-08-21",
+    "calendar_days_tracked": 1,
+    "days_with_trades": 0,
+    "total_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate_pct": 0.0,
+    "gross_pnl_usd": 0,
+    "avg_winner": 0.0,
+    "avg_loser": 0.0,
+    "expectancy_per_trade": 0.0,
+    "profit_factor": "n/a",
+    "max_drawdown_usd": 0.0,
+    "best_day": {
+      "date": "2026-08-21",
+      "pnl": 0
+    },
+    "worst_day": {
+      "date": "2026-08-21",
+      "pnl": 0
+    },
+    "avg_pnl_per_traded_day": 0.0
+  },
+  "history": [
+    {
+      "date": "2026-08-21",
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0
+    }
+  ],
+  "r_histogram": [
+    {
+      "label": "<= -2R",
+      "count": 0
+    },
+    {
+      "label": "-2R to -1R",
+      "count": 0
+    },
+    {
+      "label": "-1R to 0R",
+      "count": 0
+    },
+    {
+      "label": "0R to +1R",
+      "count": 0
+    },
+    {
+      "label": "+1R to +2R",
+      "count": 0
+    },
+    {
+      "label": "+2R to +3R",
+      "count": 0
+    },
+    {
+      "label": "> +3R",
+      "count": 0
+    }
+  ],
+  "open_positions": [],
+  "recent_trades": []
+}
