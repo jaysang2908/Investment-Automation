@@ -1970,6 +1970,28 @@ def ratings_page():
     return app.send_static_file("ratings.html")
 
 
+@app.route("/trendbot")
+def trendbot_page():
+    return app.send_static_file("trendbot.html")
+
+
+@app.route("/api/trendbot")
+def api_trendbot():
+    """Serve trendbot_data.json — daily performance data pushed by the local
+    Trend Join Long paper-trading bot (see ~/trend-join-bot)."""
+    path = os.path.join(os.path.dirname(__file__), "trendbot_data.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "no trendbot data yet"}), 404
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        resp = jsonify(data)
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/ratings")
 def api_ratings():
     """Serve static/data/credit_ratings.json with cache-control headers."""
