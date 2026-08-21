@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-08-21 09:56 ET",
-  "last_cycle": "no cycle data yet",
+  "generated_at": "2026-08-21 16:05 ET",
+  "last_cycle": "2026-08-21T19:55:10.738079+00:00 \u2014 ibkr_connect_failed",
   "paper": true,
   "all_time": {
-    "as_of": "2026-08-21 09:56 EDT",
+    "as_of": "2026-08-21 16:05 EDT",
     "first_day": "2026-08-21",
     "last_day": "2026-08-21",
     "calendar_days_tracked": 1,
@@ -71,6 +71,15 @@
       "count": 0
     }
   ],
-  "open_positions": [],
+  "open_positions": [
+    {
+      "symbol": "EL",
+      "qty": 25,
+      "entry_price": 99.72,
+      "initial_stop": 94.941,
+      "current_stop": 94.94,
+      "state": "pre_breakeven"
+    }
+  ],
   "recent_trades": []
 }
