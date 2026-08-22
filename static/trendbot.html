@@ -16,6 +16,10 @@
     .tb-topline { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom: 18px; }
     .tb-brand { font-family: var(--font-mono); font-size: 10pt; color: var(--ink-3); text-decoration:none; }
     .tb-brand:hover { color: var(--accent); }
+    .tb-nav { display:flex; flex-wrap:wrap; gap: 16px; font-size: 9.5pt; margin: 0; padding: 0; list-style: none; }
+    .tb-nav a { color: var(--ink-3); text-decoration: none; }
+    .tb-nav a:hover { color: var(--accent); }
+    .tb-nav a.active { color: var(--ink); font-weight: 600; }
     .tb-eyebrow { font-family: var(--font-mono); font-size: 8pt; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
     .tb-title { font-size: 22pt; font-weight: 700; color: var(--ink); margin: 0 0 4px; line-height: 1.15; }
     .tb-sub { font-size: 10pt; color: var(--ink-3); max-width: 640px; line-height: 1.55; margin: 0; }
@@ -50,7 +54,17 @@
 <body>
   <div class="tb-wrap">
     <div class="tb-topline">
-      <a class="tb-brand" href="/">← Investment.Utopia</a>
+      <a class="tb-brand" href="/">Investment.Utopia</a>
+      <ul class="tb-nav">
+        <li><a href="/">Long Term Bets</a></li>
+        <li><a href="/muff">MUFF</a></li>
+        <li><a href="/dashboard.html">Dashboard</a></li>
+        <li><a href="/dcf">DCF Calculator</a></li>
+        <li><a href="/ratings">Ratings</a></li>
+        <li><a href="/heatmap">Heatmap</a></li>
+        <li><a href="/trendbot" class="active">Trend Bot</a></li>
+        <li><a href="/news">News</a></li>
+      </ul>
       <div>
         <span class="tb-badge paper">PAPER TRADING</span>
         <span class="tb-badge live-data" id="tbGenerated">loading…</span>
