@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-08-21 16:05 ET",
-  "last_cycle": "2026-08-21T19:55:10.738079+00:00 \u2014 ibkr_connect_failed",
+  "generated_at": "2026-08-24 10:41 ET",
+  "last_cycle": "2026-08-24T14:40:13.325988+00:00 \u2014 entry_rejected",
   "paper": true,
   "all_time": {
-    "as_of": "2026-08-21 16:05 EDT",
+    "as_of": "2026-08-24 10:41 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-08-21",
-    "calendar_days_tracked": 1,
+    "last_day": "2026-08-24",
+    "calendar_days_tracked": 2,
     "days_with_trades": 0,
-    "total_trades": 0,
-    "wins": 0,
+    "total_trades": 1,
+    "wins": 1,
     "losses": 0,
-    "win_rate_pct": 0.0,
-    "gross_pnl_usd": 0,
-    "avg_winner": 0.0,
+    "win_rate_pct": 100.0,
+    "gross_pnl_usd": 33.3,
+    "avg_winner": 33.3,
     "avg_loser": 0.0,
-    "expectancy_per_trade": 0.0,
-    "profit_factor": "n/a",
+    "expectancy_per_trade": 33.3,
+    "profit_factor": "inf",
     "max_drawdown_usd": 0.0,
     "best_day": {
       "date": "2026-08-21",
@@ -31,6 +31,17 @@
   "history": [
     {
       "date": "2026-08-21",
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0
+    },
+    {
+      "date": "2026-08-24",
       "total_trades": 0,
       "wins": 0,
       "losses": 0,
@@ -56,7 +67,7 @@
     },
     {
       "label": "0R to +1R",
-      "count": 0
+      "count": 1
     },
     {
       "label": "+1R to +2R",
@@ -74,12 +85,23 @@
   "open_positions": [
     {
       "symbol": "EL",
-      "qty": 25,
+      "qty": 16,
       "entry_price": 99.72,
       "initial_stop": 94.941,
-      "current_stop": 94.94,
-      "state": "pre_breakeven"
+      "current_stop": 102.68999694824218,
+      "state": "post_breakeven_partial_done"
     }
   ],
-  "recent_trades": []
+  "recent_trades": [
+    {
+      "closed_at": "2026-08-24T14:35:09.635310+00:00",
+      "symbol": "EL",
+      "qty": 9,
+      "avg_buy_price": 99.72,
+      "sell_price": 103.42,
+      "pnl_usd": 33.300000000000026,
+      "r_multiple": 0.7742205482318488,
+      "hold_minutes": 4339.868068233333
+    }
+  ]
 }
