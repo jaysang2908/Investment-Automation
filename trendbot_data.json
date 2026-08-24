@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-08-24 10:41 ET",
-  "last_cycle": "2026-08-24T14:40:13.325988+00:00 \u2014 entry_rejected",
+  "generated_at": "2026-08-24 16:05 ET",
+  "last_cycle": "2026-08-24T19:25:09.004853+00:00 \u2014 entry_rejected",
   "paper": true,
   "all_time": {
-    "as_of": "2026-08-24 10:41 EDT",
+    "as_of": "2026-08-24 16:05 EDT",
     "first_day": "2026-08-21",
     "last_day": "2026-08-24",
     "calendar_days_tracked": 2,
@@ -67,7 +67,7 @@
     },
     {
       "label": "0R to +1R",
-      "count": 1
+      "count": 0
     },
     {
       "label": "+1R to +2R",
@@ -79,19 +79,10 @@
     },
     {
       "label": "> +3R",
-      "count": 0
+      "count": 1
     }
   ],
-  "open_positions": [
-    {
-      "symbol": "EL",
-      "qty": 16,
-      "entry_price": 99.72,
-      "initial_stop": 94.941,
-      "current_stop": 102.68999694824218,
-      "state": "post_breakeven_partial_done"
-    }
-  ],
+  "open_positions": [],
   "recent_trades": [
     {
       "closed_at": "2026-08-24T14:35:09.635310+00:00",
@@ -100,7 +91,7 @@
       "avg_buy_price": 99.72,
       "sell_price": 103.42,
       "pnl_usd": 33.300000000000026,
-      "r_multiple": 0.7742205482318488,
+      "r_multiple": 3.710389089450464,
       "hold_minutes": 4339.868068233333
     }
   ]
