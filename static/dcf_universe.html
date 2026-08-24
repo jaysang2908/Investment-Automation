@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-Complex DCF Universe — Equity.Research</title>
+  <script>(function(){var s=localStorage.getItem('eq.theme');if(s==='dark'||s==='light')document.documentElement.setAttribute('data-theme',s);})()</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    /* ── Provenance banner ───────────────────────────────────────────────────── */
+    .provenance {
+      background: var(--surface-3);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--status-warn);
+      border-radius: var(--r-card, var(--r-xl));
+      padding: var(--s-4) var(--s-5);
+      margin-bottom: var(--s-5);
+      font-size: var(--t-sm);
+      line-height: 1.65;
+      color: var(--ink-2);
+    }
+    .provenance strong { color: var(--ink); }
+    .provenance .prov-lbl {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: var(--t-tiny);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #92400e;
+      background: color-mix(in oklab, var(--status-warn) 18%, var(--surface));
+      border: 1px solid color-mix(in oklab, var(--status-warn) 45%, transparent);
+      border-radius: var(--r-xs);
+      padding: 2px 8px;
+      margin-bottom: var(--s-3);
+      font-weight: 700;
+    }
+    [data-theme="dark"] .provenance .prov-lbl { color: #fcd34d; }
+
+    /* ── Method note (how to read this) ──────────────────────────────────────── */
+    .method-note {
+      background: var(--surface-3);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--r-xl);
+      padding: var(--s-4) var(--s-5);
+      margin-bottom: var(--s-6);
+      font-size: var(--t-sm);
+      line-height: 1.65;
+      color: var(--ink-2);
+    }
+    .method-note strong { color: var(--ink); }
+    .method-note ul { margin: var(--s-2) 0 0 1.1em; padding: 0; }
+    .method-note li { margin-bottom: 4px; }
+
+    /* ── KPI grid ─────────────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--s-3);
+      margin-bottom: var(--s-6);
+    }
+    @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    .kpi-grid .kpi { min-height: 108px; padding: var(--s-4) var(--s-4); }
+    .kpi-grid .kpi .val { font-size: 34px; margin-top: var(--s-2); }
+
+    /* ── Table shell ──────────────────────────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--r-xl);
+      border: 1px solid var(--line);
+      margin-bottom: var(--s-3);
+    }
+    table.dt {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--t-sm);
+    }
+    table.dt thead th {
+      background: var(--surface-3);
+      border-bottom: 1px solid var(--line-strong);
+      padding: 10px 14px;
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    table.dt thead th[data-sortable] { cursor: pointer; user-select: none; }
+    table.dt thead th[data-sortable]:hover { color: var(--ink); }
+    table.dt thead th.sorted-asc::after  { content: " \2191"; opacity: 0.8; }
+    table.dt thead th.sorted-desc::after { content: " \2193"; opacity: 0.8; }
+    table.dt tbody tr { border-bottom: 1px solid var(--line); }
+    table.dt tbody tr:last-child { border-bottom: none; }
+    table.dt tbody tr:hover { background: var(--surface-3); }
+    table.dt td { padding: 10px 14px; vertical-align: middle; }
+    table.dt td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    tr.fcf-row { border-left: 3px solid var(--v-buy-dot); background: color-mix(in oklab, var(--v-buy-bg) 40%, transparent); }
+    tr.fcf-row:hover { background: color-mix(in oklab, var(--v-buy-bg) 65%, transparent); }
+    .tk-cell { font-family: var(--font-mono); font-weight: 700; color: var(--ink); white-space: nowrap; }
+    .notes-cell { color: var(--muted); font-size: var(--t-xs); max-width: 340px; line-height: 1.55; }
+
+    .upval {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--r-xs);
+      display: inline-block;
+      min-width: 52px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .upval.pos  { background: var(--h-gg-bg); color: var(--h-gg-fg); }
+    .upval.neg  { background: var(--h-rr-bg); color: var(--h-rr-fg); }
+    .upval.zero { background: var(--h-n-bg);  color: var(--h-n-fg); }
+
+    .fcf-check { color: var(--v-buy-fg); font-weight: 700; }
+
+    .table-caption {
+      font-size: var(--t-xs);
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: var(--s-6);
+      padding: 0 2px;
+    }
+    .table-caption strong { color: var(--ink-2); }
+
+    .thesis-line {
+      font-size: var(--t-sm);
+      color: var(--ink-2);
+      line-height: 1.6;
+      margin: 0 0 var(--s-4);
+      max-width: 900px;
+    }
+
+    /* ── Pending builds ───────────────────────────────────────────────────────── */
+    .pending-card {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-xl);
+      padding: var(--s-4) var(--s-5);
+      margin-bottom: var(--s-3);
+    }
+    .pending-card .ph {
+      display: flex;
+      align-items: baseline;
+      gap: var(--s-3);
+      flex-wrap: wrap;
+      margin-bottom: var(--s-2);
+    }
+    .pending-card .ph .tk { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--ink); }
+    .pending-card .ph .nm { color: var(--ink-2); font-size: var(--t-sm); }
+    .pending-card .ph .px { margin-left: auto; font-family: var(--font-mono); font-size: var(--t-sm); color: var(--muted); }
+    .pending-card .desc { color: var(--muted); font-size: var(--t-xs); margin-bottom: var(--s-3); font-style: italic; }
+    .pending-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--s-2);
+      margin-bottom: var(--s-3);
+    }
+    .pending-grid .metric .ml { font-size: 9px; }
+    .pending-expect { font-size: var(--t-xs); color: var(--ink-2); line-height: 1.55; border-top: 1px dashed var(--line); padding-top: var(--s-2); }
+    .pending-expect strong { color: var(--ink); }
+
+    /* ── Methodology details ─────────────────────────────────────────────────── */
+    details.methodology {
+      border: 1px solid var(--line);
+      border-radius: var(--r-xl);
+      background: var(--surface-2);
+      padding: var(--s-4) var(--s-5);
+      margin: var(--s-6) 0;
+      font-size: var(--t-xs);
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    details.methodology summary {
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: var(--t-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      font-weight: 600;
+      list-style: none;
+    }
+    details.methodology summary::-webkit-details-marker { display: none; }
+    details.methodology summary::before { content: "▸ "; color: var(--accent-ink); }
+    details.methodology[open] summary::before { content: "▾ "; }
+    details.methodology ul { margin: var(--s-3) 0 0 1.2em; padding: 0; }
+    details.methodology li { margin-bottom: 6px; }
+    details.methodology strong { color: var(--ink-2); }
+  </style>
+</head>
+<body>
+  <main class="shell page">
+    <div class="shell-card">
+
+      <!-- NAV -->
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="brand">
+          <span class="brand-mk" aria-hidden="true"></span>
+          <span>Equity<span style="color: var(--accent);">.</span>Research</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/">Long Term Bets</a></li>
+          <li><a href="/muff" style="color:#c94a12">MUFF</a></li>
+          <li><a href="/dashboard.html">Dashboard</a></li>
+          <li><a href="/dcf">DCF</a></li>
+          <li><a href="/dcf-universe" aria-current="page">DCF Universe</a></li>
+          <li><a href="/ratings">Ratings</a></li>
+          <li><a href="/heatmap">Heatmap</a></li>
+          <li><a href="/trendbot">Trend Bot</a></li>
+          <li><a href="/news">News</a></li>
+        </ul>
+        <div class="nav-aside">
+          <span class="nav-time" id="navTime">—</span>
+          <span class="live-badge"><span class="dot"></span>Excel · 2026-08-06</span>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M3.4 3.4l1 1M11.6 11.6l1 1M1.5 8H3M13 8h1.5M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+            <svg class="icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M13 9.5a5.5 5.5 0 0 1-7.6-7.1c.1-.3-.2-.6-.5-.5A6.5 6.5 0 1 0 14.1 9c.1-.3-.2-.6-.5-.5-.2 0-.4.1-.6.1z"/></svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- PAGE HEADER -->
+      <header class="page-head">
+        <div>
+          <div class="eyebrow">▲ DCF Universe</div>
+          <h1 class="page-title">AI-Complex DCF Universe</h1>
+          <p class="page-lede">53-name AI-complex + adjacent-tech universe valued on one institutional DCF standard, to separate names cheap on real cash flow from names merely priced for the AI boom.</p>
+        </div>
+        <div class="page-head-actions" style="align-items: flex-end; flex-direction: column; gap: var(--s-1); text-align: right;">
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink);">EM-prime · 7yr · SBC-adjusted</span>
+          <span style="font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted);">As-of 2026-08-06</span>
+        </div>
+      </header>
+
+      <!-- PROVENANCE BANNER -->
+      <div class="provenance">
+        <span class="prov-lbl">External dataset</span><br>
+        These are <strong>external Excel DCF models (as-of 2026-08-06)</strong> — a separate dataset from the site's live FMP scorecard engine. The numbers on this page <strong>will not match</strong> the Dashboard or individual ticker reports because they use a different methodology (EM-prime headline, 7-year projection, SBC-adjusted exit EBITDA — see "How to read this" and the Methodology note below). <strong>48 of 53 scoped models are built &amp; verified</strong>; <strong>46 appear in the ranked table below</strong> (NOW and CRWD were built but not captured in the ranked summary export); <strong>5 remain scoped-but-unbuilt</strong> (see Pending Builds).
+      </div>
+
+      <!-- KPI ROW -->
+      <div class="kpi-grid" id="kpiRow"></div>
+
+      <!-- HOW TO READ THIS -->
+      <div class="method-note">
+        <strong>How to read this:</strong> <strong>Prime</strong> = Exit-Multiple headline (the site-wide method applied to every name). <strong>Perp</strong> = Gordon perpetuity cross-check — the sober number.
+        <ul>
+          <li><strong>Both positive → FCF-backed.</strong> Cheap on cash flow, not just a terminal-multiple bet.</li>
+          <li><strong>Prime positive, Perp negative</strong> → the upside is mechanical: a premium exit multiple applied to a hugely-compounded future EBITDA, not a cash-flow-cheap business today.</li>
+        </ul>
+        <div style="margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px dashed var(--line);"><strong>SBC-basis caveat:</strong> exit multiples are applied to SBC-adjusted EBITDA while peer multiples were quoted on standard EBITDA — this mechanically inflates the Prime headline for high-SBC software names. The perpetuity cross-check is unaffected and is the honest discipline.</div>
+      </div>
+
+      <!-- THE 8 FCF-BACKED LONGS -->
+      <div class="section-head">
+        <h3>The 8 FCF-Backed Longs</h3>
+        <span class="ct" style="background: var(--v-buy-bg); color: var(--v-buy-fg);">Prime AND Perp positive</span>
+      </div>
+      <p class="thesis-line">Every FCF-backed long is a de-rated incumbent (software/services/adtech) thrown out on AI-disruption fear — zero AI-suppliers. The market pays up for the companies selling AI hardware (all screen expensive) and discards the ones using AI whose earnings are cheap and real.</p>
+      <div class="table-wrap">
+        <table class="dt" id="fcfTable">
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Price</th>
+              <th>Prime $</th>
+              <th>Prime Upside</th>
+              <th>Perp Upside</th>
+              <th>WACC</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="fcfBody"></tbody>
+        </table>
+      </div>
+
+      <!-- FULL RANKED TABLE -->
+      <div class="section-head">
+        <h3>Full Ranked Universe</h3>
+        <span class="ct" style="background: var(--surface-3); color: var(--muted);" id="fullCount">—</span>
+      </div>
+      <div class="table-wrap">
+        <table class="dt" id="fullTable">
+          <thead>
+            <tr>
+              <th data-sortable data-col="t">Ticker</th>
+              <th data-sortable data-col="price">Price</th>
+              <th data-sortable data-col="prime">Prime $</th>
+              <th data-sortable data-col="primeUp">Prime Upside</th>
+              <th data-sortable data-col="perpUp">Perp Upside</th>
+              <th data-sortable data-col="wacc">WACC</th>
+              <th data-sortable data-col="fcf">FCF✓</th>
+            </tr>
+          </thead>
+          <tbody id="fullBody"></tbody>
+        </table>
+      </div>
+      <p class="table-caption"><strong>Most overvalued on the DCF</strong> — <strong>STX</strong> −89%, <strong>MU</strong> −86%, <strong>INTC</strong> −68%, <strong>TSLA</strong> −65%, <strong>AMD</strong> −58%, <strong>NET</strong> −56% are priced for a permanent AI supercycle.</p>
+
+      <!-- PENDING BUILDS -->
+      <div class="section-head">
+        <h3>The 5 Pending Builds</h3>
+        <span class="ct" style="background: var(--v-pend-bg); color: var(--v-pend-fg);">Scoped, not built</span>
+      </div>
+      <p class="thesis-line">Fully scoped and price/split-verified (2026-08-06); builds deferred on a session usage limit. Prices should be re-verified live before building.</p>
+      <div id="pendingWrap"></div>
+
+      <!-- METHODOLOGY -->
+      <details class="methodology">
+        <summary>Methodology notes</summary>
+        <ul>
+          <li><strong>Horizon:</strong> 7-year explicit projection.</li>
+          <li><strong>Scenarios:</strong> Bear / Base / Bull, constrained Bull ≥ Base ≥ Bear.</li>
+          <li><strong>Terminal value:</strong> dual method — Perpetuity Growth + Exit Multiple (on SBC-adjusted EBITDA) — plus a Blended figure. <strong>Prime</strong> (the headline on this page) is the Exit Multiple output for every name.</li>
+          <li><strong>Accounting basis:</strong> GAAP and Non-GAAP both modelled; the headline figure is Non-GAAP.</li>
+          <li><strong>WACC:</strong> CAPM cost of equity = 4.70% risk-free + beta × 5.5% equity risk premium. Bear = Base +0.5pt, Bull = Base −0.5pt.</li>
+          <li><strong>Historicals:</strong> sourced from SEC EDGAR 10-K / 10-Q filings.</li>
+          <li><strong>Verification:</strong> every input source-commented; every model verified to within $0.05 vs. a Python mirror, with 0 broken references and 0 formula errors.</li>
+        </ul>
+      </details>
+
+      <!-- FOOTER -->
+      <footer class="footer">
+        <div>
+          <a class="brand" href="/"><span class="brand-mk"></span>Equity<span style="color: var(--accent);">.</span>Research</a>
+          <p style="margin: var(--s-3) 0 0; max-width: 380px; line-height: 1.6;">External Excel DCF models for the AI-complex universe, as-of 2026-08-06. A separate methodology from the site's live FMP scorecard engine — for informational purposes only.</p>
+        </div>
+        <div><h4>Workbench</h4><a href="/">Generate</a><a href="/dashboard.html">Dashboard</a><a href="/dcf">DCF Calculator</a><a href="/ratings">Ratings</a><a href="/heatmap">Heatmap</a></div>
+        <div><h4>Data</h4><a href="#">FMP API</a><a href="#">10-K parser</a><a href="#">Methodology</a><a href="#">Changelog</a></div>
+        <div><h4>Account</h4><a href="#">Settings</a><a href="#">Saved scenarios</a><a href="#">Export</a><a href="#">Sign out</a></div>
+        <div class="legal"><span>© 2026 Equity.Research · WIP build · v0.4.2</span><span>Not investment advice</span></div>
+      </footer>
+
+    </div>
+  </main>
+
+<script>
+// AI-Complex DCF Universe — external Excel models, as-of 2026-08-06.
+// Source: HANDOVER_DCF_Universe_20260806.md §2 (FCF-backed longs) and §3 (full ranked table).
+// Methodology: EM-prime for all names; perp = Gordon perpetuity cross-check (the sober number).
+// fcf = both prime AND perpetuity upside positive.
+// NOTE: NOW and CRWD were also built (48 total) but were not captured in the ranked summary table.
+const UNIVERSE = [
+  { t:"TTD",   price:13.49,   prime:55.35,  primeUp:310, perpUp:185, wacc:10.4, fcf:true,  note:"Fallen angel (-72%). Highest upside AND highest risk - Amazon-DSP competitive threat is real; only holds if the business isn't structurally impaired." },
+  { t:"INTU",  price:336.44,  prime:793.17, primeUp:136, perpUp:57,  wacc:9.6,  fcf:true,  note:"Halved on GenAI-fear; mid-teens compounder." },
+  { t:"ORCL",  price:144.39,  prime:323.61, primeUp:124, perpUp:23,  wacc:11.7, fcf:true,  note:"OCI/RPO backlog; 83%-of-rev capex wave is the risk." },
+  { t:"ACN",   price:180.14,  prime:402.66, primeUp:124, perpUp:91,  wacc:10.3, fcf:true,  note:"De-rated to ~8.5x EBITDA / ~14.5x PE, reaccelerating +7%, $11B OCF. Cleanest value case." },
+  { t:"ADBE",  price:263.71,  prime:581.73, primeUp:121, perpUp:37,  wacc:11.9, fcf:true,  note:"GenAI-fear de-rating; 37% margins at ~12x EBITDA." },
+  { t:"WDAY",  price:175.29,  prime:351.56, primeUp:101, perpUp:26,  wacc:10.4, fcf:true,  note:"De-rated SaaS; both methods clear, even Bear +21%." },
+  { t:"CRM",   price:197.47,  prime:314.97, primeUp:60,  perpUp:21,  wacc:10.5, fcf:true,  note:"20% margins, $15B FCF, ~16x EBITDA." },
+  { t:"META",  price:591.11,  prime:913.33, primeUp:55,  perpUp:0,   wacc:11.6, fcf:false, note:"" },
+  { t:"MDB",   price:437.83,  prime:454.84, primeUp:4,   perpUp:-56, wacc:13.2, fcf:false, note:"" },
+  { t:"SNPS",  price:410.91,  prime:493.08, primeUp:20,  perpUp:-43, wacc:10.3, fcf:false, note:"" },
+  { t:"QCOM",  price:162.68,  prime:192.64, primeUp:18,  perpUp:-9,  wacc:13.1, fcf:false, note:"" },
+  { t:"MSFT",  price:487.98,  prime:575.67, primeUp:18,  perpUp:-30, wacc:10.3, fcf:false, note:"Bear/bull not captured in ranked table; built separately." },
+  { t:"APP",   price:318.68,  prime:375.65, primeUp:18,  perpUp:-50, wacc:18.2, fcf:false, note:"" },
+  { t:"IBM",   price:238.42,  prime:270.99, primeUp:14,  perpUp:41,  wacc:7.5,  fcf:true,  note:"Only name where perpetuity > prime. 7.53% WACC (lowest, beta 0.71) + cheap 14x. Core-vs-gross debt (~$10B IBM-Financing, DELL-DFS-like) means it's even cheaper than shown." },
+  { t:"VST",   price:144.92,  prime:151.74, primeUp:5,   perpUp:-24, wacc:10.5, fcf:false, note:"" },
+  { t:"AMZN",  price:277.50,  prime:277.06, primeUp:0,   perpUp:-53, wacc:12.7, fcf:false, note:"Net debt uses quarter-end $23B; ~$25.75B July-2026 notes issuance is pro-forma." },
+  { t:"CDNS",  price:327.53,  prime:289.99, primeUp:-11, perpUp:-58, wacc:10.8, fcf:false, note:"" },
+  { t:"SNOW",  price:334.14,  prime:292.58, primeUp:-12, perpUp:-58, wacc:11.8, fcf:false, note:"" },
+  { t:"GOOGL", price:380.95,  prime:326.19, primeUp:-14, perpUp:-51, wacc:11.3, fcf:false, note:"" },
+  { t:"ON",    price:81.11,   prime:69.13,  primeUp:-15, perpUp:-59, wacc:14.9, fcf:false, note:"Negative trailing growth - prime test uses ABS()/forward-growth." },
+  { t:"ANET",  price:188.67,  prime:146.69, primeUp:-22, perpUp:-67, wacc:13.6, fcf:false, note:"" },
+  { t:"NVDA",  price:218.82,  prime:161.72, primeUp:-26, perpUp:-59, wacc:16.9, fcf:false, note:"Refresh after Q2 FY27 (reported ~2026-08-26)." },
+  { t:"DDOG",  price:246.78,  prime:180.87, primeUp:-27, perpUp:-71, wacc:12.9, fcf:false, note:"FY25 GAAP op line a small loss; net income positive only on interest income." },
+  { t:"AAPL",  price:311.35,  prime:214.11, primeUp:-31, perpUp:-50, wacc:10.6, fcf:false, note:"" },
+  { t:"TXN",   price:281.24,  prime:180.55, primeUp:-36, perpUp:-68, wacc:11.6, fcf:false, note:"" },
+  { t:"MRVL",  price:212.31,  prime:135.40, primeUp:-36, perpUp:-76, wacc:16.8, fcf:false, note:"" },
+  { t:"AVGO",  price:418.28,  prime:258.73, primeUp:-38, perpUp:-67, wacc:12.5, fcf:false, note:"" },
+  { t:"VRT",   price:272.40,  prime:168.38, primeUp:-38, perpUp:-76, wacc:15.8, fcf:false, note:"" },
+  { t:"ADI",   price:385.30,  prime:223.15, primeUp:-42, perpUp:-67, wacc:11.1, fcf:false, note:"Negative trailing growth - prime test uses ABS()/forward-growth." },
+  { t:"PANW",  price:383.80,  prime:219.48, primeUp:-43, perpUp:-71, wacc:9.6,  fcf:false, note:"" },
+  { t:"LRCX",  price:311.41,  prime:175.91, primeUp:-44, perpUp:-73, wacc:14.8, fcf:false, note:"" },
+  { t:"CSCO",  price:120.43,  prime:67.64,  primeUp:-44, perpUp:-54, wacc:9.8,  fcf:false, note:"Negative trailing growth - prime test uses ABS()/forward-growth." },
+  { t:"KLAC",  price:200.47,  prime:111.20, primeUp:-45, perpUp:-72, wacc:12.5, fcf:false, note:"10:1 split verified this session." },
+  { t:"PLTR",  price:174.94,  prime:96.33,  primeUp:-45, perpUp:-82, wacc:13.3, fcf:false, note:"" },
+  { t:"GEV",   price:1011.88, prime:518.14, primeUp:-49, perpUp:-66, wacc:10.4, fcf:false, note:"" },
+  { t:"MPWR",  price:1425.01, prime:692.23, primeUp:-51, perpUp:-77, wacc:14.0, fcf:false, note:"Price verified genuine (no split) - extreme AI repricing. FY24 NI had a ~$1B one-time deferred-tax benefit." },
+  { t:"AMAT",  price:525.61,  prime:250.01, primeUp:-52, perpUp:-76, wacc:13.5, fcf:false, note:"" },
+  { t:"DELL",  price:440.97,  prime:209.67, primeUp:-53, perpUp:-59, wacc:11.6, fcf:false, note:"Large captive-financing debt (DFS) offset by receivables; model uses gross net debt (conservative)." },
+  { t:"ADSK",  price:249.51,  prime:366.14, primeUp:47,  perpUp:-22, wacc:11.9, fcf:false, note:"Prime-positive / perp-negative - high-SBC-software artifact (see SBC-basis caveat)." },
+  { t:"NET",   price:306.97,  prime:133.89, primeUp:-56, perpUp:-87, wacc:13.5, fcf:false, note:"" },
+  { t:"AMD",   price:483.36,  prime:201.93, primeUp:-58, perpUp:-84, wacc:18.3, fcf:false, note:"" },
+  { t:"TLN",   price:365.07,  prime:134.76, primeUp:-63, perpUp:-77, wacc:11.2, fcf:false, note:"Real FY25 = -$90M op loss + $526M one-time SBC MtM spike." },
+  { t:"TSLA",  price:323.26,  prime:113.68, primeUp:-65, perpUp:-91, wacc:14.8, fcf:false, note:"Turnaround/optionality - DCF captures fundamentals only." },
+  { t:"INTC",  price:97.71,   prime:31.49,  primeUp:-68, perpUp:-84, wacc:15.7, fcf:false, note:"Turnaround/optionality. Negative trailing growth - prime test uses ABS()/forward-growth." },
+  { t:"STX",   price:878.21,  prime:95.85,  primeUp:-89, perpUp:-91, wacc:16.1, fcf:false, note:"Price verified genuine (no split) - extreme AI repricing. Negative trailing growth. FY26 op margin 33.6%." },
+  { t:"MU",    price:893.19,  prime:128.34, primeUp:-86, perpUp:-90, wacc:16.7, fcf:false, note:"Refresh after FY26 10-K (~late Sept 2026)." },
+];
+// The 5 scoped-but-not-yet-built names (handover section 6):
+const PENDING = [
+  { t:"CIEN", name:"Ciena",                      desc:"Optical networking / AI interconnect", price:432.05, beta:1.32, netDebt:"+$228M",   wacc:11.76, exit:"12/14/16x", blend:"70/30", template:"ANET", expect:"Expect downside (tripled on AI-optical)." },
+  { t:"COHR", name:"Coherent",                   desc:"Photonics / transceivers turnaround",  price:355.64, beta:2.11, netDebt:"+$2,778M", wacc:15.56, exit:"14/17/20x", blend:"75/25", template:"MRVL", expect:"GAAP losses; op income positive before II-VI amort + interest." },
+  { t:"APH",  name:"Amphenol",                   desc:"Interconnect / connectors",            price:169.96, beta:1.25, netDebt:"~net cash (confirm LT debt)", wacc:11.24, exit:"18/22/26x", blend:"70/30", template:"ADI",  expect:"FY25 rev +52% incl M&A." },
+  { t:"PWR",  name:"Quanta Services",            desc:"Grid / electrical infra construction", price:678.02, beta:1.22, netDebt:"+$5,555M", wacc:11.01, exit:"14/16/18x", blend:"60/40", template:"VRT",  expect:"Expect large downside (~97x PE, thin-margin E&C)." },
+  { t:"HPE",  name:"Hewlett Packard Enterprise", desc:"AI servers + Juniper networking",      price:58.79,  beta:1.44, netDebt:"+$16,592M gross (DFS-like)", wacc:10.60, exit:"6/8/10x", blend:"60/40", template:"DELL", expect:"FY25 op -$437M (Juniper charge); project recovery." },
+];
+
+(function () {
+  function esc(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  function fmtPrice(n) { return "$" + Number(n).toFixed(2); }
+  function fmtPct(n) {
+    if (n > 0) return "+" + n + "%";
+    if (n === 0) return "0%";
+    return n + "%";
+  }
+  function upClass(n) { return n > 0 ? "pos" : (n < 0 ? "neg" : "zero"); }
+  function upBadge(n) {
+    return `<span class="upval ${upClass(n)}">${fmtPct(n)}</span>`;
+  }
+  function fmtWacc(n) { return Number(n).toFixed(1) + "%"; }
+
+  // ── KPI row ────────────────────────────────────────────────────────────────
+  function buildKpis() {
+    const fcfCount = UNIVERSE.filter(r => r.fcf).length;
+    const kpis = [
+      { cls: "a", lbl: "Scoped", val: "53", sub: "AI-complex + adjacent-tech names" },
+      { cls: "b", lbl: "Built &amp; Verified", val: "48", sub: "Excel models, &lt;$0.05 vs Python mirror" },
+      { cls: "c", lbl: "FCF-Backed Longs", val: String(fcfCount), sub: "Prime AND Perp upside both positive" },
+      { cls: "a", lbl: "Pending Builds", val: String(PENDING.length), sub: "Scoped, price-verified, not yet built" },
+      { cls: "d", lbl: "As-of", val: "2026-08-06", sub: "External Excel snapshot date", small: true },
+    ];
+    document.getElementById("kpiRow").innerHTML = kpis.map(k => `
+      <div class="kpi ${k.cls}">
+        <div class="lbl">${k.lbl}</div>
+        <div class="val"${k.small ? ' style="font-size:26px;"' : ''}>${k.val}</div>
+        <div class="sub">${k.sub}</div>
+      </div>
+    `).join("");
+  }
+
+  // ── FCF-backed longs table ───────────────────────────────────────────────────
+  function buildFcfTable() {
+    const rows = UNIVERSE.filter(r => r.fcf).slice().sort((a, b) => b.perpUp - a.perpUp);
+    document.getElementById("fcfBody").innerHTML = rows.map(r => `
+      <tr class="fcf-row">
+        <td class="tk-cell">${esc(r.t)}</td>
+        <td class="num">${fmtPrice(r.price)}</td>
+        <td class="num">${fmtPrice(r.prime)}</td>
+        <td class="num">${upBadge(r.primeUp)}</td>
+        <td class="num">${upBadge(r.perpUp)}</td>
+        <td class="num">${fmtWacc(r.wacc)}</td>
+        <td class="notes-cell">${esc(r.note)}</td>
+      </tr>
+    `).join("");
+  }
+
+  // ── Full ranked table (sortable) ─────────────────────────────────────────────
+  let sortCol = "primeUp";
+  let sortAsc = false;
+
+  function buildFullTable() {
+    const rows = UNIVERSE.slice().sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      if (sortCol === "t") { va = a.t; vb = b.t; return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va); }
+      if (sortCol === "fcf") { va = a.fcf ? 1 : 0; vb = b.fcf ? 1 : 0; }
+      return sortAsc ? va - vb : vb - va;
+    });
+    document.getElementById("fullBody").innerHTML = rows.map(r => `
+      <tr class="${r.fcf ? 'fcf-row' : ''}">
+        <td class="tk-cell">${esc(r.t)}</td>
+        <td class="num">${fmtPrice(r.price)}</td>
+        <td class="num">${fmtPrice(r.prime)}</td>
+        <td class="num">${upBadge(r.primeUp)}</td>
+        <td class="num">${upBadge(r.perpUp)}</td>
+        <td class="num">${fmtWacc(r.wacc)}</td>
+        <td class="num">${r.fcf ? '<span class="fcf-check">&#10003;</span>' : ''}</td>
+      </tr>
+    `).join("");
+    document.getElementById("fullCount").textContent = rows.length + " names";
+  }
+
+  function initSort() {
+    const ths = document.querySelectorAll('#fullTable thead th[data-sortable]');
+    function refreshHeaderClasses() {
+      ths.forEach(th => {
+        th.classList.remove("sorted-asc", "sorted-desc");
+        if (th.dataset.col === sortCol) th.classList.add(sortAsc ? "sorted-asc" : "sorted-desc");
+      });
+    }
+    ths.forEach(th => {
+      th.addEventListener("click", () => {
+        const col = th.dataset.col;
+        if (sortCol === col) {
+          sortAsc = !sortAsc;
+        } else {
+          sortCol = col;
+          sortAsc = (col === "t"); // ticker defaults A-Z, numeric cols default high-to-low
+        }
+        refreshHeaderClasses();
+        buildFullTable();
+      });
+    });
+    refreshHeaderClasses();
+  }
+
+  // ── Pending builds ────────────────────────────────────────────────────────────
+  function buildPending() {
+    document.getElementById("pendingWrap").innerHTML = PENDING.map(p => `
+      <div class="pending-card">
+        <div class="ph">
+          <span class="tk">${esc(p.t)}</span>
+          <span class="nm">${esc(p.name)}</span>
+          <span class="px">${fmtPrice(p.price)}</span>
+        </div>
+        <div class="desc">${esc(p.desc)}</div>
+        <div class="pending-grid">
+          <div class="metric"><div class="ml">Beta</div><div class="mv" style="background:var(--h-n-bg);color:var(--h-n-fg)">${p.beta.toFixed(2)}</div></div>
+          <div class="metric"><div class="ml">Net Debt</div><div class="mv" style="background:var(--h-n-bg);color:var(--h-n-fg)">${esc(p.netDebt)}</div></div>
+          <div class="metric"><div class="ml">WACC</div><div class="mv" style="background:var(--h-n-bg);color:var(--h-n-fg)">${p.wacc.toFixed(2)}%</div></div>
+          <div class="metric"><div class="ml">Exit Mult.</div><div class="mv" style="background:var(--h-n-bg);color:var(--h-n-fg)">${esc(p.exit)}</div></div>
+          <div class="metric"><div class="ml">Blend</div><div class="mv" style="background:var(--h-n-bg);color:var(--h-n-fg)">${esc(p.blend)}</div></div>
+          <div class="metric"><div class="ml">Template</div><div class="mv" style="background:var(--h-n-bg);color:var(--h-n-fg)">${esc(p.template)}</div></div>
+        </div>
+        <div class="pending-expect"><strong>Expectation:</strong> ${esc(p.expect)}</div>
+      </div>
+    `).join("");
+  }
+
+  // ── Clock + theme toggle (shared chrome) ─────────────────────────────────────
+  function tick() {
+    const now = new Date();
+    const h = now.getHours().toString().padStart(2, "0");
+    const m = now.getMinutes().toString().padStart(2, "0");
+    const s = now.getSeconds().toString().padStart(2, "0");
+    const el = document.getElementById("navTime");
+    if (el) el.textContent = `${h}:${m}:${s}`;
+  }
+
+  function initTheme() {
+    const toggle = document.getElementById("themeToggle");
+    if (toggle) {
+      toggle.addEventListener("click", () => {
+        const cur = document.documentElement.getAttribute("data-theme") || "light";
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("eq.theme", next);
+      });
+    }
+  }
+
+  function init() {
+    buildKpis();
+    buildFcfTable();
+    buildFullTable();
+    initSort();
+    buildPending();
+    tick(); setInterval(tick, 1000);
+    initTheme();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>

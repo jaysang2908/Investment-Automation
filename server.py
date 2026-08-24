@@ -1975,6 +1975,14 @@ def trendbot_page():
     return app.send_static_file("trendbot.html")
 
 
+@app.route("/dcf-universe")
+def dcf_universe_page():
+    """AI-Complex DCF Universe — a standalone view of 48 external Excel DCF
+    models (as-of 2026-08-06, EM-prime methodology). This is a separate dataset
+    from the live FMP scorecard engine; the page states that provenance clearly."""
+    return app.send_static_file("dcf_universe.html")
+
+
 @app.route("/api/trendbot")
 def api_trendbot():
     """Serve trendbot_data.json — daily performance data pushed by the local
