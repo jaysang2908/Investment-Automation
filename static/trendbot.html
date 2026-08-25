@@ -215,13 +215,17 @@
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  // tab wiring first, so the page is interactive even if data fails
+  // Charts built inside a display:none panel size themselves to 0x0 and render
+  // blank, so every chart is registered here and resized when its tab is shown.
+  const charts = [];
+
   document.querySelectorAll(".tb-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tb-tab").forEach(b => b.classList.remove("active"));
       document.querySelectorAll(".tb-panel").forEach(p => p.classList.remove("active"));
       btn.classList.add("active");
       document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+      charts.forEach(c => { try { c.resize(); } catch (e) {} });
     });
   });
 
@@ -369,18 +373,18 @@
   const axis = { ticks: { color: inkSoft, font: { size: 10 } }, grid: { color: gridCol } };
   const noLegend = { plugins: { legend: { display: false } }, scales: { x: axis, y: axis } };
 
-  new Chart(document.getElementById("tbEquity"), {
+  charts.push(new Chart(document.getElementById("tbEquity"), {
     type: "line",
     data: { labels, datasets: [{ data: cum, borderColor: "#2563eb",
       backgroundColor: "rgba(37,99,235,0.08)", fill: true, tension: 0.2, pointRadius: 3 }] },
     options: noLegend
-  });
-  new Chart(document.getElementById("tbDaily"), {
+  }));
+  charts.push(new Chart(document.getElementById("tbDaily"), {
     type: "bar",
     data: { labels, datasets: [{ data: daily,
       backgroundColor: daily.map(v => v >= 0 ? "#15803d" : "#b91c1c") }] },
     options: noLegend
-  });
+  }));
 
   // cumulative R, built from the trade log in close order
   const trades = (d.recent_trades || []).slice()
@@ -388,12 +392,12 @@
   let rRun = 0;
   const rLabels = trades.map((t, i) => "#" + (i + 1));
   const rCum = trades.map(t => +(rRun += Number(t.r_multiple || 0)).toFixed(2));
-  new Chart(document.getElementById("tbCumR"), {
+  charts.push(new Chart(document.getElementById("tbCumR"), {
     type: "line",
     data: { labels: rLabels, datasets: [{ data: rCum, borderColor: "#7c3aed",
       backgroundColor: "rgba(124,58,237,0.08)", fill: true, tension: 0.2, pointRadius: 3 }] },
     options: noLegend
-  });
+  }));
 
   const buckets = d.r_histogram || [];
   const maxN = Math.max(1, ...buckets.map(b => b.count));
