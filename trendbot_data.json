@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-08-25 11:34 ET",
-  "last_cycle": "2026-08-25T15:30:16.306035+00:00 \u2014 entry_rejected",
+  "generated_at": "2026-08-25 16:05 ET",
+  "last_cycle": "2026-08-25T19:55:10.506324+00:00 \u2014 force_closed",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
   "session": {
     "date": "2026-08-25",
-    "evaluations": 95,
-    "symbols_screened": 15,
+    "evaluations": 790,
+    "symbols_screened": 19,
     "entries_taken": 1,
-    "management_actions": 0,
+    "management_actions": 1,
     "connect_failures": 11,
     "first_activity": "10:00",
-    "last_activity": "11:30",
+    "last_activity": "15:55",
     "kill_counts": [
       {
         "code": "I2",
         "label": "Not at today's high",
-        "count": 93,
-        "pct_of_evaluations": 97.9
+        "count": 772,
+        "pct_of_evaluations": 97.7
       },
       {
         "code": "I3",
         "label": "Relative volume below 2x",
-        "count": 85,
-        "pct_of_evaluations": 89.5
-      },
-      {
-        "code": "I1",
-        "label": "Not above premarket high",
-        "count": 24,
-        "pct_of_evaluations": 25.3
+        "count": 771,
+        "pct_of_evaluations": 97.6
       },
       {
         "code": "D2",
         "label": "Prior close below 200-day SMA",
-        "count": 22,
-        "pct_of_evaluations": 23.2
+        "count": 313,
+        "pct_of_evaluations": 39.6
       },
       {
         "code": "D1",
         "label": "Not above prior day's high",
-        "count": 20,
-        "pct_of_evaluations": 21.1
+        "count": 180,
+        "pct_of_evaluations": 22.8
+      },
+      {
+        "code": "I1",
+        "label": "Not above premarket high",
+        "count": 110,
+        "pct_of_evaluations": 13.9
       },
       {
         "code": "D3",
         "label": "Gap below 3% threshold",
-        "count": 3,
-        "pct_of_evaluations": 3.2
+        "count": 86,
+        "pct_of_evaluations": 10.9
       }
     ],
     "entries": [
@@ -67,28 +67,45 @@
         "event": "entered",
         "symbol": "HOOD",
         "detail": "22 @ $110.86, stop $101.77"
+      },
+      {
+        "time_et": "15:55",
+        "event": "force_closed",
+        "symbol": "HOOD",
+        "detail": "flattened 22 at EOD"
       }
     ],
-    "total_trades": 0,
-    "wins": 0,
+    "total_trades": 1,
+    "wins": 1,
     "losses": 0,
-    "gross_pnl_usd": 0,
-    "closed_trades": []
+    "gross_pnl_usd": 24.86,
+    "closed_trades": [
+      {
+        "closed_at": "2026-08-25T19:55:10.457644+00:00",
+        "symbol": "HOOD",
+        "qty": 22,
+        "avg_buy_price": 110.86,
+        "sell_price": 111.99,
+        "pnl_usd": 24.8599999999999,
+        "r_multiple": 1.019303626195197,
+        "hold_minutes": 294.94391625000003
+      }
+    ]
   },
   "all_time": {
-    "as_of": "2026-08-25 11:34 EDT",
+    "as_of": "2026-08-25 16:05 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-08-24",
-    "calendar_days_tracked": 2,
-    "days_with_trades": 1,
-    "total_trades": 2,
-    "wins": 2,
+    "last_day": "2026-08-25",
+    "calendar_days_tracked": 3,
+    "days_with_trades": 2,
+    "total_trades": 3,
+    "wins": 3,
     "losses": 0,
     "win_rate_pct": 100.0,
-    "gross_pnl_usd": 84.66,
-    "avg_winner": 42.33,
+    "gross_pnl_usd": 109.52,
+    "avg_winner": 36.51,
     "avg_loser": 0.0,
-    "expectancy_per_trade": 42.33,
+    "expectancy_per_trade": 36.51,
     "profit_factor": "inf",
     "max_drawdown_usd": 0.0,
     "best_day": {
@@ -99,7 +116,7 @@
       "date": "2026-08-21",
       "pnl": 0
     },
-    "avg_pnl_per_traded_day": 84.66
+    "avg_pnl_per_traded_day": 54.76
   },
   "history": [
     {
@@ -123,6 +140,17 @@
       "profit_factor": "inf",
       "avg_winner": 42.33,
       "avg_loser": 0.0
+    },
+    {
+      "date": "2026-08-25",
+      "total_trades": 1,
+      "wins": 1,
+      "losses": 0,
+      "win_rate_pct": 100.0,
+      "gross_pnl_usd": 24.86,
+      "profit_factor": "inf",
+      "avg_winner": 24.86,
+      "avg_loser": 0.0
     }
   ],
   "r_histogram": [
@@ -144,7 +172,7 @@
     },
     {
       "label": "+1R to +2R",
-      "count": 0
+      "count": 1
     },
     {
       "label": "+2R to +3R",
@@ -155,16 +183,7 @@
       "count": 2
     }
   ],
-  "open_positions": [
-    {
-      "symbol": "HOOD",
-      "qty": 22,
-      "entry_price": 110.86,
-      "initial_stop": 101.77200302124024,
-      "current_stop": 101.77200302124024,
-      "state": "pre_breakeven"
-    }
-  ],
+  "open_positions": [],
   "recent_trades": [
     {
       "closed_at": "2026-08-24T14:35:09.635310+00:00",
@@ -185,6 +204,16 @@
       "pnl_usd": 51.36000000000013,
       "r_multiple": 3.2190132370637867,
       "hold_minutes": 4379.748118633333
+    },
+    {
+      "closed_at": "2026-08-25T19:55:10.457644+00:00",
+      "symbol": "HOOD",
+      "qty": 22,
+      "avg_buy_price": 110.86,
+      "sell_price": 111.99,
+      "pnl_usd": 24.8599999999999,
+      "r_multiple": 1.019303626195197,
+      "hold_minutes": 294.94391625000003
     }
   ]
 }
