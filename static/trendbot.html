@@ -409,14 +409,35 @@
       <div class="hbar-n">${b.count}</div></div>`;
   }).join("") : '<div class="tb-empty">No closed trades yet.</div>';
 
-  const trRows = (d.recent_trades || []).slice().reverse().map(t =>
-    `<tr><td>${(t.closed_at || "").slice(0, 10)}</td><td>${esc(t.symbol)}</td><td>${t.qty}</td>
+  // A session is 390 minutes and the bot force-closes at 15:51 ET, so any hold
+  // beyond one session means an outage prevented the flatten — the trade was
+  // not executed as the strategy specifies and must not be read as evidence.
+  const SESSION_MIN = 390;
+  const overnight = (d.recent_trades || []).filter(t => Number(t.hold_minutes) > SESSION_MIN);
+  const trRows = (d.recent_trades || []).slice().reverse().map(t => {
+    const held = Number(t.hold_minutes);
+    const flag = held > SESSION_MIN
+      ? ` <span title="Held past the 15:51 ET force-close — outage, not strategy" style="color:#b45309">⚠</span>` : "";
+    return `<tr><td>${(t.closed_at || "").slice(0, 10)}</td><td>${esc(t.symbol)}</td><td>${t.qty}</td>
      <td>${money(t.avg_buy_price)}</td><td>${money(t.sell_price)}</td>
      <td class="${cls(t.pnl_usd)}">${money(t.pnl_usd)}</td>
      <td class="${cls(t.r_multiple)}">${t.r_multiple >= 0 ? "+" : ""}${fmt(t.r_multiple)}R</td>
-     <td>${Math.round(t.hold_minutes)}m</td></tr>`).join("");
+     <td>${held > SESSION_MIN ? (held / 60).toFixed(1) + "h" + flag : Math.round(held) + "m"}</td></tr>`;
+  }).join("");
   document.getElementById("tbTrades").innerHTML =
     trRows || '<tr><td colspan="8" class="tb-empty">No closed trades yet — the bot went live 2026-08-21.</td></tr>';
+
+  if (overnight.length) {
+    const share = (overnight.reduce((a, t) => a + Number(t.pnl_usd), 0)
+      / (Number(at.gross_pnl_usd) || 1) * 100).toFixed(0);
+    document.getElementById("otSample").insertAdjacentHTML("beforeend",
+      `<div class="tb-callout bad"><strong>⚠ ${overnight.length} of ${nTrades} closed trade${nTrades === 1 ? "" : "s"}
+       breached the 15:51 ET force-close</strong> and were held overnight because the broker connection
+       dropped. Those trades account for <strong>${share}%</strong> of total P&amp;L. They were not
+       executed as the strategy specifies — an intraday system was accidentally run as a swing system —
+       so they measure a multi-day drift the rules never intended to capture. Exclude them when judging
+       edge.</div>`);
+  }
 })();
 </script>
 </body>
