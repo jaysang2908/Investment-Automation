@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-26 04:37 ET",
+  "generated_at": "2026-08-26 05:21 ET",
   "last_cycle": "2026-08-25T19:55:10.506324+00:00 \u2014 force_closed",
   "paper": true,
   "account_size_usd": 25000.0,
@@ -79,6 +79,8 @@
     "wins": 1,
     "losses": 0,
     "gross_pnl_usd": 24.86,
+    "excluded_trades": 0,
+    "excluded_pnl_usd": 0,
     "closed_trades": [
       {
         "closed_at": "2026-08-25T19:55:10.457644+00:00",
@@ -88,35 +90,60 @@
         "sell_price": 111.99,
         "pnl_usd": 24.8599999999999,
         "r_multiple": 0.12420312531472885,
-        "hold_minutes": 294.94391625000003
+        "hold_minutes": 294.94391625000003,
+        "conformant": true
       }
     ]
   },
   "all_time": {
-    "as_of": "2026-08-26 04:37 EDT",
+    "basis": "strategy_conformant",
+    "excluded": {
+      "trades": 2,
+      "gross_pnl_usd": 84.66,
+      "reason": "held past the 15:51 ET force-close (broker outage) \u2014 not executed under the strategy's rules",
+      "detail": [
+        {
+          "symbol": "EL",
+          "qty": 9,
+          "pnl_usd": 33.3,
+          "hold_hours": 72.3,
+          "opened_at": "2026-08-21T14:15:17.551216+00:00",
+          "closed_at": "2026-08-24T14:35:09.635310+00:00"
+        },
+        {
+          "symbol": "EL",
+          "qty": 16,
+          "pnl_usd": 51.36,
+          "hold_hours": 73.0,
+          "opened_at": "2026-08-21T14:15:17.551216+00:00",
+          "closed_at": "2026-08-24T15:15:02.438334+00:00"
+        }
+      ]
+    },
+    "as_of": "2026-08-26 05:21 EDT",
     "first_day": "2026-08-21",
     "last_day": "2026-08-25",
     "calendar_days_tracked": 3,
-    "days_with_trades": 2,
-    "total_trades": 3,
-    "wins": 3,
+    "days_with_trades": 1,
+    "total_trades": 1,
+    "wins": 1,
     "losses": 0,
     "win_rate_pct": 100.0,
-    "gross_pnl_usd": 109.52,
-    "avg_winner": 36.51,
+    "gross_pnl_usd": 24.86,
+    "avg_winner": 24.86,
     "avg_loser": 0.0,
-    "expectancy_per_trade": 36.51,
+    "expectancy_per_trade": 24.86,
     "profit_factor": "inf",
     "max_drawdown_usd": 0.0,
     "best_day": {
-      "date": "2026-08-24",
-      "pnl": 84.66
+      "date": "2026-08-25",
+      "pnl": 24.86
     },
     "worst_day": {
       "date": "2026-08-21",
       "pnl": 0
     },
-    "avg_pnl_per_traded_day": 54.76
+    "avg_pnl_per_traded_day": 24.86
   },
   "history": [
     {
@@ -128,18 +155,22 @@
       "gross_pnl_usd": 0,
       "profit_factor": "n/a",
       "avg_winner": 0.0,
-      "avg_loser": 0.0
+      "avg_loser": 0.0,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
     },
     {
       "date": "2026-08-24",
-      "total_trades": 2,
-      "wins": 2,
+      "total_trades": 0,
+      "wins": 0,
       "losses": 0,
-      "win_rate_pct": 100.0,
-      "gross_pnl_usd": 84.66,
-      "profit_factor": "inf",
-      "avg_winner": 42.33,
-      "avg_loser": 0.0
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0,
+      "excluded_trades": 2,
+      "excluded_pnl_usd": 84.66
     },
     {
       "date": "2026-08-25",
@@ -150,7 +181,9 @@
       "gross_pnl_usd": 24.86,
       "profit_factor": "inf",
       "avg_winner": 24.86,
-      "avg_loser": 0.0
+      "avg_loser": 0.0,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
     }
   ],
   "r_histogram": [
@@ -168,7 +201,7 @@
     },
     {
       "label": "0R to +1R",
-      "count": 3
+      "count": 1
     },
     {
       "label": "+1R to +2R",
@@ -193,7 +226,9 @@
       "sell_price": 103.42,
       "pnl_usd": 33.300000000000026,
       "r_multiple": 0.7742205951997708,
-      "hold_minutes": 4339.868068233333
+      "hold_minutes": 4339.868068233333,
+      "opened_at": "2026-08-21T14:15:17.551216+00:00",
+      "conformant": false
     },
     {
       "closed_at": "2026-08-24T15:15:02.438334+00:00",
@@ -203,7 +238,9 @@
       "sell_price": 102.93,
       "pnl_usd": 51.36000000000013,
       "r_multiple": 0.6716886785381807,
-      "hold_minutes": 4379.748118633333
+      "hold_minutes": 4379.748118633333,
+      "opened_at": "2026-08-21T14:15:17.551216+00:00",
+      "conformant": false
     },
     {
       "closed_at": "2026-08-25T19:55:10.457644+00:00",
@@ -213,7 +250,9 @@
       "sell_price": 111.99,
       "pnl_usd": 24.8599999999999,
       "r_multiple": 0.12420312531472885,
-      "hold_minutes": 294.94391625000003
+      "hold_minutes": 294.94391625000003,
+      "opened_at": "2026-08-25T15:00:13.822669+00:00",
+      "conformant": true
     }
   ]
 }
