@@ -193,7 +193,7 @@
         <div class="tb-card full">
           <h3>Trade Log <span class="qual">— last 20 closed</span></h3>
           <div class="tb-scroll">
-            <table class="tb"><thead><tr><th>Date</th><th>Symbol</th><th>Qty</th><th>Avg Buy</th><th>Sell</th><th>P&amp;L</th><th>R</th><th>Hold</th></tr></thead>
+            <table class="tb"><thead><tr><th>Date</th><th>Symbol</th><th>Qty</th><th>Avg Buy</th><th>Sell</th><th>P&amp;L</th><th>R</th><th>Hold</th><th>Basis</th></tr></thead>
             <tbody id="tbTrades"></tbody></table>
           </div>
         </div>
@@ -320,9 +320,10 @@
   /* ============================ OVER TIME ============================ */
   const at = d.all_time || {};
   const hist = d.history || [];
+  const exc = at.excluded || {};
   document.getElementById("otScope").textContent =
     "SINCE INCEPTION " + (at.first_day || "—") + " → " + (at.last_day || "—") +
-    " · everything on this tab is cumulative across all sessions";
+    " · cumulative across all sessions · strategy-conformant trades only";
 
   const nTrades = Number(at.total_trades || 0);
   const MIN_SAMPLE = 30;
@@ -341,7 +342,7 @@
   const pfSub = (at.profit_factor === "inf" || at.profit_factor === Infinity)
     ? "no losing trades yet" : "gross win ÷ gross loss";
   document.getElementById("otStrip").innerHTML = [
-    ["Total P&L", money(at.gross_pnl_usd), cls(at.gross_pnl_usd || 0),
+    ["Total P&L <span style='text-transform:none;letter-spacing:0'>(conformant)</span>", money(at.gross_pnl_usd), cls(at.gross_pnl_usd || 0),
       (Number(at.gross_pnl_usd || 0) / acct * 100).toFixed(2) + "% of account"],
     ["Closed Trades", nTrades, "", `over ${at.calendar_days_tracked ?? 0} days tracked`],
     ["Win Rate", nTrades ? fmt(at.win_rate_pct, 1) + "%" : "—", "",
@@ -412,31 +413,33 @@
   // A session is 390 minutes and the bot force-closes at 15:51 ET, so any hold
   // beyond one session means an outage prevented the flatten — the trade was
   // not executed as the strategy specifies and must not be read as evidence.
-  const SESSION_MIN = 390;
-  const overnight = (d.recent_trades || []).filter(t => Number(t.hold_minutes) > SESSION_MIN);
   const trRows = (d.recent_trades || []).slice().reverse().map(t => {
     const held = Number(t.hold_minutes);
-    const flag = held > SESSION_MIN
-      ? ` <span title="Held past the 15:51 ET force-close — outage, not strategy" style="color:#b45309">⚠</span>` : "";
-    return `<tr><td>${(t.closed_at || "").slice(0, 10)}</td><td>${esc(t.symbol)}</td><td>${t.qty}</td>
+    const ok = t.conformant !== false;
+    const heldTxt = held > 390 ? (held / 60).toFixed(1) + "h" : Math.round(held) + "m";
+    const badge = ok
+      ? `<span title="Opened and closed in the same session — executed as specified" style="color:#15803d">counted</span>`
+      : `<span title="Held past the 15:51 ET force-close — broker outage, not strategy" style="color:#b45309">excluded</span>`;
+    return `<tr style="${ok ? "" : "opacity:.62"}"><td>${(t.closed_at || "").slice(0, 10)}</td>
+     <td>${esc(t.symbol)}</td><td>${t.qty}</td>
      <td>${money(t.avg_buy_price)}</td><td>${money(t.sell_price)}</td>
      <td class="${cls(t.pnl_usd)}">${money(t.pnl_usd)}</td>
      <td class="${cls(t.r_multiple)}">${t.r_multiple >= 0 ? "+" : ""}${fmt(t.r_multiple)}R</td>
-     <td>${held > SESSION_MIN ? (held / 60).toFixed(1) + "h" + flag : Math.round(held) + "m"}</td></tr>`;
+     <td>${heldTxt}</td><td>${badge}</td></tr>`;
   }).join("");
   document.getElementById("tbTrades").innerHTML =
-    trRows || '<tr><td colspan="8" class="tb-empty">No closed trades yet — the bot went live 2026-08-21.</td></tr>';
+    trRows || '<tr><td colspan="9" class="tb-empty">No closed trades yet — the bot went live 2026-08-21.</td></tr>';
 
-  if (overnight.length) {
-    const share = (overnight.reduce((a, t) => a + Number(t.pnl_usd), 0)
-      / (Number(at.gross_pnl_usd) || 1) * 100).toFixed(0);
+  if (Number(exc.trades || 0) > 0) {
+    const rows = (exc.detail || []).map(x =>
+      `<li>${esc(x.symbol)} ${x.qty}sh — ${money(x.pnl_usd)}, held ${x.hold_hours}h</li>`).join("");
     document.getElementById("otSample").insertAdjacentHTML("beforeend",
-      `<div class="tb-callout bad"><strong>⚠ ${overnight.length} of ${nTrades} closed trade${nTrades === 1 ? "" : "s"}
-       breached the 15:51 ET force-close</strong> and were held overnight because the broker connection
-       dropped. Those trades account for <strong>${share}%</strong> of total P&amp;L. They were not
-       executed as the strategy specifies — an intraday system was accidentally run as a swing system —
-       so they measure a multi-day drift the rules never intended to capture. Exclude them when judging
-       edge.</div>`);
+      `<div class="tb-callout warn"><strong>${exc.trades} trade${exc.trades === 1 ? "" : "s"}
+       excluded from the figures above — ${money(exc.gross_pnl_usd)} realised.</strong>
+       ${esc(exc.reason || "")}. They remain on the permanent record and in the trade log below,
+       but an intraday system accidentally run as a swing system measures multi-day drift, not the
+       edge these rules are meant to have — so it cannot be allowed to set the headline.
+       <ul style="margin:8px 0 0 18px">${rows}</ul></div>`);
   }
 })();
 </script>
