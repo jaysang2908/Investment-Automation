@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-25 16:05 ET",
+  "generated_at": "2026-08-26 04:37 ET",
   "last_cycle": "2026-08-25T19:55:10.506324+00:00 \u2014 force_closed",
   "paper": true,
   "account_size_usd": 25000.0,
@@ -87,13 +87,13 @@
         "avg_buy_price": 110.86,
         "sell_price": 111.99,
         "pnl_usd": 24.8599999999999,
-        "r_multiple": 1.019303626195197,
+        "r_multiple": 0.12420312531472885,
         "hold_minutes": 294.94391625000003
       }
     ]
   },
   "all_time": {
-    "as_of": "2026-08-25 16:05 EDT",
+    "as_of": "2026-08-26 04:37 EDT",
     "first_day": "2026-08-21",
     "last_day": "2026-08-25",
     "calendar_days_tracked": 3,
@@ -168,11 +168,11 @@
     },
     {
       "label": "0R to +1R",
-      "count": 0
+      "count": 3
     },
     {
       "label": "+1R to +2R",
-      "count": 1
+      "count": 0
     },
     {
       "label": "+2R to +3R",
@@ -180,7 +180,7 @@
     },
     {
       "label": "> +3R",
-      "count": 2
+      "count": 0
     }
   ],
   "open_positions": [],
@@ -192,7 +192,7 @@
       "avg_buy_price": 99.72,
       "sell_price": 103.42,
       "pnl_usd": 33.300000000000026,
-      "r_multiple": 3.710389089450464,
+      "r_multiple": 0.7742205951997708,
       "hold_minutes": 4339.868068233333
     },
     {
@@ -202,7 +202,7 @@
       "avg_buy_price": 99.72,
       "sell_price": 102.93,
       "pnl_usd": 51.36000000000013,
-      "r_multiple": 3.2190132370637867,
+      "r_multiple": 0.6716886785381807,
       "hold_minutes": 4379.748118633333
     },
     {
@@ -212,7 +212,7 @@
       "avg_buy_price": 110.86,
       "sell_price": 111.99,
       "pnl_usd": 24.8599999999999,
-      "r_multiple": 1.019303626195197,
+      "r_multiple": 0.12420312531472885,
       "hold_minutes": 294.94391625000003
     }
   ]
