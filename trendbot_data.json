@@ -1,223 +1,65 @@
 {
-  "generated_at": "2026-08-27 16:05 ET",
-  "last_cycle": "2026-08-27T19:55:26.292818+00:00 \u2014 force_closed",
+  "generated_at": "2026-08-28 16:05 ET",
+  "last_cycle": "2026-08-28T19:25:11.921815+00:00 \u2014 entry_rejected",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
   "session": {
-    "date": "2026-08-27",
-    "evaluations": 1041,
-    "symbols_screened": 25,
-    "entries_taken": 5,
-    "management_actions": 5,
+    "date": "2026-08-28",
+    "evaluations": 471,
+    "symbols_screened": 14,
+    "entries_taken": 0,
+    "management_actions": 0,
     "connect_failures": 0,
     "first_activity": "10:05",
-    "last_activity": "15:55",
+    "last_activity": "15:25",
     "kill_counts": [
       {
         "code": "I2",
         "label": "Not at today's high",
-        "count": 1024,
-        "pct_of_evaluations": 98.4
+        "count": 459,
+        "pct_of_evaluations": 97.5
       },
       {
         "code": "I3",
         "label": "Relative volume below 2x",
-        "count": 541,
-        "pct_of_evaluations": 52.0
+        "count": 394,
+        "pct_of_evaluations": 83.7
       },
       {
         "code": "D2",
         "label": "Prior close below 200-day SMA",
-        "count": 365,
-        "pct_of_evaluations": 35.1
-      },
-      {
-        "code": "I1",
-        "label": "Not above premarket high",
-        "count": 94,
-        "pct_of_evaluations": 9.0
-      },
-      {
-        "code": "D1",
-        "label": "Not above prior day's high",
-        "count": 25,
-        "pct_of_evaluations": 2.4
+        "count": 196,
+        "pct_of_evaluations": 41.6
       },
       {
         "code": "D3",
         "label": "Gap below 3% threshold",
-        "count": 16,
-        "pct_of_evaluations": 1.5
+        "count": 64,
+        "pct_of_evaluations": 13.6
+      },
+      {
+        "code": "I1",
+        "label": "Not above premarket high",
+        "count": 52,
+        "pct_of_evaluations": 11.0
+      },
+      {
+        "code": "D1",
+        "label": "Not above prior day's high",
+        "count": 31,
+        "pct_of_evaluations": 6.6
       }
     ],
-    "entries": [
-      {
-        "time_et": "10:25",
-        "symbol": "ADSK",
-        "qty": 9,
-        "entry": 268.49,
-        "stop": 257.68710845947265,
-        "r": 10.667902526855471
-      },
-      {
-        "time_et": "10:30",
-        "symbol": "INTC",
-        "qty": 27,
-        "entry": 92.53,
-        "stop": 87.57539909362792,
-        "r": 5.000597305297859
-      },
-      {
-        "time_et": "12:35",
-        "symbol": "NVDA",
-        "qty": 10,
-        "entry": 228.98,
-        "stop": 218.69099395751954,
-        "r": 10.284012145996087
-      },
-      {
-        "time_et": "13:45",
-        "symbol": "CRM",
-        "qty": 9,
-        "entry": 252.15,
-        "stop": 227.74950302124023,
-        "r": 24.280495758056645
-      },
-      {
-        "time_et": "14:50",
-        "symbol": "CRWD",
-        "qty": 11,
-        "entry": 226.58,
-        "stop": 204.13799697875976,
-        "r": 22.49200790405274
-      }
-    ],
-    "timeline": [
-      {
-        "time_et": "10:25",
-        "event": "entered",
-        "symbol": "ADSK",
-        "detail": "9 @ $268.49, stop $257.69"
-      },
-      {
-        "time_et": "10:30",
-        "event": "entered",
-        "symbol": "INTC",
-        "detail": "27 @ $92.53, stop $87.58"
-      },
-      {
-        "time_et": "12:35",
-        "event": "entered",
-        "symbol": "NVDA",
-        "detail": "10 @ $228.98, stop $218.69"
-      },
-      {
-        "time_et": "13:45",
-        "event": "entered",
-        "symbol": "CRM",
-        "detail": "9 @ $252.15, stop $227.75"
-      },
-      {
-        "time_et": "14:50",
-        "event": "entered",
-        "symbol": "CRWD",
-        "detail": "11 @ $226.58, stop $204.14"
-      },
-      {
-        "time_et": "15:55",
-        "event": "force_closed",
-        "symbol": "ADSK",
-        "detail": "flattened 9 at EOD"
-      },
-      {
-        "time_et": "15:55",
-        "event": "force_closed",
-        "symbol": "INTC",
-        "detail": "flattened 27 at EOD"
-      },
-      {
-        "time_et": "15:55",
-        "event": "force_closed",
-        "symbol": "NVDA",
-        "detail": "flattened 10 at EOD"
-      },
-      {
-        "time_et": "15:55",
-        "event": "force_closed",
-        "symbol": "CRM",
-        "detail": "flattened 9 at EOD"
-      },
-      {
-        "time_et": "15:55",
-        "event": "force_closed",
-        "symbol": "CRWD",
-        "detail": "flattened 11 at EOD"
-      }
-    ],
-    "total_trades": 5,
-    "wins": 3,
-    "losses": 2,
-    "gross_pnl_usd": -1.02,
+    "entries": [],
+    "timeline": [],
+    "total_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "gross_pnl_usd": 0,
     "excluded_trades": 0,
     "excluded_pnl_usd": 0,
-    "closed_trades": [
-      {
-        "closed_at": "2026-08-27T19:55:14.579160+00:00",
-        "symbol": "ADSK",
-        "qty": 9,
-        "avg_buy_price": 268.49,
-        "sell_price": 270.26,
-        "pnl_usd": 15.929999999999836,
-        "r_multiple": 0.16591827639446163,
-        "hold_minutes": 329.88366691666664,
-        "conformant": true
-      },
-      {
-        "closed_at": "2026-08-27T19:55:18.439153+00:00",
-        "symbol": "INTC",
-        "qty": 27,
-        "avg_buy_price": 92.53,
-        "sell_price": 91.66,
-        "pnl_usd": -23.490000000000123,
-        "r_multiple": -0.1739792162584832,
-        "hold_minutes": 324.86961385,
-        "conformant": true
-      },
-      {
-        "closed_at": "2026-08-27T19:55:20.949475+00:00",
-        "symbol": "NVDA",
-        "qty": 10,
-        "avg_buy_price": 228.97999999999996,
-        "sell_price": 227.99,
-        "pnl_usd": -9.899999999999807,
-        "r_multiple": -0.09626593064511234,
-        "hold_minutes": 200.0434213,
-        "conformant": true
-      },
-      {
-        "closed_at": "2026-08-27T19:55:23.656408+00:00",
-        "symbol": "CRM",
-        "qty": 9,
-        "avg_buy_price": 252.14999999999998,
-        "sell_price": 253.06,
-        "pnl_usd": 8.18999999999997,
-        "r_multiple": 0.037478641666452504,
-        "hold_minutes": 130.16283961666667,
-        "conformant": true
-      },
-      {
-        "closed_at": "2026-08-27T19:55:26.205722+00:00",
-        "symbol": "CRWD",
-        "qty": 11,
-        "avg_buy_price": 226.58,
-        "sell_price": 227.33,
-        "pnl_usd": 8.25,
-        "r_multiple": 0.0333451776826408,
-        "hold_minutes": 65.21593976666666,
-        "conformant": true
-      }
-    ]
+    "closed_trades": []
   },
   "all_time": {
     "basis": "strategy_conformant",
@@ -244,10 +86,10 @@
         }
       ]
     },
-    "as_of": "2026-08-27 16:05 EDT",
+    "as_of": "2026-08-28 16:05 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-08-27",
-    "calendar_days_tracked": 5,
+    "last_day": "2026-08-28",
+    "calendar_days_tracked": 6,
     "days_with_trades": 2,
     "total_trades": 6,
     "wins": 4,
@@ -330,6 +172,17 @@
       "profit_factor": 0.97,
       "avg_winner": 10.79,
       "avg_loser": -16.69
+    },
+    {
+      "date": "2026-08-28",
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0
     }
   ],
   "r_histogram": [
