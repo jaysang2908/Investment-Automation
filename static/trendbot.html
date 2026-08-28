@@ -106,9 +106,10 @@
     <h1 class="tb-title">Intraday Momentum Bot</h1>
     <p class="tb-sub">
       Long-only gap-continuation system on the S&amp;P 500. 5-minute cycle: gap ≥3% on ≥2× relative
-      volume, entries on strength above premarket high and HOD, 1% account risk per trade,
-      partial at +0.75R, breakeven at +1R, swing-low trail, flat by 15:51 ET. Executed on an
-      IBKR <strong>paper account</strong> — results are simulated fills, not real money.
+      volume, entries on strength above premarket high and HOD, 1% account risk per trade.
+      Exits: initial stop capped 3% below entry; once +0.75% in profit the stop ratchets to the
+      session high minus 1.5%, only ever moving up; anything still open is flattened 15:51 ET.
+      Executed on an IBKR <strong>paper account</strong> — results are simulated fills, not real money.
     </p>
 
     <div class="tb-tabs">
