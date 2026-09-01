@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-08-28 16:05 ET",
-  "last_cycle": "2026-08-28T19:25:11.921815+00:00 \u2014 entry_rejected",
+  "generated_at": "2026-09-01 05:44 ET",
+  "last_cycle": "2026-08-31T15:25:12.147391+00:00 \u2014 entry_rejected",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
   "session": {
-    "date": "2026-08-28",
-    "evaluations": 471,
-    "symbols_screened": 14,
+    "date": "2026-08-31",
+    "evaluations": 48,
+    "symbols_screened": 8,
     "entries_taken": 0,
     "management_actions": 0,
-    "connect_failures": 0,
-    "first_activity": "10:05",
-    "last_activity": "15:25",
+    "connect_failures": 10,
+    "first_activity": "10:00",
+    "last_activity": "11:25",
     "kill_counts": [
       {
         "code": "I2",
         "label": "Not at today's high",
-        "count": 459,
-        "pct_of_evaluations": 97.5
-      },
-      {
-        "code": "I3",
-        "label": "Relative volume below 2x",
-        "count": 394,
-        "pct_of_evaluations": 83.7
-      },
-      {
-        "code": "D2",
-        "label": "Prior close below 200-day SMA",
-        "count": 196,
-        "pct_of_evaluations": 41.6
+        "count": 46,
+        "pct_of_evaluations": 95.8
       },
       {
         "code": "D3",
         "label": "Gap below 3% threshold",
-        "count": 64,
-        "pct_of_evaluations": 13.6
+        "count": 33,
+        "pct_of_evaluations": 68.8
       },
       {
-        "code": "I1",
-        "label": "Not above premarket high",
-        "count": 52,
-        "pct_of_evaluations": 11.0
+        "code": "I3",
+        "label": "Relative volume below 2x",
+        "count": 32,
+        "pct_of_evaluations": 66.7
+      },
+      {
+        "code": "D2",
+        "label": "Prior close below 200-day SMA",
+        "count": 24,
+        "pct_of_evaluations": 50.0
       },
       {
         "code": "D1",
         "label": "Not above prior day's high",
-        "count": 31,
-        "pct_of_evaluations": 6.6
+        "count": 24,
+        "pct_of_evaluations": 50.0
+      },
+      {
+        "code": "I1",
+        "label": "Not above premarket high",
+        "count": 6,
+        "pct_of_evaluations": 12.5
       }
     ],
     "entries": [],
@@ -86,10 +86,10 @@
         }
       ]
     },
-    "as_of": "2026-08-28 16:05 EDT",
+    "as_of": "2026-09-01 05:44 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-08-28",
-    "calendar_days_tracked": 6,
+    "last_day": "2026-08-31",
+    "calendar_days_tracked": 7,
     "days_with_trades": 2,
     "total_trades": 6,
     "wins": 4,
@@ -160,7 +160,9 @@
       "gross_pnl_usd": 0,
       "profit_factor": "n/a",
       "avg_winner": 0.0,
-      "avg_loser": 0.0
+      "avg_loser": 0.0,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
     },
     {
       "date": "2026-08-27",
@@ -171,7 +173,9 @@
       "gross_pnl_usd": -1.02,
       "profit_factor": 0.97,
       "avg_winner": 10.79,
-      "avg_loser": -16.69
+      "avg_loser": -16.69,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
     },
     {
       "date": "2026-08-28",
@@ -182,7 +186,22 @@
       "gross_pnl_usd": 0,
       "profit_factor": "n/a",
       "avg_winner": 0.0,
-      "avg_loser": 0.0
+      "avg_loser": 0.0,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
+    },
+    {
+      "date": "2026-08-31",
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
     }
   ],
   "r_histogram": [
