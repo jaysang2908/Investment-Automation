@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-09-01 05:44 ET",
-  "last_cycle": "2026-08-31T15:25:12.147391+00:00 \u2014 entry_rejected",
+  "generated_at": "2026-09-01 23:21 ET",
+  "last_cycle": "2026-09-02T02:08:36.529065+00:00 \u2014 entry_rejected",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
   "session": {
-    "date": "2026-08-31",
-    "evaluations": 48,
-    "symbols_screened": 8,
+    "date": "2026-09-01",
+    "evaluations": 256,
+    "symbols_screened": 16,
     "entries_taken": 0,
     "management_actions": 0,
-    "connect_failures": 10,
-    "first_activity": "10:00",
-    "last_activity": "11:25",
+    "connect_failures": 0,
+    "first_activity": "10:05",
+    "last_activity": "22:08",
     "kill_counts": [
       {
         "code": "I2",
         "label": "Not at today's high",
-        "count": 46,
-        "pct_of_evaluations": 95.8
-      },
-      {
-        "code": "D3",
-        "label": "Gap below 3% threshold",
-        "count": 33,
-        "pct_of_evaluations": 68.8
+        "count": 249,
+        "pct_of_evaluations": 97.3
       },
       {
         "code": "I3",
         "label": "Relative volume below 2x",
-        "count": 32,
-        "pct_of_evaluations": 66.7
+        "count": 219,
+        "pct_of_evaluations": 85.5
       },
       {
-        "code": "D2",
-        "label": "Prior close below 200-day SMA",
-        "count": 24,
-        "pct_of_evaluations": 50.0
+        "code": "D3",
+        "label": "Gap below 3% threshold",
+        "count": 63,
+        "pct_of_evaluations": 24.6
       },
       {
         "code": "D1",
         "label": "Not above prior day's high",
-        "count": 24,
-        "pct_of_evaluations": 50.0
+        "count": 45,
+        "pct_of_evaluations": 17.6
       },
       {
         "code": "I1",
         "label": "Not above premarket high",
-        "count": 6,
-        "pct_of_evaluations": 12.5
+        "count": 17,
+        "pct_of_evaluations": 6.6
+      },
+      {
+        "code": "D2",
+        "label": "Prior close below 200-day SMA",
+        "count": 15,
+        "pct_of_evaluations": 5.9
       }
     ],
     "entries": [],
@@ -86,10 +86,10 @@
         }
       ]
     },
-    "as_of": "2026-09-01 05:44 EDT",
+    "as_of": "2026-09-01 23:21 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-08-31",
-    "calendar_days_tracked": 7,
+    "last_day": "2026-09-01",
+    "calendar_days_tracked": 8,
     "days_with_trades": 2,
     "total_trades": 6,
     "wins": 4,
@@ -192,6 +192,19 @@
     },
     {
       "date": "2026-08-31",
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0,
+      "excluded_trades": 0,
+      "excluded_pnl_usd": 0
+    },
+    {
+      "date": "2026-09-01",
       "total_trades": 0,
       "wins": 0,
       "losses": 0,
