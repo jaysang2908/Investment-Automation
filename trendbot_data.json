@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-01 23:21 ET",
-  "last_cycle": "2026-09-02T02:08:36.529065+00:00 \u2014 entry_rejected",
+  "generated_at": "2026-09-02 09:17 ET",
+  "last_cycle": "2026-09-02T03:21:52.101624+00:00 \u2014 cycle_aborted_stale_clock",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
@@ -12,7 +12,7 @@
     "management_actions": 0,
     "connect_failures": 0,
     "first_activity": "10:05",
-    "last_activity": "22:08",
+    "last_activity": "23:21",
     "kill_counts": [
       {
         "code": "I2",
@@ -86,10 +86,10 @@
         }
       ]
     },
-    "as_of": "2026-09-01 23:21 EDT",
+    "as_of": "2026-09-02 09:17 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-09-01",
-    "calendar_days_tracked": 8,
+    "last_day": "2026-09-02",
+    "calendar_days_tracked": 9,
     "days_with_trades": 2,
     "total_trades": 6,
     "wins": 4,
@@ -215,6 +215,17 @@
       "avg_loser": 0.0,
       "excluded_trades": 0,
       "excluded_pnl_usd": 0
+    },
+    {
+      "date": "2026-09-02",
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "gross_pnl_usd": 0,
+      "profit_factor": "n/a",
+      "avg_winner": 0.0,
+      "avg_loser": 0.0
     }
   ],
   "r_histogram": [
