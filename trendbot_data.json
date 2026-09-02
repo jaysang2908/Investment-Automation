@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-09-02 09:17 ET",
-  "last_cycle": "2026-09-02T03:21:52.101624+00:00 \u2014 cycle_aborted_stale_clock",
+  "generated_at": "2026-09-02 16:05 ET",
+  "last_cycle": "2026-09-02T19:25:20.967213+00:00 \u2014 entry_rejected",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
   "session": {
-    "date": "2026-09-01",
-    "evaluations": 256,
-    "symbols_screened": 16,
+    "date": "2026-09-02",
+    "evaluations": 580,
+    "symbols_screened": 20,
     "entries_taken": 0,
     "management_actions": 0,
-    "connect_failures": 0,
-    "first_activity": "10:05",
-    "last_activity": "23:21",
+    "connect_failures": 37,
+    "first_activity": "10:00",
+    "last_activity": "15:25",
     "kill_counts": [
       {
         "code": "I2",
         "label": "Not at today's high",
-        "count": 249,
-        "pct_of_evaluations": 97.3
+        "count": 564,
+        "pct_of_evaluations": 97.2
       },
       {
         "code": "I3",
         "label": "Relative volume below 2x",
-        "count": 219,
-        "pct_of_evaluations": 85.5
-      },
-      {
-        "code": "D3",
-        "label": "Gap below 3% threshold",
-        "count": 63,
-        "pct_of_evaluations": 24.6
-      },
-      {
-        "code": "D1",
-        "label": "Not above prior day's high",
-        "count": 45,
-        "pct_of_evaluations": 17.6
-      },
-      {
-        "code": "I1",
-        "label": "Not above premarket high",
-        "count": 17,
-        "pct_of_evaluations": 6.6
+        "count": 551,
+        "pct_of_evaluations": 95.0
       },
       {
         "code": "D2",
         "label": "Prior close below 200-day SMA",
-        "count": 15,
-        "pct_of_evaluations": 5.9
+        "count": 232,
+        "pct_of_evaluations": 40.0
+      },
+      {
+        "code": "I1",
+        "label": "Not above premarket high",
+        "count": 88,
+        "pct_of_evaluations": 15.2
+      },
+      {
+        "code": "D3",
+        "label": "Gap below 3% threshold",
+        "count": 43,
+        "pct_of_evaluations": 7.4
+      },
+      {
+        "code": "D1",
+        "label": "Not above prior day's high",
+        "count": 26,
+        "pct_of_evaluations": 4.5
       }
     ],
     "entries": [],
@@ -86,7 +86,7 @@
         }
       ]
     },
-    "as_of": "2026-09-02 09:17 EDT",
+    "as_of": "2026-09-02 16:05 EDT",
     "first_day": "2026-08-21",
     "last_day": "2026-09-02",
     "calendar_days_tracked": 9,
