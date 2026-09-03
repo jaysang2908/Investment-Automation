@@ -1,65 +1,148 @@
 {
-  "generated_at": "2026-09-02 16:05 ET",
-  "last_cycle": "2026-09-02T19:25:20.967213+00:00 \u2014 entry_rejected",
+  "generated_at": "2026-09-03 16:05 ET",
+  "last_cycle": "2026-09-03T19:55:10.463732+00:00 \u2014 force_closed",
   "paper": true,
   "account_size_usd": 25000.0,
   "risk_per_trade_pct": 1.0,
   "session": {
-    "date": "2026-09-02",
-    "evaluations": 580,
-    "symbols_screened": 20,
-    "entries_taken": 0,
-    "management_actions": 0,
-    "connect_failures": 37,
-    "first_activity": "10:00",
-    "last_activity": "15:25",
+    "date": "2026-09-03",
+    "evaluations": 1202,
+    "symbols_screened": 33,
+    "entries_taken": 2,
+    "management_actions": 5,
+    "connect_failures": 0,
+    "first_activity": "10:05",
+    "last_activity": "15:55",
     "kill_counts": [
       {
         "code": "I2",
         "label": "Not at today's high",
-        "count": 564,
-        "pct_of_evaluations": 97.2
+        "count": 1181,
+        "pct_of_evaluations": 98.3
       },
       {
         "code": "I3",
         "label": "Relative volume below 2x",
-        "count": 551,
-        "pct_of_evaluations": 95.0
+        "count": 954,
+        "pct_of_evaluations": 79.4
       },
       {
         "code": "D2",
         "label": "Prior close below 200-day SMA",
-        "count": 232,
-        "pct_of_evaluations": 40.0
-      },
-      {
-        "code": "I1",
-        "label": "Not above premarket high",
-        "count": 88,
-        "pct_of_evaluations": 15.2
-      },
-      {
-        "code": "D3",
-        "label": "Gap below 3% threshold",
-        "count": 43,
-        "pct_of_evaluations": 7.4
+        "count": 472,
+        "pct_of_evaluations": 39.3
       },
       {
         "code": "D1",
         "label": "Not above prior day's high",
-        "count": 26,
-        "pct_of_evaluations": 4.5
+        "count": 117,
+        "pct_of_evaluations": 9.7
+      },
+      {
+        "code": "I1",
+        "label": "Not above premarket high",
+        "count": 101,
+        "pct_of_evaluations": 8.4
+      },
+      {
+        "code": "D3",
+        "label": "Gap below 3% threshold",
+        "count": 68,
+        "pct_of_evaluations": 5.7
       }
     ],
-    "entries": [],
-    "timeline": [],
-    "total_trades": 0,
-    "wins": 0,
-    "losses": 0,
-    "gross_pnl_usd": 0,
+    "entries": [
+      {
+        "time_et": "11:45",
+        "symbol": "DELL",
+        "qty": 4,
+        "entry": 518.49,
+        "stop": 503.6725,
+        "r": 15.577499999999986
+      },
+      {
+        "time_et": "13:40",
+        "symbol": "HOOD",
+        "qty": 20,
+        "entry": 124.37,
+        "stop": 120.61949851989746,
+        "r": 3.7304999542236317
+      }
+    ],
+    "timeline": [
+      {
+        "time_et": "11:45",
+        "event": "entered",
+        "symbol": "DELL",
+        "detail": "4 @ $518.49, stop $503.67"
+      },
+      {
+        "time_et": "13:40",
+        "event": "entered",
+        "symbol": "HOOD",
+        "detail": "20 @ $124.37, stop $120.62"
+      },
+      {
+        "time_et": "11:50",
+        "event": "stop_trailed",
+        "symbol": "DELL",
+        "detail": "stop -> $515.71"
+      },
+      {
+        "time_et": "12:00",
+        "event": "stop_trailed",
+        "symbol": "DELL",
+        "detail": "stop -> $519.10"
+      },
+      {
+        "time_et": "12:05",
+        "event": "stop_trailed",
+        "symbol": "DELL",
+        "detail": "stop -> $523.00"
+      },
+      {
+        "time_et": "12:20",
+        "event": "position_stopped_out",
+        "symbol": "DELL",
+        "detail": "exit $522.80, P&L $+17.24"
+      },
+      {
+        "time_et": "15:55",
+        "event": "force_closed",
+        "symbol": "HOOD",
+        "detail": "flattened 20 at EOD"
+      }
+    ],
+    "total_trades": 2,
+    "wins": 1,
+    "losses": 1,
+    "gross_pnl_usd": 13.84,
     "excluded_trades": 0,
     "excluded_pnl_usd": 0,
-    "closed_trades": []
+    "closed_trades": [
+      {
+        "closed_at": "2026-09-03T16:20:05.127342+00:00",
+        "symbol": "DELL",
+        "qty": 4,
+        "avg_buy_price": 518.49,
+        "sell_price": 522.8,
+        "pnl_usd": 17.23999999999978,
+        "r_multiple": 0.27668111057614825,
+        "hold_minutes": 34.73237248333333,
+        "conformant": true
+      },
+      {
+        "closed_at": "2026-09-03T19:55:10.415691+00:00",
+        "symbol": "HOOD",
+        "qty": 20,
+        "avg_buy_price": 124.37,
+        "sell_price": 124.2,
+        "pnl_usd": -3.400000000000034,
+        "r_multiple": -0.045570299446734894,
+        "hold_minutes": 135.02740743333334,
+        "conformant": true
+      }
+    ]
   },
   "all_time": {
     "basis": "strategy_conformant",
@@ -86,20 +169,20 @@
         }
       ]
     },
-    "as_of": "2026-09-02 16:05 EDT",
+    "as_of": "2026-09-03 16:05 EDT",
     "first_day": "2026-08-21",
-    "last_day": "2026-09-02",
-    "calendar_days_tracked": 9,
-    "days_with_trades": 2,
-    "total_trades": 6,
-    "wins": 4,
-    "losses": 2,
-    "win_rate_pct": 66.7,
-    "gross_pnl_usd": 23.84,
-    "avg_winner": 14.31,
-    "avg_loser": -16.69,
-    "expectancy_per_trade": 3.97,
-    "profit_factor": 1.71,
+    "last_day": "2026-09-03",
+    "calendar_days_tracked": 10,
+    "days_with_trades": 3,
+    "total_trades": 8,
+    "wins": 5,
+    "losses": 3,
+    "win_rate_pct": 62.5,
+    "gross_pnl_usd": 37.68,
+    "avg_winner": 14.89,
+    "avg_loser": -12.26,
+    "expectancy_per_trade": 4.71,
+    "profit_factor": 2.02,
     "max_drawdown_usd": 1.02,
     "best_day": {
       "date": "2026-08-25",
@@ -109,7 +192,7 @@
       "date": "2026-08-27",
       "pnl": -1.02
     },
-    "avg_pnl_per_traded_day": 11.92
+    "avg_pnl_per_traded_day": 12.56
   },
   "history": [
     {
@@ -226,6 +309,17 @@
       "profit_factor": "n/a",
       "avg_winner": 0.0,
       "avg_loser": 0.0
+    },
+    {
+      "date": "2026-09-03",
+      "total_trades": 2,
+      "wins": 1,
+      "losses": 1,
+      "win_rate_pct": 50.0,
+      "gross_pnl_usd": 13.84,
+      "profit_factor": 5.07,
+      "avg_winner": 17.24,
+      "avg_loser": -3.4
     }
   ],
   "r_histogram": [
@@ -239,11 +333,11 @@
     },
     {
       "label": "-1R to 0R",
-      "count": 2
+      "count": 3
     },
     {
       "label": "0R to +1R",
-      "count": 4
+      "count": 5
     },
     {
       "label": "+1R to +2R",
@@ -354,6 +448,30 @@
       "r_multiple": 0.0333451776826408,
       "hold_minutes": 65.21593976666666,
       "opened_at": "2026-08-27T18:50:13.249336+00:00",
+      "conformant": true
+    },
+    {
+      "closed_at": "2026-09-03T16:20:05.127342+00:00",
+      "symbol": "DELL",
+      "qty": 4,
+      "avg_buy_price": 518.49,
+      "sell_price": 522.8,
+      "pnl_usd": 17.23999999999978,
+      "r_multiple": 0.27668111057614825,
+      "hold_minutes": 34.73237248333333,
+      "opened_at": "2026-09-03T15:45:21.184993+00:00",
+      "conformant": true
+    },
+    {
+      "closed_at": "2026-09-03T19:55:10.415691+00:00",
+      "symbol": "HOOD",
+      "qty": 20,
+      "avg_buy_price": 124.37,
+      "sell_price": 124.2,
+      "pnl_usd": -3.400000000000034,
+      "r_multiple": -0.045570299446734894,
+      "hold_minutes": 135.02740743333334,
+      "opened_at": "2026-09-03T17:40:08.771245+00:00",
       "conformant": true
     }
   ]
